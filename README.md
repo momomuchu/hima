@@ -1,4 +1,4 @@
-# ima
+# hima
 
 Herms architecture work for the portable coding-agent harness project.
 
@@ -17,7 +17,7 @@ after docs, licensing, secrets review, and naming are stable.
 ## Layout
 
 ```
-ima/
+hima/
   docs/          # research notes, references, external sources
   docs/decisions # ADRs and project decisions
   docs/diagrams  # Mermaid/C4/sequence/dependency diagrams
