@@ -4,7 +4,7 @@
 > **Date** : 2026-05-03
 > **Auteur** : conception agent (synthèse checkpoint-implementation.md + harness-state-machine.md + seven-steps.md)
 > **Package cible** : `packages/core/src/state-machine/`
-> **Résout** : Q2 (formaliser la state machine) et Q7 (multi-états) du rapport Discovery
+> **Résout** : Q2 (formaliser la state machine) et Q7 (multi-états) du rapport `discovery`
 
 ---
 
@@ -14,14 +14,14 @@
 
 ```
 IDLE
-DISCOVERY
-CADRAGE
-CONCEPTION
-BUILD
-VALIDATION
-RELEASE
-RUN
-APPRENTISSAGE
+discovery
+cadrage
+conception
+build
+validation
+release
+run
+learning
 ```
 
 ### 1.2 Sub-phase states (micro-FSM — universal sub-cycle within each macro-state)
@@ -30,32 +30,32 @@ Each active macro-state hosts one active sub-phase. Notation: `CYCLE.SubPhase`.
 
 ```
 *.Observer
-*.Définir
-*.Concevoir
-*.Exécuter
-*.Vérifier
-*.Capitaliser
-*.Transmettre
+*.Define
+*.Design
+*.Execute
+*.Verify
+*.Capitalize
+*.Transmit
 ```
 
 Full enumeration of composite states (56 states = 8 cycles × 7 sub-phases):
 
 ```
-DISCOVERY.Observer   CADRAGE.Observer   CONCEPTION.Observer   BUILD.Observer
-DISCOVERY.Définir    CADRAGE.Définir    CONCEPTION.Définir    BUILD.Définir
-DISCOVERY.Concevoir  CADRAGE.Concevoir  CONCEPTION.Concevoir  BUILD.Concevoir
-DISCOVERY.Exécuter   CADRAGE.Exécuter   CONCEPTION.Exécuter   BUILD.Exécuter
-DISCOVERY.Vérifier   CADRAGE.Vérifier   CONCEPTION.Vérifier   BUILD.Vérifier
-DISCOVERY.Capitaliser CADRAGE.Capitaliser CONCEPTION.Capitaliser BUILD.Capitaliser
-DISCOVERY.Transmettre CADRAGE.Transmettre CONCEPTION.Transmettre BUILD.Transmettre
+discovery.Observer   cadrage.Observer   conception.Observer   build.Observer
+discovery.Define     cadrage.Define     conception.Define     build.Define
+discovery.Design     cadrage.Design     conception.Design     build.Design
+discovery.Execute    cadrage.Execute    conception.Execute    build.Execute
+discovery.Verify     cadrage.Verify     conception.Verify     build.Verify
+discovery.Capitalize cadrage.Capitalize conception.Capitalize build.Capitalize
+discovery.Transmit   cadrage.Transmit   conception.Transmit   build.Transmit
 
-VALIDATION.Observer  RELEASE.Observer   RUN.Observer          APPRENTISSAGE.Observer
-VALIDATION.Définir   RELEASE.Définir    RUN.Définir           APPRENTISSAGE.Définir
-VALIDATION.Concevoir RELEASE.Concevoir  RUN.Concevoir         APPRENTISSAGE.Concevoir
-VALIDATION.Exécuter  RELEASE.Exécuter   RUN.Exécuter          APPRENTISSAGE.Exécuter
-VALIDATION.Vérifier  RELEASE.Vérifier   RUN.Vérifier          APPRENTISSAGE.Vérifier
-VALIDATION.Capitaliser RELEASE.Capitaliser RUN.Capitaliser    APPRENTISSAGE.Capitaliser
-VALIDATION.Transmettre RELEASE.Transmettre RUN.Transmettre    APPRENTISSAGE.Transmettre
+validation.Observer  release.Observer   run.Observer          learning.Observer
+validation.Define    release.Define     run.Define            learning.Define
+validation.Design    release.Design     run.Design            learning.Design
+validation.Execute   release.Execute    run.Execute           learning.Execute
+validation.Verify    release.Verify     run.Verify            learning.Verify
+validation.Capitalize release.Capitalize run.Capitalize       learning.Capitalize
+validation.Transmit  release.Transmit   run.Transmit          learning.Transmit
 ```
 
 ### 1.3 Meta-states (orthogonal — activatable from any state)
@@ -70,11 +70,11 @@ ABORTED               — terminal; only audit-append writes allowed
 ### 1.4 Final states (RMS terminal states)
 
 ```
-DONE_VERIFIED              — APPRENTISSAGE.Transmettre completed with full DoD
+DONE_VERIFIED              — learning.Transmit completed with full DoD
 DONE_WITH_GAPS             — cycle completed but with open risks / GO-with-reserves
 BLOCKED_NEEDS_USER         — ERROR.ESCALATED unresolved, human action required
 BLOCKED_RUNTIME_MISSING    — dependency or tool absent; auto-recovery impossible
-BLOCKED_POLICY             — bypass attempted on É/C; structurally prevented
+BLOCKED_POLICY             — bypass attempted on H/C; structurally prevented
 MAX_ATTEMPTS_REACHED       — ERROR.RECOVERABLE hit 3 retries without recovery
 LOOP_DETECTED              — same state visited 3× in one session without forward progress
 CANCELLED                  — CYCLE_ABORT issued by human
@@ -87,28 +87,37 @@ CANCELLED                  — CYCLE_ABORT issued by human
 ```typescript
 // packages/core/src/state-machine/types.ts
 
-export type MacroState =
-  | 'IDLE'
-  | 'DISCOVERY'
-  | 'CADRAGE'
-  | 'CONCEPTION'
-  | 'BUILD'
-  | 'VALIDATION'
-  | 'RELEASE'
-  | 'RUN'
-  | 'APPRENTISSAGE';
+export type MacroCycle =
+  | 'discovery'
+  | 'cadrage'
+  | 'conception'
+  | 'build'
+  | 'validation'
+  | 'release'
+  | 'run'
+  | 'learning';
+
+export type MacroState = 'IDLE' | MacroCycle;
 
 export type SubPhase =
   | 'Observer'
-  | 'Définir'
-  | 'Concevoir'
-  | 'Exécuter'
-  | 'Vérifier'
-  | 'Capitaliser'
-  | 'Transmettre';
+  | 'Define'
+  | 'Design'
+  | 'Execute'
+  | 'Verify'
+  | 'Capitalize'
+  | 'Transmit';
 
-export type RiskClass = 'T' | 'F' | 'M' | 'É' | 'C';
-export type OperatingMode = 'pairing' | 'auto' | 'bypass';
+export type RiskClass = 'T' | 'L' | 'M' | 'H' | 'C';
+export type OperatingMode = 'bypass' | 'auto' | 'pairing';
+export type GateType =
+  | 'session_start'
+  | 'user_prompt'
+  | 'pre_tool'
+  | 'post_tool'
+  | 'stop'
+  | 'subagent_start'
+  | 'subagent_stop';
 export type ErrorSubState = 'RECOVERABLE' | 'ESCALATED' | null;
 export type FinalState =
   | 'DONE_VERIFIED'
@@ -132,7 +141,7 @@ export interface GateStatus {
 }
 
 export interface EvidenceRecord {
-  gate: keyof GateStatus;
+  status_key: keyof GateStatus;
   value: boolean;
   ts: string;           // ISO 8601
   source: 'agent' | 'ci' | 'human';
@@ -140,11 +149,12 @@ export interface EvidenceRecord {
 }
 
 export interface LastTransition {
-  from: string;         // e.g. "BUILD.Concevoir"
-  to: string;           // e.g. "BUILD.Exécuter"
+  from: string;         // e.g. "build.Design"
+  to: string;           // e.g. "build.Execute"
   event: HarnessEvent['type'];
   ts: string;
   triggered_by: 'agent' | 'human' | 'ci' | 'hook';
+  gate_type: GateType | null;
 }
 
 export interface HarnessMachineContext {
@@ -202,15 +212,15 @@ Complete transition table. Format: `ID | From → To | Event | Guards required`.
 
 | ID   | From                      | To                       | Event            | Guards                                                            |
 |------|---------------------------|--------------------------|------------------|-------------------------------------------------------------------|
-| T001 | IDLE                      | DISCOVERY.Observer       | CYCLE_START      | `dorCheckInitiated`                                               |
-| T008 | DISCOVERY.Transmettre     | CADRAGE.Observer         | CYCLE_COMPLETE   | `dorSatisfied`, `riskClassDefined`; + `humanValidationObtained` if É/C |
-| T015 | CADRAGE.Transmettre       | CONCEPTION.Observer      | CYCLE_COMPLETE   | `dorSatisfied`, `visionValidated`, `perfBudgetSet`               |
-| T022 | CONCEPTION.Transmettre    | BUILD.Observer           | CYCLE_COMPLETE   | `adrSigned`, `dodConceptionSatisfied`                            |
-| T030 | BUILD.Transmettre         | VALIDATION.Observer      | CYCLE_COMPLETE   | `testsGreen`, `ciGatesGreen`, `dodSatisfiedPartial`              |
-| T037 | VALIDATION.Transmettre    | RELEASE.Observer         | CYCLE_COMPLETE   | `dodSatisfiedFull`, `humanValidationObtained`; + `rollbackPlanTested` if É/C |
-| T044 | RELEASE.Transmettre       | RUN.Observer             | CYCLE_COMPLETE   | `smokeTestsGreen`, `sloStable`                                   |
-| T051 | RUN.Transmettre           | APPRENTISSAGE.Observer   | CYCLE_COMPLETE   | —                                                                 |
-| T058 | APPRENTISSAGE.Transmettre | IDLE                     | CYCLE_COMPLETE   | —                                                                 |
+| T001 | IDLE                  | discovery.Observer    | CYCLE_START      | `dorCheckInitiated`                                               |
+| T008 | discovery.Transmit    | cadrage.Observer      | CYCLE_COMPLETE   | `dorSatisfied`, `riskClassDefined`; + `humanValidationObtained` if H/C |
+| T015 | cadrage.Transmit      | conception.Observer   | CYCLE_COMPLETE   | `dorSatisfied`, `visionValidated`, `perfBudgetSet`               |
+| T022 | conception.Transmit   | build.Observer        | CYCLE_COMPLETE   | `adrSigned`, `dodConceptionSatisfied`                            |
+| T030 | build.Transmit        | validation.Observer   | CYCLE_COMPLETE   | `testsGreen`, `ciGatesGreen`, `dodSatisfiedPartial`              |
+| T037 | validation.Transmit   | release.Observer      | CYCLE_COMPLETE   | `dodSatisfiedFull`, `humanValidationObtained`; + `rollbackPlanTested` if H/C |
+| T044 | release.Transmit      | run.Observer          | CYCLE_COMPLETE   | `smokeTestsGreen`, `sloStable`                                   |
+| T051 | run.Transmit          | learning.Observer     | CYCLE_COMPLETE   | —                                                                 |
+| T058 | learning.Transmit     | IDLE                  | CYCLE_COMPLETE   | —                                                                 |
 
 ### 3.2 Micro-FSM sub-phase progression (within each active cycle)
 
@@ -218,19 +228,19 @@ Same pattern for all 8 cycles. Listed generically as `CYCLE.*`:
 
 | ID    | From             | To               | Event             | Guards                                    |
 |-------|------------------|------------------|-------------------|-------------------------------------------|
-| S001  | CYCLE.Observer   | CYCLE.Définir    | SUBSTEP_COMPLETE  | `substepOutputExists`                     |
-| S002  | CYCLE.Définir    | CYCLE.Concevoir  | SUBSTEP_COMPLETE  | `substepOutputExists`, `riskClassAssigned`|
-| S003  | CYCLE.Concevoir  | CYCLE.Exécuter   | SUBSTEP_COMPLETE  | `substepOutputExists`; + `humanValidationObtained` if mode=pairing or É/C |
-| S004  | CYCLE.Exécuter   | CYCLE.Vérifier   | SUBSTEP_COMPLETE  | `substepOutputExists`                     |
-| S005  | CYCLE.Vérifier   | CYCLE.Capitaliser| SUBSTEP_COMPLETE  | `verifyVerdictEmitted`                    |
-| S006  | CYCLE.Capitaliser| CYCLE.Transmettre| SUBSTEP_COMPLETE  | `substepOutputExists`                     |
+| S001  | CYCLE.Observer   | CYCLE.Define    | SUBSTEP_COMPLETE  | `substepOutputExists`                     |
+| S002  | CYCLE.Define    | CYCLE.Design  | SUBSTEP_COMPLETE  | `substepOutputExists`, `riskClassAssigned`|
+| S003  | CYCLE.Design  | CYCLE.Execute   | SUBSTEP_COMPLETE  | `substepOutputExists`; + `humanValidationObtained` if mode=pairing or H/C |
+| S004  | CYCLE.Execute   | CYCLE.Verify   | SUBSTEP_COMPLETE  | `substepOutputExists`                     |
+| S005  | CYCLE.Verify   | CYCLE.Capitalize| SUBSTEP_COMPLETE  | `verifyVerdictEmitted`                    |
+| S006  | CYCLE.Capitalize| CYCLE.Transmit| SUBSTEP_COMPLETE  | `substepOutputExists`                     |
 
-### 3.3 Skip transitions (T/F only)
+### 3.3 Skip transitions (T/L only)
 
 | ID    | From             | To               | Event         | Guards                                   |
 |-------|------------------|------------------|---------------|------------------------------------------|
-| SK001 | CYCLE.Observer   | CYCLE.Concevoir  | SUBSTEP_SKIP  | `riskClassIn(['T','F'])`, `skipAllowed`  |
-| SK002 | CYCLE.Observer   | CYCLE.Exécuter   | SUBSTEP_SKIP  | `riskClassIn(['T'])`, `skipAllowed`      |
+| SK001 | CYCLE.Observer   | CYCLE.Design  | SUBSTEP_SKIP  | `riskClassIn(['T','L'])`, `skipAllowed`  |
+| SK002 | CYCLE.Observer   | CYCLE.Execute   | SUBSTEP_SKIP  | `riskClassIn(['T'])`, `skipAllowed`      |
 
 ### 3.4 Error transitions (orthogonal — from any state)
 
@@ -247,16 +257,16 @@ Same pattern for all 8 cycles. Listed generically as `CYCLE.*`:
 
 | ID   | From          | To                 | Event             | Guards                    |
 |------|---------------|--------------------|-------------------|---------------------------|
-| R001 | VALIDATION.*  | BUILD.Vérifier     | DOD_FAIL          | —                         |
-| R002 | RELEASE.*     | BUILD.Vérifier     | ROLLBACK_REQUEST  | `rollbackStateAvailable`  |
+| R001 | validation.*  | build.Verify     | DOD_FAIL          | —                         |
+| R002 | release.*     | build.Verify     | ROLLBACK_REQUEST  | `rollbackStateAvailable`  |
 
 ### 3.6 Mode transitions (orthogonal — from any non-ABORTED state)
 
 | ID   | From | To           | Event            | Guards                                              |
 |------|------|--------------|------------------|-----------------------------------------------------|
 | M001 | ANY  | same + pairing | MODE_SET_PAIRING | —                                                  |
-| M002 | ANY  | same + auto  | MODE_SET_AUTO    | —                                                   |
-| M003 | ANY  | same + bypass| MODE_SET_BYPASS  | `bypassAllowed` (riskClass ∈ {T,F}) OR `humanOverrideRecorded` (riskClass=M only) |
+| M002 | ANY  | same + auto | MODE_SET_AUTO | —                                              |
+| M003 | ANY  | same + bypass| MODE_SET_BYPASS  | `bypassAllowed` (riskClass ∈ {T,L}) OR `humanOverrideRecorded` (riskClass=M only) |
 
 ### 3.7 Suspension / resumption
 
@@ -271,7 +281,7 @@ Same pattern for all 8 cycles. Listed generically as `CYCLE.*`:
 | ID   | From | To   | Event              | Guards                              |
 |------|------|------|--------------------|-------------------------------------|
 | RC01 | ANY  | same | RISK_CLASS_SET     | `riskClassNotYetSet`                |
-| RC02 | ANY  | SUSPENDED → same | RISK_CLASS_PROMOTE | `promotionAcknowledgedByAgent`; + `humanValidationObtained` if new class É/C |
+| RC02 | ANY  | SUSPENDED → same | RISK_CLASS_PROMOTE | `promotionAcknowledgedByAgent`; + `humanValidationObtained` if new class H/C |
 
 ---
 
@@ -291,7 +301,7 @@ export const dorSatisfied = (ctx: HarnessMachineContext): boolean =>
 
 export const dodSatisfiedPartial = (ctx: HarnessMachineContext): boolean =>
   ctx.gatesPassed.includes('dod_satisfied') &&
-  ctx.evidence.some(e => e.gate === 'dod_satisfied' && e.source === 'ci');
+  ctx.evidence.some(e => e.status_key === 'dod_satisfied' && e.source === 'ci');
 
 export const dodSatisfiedFull = (ctx: HarnessMachineContext): boolean =>
   ctx.gatesPassed.includes('dod_satisfied') &&
@@ -301,7 +311,7 @@ export const humanValidationObtained = (ctx: HarnessMachineContext): boolean =>
   ctx.gatesPassed.includes('human_validation_obtained');
 
 export const humanApprovalRecorded = (ctx: HarnessMachineContext): boolean =>
-  ctx.evidence.some(e => e.gate === 'human_validation_obtained' && e.source === 'human');
+  ctx.evidence.some(e => e.status_key === 'human_validation_obtained' && e.source === 'human');
 
 export const riskClassDefined = (ctx: HarnessMachineContext): boolean =>
   ctx.riskClass !== null;
@@ -322,7 +332,7 @@ export const adrSigned = (ctx: HarnessMachineContext): boolean =>
 
 export const dodConceptionSatisfied = (ctx: HarnessMachineContext): boolean =>
   ctx.gatesPassed.includes('dod_satisfied') &&
-  ctx.macroState === 'CONCEPTION';
+  ctx.macroState === 'conception';
 
 export const rollbackPlanTested = (ctx: HarnessMachineContext): boolean =>
   ctx.gatesPassed.includes('rollback_plan_tested');
@@ -345,11 +355,11 @@ export const sloStable = (ctx: HarnessMachineContext): boolean =>
 // --- Risk-class gates ---
 
 export const bypassAllowed = (ctx: HarnessMachineContext): boolean =>
-  ctx.riskClass !== null && ['T', 'F'].includes(ctx.riskClass);
+  ctx.riskClass !== null && ['T', 'L'].includes(ctx.riskClass);
 
-// NEVER true for É or C — structural impossibility, not convention
+// NEVER true for H or C — structural impossibility, not convention
 export const bypassStructurallyImpossible = (ctx: HarnessMachineContext): boolean =>
-  ctx.riskClass !== null && ['É', 'C'].includes(ctx.riskClass);
+  ctx.riskClass !== null && ['H', 'C'].includes(ctx.riskClass);
 
 export const riskClassIn =
   (classes: RiskClass[]) =>
@@ -357,7 +367,7 @@ export const riskClassIn =
     ctx.riskClass !== null && classes.includes(ctx.riskClass);
 
 export const humanRequiredForRiskClass = (ctx: HarnessMachineContext): boolean =>
-  ctx.riskClass !== null && ['É', 'C'].includes(ctx.riskClass);
+  ctx.riskClass !== null && ['H', 'C'].includes(ctx.riskClass);
 
 // --- Evidence / sub-step guards ---
 
@@ -388,13 +398,13 @@ export const lastStableStateExists = (ctx: HarnessMachineContext): boolean =>
 export const savedStateExists = lastStableStateExists;
 
 export const rollbackStateAvailable = (ctx: HarnessMachineContext): boolean =>
-  ctx.lastStableState !== null && ctx.lastStableState.startsWith('BUILD');
+  ctx.lastStableState !== null && ctx.lastStableState.startsWith('build');
 
 export const dorCheckInitiated = (_ctx: HarnessMachineContext): boolean =>
   true; // always true at CYCLE_START — DoR check is the first action of Observer
 
 export const humanOverrideRecorded = (ctx: HarnessMachineContext): boolean =>
-  ctx.evidence.some(e => e.gate === 'human_validation_obtained' &&
+  ctx.evidence.some(e => e.status_key === 'human_validation_obtained' &&
     e.notes?.includes('HUMAN_OVERRIDE'));
 
 export const promotionAcknowledgedByAgent = (_ctx: HarnessMachineContext): boolean =>
@@ -414,7 +424,7 @@ import type { HarnessMachineContext, HarnessEvent, LastTransition } from './type
 
 // --- Logging ---
 
-/** Append one JSONL line to logs/state-transitions.jsonl */
+/** Append a transition entry to the run_set.transition_history projection in .planning/run-set.json */
 export const logTransition = (
   ctx: HarnessMachineContext,
   event: HarnessEvent,
@@ -430,17 +440,18 @@ export const logTransition = (
     mode: ctx.mode,
     risk_class: ctx.riskClass,
     triggered_by: event.triggeredBy ?? 'agent',
+    gate_type: event.gateType ?? null,
     item: ctx.activeItemRef,
     notes: event.notes ?? null,
   };
-  appendJsonl('.planning/logs/state-transitions.jsonl', entry);
+  appendRunSetProjection('.planning/run-set.json', 'transition_history', entry);
 };
 
 // --- State persistence ---
 
-/** Overwrite .planning/agent/current-state.yaml with current context snapshot */
+/** Overwrite .planning/state.yaml with current context snapshot */
 export const persistState = (ctx: HarnessMachineContext): void => {
-  writeYaml('.planning/agent/current-state.yaml', {
+  writeYaml('.planning/state.yaml', {
     version: '1',
     updated_at: new Date().toISOString(),
     session_id: ctx.sessionId,
@@ -508,15 +519,16 @@ export const setFinalState = assign<HarnessMachineContext, FinalStateEvent>({
 
 // --- Event emission ---
 
-/** Emit HARNESS_SYNC to re-derive effective permissions from current state */
+/** Emit HARNESS_SYNC to re-derive effective permissions from current state and run-set projections */
 export const emitHarnessSync = (ctx: HarnessMachineContext): void => {
-  syncBoundaries(ctx); // verifies boundaries.yaml coherence with §5.2 matrix
+  syncRunSetProjections(ctx); // refreshes logical RMS projections in .planning/run-set.json
 };
 
 /** Write abort report artifact */
 export const writeAbortReport = (ctx: HarnessMachineContext): void => {
   const ts = new Date().toISOString().replace(/[:.]/g, '-');
-  writeMarkdown(`.planning/agent/abort-report-${ts}.md`, {
+  writeRunSetProjection('.planning/run-set.json', 'abort_reports', {
+    report_id: `abort-report-${ts}`,
     cycle_aborted: ctx.macroState,
     substep_at_abort: ctx.subPhase,
     risk_class: ctx.riskClass,
@@ -557,21 +569,21 @@ HarnessMachine
 ├── IDLE                          (simple state)
 ├── ActiveCycle                   (compound parallel)
 │   ├── MacroCycle                (compound sequential — one of 8)
-│   │   ├── DISCOVERY             (compound sequential)
+│   │   ├── discovery             (compound sequential)
 │   │   │   ├── Observer          (simple)
-│   │   │   ├── Définir           (simple)
-│   │   │   ├── Concevoir         (simple)
-│   │   │   ├── Exécuter          (simple) ← territory code/ W ONLY here in BUILD
-│   │   │   ├── Vérifier          (simple)
-│   │   │   ├── Capitaliser       (simple)
-│   │   │   └── Transmettre       (simple)
-│   │   ├── CADRAGE               (same 7 sub-states)
-│   │   ├── CONCEPTION            (same 7 sub-states)
-│   │   ├── BUILD                 (same 7 sub-states — code/ W in Exécuter only)
-│   │   ├── VALIDATION            (same 7 sub-states)
-│   │   ├── RELEASE               (same 7 sub-states)
-│   │   ├── RUN                   (same 7 sub-states)
-│   │   └── APPRENTISSAGE         (same 7 sub-states)
+│   │   │   ├── Define           (simple)
+│   │   │   ├── Design         (simple)
+│   │   │   ├── Execute          (simple) ← territory code/ W ONLY here in build
+│   │   │   ├── Verify          (simple)
+│   │   │   ├── Capitalize       (simple)
+│   │   │   └── Transmit       (simple)
+│   │   ├── cadrage               (same 7 sub-states)
+│   │   ├── conception            (same 7 sub-states)
+│   │   ├── build                 (same 7 sub-states — code/ W in Execute only)
+│   │   ├── validation            (same 7 sub-states)
+│   │   ├── release               (same 7 sub-states)
+│   │   ├── run                   (same 7 sub-states)
+│   │   └── learning              (same 7 sub-states)
 │   └── MetaRegion                (orthogonal region — active simultaneously)
 │       ├── ERROR                 (compound: RECOVERABLE | ESCALATED)
 │       └── SUSPENDED             (simple)
@@ -592,7 +604,7 @@ The `MetaRegion` is orthogonal to the active `MacroCycle`. When `ERROR_DETECTED`
 │                                                             │
 │  ┌─────────────────────┐  ┌──────────────────────────────┐  │
 │  │ MacroCycle          │  │ MetaRegion                   │  │
-│  │  [BUILD.Exécuter]   │  │  ERROR.RECOVERABLE           │  │
+│  │  [build.Execute]   │  │  ERROR.RECOVERABLE           │  │
 │  │  (frozen)           │  │  (active, resolving issue)   │  │
 │  └─────────────────────┘  └──────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
@@ -606,7 +618,7 @@ Mapping to RMS terminal states with triggering conditions and required artifacts
 
 | Final State              | Triggers                                                                | Required Artifact                               |
 |--------------------------|-------------------------------------------------------------------------|-------------------------------------------------|
-| `DONE_VERIFIED`          | `APPRENTISSAGE.Transmettre` + `CYCLE_COMPLETE` + `dodSatisfiedFull`     | `docs/` Transmettre artefact; DORA metrics updated |
+| `DONE_VERIFIED`          | `learning.Transmit` + `CYCLE_COMPLETE` + `dodSatisfiedFull`     | `docs/` Transmit artefact; DORA metrics updated |
 | `DONE_WITH_GAPS`         | `CYCLE_COMPLETE` + verdict = `GO_WITH_RESERVES`                         | Open risk items in `.planning/08-risks/`        |
 | `BLOCKED_NEEDS_USER`     | `ERROR.ESCALATED` with no human response                                | `abort-report-{ts}.md` + log entry              |
 | `BLOCKED_RUNTIME_MISSING`| `ERROR_DETECTED` where error type = `DEPENDENCY_MISSING`                | Log entry with missing dependency name          |
@@ -629,14 +641,14 @@ import * as actions from './actions';
 
 // Sub-cycle states shared across all 8 macro-cycles
 const subCycleStates = {
-  Observer:    { on: { SUBSTEP_COMPLETE: { target: 'Définir',    guard: 'substepOutputExists' },
-                       SUBSTEP_SKIP:     { target: 'Concevoir',  guard: 'skipAllowed' } } },
-  Définir:     { on: { SUBSTEP_COMPLETE: { target: 'Concevoir',  guard: 'riskClassAssigned' } } },
-  Concevoir:   { on: { SUBSTEP_COMPLETE: { target: 'Exécuter',   guard: 'substepOutputExists' } } },
-  Exécuter:    { on: { SUBSTEP_COMPLETE: { target: 'Vérifier',   guard: 'substepOutputExists' } } },
-  Vérifier:    { on: { SUBSTEP_COMPLETE: { target: 'Capitaliser',guard: 'verifyVerdictEmitted' } } },
-  Capitaliser: { on: { SUBSTEP_COMPLETE: { target: 'Transmettre',guard: 'substepOutputExists' } } },
-  Transmettre: { type: 'final' as const },
+  Observer:    { on: { SUBSTEP_COMPLETE: { target: 'Define',    guard: 'substepOutputExists' },
+                       SUBSTEP_SKIP:     { target: 'Design',  guard: 'skipAllowed' } } },
+  Define:     { on: { SUBSTEP_COMPLETE: { target: 'Design',  guard: 'riskClassAssigned' } } },
+  Design:   { on: { SUBSTEP_COMPLETE: { target: 'Execute',   guard: 'substepOutputExists' } } },
+  Execute:    { on: { SUBSTEP_COMPLETE: { target: 'Verify',   guard: 'substepOutputExists' } } },
+  Verify:    { on: { SUBSTEP_COMPLETE: { target: 'Capitalize',guard: 'verifyVerdictEmitted' } } },
+  Capitalize: { on: { SUBSTEP_COMPLETE: { target: 'Transmit',guard: 'substepOutputExists' } } },
+  Transmit: { type: 'final' as const },
 };
 
 export const harnessMachine = setup({
@@ -748,112 +760,112 @@ export const harnessMachine = setup({
       entry: ['persistState'],
       on: {
         CYCLE_START: {
-          target: 'DISCOVERY',
+          target: 'discovery',
           guard: 'dorSatisfied',
           actions: ['resetAttemptCount', 'logTransition', 'persistState'],
         },
       },
     },
 
-    DISCOVERY: {
+    discovery: {
       initial: 'Observer',
-      entry: [assign({ macroState: 'DISCOVERY', cycleStartedAt: () => new Date().toISOString() }), 'incrementStateVisitCount'],
+      entry: [assign({ macroState: 'discovery', cycleStartedAt: () => new Date().toISOString() }), 'incrementStateVisitCount'],
       states: {
         ...subCycleStates,
       },
       onDone: {
-        target: 'CADRAGE',
+        target: 'cadrage',
         guard: ({ context }) => guards.dorSatisfied(context) && guards.riskClassDefined(context),
         actions: ['logTransition', 'persistState'],
       },
     },
 
-    CADRAGE: {
+    cadrage: {
       initial: 'Observer',
-      entry: [assign({ macroState: 'CADRAGE' }), 'incrementStateVisitCount'],
+      entry: [assign({ macroState: 'cadrage' }), 'incrementStateVisitCount'],
       states: { ...subCycleStates },
       onDone: {
-        target: 'CONCEPTION',
+        target: 'conception',
         guard: ({ context }) => guards.dorSatisfied(context) && guards.visionValidated(context),
         actions: ['logTransition', 'persistState'],
       },
     },
 
-    CONCEPTION: {
+    conception: {
       initial: 'Observer',
-      entry: [assign({ macroState: 'CONCEPTION' }), 'incrementStateVisitCount'],
+      entry: [assign({ macroState: 'conception' }), 'incrementStateVisitCount'],
       states: { ...subCycleStates },
       onDone: {
-        target: 'BUILD',
+        target: 'build',
         guard: ({ context }) => guards.adrSigned(context) && guards.dodConceptionSatisfied(context),
         actions: ['logTransition', 'persistState'],
       },
     },
 
-    BUILD: {
+    build: {
       initial: 'Observer',
-      entry: [assign({ macroState: 'BUILD' }), 'incrementStateVisitCount'],
+      entry: [assign({ macroState: 'build' }), 'incrementStateVisitCount'],
       states: { ...subCycleStates },
       on: {
         DOD_FAIL: {
-          // stay in BUILD — no-op; validation sends ROLLBACK_REQUEST
+          // stay in build — no-op; validation sends ROLLBACK_REQUEST
         },
       },
       onDone: {
-        target: 'VALIDATION',
+        target: 'validation',
         guard: ({ context }) => guards.testsGreen(context) && guards.ciGatesGreen(context),
         actions: ['logTransition', 'persistState'],
       },
     },
 
-    VALIDATION: {
+    validation: {
       initial: 'Observer',
-      entry: [assign({ macroState: 'VALIDATION' }), 'incrementStateVisitCount'],
+      entry: [assign({ macroState: 'validation' }), 'incrementStateVisitCount'],
       states: { ...subCycleStates },
       on: {
         DOD_FAIL: {
-          target: 'BUILD.Vérifier',
+          target: 'build.Verify',
           actions: ['snapshotLastStableState', 'logTransition', 'persistState'],
         },
       },
       onDone: {
-        target: 'RELEASE',
+        target: 'release',
         guard: ({ context }) =>
           guards.dodSatisfiedFull(context) && guards.humanValidationObtained(context),
         actions: ['logTransition', 'persistState'],
       },
     },
 
-    RELEASE: {
+    release: {
       initial: 'Observer',
-      entry: [assign({ macroState: 'RELEASE' }), 'incrementStateVisitCount'],
+      entry: [assign({ macroState: 'release' }), 'incrementStateVisitCount'],
       states: { ...subCycleStates },
       on: {
         ROLLBACK_REQUEST: {
-          target: 'BUILD.Vérifier',
+          target: 'build.Verify',
           guard: 'rollbackStateAvailable',
           actions: ['snapshotLastStableState', 'logTransition', 'persistState'],
         },
       },
       onDone: {
-        target: 'RUN',
+        target: 'run',
         actions: ['logTransition', 'persistState'],
       },
     },
 
-    RUN: {
+    run: {
       initial: 'Observer',
-      entry: [assign({ macroState: 'RUN' }), 'incrementStateVisitCount'],
+      entry: [assign({ macroState: 'run' }), 'incrementStateVisitCount'],
       states: { ...subCycleStates },
       onDone: {
-        target: 'APPRENTISSAGE',
+        target: 'learning',
         actions: ['logTransition', 'persistState'],
       },
     },
 
-    APPRENTISSAGE: {
+    learning: {
       initial: 'Observer',
-      entry: [assign({ macroState: 'APPRENTISSAGE' }), 'incrementStateVisitCount'],
+      entry: [assign({ macroState: 'learning' }), 'incrementStateVisitCount'],
       states: { ...subCycleStates },
       onDone: {
         target: 'IDLE',
@@ -944,32 +956,29 @@ export const harnessMachine = setup({
 
 ## 9. State Persistence
 
-### 9.1 Mapping to `.planning/state/state.yaml`
+### 9.1 Mapping to the canonical `.planning/` files
 
-> D15 decision: YAML for state machine state (3–5 files max), JSONL append-only for logs.
+PFV4 uses exactly three physical runtime files. RMS Sets are logical sections/projections inside these files, never separate physical files.
 
 ```
 .planning/
-├── agent/
-│   ├── current-state.yaml        ← primary state snapshot (overwritten on every transition)
-│   ├── boundaries.yaml           ← territory permissions (human-only write)
-│   └── abort-report-{ts}.md      ← written on every ABORTED entry
-└── logs/
-    └── state-transitions.jsonl   ← append-only, never truncated
+├── state.yaml          ← primary state snapshot (overwritten atomically on every transition)
+├── current-risk.yaml   ← current RiskClass, justification, promotions/demotions
+└── run-set.json        ← logical RMS projections: route_set, policy_set, evidence_set, transition_history, abort_reports
 ```
 
-### 9.2 `current-state.yaml` schema (authoritative)
+### 9.2 `state.yaml` schema (authoritative)
 
 ```yaml
-# .planning/agent/current-state.yaml
+# .planning/state.yaml
 version: "1"
 updated_at: "2026-05-03T14:32:00Z"   # ISO 8601
 session_id: "sess_abc123"             # UUID
 
-macro_state: "BUILD"                  # MacroState enum value
-micro_state: "Exécuter"              # SubPhase enum value | null
-mode: "auto"                          # pairing | auto | bypass
-risk_class: "M"                       # T | F | M | É | C | null
+macro_state: "build"                  # MacroState enum value
+micro_state: "Execute"              # SubPhase enum value | null
+mode: "auto"                          # bypass | auto | pairing
+risk_class: "M"                       # T | L | M | H | C | null
 
 active_item_ref: ".planning/02-backlog/items/PBI-042.md"
 active_cycle_start: "2026-05-03T09:00:00Z"
@@ -977,9 +986,10 @@ gates_passed: ["dor_satisfied", "risk_class_defined"]
 gates_pending: ["dod_satisfied", "human_validation_obtained"]
 
 last_transition:
-  from: "BUILD.Concevoir"
-  to: "BUILD.Exécuter"
+  from: "build.Design"
+  to: "build.Execute"
   event: "SUBSTEP_COMPLETE"
+  gate_type: "post_tool"              # GateType | null
   ts: "2026-05-03T14:32:00Z"
   triggered_by: "agent"
 
@@ -993,11 +1003,12 @@ attempt_count: 0
 ### 9.3 Persistence rules
 
 1. `persistState` action is called on **every transition** — no exception.
-2. `current-state.yaml` is written atomically (write to `.tmp`, then rename).
-3. `state-transitions.jsonl` is append-only — never truncate, never rewrite.
-4. On `SESSION_START`, the harness reads `current-state.yaml` to restore context. If the file is absent or invalid, the machine starts in `IDLE`.
-5. `boundaries.yaml` is never written by the machine — it is a human-controlled config file.
-6. The XState `hist` pseudo-state handles deep history restoration; `lastStableState` in context provides the YAML-level equivalent for cross-session resume.
+2. `state.yaml` is written atomically (write to `.tmp`, then rename).
+3. Transition history is appended to the `transition_history` projection inside `.planning/run-set.json`; no JSONL transition file is canonical.
+4. On `session_start`, the harness reads `state.yaml` to restore context. If the file is absent or invalid, the machine starts in `IDLE`.
+5. Risk decisions and promotion/demotion history are persisted in `.planning/current-risk.yaml`.
+6. Policy, route, evidence, transition, and abort-report data are logical RMS projections inside `.planning/run-set.json`.
+7. The XState `hist` pseudo-state handles deep history restoration; `lastStableState` in context provides the YAML-level equivalent for cross-session resume.
 
 ---
 
@@ -1005,23 +1016,23 @@ attempt_count: 0
 
 ### Q2 — How to formalize the state machine
 
-**Question (from Discovery §Q2)**: formal schema of states, transitions, conditions, authorized actions.
+**Question (from `discovery` §Q2)**: formal schema of states, transitions, conditions, authorized actions.
 
 **Resolution**: This document is the answer. The formalization uses three layers:
 
 1. **Conceptual** (this document — `docs/conception/01-state-machine-spec.md`): human-readable spec with TypeScript types, guard signatures, action signatures, and xstate skeleton. Source of truth for architectural decisions.
 
-2. **Executable** (`.planning/agent/boundaries.yaml` + `current-state.yaml`): runtime YAML files derived from this spec. The machine reads `current-state.yaml` at every hook invocation and updates it atomically. `boundaries.yaml` encodes the territory permission matrix (§5.2 of `harness-state-machine.md`) as a static config.
+2. **Executable** (`.planning/state.yaml`, `.planning/current-risk.yaml`, `.planning/run-set.json`): strict runtime storage files derived from this spec. The machine reads `state.yaml` at each GateType decision and updates it atomically.
 
-3. **Log** (`logs/state-transitions.jsonl`): append-only event sourcing log. The full state history can be reconstructed from this log alone — the machine is a pure event-sourced system.
+3. **RMS projections** (`.planning/run-set.json`): logical sections for `policy_set`, `route_set`, `evidence_set`, `transition_history`, and abort reports. Hooks are runtime adapters that trigger GateType decisions; GateType is the canonical internal policy point.
 
-**Consequence of inaction (resolved)**: the harness was a black box. With this spec, any agent or developer can determine from the current state exactly what writes are authorized, what guards must be satisfied before any transition, and what the complete event history was for any session.
+**Consequence of inaction (resolved)**: the harness was a black box. With this spec, any agent or developer can determine from the current state exactly what writes are authorized, what guards must be satisfied before any transition, and what the complete transition history was for any session.
 
 ---
 
 ### Q7 — Multi-state (parallel cycles)
 
-**Question (from Discovery §Q7)**: how to transition from strict mono-state to multi-state where each PBI/sprint/release has its own state?
+**Question (from `discovery` §Q7)**: how to transition from strict mono-state to multi-state where each PBI/sprint/release has its own state?
 
 **Resolution**: the current spec implements strict mono-state (one active `MacroCycle` at a time). The path to multi-state is defined as follows:
 
@@ -1030,9 +1041,9 @@ attempt_count: 0
 **Migration path** (when ready):
 1. Replace the single `HarnessMachineContext` with a `Map<itemId, HarnessMachineContext>` — each PBI gets its own machine instance.
 2. The `ActiveCycle` compound state becomes a parallel state with N orthogonal regions — one per active item.
-3. The territory permission matrix (§5.2) must be extended: if two active items both target `BUILD.Exécuter`, the `code/` territory requires a per-item scope (e.g. file-path prefix) to prevent overlap.
-4. `current-state.yaml` becomes `current-state/{itemId}.yaml` (one file per active machine).
-5. `state-transitions.jsonl` gains an `item_id` field (already included in the log schema above).
+3. The territory permission matrix (§5.2) must be extended: if two active items both target `build.Execute`, the `code/` territory requires a per-item scope (e.g. file-path prefix) to prevent overlap.
+4. `.planning/state.yaml` keeps the active item index and per-item state snapshots as logical sections.
+5. `.planning/run-set.json` transition entries include an `item_id` field.
 
 **Why deferred**: the territory conflict resolution for parallel builds (two agents writing to overlapping files) requires the worktree isolation strategy (per `rules/agents.md`). That infrastructure must be validated before multi-state is safe.
 

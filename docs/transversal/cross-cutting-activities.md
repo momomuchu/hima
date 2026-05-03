@@ -30,9 +30,9 @@
 
 ## 1. Résumé exécutif
 
-La Pipeline Fractale v4 repose sur deux couches complémentaires : les **8 cycles séquentiels** (Discovery → Cadrage → Conception → Build → Validation → Release → Run → Apprentissage) et les **activités transversales**, qui s'appliquent en continu à travers tous les cycles, indépendamment de la phase en cours.
+La Pipeline Fractale v4 repose sur deux couches complémentaires : les **8 cycles séquentiels** (`discovery → cadrage → conception → build → validation → release → run → learning`) et les **activités transversales**, qui s'appliquent en continu à travers tous les cycles, indépendamment de la phase en cours.
 
-Ce document formalise les 11 disciplines transversales :
+Ce document formalise les 12 disciplines transversales :
 
 | # | Activité | Standard pivot |
 |---|----------|----------------|
@@ -47,8 +47,9 @@ Ce document formalise les 11 disciplines transversales :
 | AT-09 | Dette technique | SQALE + TDR |
 | AT-10 | Revue de code | PR checklist + quality gates |
 | AT-11 | Formation continue (harness self-improvement) | DORA + SPACE |
+| AT-12 | Internationalisation / Localisation (i18n/l10n) | ICU MessageFormat + CLDR |
 
-**Principe directeur** : ces activités ne sont pas des phases — elles n'ont ni début ni fin dans le cycle. Elles sont **toujours actives**, avec une intensité modulée par la **classe de risque T/F/M/É/C** du changement en cours.
+**Principe directeur** : ces activités ne sont pas des phases — elles n'ont ni début ni fin dans le cycle. Elles sont **toujours actives**, avec une intensité modulée par la **classe de risque T/L/M/H/C** du changement en cours.
 
 **Top 3 points critiques** :
 1. L'EAA est en vigueur depuis le 28 juin 2025 : pénalités jusqu'à 100 000 € ou 4 % du CA annuel pour non-conformité. WCAG 2.2 AA est la baseline de fait.
@@ -75,7 +76,7 @@ Les activités transversales couvrent **tous les artefacts produits** dans les 8
 
 - La logique fonctionnelle métier spécifique à un cycle (ex : stratégie canary → cycle Release)
 - Les décisions d'architecture de features (→ cycle Conception)
-- Les postmortems d'incident (→ cycle Apprentissage)
+- Les postmortems d'incident (→ cycle `learning`)
 - La certification réglementaire externe (ISO 9001, SOC 2, HDS) — compatible mais non couverte ici
 
 ### 2.3 Relation phases / activités
@@ -84,16 +85,16 @@ Les activités transversales couvrent **tous les artefacts produits** dans les 8
 ┌──────────────────────────────────────────────────────────────────────────┐
 │         ACTIVITÉS TRANSVERSALES (toujours actives, intensité modulée)    │
 │  AT-01 Sécurité │ AT-02 Docs │ AT-03 Tests NF │ AT-04 A11y │ AT-05 RGPD │
-│  AT-06 Perf │ AT-07 Obs │ AT-08 Config │ AT-09 Dette │ AT-10 Review │ AT-11 │
+│  AT-06 Perf │ AT-07 Obs │ AT-08 Config │ AT-09 Dette │ AT-10 Review │ AT-11 │ AT-12 │
 └──────┬───────────────────────────────────────────────────────────────────┘
        │ imprègnent
        ▼
 ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
-│Discovery │→│ Cadrage  │→│Conception│→│  Build   │→│Validation│
+│discovery │→│ cadrage  │→│conception│→│  build   │→│validation│
 └──────────┘ └──────────┘ └──────────┘ └──────────┘ └──────────┘
                                                            │
 ┌──────────┐ ┌──────────┐ ┌──────────┐ ◄──────────────────┘
-│Apprentis.│←│   Run    │←│ Release  │
+│ learning │←│   run    │←│ release  │
 └──────────┘ └──────────┘ └──────────┘
 ```
 
@@ -109,7 +110,7 @@ Garantir que **toute modification du système**, indépendamment de sa taille ou
 
 | Activité | Objectif |
 |----------|---------|
-| AT-01 Sécurité | Zéro CVE Critical non traitée en production ; threat model à jour pour tout flux É/C |
+| AT-01 Sécurité | Zéro CVE Critical non traitée en production ; threat model à jour pour tout flux H/C |
 | AT-02 Documentation | Aucune décision technique orpheline ; docs as code synchronisées avec le code |
 | AT-03 Tests NF | Régressions de perf/sécurité/a11y détectées avant merge, pas après déploiement |
 | AT-04 Accessibilité | Conformité WCAG 2.2 AA vérifiable par audit ; EAA-ready pour toute UI livrée |
@@ -131,51 +132,51 @@ Chaque activité transversale est **déclenchée différemment selon le cycle** 
 
 | Cycle | Déclencheur |
 |-------|------------|
-| Discovery | Classification initiale du risque — touche-t-on authentification, données perso, paiement ? |
-| Cadrage | Contraintes réglementaires identifiées (RGPD, secteur financier, santé) |
-| Conception | Nouveau flux de données → threat modeling STRIDE ; nouvelle API publique → OWASP ASVS |
-| Build | Tout commit → SAST + SCA + secrets scan en pré-commit |
-| Validation | Tout PR en classe É/C → DAST sur preprod |
-| Release | Vérification SLSA provenance + signature artefact + SBOM avant promotion |
-| Run | CVE nouvellement publiée affectant une dépendance → déclenchement SCA différentiel |
-| Apprentissage | Incident de sécurité → postmortem + threat model mis à jour |
+| discovery | Classification initiale du risque — touche-t-on authentification, données perso, paiement ? |
+| cadrage | Contraintes réglementaires identifiées (RGPD, secteur financier, santé) |
+| conception | Nouveau flux de données → threat modeling STRIDE ; nouvelle API publique → OWASP ASVS |
+| build | Tout commit → SAST + SCA + secrets scan en pré-commit |
+| validation | Tout PR en classe H/C → DAST sur preprod |
+| release | Vérification SLSA provenance + signature artefact + SBOM avant promotion |
+| run | CVE nouvellement publiée affectant une dépendance → déclenchement SCA différentiel |
+| learning | Incident de sécurité → postmortem + threat model mis à jour |
 
 ### 4.2 Déclencheurs AT-02 Documentation
 
 | Cycle | Déclencheur |
 |-------|------------|
-| Discovery | Décision de ne pas construire / pivot → note de Discovery versionnée |
-| Cadrage | Nouvelle contrainte, scope change → mise à jour charter |
-| Conception | Décision architecturale → ADR obligatoire ; nouveau service → doc API (OpenAPI/AsyncAPI) |
-| Build | Feature user-facing → changelog ; comportement observable → inline doc |
-| Validation | Critères d'acceptation finaux → docs produit |
-| Release | Release notes ; mise à jour status page |
-| Run | Nouveau mode de défaillance → runbook |
-| Apprentissage | Postmortem publié → base de connaissance interne |
+| discovery | Décision de ne pas construire / pivot → note de discovery versionnée |
+| cadrage | Nouvelle contrainte, scope change → mise à jour charter |
+| conception | Décision architecturale → ADR obligatoire ; nouveau service → doc API (OpenAPI/AsyncAPI) |
+| build | Feature user-facing → changelog ; comportement observable → inline doc |
+| validation | Critères d'acceptation finaux → docs produit |
+| release | Release notes ; mise à jour status page |
+| run | Nouveau mode de défaillance → runbook |
+| learning | Postmortem publié → base de connaissance interne |
 
 ### 4.3 Déclencheurs AT-04 Accessibilité
 
 | Cycle | Déclencheur |
 |-------|------------|
-| Cadrage | Produit destiné à des utilisateurs EU → EAA applicable → budget a11y inclus |
-| Conception | Nouveaux composants UI → plan d'accessibilité (ARIA, sémantique, contrastes) |
-| Build | Tout commit touchant du HTML/CSS → axe-core en CI |
-| Validation | Parcours critiques → test manuel lecteur d'écran ; régression WCAG bloque le merge |
-| Release | Déclaration d'accessibilité mise à jour |
-| Apprentissage | Rapport de conformité → backlog remédiation |
+| cadrage | Produit destiné à des utilisateurs EU → EAA applicable → budget a11y inclus |
+| conception | Nouveaux composants UI → plan d'accessibilité (ARIA, sémantique, contrastes) |
+| build | Tout commit touchant du HTML/CSS → axe-core en CI |
+| validation | Parcours critiques → test manuel lecteur d'écran ; régression WCAG bloque le merge |
+| release | Déclaration d'accessibilité mise à jour |
+| learning | Rapport de conformité → backlog remédiation |
 
 ### 4.4 Déclencheurs AT-05 Privacy
 
 | Cycle | Déclencheur |
 |-------|------------|
-| Discovery | Identification de données personnelles dans la solution envisagée |
-| Cadrage | ≥ 2 critères WP29 cochés → AIPD obligatoire avant Conception |
-| Conception | Nouveau traitement → registre de traitement ; AIPD si seuil RGPD atteint |
-| Build | Nouvelle collecte de données → consentement + durée de conservation |
-| Validation | Vérification que les mesures AIPD sont effectivement implémentées |
-| Release | Mention légale et politique de confidentialité à jour |
-| Run | Exercice de droits des personnes → traitement ≤ 30 jours |
-| Apprentissage | Violation de données → notification CNIL ≤ 72 h + revue AIPD |
+| discovery | Identification de données personnelles dans la solution envisagée |
+| cadrage | ≥ 2 critères WP29 cochés → AIPD obligatoire avant `conception` |
+| conception | Nouveau traitement → registre de traitement ; AIPD si seuil RGPD atteint |
+| build | Nouvelle collecte de données → consentement + durée de conservation |
+| validation | Vérification que les mesures AIPD sont effectivement implémentées |
+| release | Mention légale et politique de confidentialité à jour |
+| run | Exercice de droits des personnes → traitement ≤ 30 jours |
+| learning | Violation de données → notification CNIL ≤ 72 h + revue AIPD |
 
 ---
 
@@ -238,14 +239,14 @@ Chaque activité transversale est **déclenchée différemment selon le cycle** 
 - **OWASP ASVS v5** — référentiel d'exigences applicatives.
 
 **Threat modeling** :
-- Méthode STRIDE (Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege) — sur tout flux nouveau ou modifié, É/C obligatoire.
+- Méthode STRIDE (Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege) — sur tout flux nouveau ou modifié, H/C obligatoire.
 - Méthode LINDDUN pour les menaces privacy.
 - Format : DFD au tableau / Excalidraw, 90 min max, sortie = table de menaces priorisées dans le backlog.
 
 **Supply chain** :
-- SLSA niveau 2 minimum (provenance signée), niveau 3 visé pour produits critiques.
-- SBOM CycloneDX ou SPDX — généré à chaque release.
-- Signature Cosign/Sigstore.
+- **SLSA niveau ≥ 2 obligatoire** (provenance signée et vérifiable sur CI hosted), niveau 3 visé pour produits critiques (build hermétique et auditable).
+- **SBOM CycloneDX ou SPDX** — généré à chaque release, attaché à l'artefact dans le registre immuable.
+- **Signature Cosign/Sigstore** — signature cryptographique de tout artefact de release, vérifiable avant déploiement.
 - VEX (Vulnerability Exploitability eXchange) pour qualifier les CVE non exploitables.
 
 **SLA de remédiation CVE** :
@@ -293,8 +294,8 @@ Chaque activité transversale est **déclenchée différemment selon le cycle** 
 
 | Type | Outils | Déclenchement |
 |------|--------|--------------|
-| Tests de charge / stress | k6, Artillery, Locust | É/C — staging pre-release |
-| Tests de sécurité (DAST) | OWASP ZAP, Burp Suite | É/C — staging pre-release |
+| Tests de charge / stress | k6, Artillery, Locust | H/C — staging pre-release |
+| Tests de sécurité (DAST) | OWASP ZAP, Burp Suite | H/C — staging pre-release |
 | Tests d'accessibilité auto | axe-core, Pa11y, Lighthouse | Chaque PR (UI touchée) |
 | Tests d'accessibilité manuels | NVDA, VoiceOver, TalkBack | M+ — pre-release |
 | Tests de contrat | Pact | Toute API inter-services |
@@ -405,9 +406,20 @@ Chaque activité transversale est **déclenchée différemment selon le cycle** 
 - €/token LLM (si applicable)
 - Seuil d'anomalie : alerte si > +20 % vs baseline sur 24 h
 
+**FinOps Foundation — 6 principes directeurs** (finops.org/framework, 2024) :
+
+1. **Inform** — Rendre les coûts visibles et transparents à tous les niveaux (dashboard coût par service, par feature, par environnement).
+2. **Optimize** — Identifier et éliminer le gaspillage (ressources idle, overprovisioning, instances non utilisées).
+3. **Operate** — Intégrer la conscience coût dans les processus quotidiens de développement et d'opérations.
+4. **Value** — Aligner les dépenses cloud sur la valeur métier délivrée (coût par utilisateur, coût par transaction).
+5. **Align** — Garantir que les équipes (ici : le solo dev + agent) sont responsables de leurs coûts et ont les outils pour les gérer.
+6. **Improve** — Améliorer continuellement les pratiques FinOps via des rétrospectives et des benchmarks.
+
+Référence : `docs/transversal/quality-model.md` §6.3 (Performance Efficiency — Resource Utilization) et FinOps Foundation Framework 2024.
+
 **Profiling first** : ne pas optimiser sans mesurer. Profiling continu sur les services critiques.
 
-**Tests de charge** — obligatoires pour É/C sur staging avec données anonymisées de production.
+**Tests de charge** — obligatoires pour H/C sur staging avec données anonymisées de production.
 
 **Régression de performance** : tout PR qui dégrade un budget de performance de plus de 10 % est bloqué en CI (sauf waiver explicite tracé).
 
@@ -473,6 +485,17 @@ Chaque activité transversale est **déclenchée différemment selon le cycle** 
 - Contrôles de drift automatisés (Terraform plan en CI)
 - GitOps pour la réconciliation continue
 
+**Versioning sémantique** :
+- **SemVer 2.0 obligatoire** — MAJOR.MINOR.PATCH. Une version publiée ne doit JAMAIS être modifiée ; toute correction = nouvelle version.
+- **Conventional Commits** (feat/fix/refactor/chore/break) — pivot de génération automatique CHANGELOG et d'incrémentation SemVer automatique (semantic-release, Release Please, Changesets).
+- Le changelog n'est pas rédigé manuellement après coup. Il est la conséquence directe de la discipline des commits.
+- Lien : `docs/cycles/06-release/concepts-criteria.md` §6.2 (Versioning sémantique) et §6.8 (Changelog et Release Notes).
+
+**Protocole de migration Expand/Contract** :
+- Toute migration de schéma ou de contrat d'API suit le pattern Expand/Contract (parallel change), toujours en plusieurs déploiements distincts : EXPAND → MIGRATE (dual-write) → SWITCH READ → CONTRACT.
+- Règle invariante : aucune opération de CONTRACT (DROP, RENAME, suppression de champ) dans le même déploiement qu'une fonctionnalité utilisateur.
+- Référence : `docs/cycles/06-release/concepts-criteria.md` §6.5 et `docs/transversal/risk-classification.md` §6.6.
+
 **Parité d'environnements** : dev → CI → staging → preprod → prod. Toute différence de configuration documentée et justifiée.
 
 ---
@@ -500,7 +523,15 @@ Chaque activité transversale est **déclenchée différemment selon le cycle** 
 - Revue mensuelle : priorisation selon TDR × impact livraison
 - Règle : aucun sprint sans au moins un item de remédiation de dette (sauf sprint de crise)
 
-**Anti-pattern** : rembourser la dette comme projet séparé. La bonne pratique est de l'intégrer dans les sprints normaux — "Boy Scout Rule" : laisser le code meilleur qu'on ne l'a trouvé.
+**Anti-pattern** : rembourser la dette comme projet séparé. La bonne pratique est de l'intégrer dans les sprints normaux — "Boy Scout Rule" : laisser le code meilleur qu'on ne l'a trouvé. **Boy Scout Rule active à chaque PR — minimum 1 smell corrigé si TDR > 3 %.**
+
+**Rule of Three** (AHA — Avoid Hasty Abstractions) : duplication acceptable 1× et 2×, extraire à 3×. Ne jamais abstraire plus tôt. Référence : `rules/core.md` §6.
+
+#### Migrations architecturales
+
+- **Pattern obligatoire : Strangler Fig** (jamais big bang) — tout changement d'architecture existante classé ≥ M doit être décomposé en une séquence de changements progressifs via le Strangler Fig pattern (Martin Fowler). Chaque étape de la décomposition est reclassifiée individuellement. Ce pattern transforme un C en séquence L/M, réduisant le risque à chaque étape tout en maintenant la traçabilité du changement global.
+- Référence : `docs/research-reports/checkpoint-implementation.md` D5 (décision Discovery : Strangler Fig pour les changements d'architecture).
+- Trigger : tout changement d'architecture existante (classe ≥ M).
 
 ---
 
@@ -511,14 +542,14 @@ Chaque activité transversale est **déclenchée différemment selon le cycle** 
 **Règles structurelles** :
 - PR > 400 lignes diff (hors refactor mécanique) → diviser avant review (qualité de revue chute fortement au-delà)
 - PR sans tests associés pour des changements fonctionnels → bloquée
-- Revue par ≥ 1 reviewer indépendant pour F+ ; ≥ 2 pour É/C
+- Revue par ≥ 1 reviewer indépendant pour L+ ; ≥ 2 pour H/C
 - En solo : self-review différée (≥ 24 h) + checklist explicite + agent IA en relecteur antagoniste
 
 **Checklist de revue obligatoire** :
 
 ```markdown
 ## Classe de risque
-- [ ] T  - [ ] F  - [ ] M  - [ ] É  - [ ] C
+- [ ] T  - [ ] L  - [ ] M  - [ ] H  - [ ] C
 Justification : ...
 
 ## DoD
@@ -527,14 +558,15 @@ Justification : ...
 - [ ] Couverture cohérente avec le risque
 - [ ] Documentation à jour (README/ADR/changelog si applicable)
 - [ ] Observabilité : logs/métriques/traces en place
-- [ ] Sécurité : lecture STRIDE rapide pour É/C
+- [ ] Sécurité : lecture STRIDE rapide pour H/C
 - [ ] WCAG 2.2 AA respectée sur l'UI touchée (axe-core vert)
 - [ ] Aucune chaîne hardcodée (i18n)
 - [ ] Privacy : registre/consentement/durée à jour si nouvelles données
-- [ ] Impact FinOps documenté si M/É/C
-- [ ] Feature flag si É/C
-- [ ] Plan de rollback si É/C
+- [ ] Impact FinOps documenté si M/H/C
+- [ ] Feature flag si H/C
+- [ ] Plan de rollback si H/C
 - [ ] Conventional commit
+- [ ] Tidy First S/B : ce commit est S (Structural — zéro changement de comportement) OU B (Behavioral — feature/fix/perf) — jamais les deux (Beck 2023). Référence : `docs/cycles/04-build/concepts-criteria.md` §6.1.
 ```
 
 **Quality gates CI non contournables** :
@@ -579,9 +611,39 @@ Justification : ...
 - Chaque changement de comportement du harness documenté en ADR
 - Métriques DORA mesurées et publiées : change lead time, deployment frequency, change failure rate, failed deployment recovery time, rework rate
 
-**Quota de rejet mental** : ≥ 20 % des propositions de l'agent doivent être contestées — évite le rubber-stamping.
+**Garde-fous anti-rubber-stamp** (s'appliquent en mode `auto`) :
+- **Format de proposition obligatoire** avant toute approbation en `auto` : `[problème][alternatives][choix][critère de succès][classe de risque]`. Aucune approbation sans ce format rempli.
+- **Quota de rejets** : ≥ 20 % des PRs/mois doivent avoir ≥ 1 commentaire de correction (challenge, objection, demande de modification). Un taux d'approbation de 100 % est un signal de rubber-stamping, pas de qualité.
+- **Audit aléatoire** : 1 PR/semaine révisée rétrospectivement — une proposition acceptée la veille est relue à froid le lendemain avec regard critique. Résultat documenté dans `.planning/06-quality/anti-rubber-stamp-audit.md`.
+- **Cadence de vérification** : mensuelle — vérifier le taux de rejet réel vs quota cible. Si < 20 % sur 2 mois consécutifs → alerte dans la rétrospective de cycle.
 
-**Audit aléatoire** : une proposition acceptée par semaine, relue le lendemain avec regard critique.
+---
+
+### AT-12 — Internationalisation et Localisation (i18n/l10n)
+
+**Définition** : Conception et vérification continues de la capacité du système à s'adapter à différentes langues, régions et cultures — intégrée dès la construction, pas ajoutée en fin de cycle. L'i18n (internationalisation) est la préparation technique du code ; la l10n (localisation) est l'adaptation à un locale spécifique.
+
+**i18n par construction** — principes obligatoires :
+- **ICU MessageFormat** — standard de facto pour le formatage de messages pluriels, genrés, et conditionnels. Pas de concaténation de chaînes pour construire des phrases.
+- **CLDR (Unicode Common Locale Data Repository)** — source de vérité pour les formats de dates, nombres, devises, fuseaux horaires, noms de pays, calendriers. Toujours déléguer aux libs CLDR (Intl API, date-fns, Luxon).
+- **RTL (Right-to-Left)** — support obligatoire si le produit cible des marchés arabes/hébreux. CSS logical properties (`margin-inline-start` au lieu de `margin-left`, `padding-block-end` au lieu de `padding-bottom`). Test avec au moins une langue RTL (arabe).
+- **Locale-aware formatting** — dates, nombres, devises formatés selon le locale de l'utilisateur, pas hardcodés en format français ou américain. `Intl.DateTimeFormat`, `Intl.NumberFormat`, `Intl.RelativeTimeFormat`.
+- **Aucune chaîne hardcodée** dans le code source — toutes les chaînes passent par la lib i18n (react-intl, next-intl, i18next, vue-i18n, etc.).
+- **Pseudo-localisation en CI** — détection automatique des chaînes non externalisées via pseudo-locale (ex : `[!!Ĥéļļö Ŵöŕļð!!]`). Gate bloquant si chaîne hardcodée détectée.
+
+**Seuils et vérifications** :
+
+| Vérification | Déclenchement | Outil |
+|-------------|--------------|-------|
+| Aucune chaîne hardcodée | Chaque PR (UI touchée) | Pseudo-localisation CI, lint i18n |
+| Formats régionaux corrects | Chaque PR (dates/nombres) | Tests unitaires avec locales multiples |
+| Support RTL | M+ si marché RTL ciblé | Tests Playwright avec `dir="rtl"` |
+| Clés i18n orphelines | Mensuel | i18n-unused, i18next-parser |
+| Longueur de traduction | Avant release | Vérification expansion texte (DE +30%, JA -30%) |
+
+**Mapping ISO 25010:2023** : Interaction Capability — Inclusivity (sous-caractéristique ajoutée en 2023). L'i18n est une dimension de l'inclusivité au même titre que l'accessibilité.
+
+**Relation avec AT-04 (Accessibilité)** : l'attribut `lang` sur les éléments HTML est un critère WCAG (SC 3.1.1 Language of Page, SC 3.1.2 Language of Parts). Un contenu non marqué linguistiquement est une violation d'accessibilité.
 
 ---
 
@@ -607,20 +669,20 @@ La norme ISO/IEC 25010:2023 (révisée en novembre 2023) définit 9 caractérist
 
 ## 8. Modulation par classe de risque
 
-C'est le **mécanisme pivot** du système. Chaque activité transversale s'applique à une intensité différente selon la classe de risque T/F/M/É/C du changement.
+C'est le **mécanisme pivot** du système. Chaque activité transversale s'applique à une intensité différente selon la classe de risque T/L/M/H/C du changement.
 
 **Rappel des classes** :
 - **T (Trivial)** : changement cosmétique, doc, refactor sans changement de comportement, dépendance patch sans CVE
-- **F (Faible)** : nouvelle fonctionnalité isolée derrière feature flag, pas de PII, pas de migration
+- **L (Low)** : nouvelle fonctionnalité isolée derrière feature flag, pas de PII, pas de migration
 - **M (Moyen)** : nouvelle fonctionnalité visible utilisateur, pas de PII sensible, pas de schéma DB
-- **É (Élevé)** : touche authentification, autorisation, paiement, données personnelles, schéma DB, API publique
+- **H (High)** : touche authentification, autorisation, paiement, données personnelles, schéma DB, API publique
 - **C (Critique)** : impact transverse, données sensibles (santé, biométrie, financier), refonte d'architecture, rupture contrat API, exigence réglementaire
 
 ### 8.1 Matrice de modulation principale
 
 Légende : ✅ Obligatoire | ○ Recommandé | ◔ Allégé | — Skippable | conditionnel = selon contexte
 
-| Activité transversale | T | F | M | É | C |
+| Activité transversale | T | L | M | H | C |
 |----------------------|:--:|:--:|:--:|:--:|:--:|
 | **AT-01 — SÉCURITÉ** | | | | | |
 | SAST en CI | ✅ | ✅ | ✅ | ✅ | ✅ |
@@ -680,14 +742,30 @@ Légende : ✅ Obligatoire | ○ Recommandé | ◔ Allégé | — Skippable | co
 | Rétro de cycle | — | — | ○ | ✅ | ✅ |
 | Postmortem si incident | — | léger | ✅ | ✅ + revue | ✅ + audit |
 | Mise à jour harness / patterns | — | — | ○ | ✅ | ✅ |
+| **AT-12 — i18n/l10n** | | | | | |
+| Aucune chaîne hardcodée (pseudo-l10n CI) | ◔ | ✅ | ✅ | ✅ | ✅ |
+| Formats régionaux CLDR | — | ◔ | ✅ | ✅ | ✅ |
+| Support RTL si marché ciblé | — | — | ○ | ✅ | ✅ |
+| Tests multi-locale | — | — | ○ | ✅ | ✅ |
 
-### 8.2 Règles d'escalade de classe
+### 8.2 Règles d'escalade de classe — protocole en 4 étapes
 
-Si en cours de cycle un changement classé F se révèle É :
-1. **Détection** : reviewer ou agent IA signal l'escalade
-2. **Action immédiate** : pause de la PR, re-Discovery, re-Conception si nécessaire
-3. **Log de promotion** : `planning/09-logs/risk-escalations.jsonl` — append-only
-4. **Apprentissage** : la promotion alimente la calibration future de la classification
+Si en cours de cycle un changement classé L se révèle H (ou toute promotion de classe) :
+
+1. **Détection** — Signal dans le diff, le test, ou la revue (reviewer, agent IA, ou quality gate CI). Déclencheurs automatiques : si le diff touche un fichier `auth/`, `migrations/`, `payments/`, `.env*`, `config/security*` → promotion automatique vers H minimum. Si données de santé/biométrie → C minimum. Référence : `docs/transversal/risk-classification.md` §4.3 (signaux de forçage).
+2. **Action immédiate** — Bloquer la PR. Pause du Build sur cet incrément. Commit WIP sur branche temporaire pour préserver l'état. Re-classifier le changement avec la nouvelle classe et justification. Retour en Conception si la nouvelle classe est H ou C (threat model, plan de tests, ADR peuvent être requis).
+3. **Traçabilité** — Entrée obligatoire dans `planning/09-logs/risk-escalations.jsonl` (append-only) avec : date, classe initiale, classe réelle, trigger, detected_by, confirmed_by, action prise. Format :
+   ```yaml
+   escalation_history:
+     - date: "2026-05-05T14:32:00Z"
+       from_class: "L"
+       to_class: "H"
+       trigger: "Fichier auth/session.ts modifié dans commit abc123"
+       detected_by: "agent"
+       confirmed_by: "developer"
+       action: "PR pausée, ADR et threat modeling requis avant reprise"
+   ```
+4. **learning** — La promotion alimente la calibration future de la classification dans le cycle `learning`. Chaque promotion est un signal de classification initiale erronée → améliore le modèle de classification et l'arbre de décision des signaux de forçage.
 
 ---
 
@@ -695,7 +773,7 @@ Si en cours de cycle un changement classé F se révèle É :
 
 Cette matrice indique l'intensité de chaque activité transversale dans chaque cycle de la pipeline. Elle complète la matrice de risque (§8) — ici l'axe est le cycle, pas la classe de risque.
 
-| Activité | Discovery | Cadrage | Conception | Build | Validation | Release | Run | Apprentissage |
+| Activité | discovery | cadrage | conception | build | validation | release | run | learning |
 |----------|:---------:|:-------:|:----------:|:-----:|:----------:|:-------:|:---:|:-------------:|
 | AT-01 Sécurité | Identification risques | Contraintes réglementaires | Threat model + AIPD trigger | SAST/SCA/secrets CI | DAST sur preprod | SLSA/SBOM/signature | CVE monitoring | Postmortem sécurité |
 | AT-02 Documentation | Note Discovery | Charter + scope | ADR + API contract | Inline doc + changelog | Critères acceptance finaux | Release notes | Runbooks | Postmortem publié |
@@ -708,6 +786,7 @@ Cette matrice indique l'intensité de chaque activité transversale dans chaque 
 | AT-09 Dette | — | — | Dette architecturale identifiée | Boy Scout Rule | Défauts détectés | TDR mesuré | Monitoring TDR | Rétrospective dette |
 | AT-10 Revue | — | Charter validé | Design doc reviewé | PR checklist + quality gates | Acceptance validée | Release checklist | — | Revue patterns |
 | AT-11 Formation | — | Mode opératoire | Patterns retenus | Feedback temps réel | Leçons QA | Release retrospective | DORA mesurées | Rétro + postmortem |
+| AT-12 i18n/l10n | — | Budget i18n défini | Plan i18n (ICU, CLDR, RTL) | Pseudo-l10n CI | Tests multi-locale | Vérification expansion texte | Monitoring locale errors | Backlog clés orphelines |
 
 ---
 
@@ -735,6 +814,9 @@ AT-09 Dette ──────────────────────�
 
 AT-03 Tests NF ──────────────────────► AT-04 Accessibilité
   (axe-core = test NF d'accessibilité)     (AT-04 spécialise AT-03 pour l'a11y)
+
+AT-12 i18n/l10n ─────────────────────► AT-04 Accessibilité
+  (lang attribute = critère WCAG 3.1.1)    (inclusivité linguistique = a11y)
 ```
 
 ### 10.2 Tensions à gérer
@@ -750,7 +832,7 @@ AT-03 Tests NF ─────────────────────�
 
 ### 10.3 Séquence d'activation
 
-Pour un changement É typique (touche authentification et données personnelles) :
+Pour un changement H typique (touche authentification et données personnelles) :
 
 ```
 1. AT-01 → Threat modeling STRIDE (Conception)
@@ -759,6 +841,7 @@ Pour un changement É typique (touche authentification et données personnelles)
 4. AT-10 → Revue design doc (Conception)
 5. AT-01 + AT-10 → SAST/SCA/secrets scan + PR checklist (Build CI)
 6. AT-04 → axe-core CI si UI touchée (Build CI)
+6b. AT-12 → pseudo-localisation CI, aucune chaîne hardcodée (Build CI)
 7. AT-07 → Logs/métriques/traces en place (Build)
 8. AT-03 + AT-06 → Tests de charge + DAST sur staging (Validation)
 9. AT-05 → Vérification mesures AIPD implémentées (Validation)
@@ -766,7 +849,7 @@ Pour un changement É typique (touche authentification et données personnelles)
 11. AT-02 → Mentions légales + release notes (Release)
 12. AT-04 → Déclaration d'accessibilité mise à jour (Release)
 13. AT-07 → Multi-burn-rate alerting actif (Run)
-14. AT-11 → Rétro + harness update si apprentissage (Apprentissage)
+14. AT-11 → Rétro + harness update si apprentissage (`learning`)
 ```
 
 ---
@@ -778,7 +861,7 @@ Pour un changement É typique (touche authentification et données personnelles)
 | Artefact | Emplacement | Responsable | Fréquence de mise à jour |
 |----------|------------|-------------|--------------------------|
 | Registre de traitement RGPD | `docs/09-security-compliance/registre-traitement.md` | Solo dev | À chaque nouveau traitement |
-| Threat model courant | `docs/09-security-compliance/threat-model.md` | Solo dev | À chaque flux É/C |
+| Threat model courant | `docs/09-security-compliance/threat-model.md` | Solo dev | À chaque flux H/C |
 | ADR index | `docs/13-decisions/INDEX.md` | Solo dev | À chaque décision architecturale |
 | Registre de dette technique | `planning/02-backlog/tech-debt/` | Solo dev + agent | Continu |
 | SBOM courant | `releases/latest/sbom.json` | CI | À chaque release |
@@ -792,7 +875,7 @@ Pour un changement É typique (touche authentification et données personnelles)
 | Artefact | Déclencheur | Format |
 |----------|------------|--------|
 | AIPD complète | ≥ 2 critères WP29 | Logiciel PIA CNIL |
-| Rapport DAST | Chaque PR É/C vers staging | HTML (ZAP/Burp) |
+| Rapport DAST | Chaque PR H/C vers staging | HTML (ZAP/Burp) |
 | Rapport de test de charge | Chaque release M+ | HTML/JSON (k6) |
 | Postmortem | Incident qualifié | Markdown structuré |
 | Rapport d'audit a11y | Produits critiques / EAA | PDF + Markdown |
@@ -896,6 +979,8 @@ Pour un changement É typique (touche authentification et données personnelles)
 | Culture | Westrum | DORA 6-question survey | dora.dev |
 | Dette technique | SQALE Method | Courant | SQALE |
 | IaC sécurité | CIS Benchmarks + Checkov | Courant | cisecurity.org |
+| i18n — message format | ICU MessageFormat | Courant | unicode.org/icu |
+| i18n — locale data | Unicode CLDR | Courant | cldr.unicode.org |
 
 ---
 
@@ -903,10 +988,10 @@ Pour un changement É typique (touche authentification et données personnelles)
 
 Ces questions sont non résolues et peuvent impacter l'architecture si elles ne sont pas tranchées avant la phase Build.
 
-### RC-01 — Mécanisation de la classification T/F/M/É/C
+### RC-01 — Mécanisation de la classification T/L/M/H/C
 **Question** : Comment automatiser (partiellement) la classification de risque pour réduire la subjectivité ?
 **Impact** : Sans classification fiable, les gates transversaux sont appliqués à la mauvaise intensité.
-**Piste** : Arbre de décision déterministe basé sur les fichiers touchés (auth → É minimum ; données de santé → C minimum ; migrations → M minimum).
+**Piste** : Arbre de décision déterministe basé sur les fichiers touchés (auth → H minimum ; données de santé → C minimum ; migrations → M minimum).
 **Statut** : Ouvert — priorité haute avant Build.
 
 ### RC-02 — WCAG 2.2 vs EN 301 549 : quelle version est légalement exigée ?
@@ -921,8 +1006,8 @@ Ces questions sont non résolues et peuvent impacter l'architecture si elles ne 
 
 ### RC-04 — Outils DAST en mode solo
 **Question** : DAST (OWASP ZAP, Burp) est difficile à configurer et maintenir en mode solo. Quel niveau d'automatisation est réaliste ?
-**Piste** : ZAP en mode headless CI pour les scans É/C ; Nuclei pour les tests de templates automatiques ; Burp Community pour les audits manuels ponctuels.
-**Statut** : Ouvert — à résoudre avant premier cycle É.
+**Piste** : ZAP en mode headless CI pour les scans H/C ; Nuclei pour les tests de templates automatiques ; Burp Community pour les audits manuels ponctuels.
+**Statut** : Ouvert — à résoudre avant premier cycle H.
 
 ### RC-05 — Budget de performance FinOps : €/token LLM
 **Question** : Comment définir un budget réaliste de coût LLM quand l'usage est incertain en phase Discovery ?
@@ -934,16 +1019,48 @@ Ces questions sont non résolues et peuvent impacter l'architecture si elles ne 
 **Réponse provisoire** : Utiliser le logiciel PIA CNIL open source + faire relire l'AIPD par un juriste RGPD externe pour les traitements à risque élevé.
 **Statut** : Décision provisoire prise.
 
-### RC-07 — Intégration AT-03 tests NF dans le sous-cycle fractal à 7 étapes
-**Question** : Les tests non fonctionnels s'intègrent-ils dans le sous-cycle Observer/Définir/Concevoir/Exécuter/Vérifier/Capitaliser/Transmettre, et si oui, dans quelle étape ?
-**Piste** : Vérifier = AT-03 obligatoire ; Capitaliser = résultats documentés ; Transmettre = feedback vers cycles amont.
+### RC-07 — Intégration AT-03 tests NF dans le sous-cycle fractal à 7 étapes / Anti-rubber-stamp enforcement
+**Question** : Les tests non fonctionnels s'intègrent-ils dans le sous-cycle Observer/Define/Design/Execute/Verify/Capitalize/Transmit, et si oui, dans quelle étape ?
+**Piste** : Verify = AT-03 obligatoire ; Capitalize = résultats documentés ; Transmit = feedback vers cycles amont.
+
+**Enforcement anti-rubber-stamp (applicable à AT-10 et AT-11)** :
+- **Quota rejets** : ≥ 20 % des PRs/mois avec ≥ 1 commentaire correction — un taux d'approbation de 100 % est un signal de rubber-stamping
+- **Audit aléatoire** : 1 PR/semaine révisée rétrospectivement le lendemain avec regard critique
+- **Format proposition obligatoire** avant approbation auto-décision : `[problème][alternatives][choix][critère de succès][classe de risque]`
+- **Mesure** : taux de rejet mensuel suivi dans `.planning/07-metrics/quality-metrics.md` ; alerte si < 20 % sur 2 mois consécutifs
+
 **Statut** : Ouvert — nécessite formalisation dans le document du sous-cycle fractal.
+
+### RC-08 — Catalogue d'anti-patterns transversal
+
+**Question** : Les anti-patterns identifiés dans ce document (rubber-stamping, big bang migration, dette comme projet séparé, EAA repoussé, AIPD après Conception, déploiement sans rollback plan, etc.) sont dispersés dans les sections AT-*. Faut-il un catalogue centralisé ?
+
+**Piste** : Créer un catalogue d'anti-patterns avec :
+- Nom de l'anti-pattern
+- Activité transversale concernée (AT-01 à AT-12)
+- Description du pattern toxique
+- Pattern correct de remplacement
+- Classe de risque minimale où le pattern est bloquant
+
+**Anti-patterns déjà identifiés dans ce document** :
+1. Rubber-stamping des propositions agent (AT-10, AT-11) → garde-fous anti-rubber-stamp §6 AT-11
+2. Big bang migration (AT-09) → Strangler Fig obligatoire §6 AT-09
+3. Dette comme projet séparé (AT-09) → Boy Scout Rule intégrée §6 AT-09
+4. EAA repoussé "on verra plus tard" (AT-04) → budget a11y en Cadrage §15 Cycle 2
+5. AIPD après Conception (AT-05) → AIPD déclenchée dès Discovery §4.4
+6. Déploiement sans rollback testé (AT-08) → Expand/Contract §6 AT-08
+7. Commits mixtes S+B (AT-10) → Tidy First checklist §6 AT-10
+8. Optimisation sans mesure (AT-06) → Profiling first §6 AT-06
+9. Observabilité ajoutée après (AT-07) → Observabilité by design §6 AT-07
+10. Feature flags accumulés sans nettoyage (AT-08) → toggle expiration date obligatoire
+
+**Statut** : Ouvert — à formaliser comme document dédié (`docs/transversal/anti-patterns-catalogue.md`) ou comme annexe de ce document.
 
 ---
 
 ## 15. Relations avec chaque cycle
 
-### Cycle 1 — Discovery
+### Cycle 1 — discovery
 
 **Activités transversales principalement actives** : AT-01 (identification risques), AT-05 (identification PII)
 
@@ -955,7 +1072,7 @@ Ces questions sont non résolues et peuvent impacter l'architecture si elles ne 
 
 ---
 
-### Cycle 2 — Cadrage
+### Cycle 2 — cadrage
 
 **Activités transversales principalement actives** : AT-01, AT-04, AT-05, AT-06, AT-08, AT-11
 
@@ -964,17 +1081,17 @@ Ces questions sont non résolues et peuvent impacter l'architecture si elles ne 
 - AT-05 : Si ≥ 2 critères WP29 sont cochés, l'AIPD est planifiée dans le Cadrage avec budget et responsable.
 - AT-06 : Le performance budget technique ET financier est négocié. Les SLO cibles sont esquissés.
 - AT-08 : La stratégie IaC et secrets est décidée (quel vault, quelle stratégie d'environnements).
-- AT-11 : Le mode opératoire (Pairing/Auto-décision/Bypass) est configuré pour le projet.
+- AT-11 : le `OperatingMode` (`pairing`/`auto`/`bypass`) est configuré pour le projet.
 
 **Artefact attendu** : Charter avec section "activités transversales applicables" et budgets associés.
 
 ---
 
-### Cycle 3 — Conception
+### Cycle 3 — conception
 
 **Activités transversales principalement actives** : AT-01, AT-02, AT-04, AT-05, AT-06, AT-07, AT-08
 
-- AT-01 : Threat modeling STRIDE sur les nouveaux flux (obligatoire É/C). ADR de sécurité si choix d'architecture sécurité.
+- AT-01 : Threat modeling STRIDE sur les nouveaux flux (obligatoire H/C). ADR de sécurité si choix d'architecture sécurité.
 - AT-02 : ADR obligatoire pour toute décision architecturale. Plan de documentation API (OpenAPI/AsyncAPI).
 - AT-04 : Plan d'accessibilité : composants ARIA, sémantique HTML, contrastes prévus, focus management, alternatives dragging.
 - AT-05 : AIPD conduite (si déclenchée). Registre de traitement complété. Plan de minimisation et durées de conservation.
@@ -986,7 +1103,7 @@ Ces questions sont non résolues et peuvent impacter l'architecture si elles ne 
 
 ---
 
-### Cycle 4 — Build
+### Cycle 4 — build
 
 **Activités transversales principalement actives** : AT-01, AT-02, AT-03, AT-04, AT-07, AT-08, AT-09, AT-10
 
@@ -1003,12 +1120,12 @@ Ces questions sont non résolues et peuvent impacter l'architecture si elles ne 
 
 ---
 
-### Cycle 5 — Validation
+### Cycle 5 — validation
 
 **Activités transversales principalement actives** : AT-01, AT-03, AT-04, AT-05, AT-06
 
-- AT-01 : DAST sur preprod (É/C). Validation que le threat model est couvert par les tests.
-- AT-03 : Tests de charge sur staging (É/C). Tests de contrat inter-services. Tests E2E sur parcours critiques.
+- AT-01 : DAST sur preprod (H/C). Validation que le threat model est couvert par les tests.
+- AT-03 : Tests de charge sur staging (H/C). Tests de contrat inter-services. Tests E2E sur parcours critiques.
 - AT-04 : Tests manuels lecteur d'écran sur parcours critiques (M+). Tests zoom 400 %, contraste élevé OS.
 - AT-05 : Vérification que toutes les mesures techniques de l'AIPD sont effectivement implémentées.
 - AT-06 : Tests de performance contre les SLO. Validation budget perf technique et financier.
@@ -1017,11 +1134,11 @@ Ces questions sont non résolues et peuvent impacter l'architecture si elles ne 
 
 ---
 
-### Cycle 6 — Release
+### Cycle 6 — release
 
 **Activités transversales principalement actives** : AT-01, AT-02, AT-04, AT-05, AT-07
 
-- AT-01 : SLSA provenance vérifiée + SBOM déposé + signature artefact Cosign. Sans cela, la release est bloquée pour É/C.
+- AT-01 : SLSA provenance vérifiée + SBOM déposé + signature artefact Cosign. Sans cela, la release est bloquée pour H/C.
 - AT-02 : Release notes publiées (générées depuis Conventional Commits). Politique de confidentialité mise à jour si nouvelles données.
 - AT-04 : Déclaration d'accessibilité mise à jour avec date et scope.
 - AT-05 : Mentions légales à jour. Politique de durée de conservation en production.
@@ -1031,7 +1148,7 @@ Ces questions sont non résolues et peuvent impacter l'architecture si elles ne 
 
 ---
 
-### Cycle 7 — Run
+### Cycle 7 — run
 
 **Activités transversales principalement actives** : AT-01, AT-06, AT-07, AT-08, AT-09
 
@@ -1045,7 +1162,7 @@ Ces questions sont non résolues et peuvent impacter l'architecture si elles ne 
 
 ---
 
-### Cycle 8 — Apprentissage
+### Cycle 8 — learning
 
 **Activités transversales principalement actives** : AT-02, AT-09, AT-11
 

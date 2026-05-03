@@ -3,7 +3,7 @@
 > **Statut** : référence architecturale v1.0
 > **Date** : 2026-05-03
 > **Pipeline fractale v4** — Cycle 7/8
-> **Positionnement** : après Release (06), avant Apprentissage (08)
+> **Positionnement** : après release (06), avant learning (08)
 > **Standards de référence** : Google SRE Book + Workbook, DORA 2024/2025, Westrum, OpenTelemetry, FinOps Foundation Framework 2024/2025, ISO/IEC 25010:2023
 
 ---
@@ -24,7 +24,7 @@ En contexte solo + agents IA, le cycle Run présente une tension spécifique : i
 ## 2. Position dans le pipeline
 
 ```
-Discovery → Cadrage → Conception → Build → Validation → Release → [RUN] → Apprentissage
+discovery → cadrage → conception → build → validation → release → [run] → learning
                                                                       ↑          ↓
                                                                   Feedback continu
 ```
@@ -55,7 +55,7 @@ Maintenir et améliorer en continu la fiabilité, la performance et la maîtrise
 | Détecter les anomalies avant les utilisateurs | Alerte synthétique avant ticket utilisateur |
 | Répondre aux incidents avec un MTTR < seuil | FDRT < 1 h pour incidents P1 |
 | Maîtriser les coûts en production | Coût unitaire stable ± 10 % vs baseline |
-| Capitaliser chaque incident en amélioration | 100 % des incidents P1/P2 → postmortem dans 72 h |
+| Convert every incident into improvement | 100 % des incidents P1/P2 → postmortem dans 72 h |
 | Maintenir les runbooks à jour | Runbook testé < 30 jours pour chaque alerte P1 |
 
 ### 3.3 Ce que le Run n'est pas
@@ -91,9 +91,9 @@ Un incrément peut entrer en cycle Run seulement si les conditions suivantes son
 
 | Classe | DoR Run minimale |
 |--------|-----------------|
-| T/F | Logs actifs + 1 alerte de base |
+| T/L | Logs actifs + 1 alerte de base |
 | M | + SLO défini + dashboard |
-| É | + multi-burn-rate + runbook testé + budget FinOps |
+| H | + multi-burn-rate + runbook testé + budget FinOps |
 | C | + SLO interne + SLA externe documentés + on-call plan + chaos test staging |
 
 ---
@@ -127,7 +127,7 @@ Un incrément "sort" du Run actif quand il passe en Run stable (maintenance) ou 
 Le cycle opérationnel continu suit la **boucle OODA** (John Boyd, adaptée SRE) :
 
 ```
-Observer  →  Orienter  →  Décider  →  Agir
+Observer → Define → Design → Execute → Verify → Capitalize → Transmit
     ↑                                    |
     └────────────────────────────────────┘
 ```
@@ -327,9 +327,9 @@ Le chaos engineering en solo n'est pas du chaos aléatoire — c'est une **expé
 
 | Classe service | Chaos en staging | Chaos en prod | Fréquence |
 |---------------|-----------------|---------------|-----------|
-| T/F | Non obligatoire | Non | — |
+| T/L | Non obligatoire | Non | — |
 | M | Recommandé | Non | Trimestriel |
-| É | Obligatoire | GameDay planifié | Mensuel |
+| H | Obligatoire | GameDay planifié | Mensuel |
 | C | Obligatoire | GameDay obligatoire | Bimensuel |
 
 **Expériences de base pour démarrer** (minimum viable chaos) :
@@ -413,7 +413,7 @@ Applicable pour les services avec impact sur des données critiques ou des déci
 
 ### 8.1 Tableau de modulation Run
 
-| Activité Run | T | F | M | É | C |
+| Activité Run | T | L | M | H | C |
 |---|:---:|:---:|:---:|:---:|:---:|
 | SLO défini + mesuré | ◔ | ✅ | ✅ | ✅ | ✅ |
 | Multi-burn-rate alerting | — | ◔ | ✅ | ✅ | ✅ |
@@ -437,13 +437,13 @@ Légende : ✅ obligatoire · ◔ recommandé · — facultatif/skip
 
 **T (Trivial)** : monitoring passif (logs actifs, alerte générique), pas de SLO dédié, pas de runbook spécifique. Si un incident survient : correction rapide + note dans le journal.
 
-**F (Faible)** : SLO de base défini, runbook minimal, postmortem léger si incident (journal + cause + correction). Pas de chaos test obligatoire.
+**L (Low)** : SLO de base défini, runbook minimal, postmortem léger si incident (journal + cause + correction). Pas de chaos test obligatoire.
 
 **M (Moyen)** : chemin complet Run sans chaos prod. SLO + multi-burn-rate + runbooks testés + postmortem structuré + FinOps baseline. Dashboard de monitoring actif.
 
-**É (Élevé)** : chemin complet + FinOps alerting + capacity planning trimestriel + chaos staging mensuel. Postmortem avec revue de l'architecture de résilience. Error budget policy appliquée strictement.
+**H (High)** : chemin complet + FinOps alerting + capacity planning trimestriel + chaos staging mensuel. Postmortem avec revue de l'architecture de résilience. Error budget policy appliquée strictement.
 
-**C (Critique)** : chemin É + GameDay bimensuel + SLA externe documenté + revue sécurité post-incident + audit indépendant si disponible. L'error budget épuisé déclenche un gel immédiat de tous les déploiements non-correctifs.
+**C (Critique)** : chemin H + GameDay bimensuel + SLA externe documenté + revue sécurité post-incident + audit indépendant si disponible. L'error budget épuisé déclenche un gel immédiat de tous les déploiements non-correctifs.
 
 ---
 
@@ -465,7 +465,7 @@ Le cycle Run suit le même sous-cycle universel à 7 étapes que tous les autres
 
 **Fréquence** : continue (temps réel pour les métriques critiques), quotidienne pour la revue des tendances.
 
-### Étape 2 — Définir
+### Étape 2 — Define
 
 **Ce qu'on fait** : qualifier l'anomalie ou l'incident — est-ce un bruit de fond normal, une dégradation progressive, un incident actif ? Classifier la sévérité (P0/P1/P2/P3).
 
@@ -481,7 +481,7 @@ Le cycle Run suit le même sous-cycle universel à 7 étapes que tous les autres
 
 **Artefacts** : journal d'incident ouvert, status page mise à jour, estimation d'impact documentée.
 
-### Étape 3 — Concevoir
+### Étape 3 — Design
 
 **Ce qu'on fait** : choisir la stratégie de réponse — rollback, mitigation (feature flag off, rate limit), hotfix, investigation approfondie, no-action (faux positif).
 
@@ -502,7 +502,7 @@ Incident confirmé
 
 **Règle invariante** : toute décision de conception en Run est horodatée dans le journal d'incident.
 
-### Étape 4 — Exécuter
+### Étape 4 — Execute
 
 **Ce qu'on fait** : exécuter l'action choisie en suivant le runbook, en traçant chaque commande et son résultat.
 
@@ -517,7 +517,7 @@ Incident confirmé
 
 **Automated rollback** : si l'error budget brûle à > 14,4× sur 5 min, le rollback peut être déclenché automatiquement (CI/CD pipeline + feature flag). L'humain est notifié, pas nécessairement l'exécuteur.
 
-### Étape 5 — Vérifier
+### Étape 5 — Verify
 
 **Ce qu'on fait** : confirmer que l'action a résolu l'incident. Vérifier que le SLO est revenu dans les bornes, que les erreurs ont cessé, que les utilisateurs ne sont plus impactés.
 
@@ -527,9 +527,9 @@ Incident confirmé
 - Aucun nouveau signal d'alerte dans les 10 min suivant la résolution.
 - Status page mise à jour "Resolved".
 
-**Si la vérification échoue** : retour à l'étape 3 (Concevoir) avec les nouvelles informations collectées.
+**Si la vérification échoue** : retour à l'étape 3 (Design) avec les nouvelles informations collectées.
 
-### Étape 6 — Capitaliser
+### Étape 6 — Capitalize
 
 **Ce qu'on fait** : transformer l'incident en apprentissage durable.
 
@@ -551,7 +551,7 @@ Incident confirmé
 
 **Test de non-régression** : tout incident P1/P2 génère un test qui aurait détecté la cause avant déploiement → ce test est ajouté au pipeline CI.
 
-### Étape 7 — Transmettre
+### Étape 7 — Transmit
 
 **Ce qu'on fait** : synthétiser les signaux Run pour les cycles amont (Apprentissage, Conception, Build).
 
@@ -749,7 +749,7 @@ Les questions suivantes sont non résolues. Elles doivent être tranchées avant
 
 **Question** : comment intégrer les chaos experiments dans le cycle Run fractal ? Doivent-ils déclencher un mini-cycle Run ou être traités comme des activités Validation ?
 
-**Piste** : les chaos experiments en staging → cycle Validation. Les GameDay en production → cycle Run (étape Observer + Vérifier formalisée).
+**Piste** : les chaos experiments en staging → cycle Validation. Les GameDay en production → cycle Run (étape Observer + Verify formalisée).
 
 ### RED-05 : Seuil d'activation de l'automated rollback
 

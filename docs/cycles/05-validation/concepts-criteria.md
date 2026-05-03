@@ -1,7 +1,7 @@
 # Cycle 05 — Validation : Concepts et Critères
 
 > **Pipeline fractale v4** — Document de référence conceptuel et architectural.
-> **Statut** : v1.0 — 2026-05-03
+> **Statut** : v1.1 — 2026-05-03
 > **Portée** : architecture only — aucun artefact d'implémentation dans ce document.
 > **Source de vérité** : rapport-discovery-cadrage.md (2026-05-02)
 
@@ -19,14 +19,14 @@ Trois principes directeurs régissent ce cycle :
 2. **Shift-left** : la Validation n'est pas une phase terminale. Elle prolonge les contrôles continus initiés dès la Conception. Son rôle est d'en valider la complétude, pas d'en être le seul filet.
 3. **Automatisation d'abord, jugement humain pour le risque et l'ambiguïté** : les quality gates automatisés bloquent sans dérogation non tracée ; les tests exploratoires et manuels couvrent ce que les scanners ne peuvent pas détecter.
 
-En mode solo + IA, ce cycle s'exécute avec un agent IA qui joue le rôle de "reviewer antagoniste" et de "testeur exploratoire simulé", sous supervision du développeur pour les classes É et C.
+En mode solo + IA, ce cycle s'exécute avec un agent IA qui joue le rôle de "reviewer antagoniste" et de "testeur exploratoire simulé", sous supervision du développeur pour les classes H et C.
 
 ---
 
 ## 2. Position dans le pipeline
 
 ```
-[Discovery] → [Cadrage] → [Conception] → [Build] → [VALIDATION] → [Release] → [Run] → [Apprentissage]
+[discovery] → [cadrage] → [conception] → [build] → [validation] → [release] → [run] → [learning]
                                                           ↑               ↓
                                                     ← feedbacks ←    Go/No-Go
 ```
@@ -57,7 +57,7 @@ Le cycle Validation génère trois types de feedbacks :
 | Destination | Déclencheur | Contenu |
 |---|---|---|
 | Build (04) | Défaut critique découvert | Ticket de régression + test de non-régression à ajouter |
-| Conception (03) | Défaut d'architecture révélé par les tests | ADR de correction + re-threat-model si É/C |
+| Conception (03) | Défaut d'architecture révélé par les tests | ADR de correction + re-threat-model si H/C |
 | Apprentissage (08) | Défaut échappé vers prod (postmortem) | Pattern de défaut + règle de classification ajoutée |
 
 ---
@@ -101,11 +101,11 @@ Le cycle Validation ne peut démarrer que si **tous** les critères suivants son
 - [ ] Critères d'acceptation testables documentés pour chaque story/PBI incluse dans l'incrément
 - [ ] Plan de tests défini (stratégie, niveaux, portée, exclusions)
 - [ ] SLO définis et mesurables (latence p99, disponibilité, taux d'erreur)
-- [ ] Classe de risque confirmée (T/F/M/É/C) pour chaque changement de l'incrément
+- [ ] Classe de risque confirmée (T/L/M/H/C) pour chaque changement de l'incrément
 
 ### 4.2 Critères contextuels (selon classe de risque)
 
-| Critère | M | É | C |
+| Critère | M | H | C |
 |---|---|---|---|
 | Plan de rollback documenté | ✅ | ✅ testé | ✅ répété |
 | Feature flag en place (déployé OFF) | — | ✅ | ✅ |
@@ -129,11 +129,12 @@ L'incrément est **Done-Validé** quand :
 
 ### 5.2 Qualité technique
 
-- [ ] Mutation score > 70 % sur les zones critiques (logique métier, auth, calculs financiers)
-- [ ] Tenue des SLO sous charge nominale + stress (résultats mesurés, pas estimés)
+- [ ] Mutation score zones critiques atteint selon la classe : ≥ 60 % pour M (logique métier uniquement), ≥ 70 % pour H, ≥ 80 % pour C — non requis pour T/L (voir §6.4 et §8.1)
+- [ ] Tenue des SLO sous charge nominale + stress (résultats mesurés, pas estimés) — SLO load par défaut : p95 < 500 ms / p99 < 1 s ; override possible si SLO différents définis en Conception
 - [ ] SAST / SCA : aucune CVE Critical ou High non triée et justifiée
-- [ ] DAST (classes É/C) : aucune vulnérabilité High non mitigée
+- [ ] DAST (classes H/C) : aucune vulnérabilité High non mitigée
 - [ ] IaC/container scan : aucun finding Critical non traité
+- [ ] Intégrité SBOM vérifiée (présent, signé, 0 CVE CVSS ≥ 9.0) — obligatoire L+ (voir §11.2)
 
 ### 5.3 Sécurité (OWASP ASVS v5)
 
@@ -149,14 +150,14 @@ L'incrément est **Done-Validé** quand :
 
 ### 5.5 Privacy
 
-- [ ] Les mesures techniques de l'AIPD sont vérifiées implémentées (pas seulement décrites)
+- [ ] Les mesures techniques de l'AIPD sont vérifiées implémentées (pas seulement décrites) — si une AIPD est ouverte (risques M+), l'AIPD doit être validée avant le Go
 - [ ] Aucune donnée de prod non anonymisée présente en staging
 - [ ] Logs : aucune PII en clair dans les logs de staging
 
 ### 5.6 Artefacts obligatoires
 
-- [ ] `planning/03-sprints/.../04-test-and-validation-results.md` complété
-- [ ] `planning/06-quality/quality-gates-results.md` mis à jour
+- [ ] `.planning/03-sprints/.../04-test-and-validation-results.md` complété
+- [ ] `.planning/06-quality/quality-gates-results.md` mis à jour
 - [ ] Décision Go/No-Go documentée avec justification
 - [ ] Issues résiduelles acceptées listées avec owner + deadline de remédiation
 
@@ -260,21 +261,49 @@ La stratégie choisie est documentée en Conception et ne doit pas changer en co
 #### Tests de contrat (Contract Testing — Pact)
 
 **Concept** : chaque consommateur d'une API définit ses attentes sous forme de contrat. Le fournisseur vérifie qu'il satisfait tous les contrats de ses consommateurs.
-**Quand** : dès qu'il y a une frontière inter-service (microservices, API publique, BFF).
+**Quand** : dès qu'il y a une frontière inter-service (microservices, API publique, BFF). En solo monorepo, préférer les tests d'intégration avec le consommateur réel — réserver Pact aux frontières inter-repo ou inter-équipe.
 **Avantage** : détecte les ruptures de compatibilité **avant** le déploiement, sans tests E2E coûteux.
-**Outil** : Pact + Pact Broker / PactFlow. Le contrat est généré lors des tests du consommateur, vérifié côté fournisseur.
+**Outil** : Pact v11 (2025) + Pact Broker / PactFlow.
 **Complémentarité** : les tests de contrat remplacent les tests d'intégration inter-services, pas les tests unitaires ni les E2E smoke tests.
 
 #### Tests de mutation
 
 **Concept** : introduire des mutations dans le code (changer `>` en `>=`, supprimer une condition, etc.) et vérifier que les tests existants les détectent ("killent" le mutant).
 **Métriques** :
-- **Mutation score** = mutants tués / mutants totaux. Cible : > 70 % sur les zones critiques.
+- **Mutation score** = mutants tués / mutants totaux.
+- Cibles par classe : ≥ 60 % pour M (logique métier), ≥ 70 % pour H, ≥ 80 % pour C.
 - **Survivants** = lacunes dans les assertions ou les cas de test.
 **Outils** : Stryker (JS/TS, .NET, Scala), PIT (Java), mutmut (Python).
 **Quand appliquer** : sur les modules de logique métier dense, auth, calculs financiers, règles métier critiques. Pas sur tout le codebase (coût exponentiel).
+**Optimisation** : run incrémental (uniquement modules touchés) pour les PRs ; run asynchrone nightly pour H/C — bloquant sur le checkpoint pre-release uniquement.
 **Limite** : les mutants équivalents (mutations sémantiquement sans effet) gonflent artificiellement les survivants. Il faut les identifier et les exclure.
-**Seuils recommandés** : high: 80, low: 60, break: 50 (Stryker defaults).
+**Seuils Stryker par défaut** : high: 80, low: 60, break: 50.
+
+#### Tests par propriétés (Property-based testing)
+
+**Concept** : au lieu de définir des exemples discrets, on spécifie des **propriétés** que la fonction doit respecter pour toute entrée générée aléatoirement. Le framework génère des milliers de cas, y compris les cas limites, et cherche à falsifier la propriété.
+
+**Exemple** :
+```typescript
+// Propriété : le tri ne perd pas d'éléments et produit une séquence ordonnée
+fc.assert(
+  fc.property(fc.array(fc.integer()), (arr) => {
+    const sorted = sort(arr);
+    return sorted.length === arr.length && isSorted(sorted);
+  })
+);
+```
+
+**Outils** :
+- **fast-check** (TypeScript/JavaScript) — intégration Vitest/Jest native
+- **Hypothesis** (Python) — shrinking automatique des contre-exemples
+- **jqwik** (Java) — intégration JUnit 5
+
+**Cibles prioritaires** : parsers (CSV, JSON, XML), validateurs de formulaires, calculs financiers (commutatif, associatif, inverse), algorithmes de tri/déduplication/pagination, codecs/sérialiseurs, règles métier complexes.
+
+**Modulation par classe** : recommandé H/C — le coût est justifié là où une seule entrée mal gérée peut corrompre des données ou créer une vulnérabilité. Optionnel (○) pour M sur logique critique.
+
+**Complémentarité** : complète les tests unitaires (exemples explicites) et les tests de mutation (robustesse des assertions) — ne les remplace pas.
 
 #### Tests de charge et de performance
 
@@ -299,8 +328,8 @@ Gerard Meszaros a formalisé la taxonomie dans *xUnit Test Patterns* (2007). Ell
 | **Dummy** | Objet passé mais jamais utilisé | Non | Remplir un paramètre obligatoire |
 | **Stub** | Retourne des valeurs prédéfinies sur les appels entrants | Non | Contrôler les entrées indirectes (ex: retourner un utilisateur fictif) |
 | **Fake** | Implémentation simplifiée mais fonctionnelle | Non | In-memory DB, fake email service |
-| **Spy** | Enregistre les appels reçus, peut déléguer au réel | Post-assertion | Vérifier qu'une méthode a été appelée N fois |
-| **Mock** | Vérifie des attentes prédéclarées, échoue si elles ne sont pas remplies | Pendant le test | Vérifier un contrat d'interaction précis |
+| **Spy** | Records received calls, may delegate to the real dependency | Post-assertion | Check that a method was called N times |
+| **Mock** | Checks predeclared expectations and fails if they are not met | During the test | Check a precise interaction contract |
 
 **Règles d'usage** :
 - Préférer les **Fakes** pour les dépendances d'infrastructure (DB, queue) — plus réalistes, moins fragiles.
@@ -331,9 +360,9 @@ La couverture de code est un indicateur **nécessaire mais insuffisant** de la q
 
 | Classe | Couverture de lignes | Mutation score zones critiques |
 |---|---|---|
-| T/F | ≥ 60 % | Non requis |
+| T/L | ≥ 60 % | Non requis |
 | M | ≥ 70 % | ≥ 60 % sur logique métier |
-| É | ≥ 80 % | ≥ 70 % sur zones critiques |
+| H | ≥ 80 % | ≥ 70 % sur zones critiques |
 | C | ≥ 85 % | ≥ 80 % sur zones critiques |
 
 ---
@@ -361,7 +390,8 @@ Pour [découvrir/vérifier]
 - **CRUD** : Create, Read, Update, Delete sur toutes les entités
 - **Boundary values** : valeurs limites, nulls, vides, très longs, caractères spéciaux
 - **Error guessing** : basé sur l'historique de défauts passés (capitalisation)
-- **STRIDE light** : pour les fonctionnalités à composante sécurité
+- **STRIDE light** : pour les fonctionnalités à composante sécurité (Spoofing, Tampering, Repudiation, Information disclosure, Denial of service, Elevation of privilege)
+- **LINDDUN** : pour les fonctionnalités traitant des données personnelles — Linkability (combinaison de données révélant une identité), Identifiability (identification directe), Non-repudiation (traçabilité non désirée), Detectability (révélation d'existence), Disclosure of information (exposition involontaire), Unawareness (utilisateur non informé), Non-compliance (violation réglementaire). Recommandé en complément de STRIDE sur toute feature impliquant des PII, emails, données de santé ou financières.
 
 **Solo + IA** : l'agent IA joue le rôle d'un "adversarial tester" en parcourant les heuristiques systématiquement, le développeur valide les findings et décide des suites.
 
@@ -427,9 +457,9 @@ WCAG 2.2 (octobre 2023) est la baseline de référence. L'European Accessibility
 | Classe | Automatisé | Manuel | Audit |
 |---|---|---|---|
 | T | ◔ CI | — | — |
-| F | ✅ CI | — | — |
+| L | ✅ CI | — | — |
 | M | ✅ CI | Smoke test clavier | — |
-| É | ✅ CI | Clavier + lecteur d'écran | — |
+| H | ✅ CI | Clavier + lecteur d'écran | — |
 | C | ✅ CI | Clavier + lecteur d'écran + zoom | Expert ou utilisateurs en situation de handicap |
 
 ---
@@ -442,8 +472,8 @@ OWASP ASVS v5.0.0 a été publié en mai 2025 à Global AppSec EU Barcelona. Il 
 
 | Niveau | Portée | Classe de risque correspondante |
 |---|---|---|
-| L1 — Hygiene | Sécurité de base, première couche de défense | T/F |
-| L2 — Standard | Pratiques standard complètes, la majorité des applications | M/É |
+| L1 — Hygiene | Sécurité de base, première couche de défense | T/L |
+| L2 — Standard | Pratiques standard complètes, la majorité des applications | M/H |
 | L3 — High Assurance | Critique, finance, santé, données sensibles | C |
 
 **Les 17 chapitres ASVS v5** (couverture sélective par pertinence) :
@@ -467,10 +497,13 @@ OWASP ASVS v5.0.0 a été publié en mai 2025 à Global AppSec EU Barcelona. Il 
 17. Autres contrôles
 
 **Application en Validation** :
-- Pour chaque changement de classe É/C : vérifier les chapitres ASVS pertinents aux flux modifiés
-- DAST (OWASP ZAP, Burp Suite) sur preprod pour les classes É/C
+- Pour chaque changement de classe H/C : vérifier les chapitres ASVS pertinents aux flux modifiés
+- DAST (OWASP ZAP, Burp Suite) sur preprod pour les classes H/C
 - Fuzzing sur les endpoints d'API publique pour la classe C
 - Tests d'authentification et d'autorisation (AuthZ matrix testing) pour tout changement touchant des permissions
+
+**Risques spécifiques au code généré par IA** :
+Des études récentes documentent que le code généré par IA présente des taux de défauts sécurité significativement plus élevés : 19.6 % de hallucinations de packages (dépendances inexistantes pouvant être détournées — Chen et al. 2024) et 29–45 % de vulnérabilités sécurité introduites involontairement (Perry et al. 2023). En Validation, les modules à forte proportion de code généré par IA doivent faire l'objet d'un audit SAST/DAST renforcé et d'une vérification explicite de chaque dépendance introduite, indépendamment de la classe de risque nominale.
 
 ---
 
@@ -494,7 +527,7 @@ OWASP ASVS v5.0.0 a été publié en mai 2025 à Global AppSec EU Barcelona. Il 
 - **Idempotence** : les tests ne doivent pas dépendre de l'ordre d'exécution
 - **Isolation** : chaque test setup son propre état, ne dépend pas de l'état laissé par un autre test
 
-**Conformité RGPD** : les données anonymisées au sens RGPD doivent être irréversiblement anonymisées (hash + salt sur PII directes, génération synthétique sur PII indirectes). La pseudonymisation n'est **pas** de l'anonymisation au sens du RGPD (ICO guidance 2025).
+**Conformité RGPD** : les données anonymisées au sens RGPD doivent être irréversiblement anonymisées — hash + salt sur PII directes, génération synthétique sur PII indirectes, k-anonymity sur datasets analytiques. La pseudonymisation n'est **pas** de l'anonymisation au sens du RGPD (ICO guidance 2025).
 
 ---
 
@@ -508,17 +541,17 @@ ISO/IEC/IEEE 29119 est la norme internationale pour les processus de test logici
 
 ```
               IMPACT
-              Faible   Moyen   Élevé
-Faible   │   Bas    │  Bas  │ Moyen │
+              Low      Moyen   High
+Low      │   Bas    │  Bas  │ Moyen │
 VRAIS.   │         │       │       │
-Moyen    │   Bas   │ Moyen │ Élevé │
+Moyen    │   Bas   │ Moyen │ High  │
          │         │       │       │
-Élevé    │  Moyen  │ Élevé │Critique│
+High     │  Moyen  │ High  │Critique│
 ```
 
 **Allocation de l'effort** :
 - Zone Critique : tests exhaustifs, mutation testing, tests exploratoires, revue de sécurité
-- Zone Élevée : tests complets, couverture renforcée, ET ciblé
+- Zone High : tests complets, couverture renforcée, ET ciblé
 - Zone Moyenne : tests standards, couverture nominale
 - Zone Basse : smoke tests, couverture minimale
 
@@ -531,7 +564,7 @@ Moyen    │   Bas   │ Moyen │ Élevé │
 
 ---
 
-## 7. Critères qualité — ISO/IEC 25010:2023
+## 7. Critères qualité — ISO/IEC 25010:2023 et ISO/IEC 25019:2023
 
 ISO/IEC 25010:2023 définit 9 caractéristiques de qualité produit. La Validation les mesure contre les seuils définis en Conception.
 
@@ -579,15 +612,31 @@ Indicateurs de mauvaise testabilité (à détecter en Validation) :
 - Setup de test > 100 lignes pour une feature simple
 - Tests qui testent des détails d'implémentation (fragiles au refactor)
 
+### 7.4 ISO/IEC 25019:2023 — Qualité en usage
+
+ISO/IEC 25019:2023 complète ISO 25010 en définissant la **qualité perçue par l'utilisateur en situation réelle** (qualité en usage), distincte de la qualité intrinsèque du produit.
+
+**5 caractéristiques de qualité en usage** :
+
+| Caractéristique | Description | Mesure en Validation |
+|---|---|---|
+| **Efficacité** | L'utilisateur atteint ses objectifs avec exactitude et complétude | Taux de succès sur parcours utilisateur critiques (tests E2E) |
+| **Efficience** | Effort dépensé pour atteindre les objectifs | Temps sur tâche, nombre d'étapes, taux d'erreur utilisateur |
+| **Satisfaction** | Confort, plaisir, confiance, et absence de désagrément | SUS score (System Usability Scale), CSAT |
+| **Liberté du risque** | Absence de risques économiques, de sécurité, environnementaux, sociaux | Tests de sécurité, conformité RGPD, tests de charge |
+| **Couverture du contexte** | Adéquation pour les différents contextes d'utilisation | Tests cross-browser, cross-device, tests d'accessibilité |
+
+Les caractéristiques ISO 25019 sont définies en Cadrage (critères d'acceptation utilisateur) et mesurées en Validation via les tests E2E, les tests d'accessibilité, et les tests de charge.
+
 ---
 
 ## 8. Modulation par classe de risque
 
-La profondeur de la Validation se module sur la classe de risque T/F/M/É/C de chaque changement. Les classes sont cumulatives : un incrément peut contenir des changements de classes différentes — c'est la **classe maximale** qui détermine le niveau de validation global.
+La profondeur de la Validation se module sur la classe de risque T/L/M/H/C de chaque changement. Les classes sont cumulatives : un incrément peut contenir des changements de classes différentes — c'est la **classe maximale** qui détermine le niveau de validation global.
 
 ### 8.1 Matrice de modulation
 
-| Activité de Validation | T | F | M | É | C |
+| Activité de Validation | T | L | M | H | C |
 |---|:---:|:---:|:---:|:---:|:---:|
 | Vérification critères d'acceptation | ◔ | ✅ | ✅ | ✅ | ✅ |
 | Tests unitaires (CI) | ✅ | ✅ | ✅ | ✅ | ✅ |
@@ -595,6 +644,7 @@ La profondeur de la Validation se module sur la classe de risque T/F/M/É/C de c
 | Tests E2E parcours critiques | — | ◔ | ✅ | ✅ | ✅ |
 | Tests de contrat (Pact) | — | — | ○ | ✅ | ✅ |
 | Mutation testing zones critiques | — | — | ○ | ✅ | ✅ |
+| Tests par propriétés (property-based) | — | — | ○ | ✅ | ✅ |
 | Tests de charge / SLO | — | — | ○ | ✅ | ✅ |
 | DAST (preprod) | — | — | ○ | ✅ | ✅ |
 | Fuzzing endpoints API | — | — | — | ○ | ✅ |
@@ -608,16 +658,32 @@ La profondeur de la Validation se module sur la classe de risque T/F/M/É/C de c
 | ASVS L3 | — | — | — | — | ✅ |
 | Revue de sécurité indépendante | — | — | — | ✅ | ✅ |
 | Test de rollback | — | — | ✅ | ✅ testé | ✅ répété |
+| Tests i18n / RTL | — | ○ | ○ | ✅ | ✅ |
+| Vérification budget FinOps | — | — | ○ | ✅ | ✅ |
+| Vérification intégrité SBOM | — | ✅ | ✅ | ✅ | ✅ |
 
 **Légende** : ✅ obligatoire — ○ recommandé — ◔ allégé — — non requis
 
-### 8.2 Dérogations
+**Tests i18n / RTL** : vérifier la complétude des chaînes de traduction, l'absence de texte dur-codé, le rendu correct des langues RTL (arabe, hébreu) sur les layouts, les formats de date/nombre/devise selon la locale, et la gestion des pluriels. Outils : i18next, Lingui, RTL-aware Playwright tests.
+
+**Vérification budget FinOps** : vérifier que le coût d'infrastructure généré par l'incrément reste dans l'enveloppe budgétaire validée en Conception. Pour H/C, le coût de run est mesuré en staging sur une charge représentative et comparé au budget cible. Seuil d'alarme : dérive > 20 % sans justification → dérogation tracée requise. Source : FinOps Foundation Framework 2024.
+
+### 8.2 Dérogations et protocole de promotion de classe
 
 Toute dérogation à une activité marquée ✅ doit être :
-1. Documentée dans `planning/03-sprints/.../04-test-and-validation-results.md`
+1. Documentée dans `.planning/03-sprints/.../04-test-and-validation-results.md`
 2. Justifiée (raison technique ou temporelle explicite)
 3. Tracée avec un risk owner et une date de remédiation
-4. Approuvée (auto-approbation acceptable en solo T/F, revue obligatoire en É/C)
+4. Approuvée (auto-approbation acceptable en solo T/L, revue obligatoire en H/C)
+
+**Protocole de promotion de classe en cours de Validation** : si un test exploratoire, un DAST, ou une vérification SBOM révèle un risque non anticipé qui élève la classe de risque effective (ex : M → H), le protocole en 4 étapes est :
+
+1. **Déclencheur documenté** : consigner la découverte dans le session report ET ou le rapport DAST avec le signal de forçage identifié (ex : fichier `auth/session.ts` modifié, CVE critique découverte, PII révélées dans les logs)
+2. **Upgrade immédiat** : appliquer les gates et exigences de preuve de la nouvelle classe — ne pas attendre la fin du cycle
+3. **Notification et log** : créer une entrée dans `.planning/state.yaml` avec `type: class_escalation`, ancienne classe, nouvelle classe, signal déclencheur, et liste des nouvelles exigences de preuve obligatoires
+4. **Mise à jour rétroactive des artefacts** : ADR si nécessaire, threat model si sécurité concernée (+ LINDDUN si PII), plan canary si passage en H/C, re-trigger des gates manquantes
+
+Si les exigences de la nouvelle classe ne peuvent pas être satisfaites dans le périmètre de l'incrément courant : No-Go immédiat + retour Build avec la promotion documentée.
 
 ---
 
@@ -635,9 +701,9 @@ La Validation suit le même sous-cycle universel à 7 étapes que tous les autre
 - Identifier les zones de risque élevé à partir de la matrice de risque de test
 - Vérifier que la DoR est satisfaite (sinon, retourner en Build)
 
-**Artefacts en entrée** : `planning/03-sprints/.../01-selected-work.md`, critères d'acceptation des stories, rapport CI
+**Artefacts en entrée** : `.planning/03-sprints/.../01-selected-work.md`, critères d'acceptation des stories, rapport CI
 
-### Étape 2 — Définir
+### Étape 2 — Define
 
 **But** : formaliser la stratégie de validation pour cet incrément.
 
@@ -648,9 +714,9 @@ La Validation suit le même sous-cycle universel à 7 étapes que tous les autre
 - Identifier les environnements nécessaires et leur disponibilité
 - Planifier les tests manuels (accessibilité, exploration) avec fenêtres de temps
 
-**Artefacts produits** : plan de tests de validation (dans `planning/03-sprints/.../04-test-and-validation-results.md`, section Plan)
+**Artefacts produits** : plan de tests de validation (dans `.planning/03-sprints/.../04-test-and-validation-results.md`, section Plan)
 
-### Étape 3 — Concevoir
+### Étape 3 — Design
 
 **But** : préparer les données de test, les scénarios, les charters ET.
 
@@ -661,7 +727,7 @@ La Validation suit le même sous-cycle universel à 7 étapes que tous les autre
 - Préparer les scénarios d'accessibilité manuelle (parcours à tester, outils)
 - Configurer les outils DAST (ZAP spider + active scan) sur preprod
 
-### Étape 4 — Exécuter
+### Étape 4 — Execute
 
 **But** : exécuter tous les tests selon le plan, dans l'ordre de priorité (risque décroissant).
 
@@ -669,14 +735,15 @@ La Validation suit le même sous-cycle universel à 7 étapes que tous les autre
 1. Quality gates CI (déjà verts, confirmation)
 2. Tests de régression automatisés (suite complète)
 3. Vérification des critères d'acceptation (automatisés puis manuels)
-4. Tests de charge contre les SLO
-5. DAST (si É/C)
-6. Tests exploratoires (zones rouges en priorité)
+4. Tests de charge contre les SLO + vérification budget FinOps (si M+)
+5. DAST (si H/C)
+6. Tests exploratoires (zones rouges en priorité, heuristiques SFDPOT + STRIDE light + LINDDUN si PII)
 7. Tests d'accessibilité manuels (si M+)
+8. Vérification intégrité SBOM (si L+)
 
 **Collecte de preuves** : chaque test produit une preuve (rapport CI, screenshot, session report ET, rapport k6, rapport axe-core).
 
-### Étape 5 — Vérifier
+### Étape 5 — Verify
 
 **But** : analyser les résultats et prendre la décision Go/No-Go.
 
@@ -688,20 +755,21 @@ La Validation suit le même sous-cycle universel à 7 étapes que tous les autre
 | **No-Go** | Au moins un critère DoD Validation non satisfait sans dérogation approuvée. Défaut bloquant ou critique ouvert. |
 | **Go avec réserves** | Critères satisfaits, mais défauts mineurs ouverts avec owner + deadline + plan de monitoring. |
 
-**Traçabilité de la décision** : la décision est documentée dans `planning/03-sprints/.../04-test-and-validation-results.md` avec sa justification complète.
+**Traçabilité de la décision** : la décision est documentée dans `.planning/03-sprints/.../04-test-and-validation-results.md` avec sa justification complète.
 
-### Étape 6 — Capitaliser
+### Étape 6 — Capitalize
 
 **But** : enregistrer ce qui a été appris pour améliorer la prochaine Validation.
 
 **Activités** :
-- Mettre à jour `planning/06-quality/quality-gates-results.md`
-- Mettre à jour `planning/06-quality/defect-escape-analysis.md` si des défauts avaient échappé
-- Mettre à jour `planning/06-quality/flaky-tests-register.md`
-- Identifier les nouveaux patterns de défaut pour `planning/08-risks/`
+- Mettre à jour `.planning/06-quality/quality-gates-results.md`
+- Mettre à jour `.planning/06-quality/defect-escape-analysis.md` si des défauts avaient échappé
+- Mettre à jour `.planning/06-quality/flaky-tests-register.md`
+- Mettre à jour `.planning/06-quality/quality-debt-register.md` avec la dette qualité identifiée pendant ce cycle (seuils manqués, dérogations accordées, tests différés)
+- Identifier les nouveaux patterns de défaut pour `.planning/08-risks/`
 - Si un défaut a été trouvé en Validation que les tests développeur auraient dû catcher : créer un test de non-régression (principe "every defect generates a test")
 
-### Étape 7 — Transmettre
+### Étape 7 — Transmit
 
 **But** : remettre le dossier de validation au cycle Release.
 
@@ -730,9 +798,9 @@ Ces activités imprègnent la Validation sans être localisées dans une étape 
 **Règle d'or** : tout défaut découvert en production (postmortem) génère un test de régression avant la correction. Ce test doit être rouge (failing) avant le fix.
 
 **Flaky tests** :
-- Mise en quarantaine immédiate (ne bloquent plus la CI mais sont signalés)
-- Fix obligatoire sous 1 sprint (sinon suppression)
-- Enregistrés dans `planning/06-quality/flaky-tests-register.md`
+- Mise en quarantaine immédiate — SLA quarantaine : 1 sprint (ne bloquent plus la CI mais sont signalés)
+- Fix obligatoire sous 3 sprints maximum — sinon suppression. Owner : QA Lead ; escalade : Validation Lead si backlog flaky > 5 tickets
+- Enregistrés dans `.planning/06-quality/flaky-tests-register.md`
 
 ### 10.2 Assurance qualité continue
 
@@ -747,8 +815,10 @@ La Validation formelle ne substitue pas aux contrôles continus. Le schéma de r
 | Tests E2E critiques | CI automatique | Chaque merge |
 | Suite complète de régression | CI nightly | Quotidien |
 | Tests exploratoires | Validation humaine | Par incrément M+ |
-| Tests de charge | Validation humaine | Par incrément É/C |
-| Tests manuels accessibilité | Validation humaine | Par incrément É/C |
+| Tests de charge | Validation humaine | Par incrément H/C |
+| Tests manuels accessibilité | Validation humaine | Par incrément H/C |
+
+**Fonctions fitness** (Building Evolutionary Architectures — Ford, Parsons, Kua 2017) : des fonctions fitness automatisées gouvernent les seuils de qualité en continu, déclenchant une alerte CI ou un blocage si un seuil est franchi. Exemples : couverture de code sous le seuil de classe, mutation score en baisse, temps de réponse p99 en régression > 10 %, score axe-core dégradé, SBOM avec nouvelle CVE critique. Voir `docs/transversal/quality-model.md §fitness-functions` pour le catalogue complet.
 
 ### 10.3 Benchmarks de performance
 
@@ -789,11 +859,14 @@ Les résultats de performance ont de la valeur seulement si comparés à une bas
 |---|---|---|
 | Rapport de tests de charge | Changement M+ avec SLO | `.planning/03-sprints/.../evidence/` |
 | Session reports ET | Changement M+ | `.planning/03-sprints/.../evidence/` |
-| Rapport DAST | Changement É/C | `.planning/03-sprints/.../evidence/` |
+| Rapport DAST | Changement H/C | `.planning/03-sprints/.../evidence/` |
 | Rapport axe-core | Changement UI | `.planning/03-sprints/.../evidence/` |
-| Rapport d'accessibilité manuelle | Changement UI É/C | `.planning/03-sprints/.../evidence/` |
+| Rapport d'accessibilité manuelle | Changement UI H/C | `.planning/03-sprints/.../evidence/` |
 | Attestation AIPD | Changement avec données perso. | `docs/09-security-compliance/` |
 | Rapport mutation testing | Changement M+ logique critique | `.planning/03-sprints/.../evidence/` |
+| Rapport property-based testing | Changement H/C parsers/calculs financiers | `.planning/03-sprints/.../evidence/` |
+| SBOM vérifié (intégrité + CVE scan) | Changement L+ — vérification explicite, pas seulement livraison | `.planning/03-sprints/.../evidence/` |
+| Rapport FinOps (coût staging mesuré) | Changement H/C | `.planning/03-sprints/.../evidence/` |
 | Issues résiduelles acceptées | Go avec réserves | `.planning/03-sprints/.../04-test-and-validation-results.md` |
 
 ### 11.3 Artefacts de capitalisation
@@ -802,8 +875,11 @@ Les résultats de performance ont de la valeur seulement si comparés à une bas
 |---|---|---|
 | Analyse d'échappement des défauts | `.planning/06-quality/defect-escape-analysis.md` | Par défaut escaped |
 | Register des tests flaky | `.planning/06-quality/flaky-tests-register.md` | Continu |
+| Register de la dette qualité | `.planning/06-quality/quality-debt-register.md` | Par cycle Validation |
 | Mise à jour du risk register | `.planning/08-risks/` | Par pattern de risque nouveau |
 | Test de non-régression | `tests/` dans le code | Par défaut trouvé en Validation |
+
+**`quality-debt-register.md`** : document vivant listant les écarts de qualité acceptés avec dérogation — défauts mineurs ouverts, seuils de couverture/mutation non atteints avec justification, tests différés. Chaque entrée porte un owner, une priorité (P1/P2/P3), et une date cible de remédiation. Alimenté à chaque cycle Validation, traité et priorisé en Apprentissage.
 
 ---
 
@@ -815,11 +891,11 @@ Les résultats de performance ont de la valeur seulement si comparés à une bas
 |---|---|---|---|
 | **Taux de pass des critères d'acceptation** | Pass / Total | 100 % (ou dérogations tracées) | Par incrément |
 | **Couverture de code (zones critiques)** | Lignes couvertes / Total | Selon classe (§6.4) | Par incrément |
-| **Mutation score** | Mutants tués / Total | > 70 % zones critiques | Par incrément M+ |
+| **Mutation score** | Mutants tués / Total | ≥ 60 % M / ≥ 70 % H / ≥ 80 % C | Par incrément M+ |
 | **Taux de défauts résiduels** | Défauts ouverts / Stories livrées | < 5 % bloquants | Par sprint |
 | **Défauts échappés** | Défauts trouvés en prod / Défauts totaux | < 2 % | Par release |
 
-### 12.2 Métriques de performance (DORA)
+### 12.2 Métriques de performance (DORA 2024 — 5 métriques)
 
 | Métrique DORA | Cible top 15 % | Cible haute | Mesure |
 |---|---|---|---|
@@ -827,6 +903,9 @@ Les résultats de performance ont de la valeur seulement si comparés à une bas
 | Deployment Frequency | À la demande | Quotidien à hebdo | Nb de déploiements |
 | Change Failure Rate | < 5 % | < 10 % | Déploiements causant incident / Total |
 | Failed Deployment Recovery Time | < 1 h | < 1 jour | Détection → résolution |
+| **Rework Rate** | **< 15 %** | **< 30 %** | **% PRs avec rework significatif post-merge** |
+
+Le **Rework Rate** est la 5e métrique introduite dans le rapport DORA 2024. Il mesure la proportion de pull requests qui nécessitent un rework significatif après merge (défauts redécouverts, critères d'acceptation manqués, régressions introduites). Un Rework Rate > 30 % est un signal d'alarme sur l'efficacité du processus de Validation — à investiguer avec les métriques SPACE (§12.6).
 
 ### 12.3 Métriques de sécurité
 
@@ -842,7 +921,7 @@ Les résultats de performance ont de la valeur seulement si comparés à une bas
 | Métrique | Cible | Cadence |
 |---|---|---|
 | Violations A/AA automatisées | 0 sur pages critiques | Par PR |
-| Parcours critiques manuels PASS | 100 % | Par release É/C |
+| Parcours critiques manuels PASS | 100 % | Par release H/C |
 | Délai moyen de remédiation violation | < 1 sprint | Par violation |
 
 ### 12.5 Signaux d'alarme (déclencheurs d'action)
@@ -850,10 +929,25 @@ Les résultats de performance ont de la valeur seulement si comparés à une bas
 | Signal | Seuil | Action |
 |---|---|---|
 | Change Failure Rate > 15 % (3 sprints) | Bloquant | Gel features, focus tests et risk-based testing |
+| Rework Rate > 30 % | Alerte | Revue du processus Validation + renforcement DoR/DoD |
 | Défauts échappés > 5 % | Alerte | Revue stratégie de test + ET renforcé |
 | Mutation score < 60 % zones critiques | Alerte | Session de renforcement des assertions |
 | Flaky tests > 3 dans la suite | Alerte | Sprint de stabilisation test |
 | Violation WCAG AA en prod | Bloquant | Correctif prioritaire + régression test |
+
+### 12.6 Métriques SPACE (équipe)
+
+SPACE (Forsgren, Storey, Maddila et al. 2021 — ACM Queue) mesure la productivité d'équipe sur 5 dimensions, au-delà des seules métriques d'output.
+
+| Dimension | Indicateurs appliqués à la Validation | Instrument |
+|---|---|---|
+| **Satisfaction** | Confort du développeur avec le processus de Validation | Enquête pulse hebdomadaire (score 1–5) |
+| **Performance** | Qualité de la décision Go/No-Go mesurée a posteriori | Défauts échappés en production |
+| **Activity** | Nb de sessions ET réalisées, couverture des charters | Comptage dans session reports |
+| **Communication** | Temps de réponse sur les tickets de régression | Ticket-to-fix cycle time |
+| **Efficiency** | Délai moyen de validation par classe de risque | Temps mesuré par cycle Validation |
+
+Les métriques SPACE complètent les métriques DORA en capturant la dimension bien-être et friction — utiles pour détecter si le processus de Validation génère de la dette organisationnelle plutôt que de la valeur.
 
 ---
 
@@ -862,19 +956,25 @@ Les résultats de performance ont de la valeur seulement si comparés à une bas
 | Domaine | Standard | Version | Source |
 |---|---|---|---|
 | Qualité produit | ISO/IEC 25010 | 2023 | iso.org |
+| Qualité en usage | ISO/IEC 25019 | 2023 | iso.org |
 | Processus de test | ISO/IEC/IEEE 29119 | 2022 (Part 1-4), 2024 (Part 5) | iso.org |
 | Stratégie de test | Risk-based testing (29119-5) | 2016/2024 | softwaretestingstandard.org |
 | Sécurité applicative | OWASP ASVS | v5.0.0 (mai 2025) | owasp.org |
 | Risques web | OWASP Top 10 | 2021 (mise à jour 2025 attendue) | owasp.org |
-| Modélisation menaces | STRIDE (Microsoft) / LINDDUN | Evergreen | microsoft.com / linddun.org |
+| Modélisation menaces sécurité | STRIDE (Microsoft) | Evergreen | microsoft.com |
+| Modélisation menaces privacy | LINDDUN | Evergreen | linddun.org |
 | Accessibilité | WCAG 2.2 | Octobre 2023 | w3.org/TR/WCAG22 |
 | Accessibilité UE | European Accessibility Act (Directive 2019/882) | En vigueur 28 juin 2025 | eur-lex.europa.eu |
 | Accessibilité Europe | EN 301 549 v3.2.1 | — | etsi.org |
 | Test doubles | xUnit Test Patterns (Meszaros) | 2007, evergreen | xunitpatterns.com |
 | Tests de contrat | Pact | v11 (2025) | docs.pact.io |
+| Tests par propriétés | fast-check (TS/JS), Hypothesis (Python), jqwik (Java) | Evergreen | fast-check.dev |
 | Performance livraison | DORA State of DevOps | 2024 | dora.dev |
+| Productivité équipe | SPACE Framework (Forsgren, Storey, Maddila et al.) | 2021 | queue.acm.org |
+| Architecture évolutive | Building Evolutionary Architectures (Ford, Parsons, Kua) | 2017 | oreilly.com |
 | Privacy | RGPD art. 25 + 35 | — | eur-lex.europa.eu |
 | Privacy | CNIL PIA Guide | — | cnil.fr |
+| FinOps | FinOps Foundation Framework | 2024 | finops.org |
 | Tests exploratoires | Session-based testing (Bach & Bach) | 2000, evergreen | satisfice.com |
 | BDD / Critères d'acceptation | Gherkin / Given-When-Then (Terhorst-North) | Evergreen | cucumber.io |
 
@@ -882,59 +982,15 @@ Les résultats de performance ont de la valeur seulement si comparés à une bas
 
 ## 14. Questions ouvertes — RED CARDS
 
-Les RED CARDS sont des questions architecturales non résolues qui pourraient influencer des décisions de design du cycle. Elles sont signalées ici pour résolution avant ou pendant la phase de Build.
+Le protocole limite à ≤ 2 RED CARDS par cycle pour forcer la résolution inline. RC-VAL-01 à RC-VAL-03 et RC-VAL-05 à RC-VAL-06 ont été résolus inline dans les sections concernées (§6.2, §5.2, §5.5, §10.1, §10.1 respectivement).
 
-### RC-VAL-01 — Frontière entre Validation et Build pour les tests développeur
+### RC-VAL-04 — Alignement protocole promotion de classe avec GateType `pre_tool`
 
-**Question** : où s'arrêtent les tests du Build et où commence la Validation ?
-**Tension** : en TDD strict, les tests sont écrits avant le code (Build). Mais les tests de charge, DAST, ET ne peuvent pas être écrits avant d'avoir un système fonctionnel.
-**Piste** : définir une taxonomie de phases de test explicite dans la DoD du Build et dans la DoR de la Validation pour éviter le "qui fait quoi".
-**Priorité** : haute — à résoudre avant le premier cycle M+.
-
-### RC-VAL-02 — Mutation testing coût vs valeur en mode solo IA
-
-**Question** : le mutation testing (Stryker/PIT) peut prendre des heures sur un codebase réel. Comment l'intégrer en mode solo sans bloquer le flux ?
-**Tension** : valeur élevée sur les zones critiques vs coût en temps (4h+ sur 1600 mutants).
-**Pistes** :
-- Run incrémental : uniquement sur les modules touchés par l'incrément
-- Run asynchrone (nightly) : non bloquant sur la PR, bloquant sur la pre-release
-- Scope restreint : uniquement les modules avec classe de risque É/C
-**Priorité** : moyenne — à décider avant le premier sprint É.
-
-### RC-VAL-03 — Tests de contrat en contexte solo monorepo
-
-**Question** : les tests de contrat Pact ont du sens pour les équipes distribuées. En solo monorepo, sont-ils utiles ou sur-ingénieux ?
-**Tension** : une API interne entre deux modules d'un monorepo peut être testée par un test d'intégration classique, ce qui est plus simple.
-**Piste** : réserver Pact aux frontières inter-repo ou inter-équipe. Pour les monorepos, préférer les tests d'intégration avec le consommateur réel.
-**Priorité** : basse — à décider si architecture microservices confirmée.
-
-### RC-VAL-04 — Promotion de classe en cours de Validation
-
-**Question** : si un test exploratoire révèle un risque non anticipé qui fait passer l'incrément de M à É, quelles sont les étapes précises ?
-**Tension** : le rapport-discovery-cadrage identifie ce point comme ouvert (§4.6). La Validation est l'endroit où cela se concrétise.
-**Piste** :
-1. Documenter la découverte dans le session report ET
-2. Évaluer si la correction est dans le périmètre de l'incrément
-3. Si oui : ajouter les tests É obligatoires, re-trigger les gates
-4. Si non : No-Go + retour Build avec la promotion de classe documentée
-**Priorité** : haute — à formaliser en protocole opérationnel.
-
-### RC-VAL-05 — Accessibilité manuelle en mode solo
-
-**Question** : les tests manuels d'accessibilité (lecteur d'écran, clavier) requièrent du temps et une expertise. En solo IA, comment maintenir ce niveau sans se bloquer ?
-**Tension** : l'EAA est en vigueur depuis juin 2025 — la conformité n'est plus optionnelle. Mais l'audit expert est coûteux.
-**Pistes** :
-- L'agent IA peut auditer le HTML sémantique et les attributs ARIA (accessible tree analysis)
-- Le développeur fait un smoke test clavier sur les parcours critiques
-- Les audits experts (ATAG) sont réservés aux classes C et aux releases majeures
-**Priorité** : haute — à décider avant tout changement UI É/C.
-
-### RC-VAL-06 — Données de test et anonymisation RGPD en staging
-
-**Question** : quelle est la frontière entre pseudonymisation (insuffisante selon le RGPD) et anonymisation irréversible ? Les outils automatiques (pg_anonymizer) garantissent-ils suffisamment l'irréversibilité ?
-**Tension** : la guidance ICO 2025 rappelle que la pseudonymisation n'est pas de l'anonymisation. Mais les outils de génération synthétique créent des données qui peuvent révéler des patterns de la DB réelle.
-**Piste** : appliquer k-anonymity sur les datasets analytiques, hash + salt sur les PII directes, génération synthétique pure pour les nouvelles entités.
-**Priorité** : haute si le projet traite des données de santé ou financières.
+**Question** : le protocole manuel en 4 étapes défini en §8.2 est-il suffisant, ou le GateType `pre_tool` du harness doit-il automatiser la reclassification quand un signal de forçage est détecté en cours de Validation ?
+**Tension** : §8.2 définit un protocole humain-tracé. La spec `docs/conception/05-gates-policy-spec.md §7.4` définit un protocole harness automatisé avec log `class_escalation` dans `.planning/state.yaml`. Les deux protocoles doivent être réconciliés pour éviter une double implémentation divergente.
+**Dépendances** : `docs/transversal/risk-classification.md RED-02`, `docs/conception/05-gates-policy-spec.md §7.4`, GateType `pre_tool`.
+**Action requise** : aligner §8.2 sur PFV4 : `pre_tool` peut confirmer une promotion, met à jour `.planning/current-risk.yaml`, trace la transition dans `.planning/state.yaml`, puis bloque ou reprend selon la nouvelle classe.
+**Statut** : fermé par le contrat PFV4 ; les heuristiques de signal restent à calibrer.
 
 ---
 
@@ -971,12 +1027,12 @@ Les RED CARDS sont des questions architecturales non résolues qui pourraient in
 Tout défaut trouvé en Validation qui aurait dû être capturé par les tests développeur génère :
 1. Un ticket de défaut (BUG dans le backlog)
 2. Un test de non-régression écrit AVANT la correction (rouge → vert)
-3. Une note dans `planning/06-quality/defect-escape-analysis.md`
+3. Une note dans `.planning/06-quality/defect-escape-analysis.md`
 
 **Feedback Validation → Apprentissage** :
 Les patterns de défauts récurrents (même classe, même zone) alimentent :
-1. Le registre des risques (`planning/08-risks/`)
-2. La classification de risque T/F/M/É/C (améliorant la précision future)
+1. Le registre des risques (`.planning/08-risks/`)
+2. La classification de risque T/L/M/H/C (améliorant la précision future)
 3. Les heuristiques d'exploration (enrichissant les charters ET des prochains cycles)
 
 **Feedback Validation → Conception** :
@@ -998,7 +1054,7 @@ Si un test exploratoire révèle un défaut de design (architecture de permissio
 - [ ] Go documenté
 ```
 
-### Classe F — Faible
+### Classe L — Low
 
 ```
 - [ ] CI vert (lint, tests, SAST, SCA)
@@ -1006,6 +1062,7 @@ Si un test exploratoire révèle un défaut de design (architecture de permissio
 - [ ] Tests d'intégration verts
 - [ ] axe-core vert sur les pages touchées (si UI)
 - [ ] ASVS L1 complet sur les zones modifiées
+- [ ] Intégrité SBOM vérifiée (présent, signé, 0 CVE CVSS ≥ 9.0)
 - [ ] Go documenté
 ```
 
@@ -1015,26 +1072,29 @@ Si un test exploratoire révèle un défaut de design (architecture de permissio
 - [ ] CI vert (tous gates)
 - [ ] 100 % des critères d'acceptation vérifiés
 - [ ] Tests E2E parcours critiques verts
-- [ ] Tests de charge nominale vs SLO
-- [ ] Tests exploratoires (1-2 sessions de 60 min)
+- [ ] Tests de charge nominale vs SLO (p95 < 500 ms / p99 < 1 s par défaut)
+- [ ] Tests exploratoires (1-2 sessions de 60 min, heuristiques SFDPOT + CRUD)
 - [ ] axe-core + smoke test clavier (si UI)
 - [ ] ASVS L2 sur les zones modifiées
 - [ ] Couverture ≥ 70 %
 - [ ] Mutation score ≥ 60 % zones critiques (si logique métier)
+- [ ] Tests i18n/RTL (si feature multi-langue ou RTL)
 - [ ] Plan de rollback documenté
+- [ ] Intégrité SBOM vérifiée
 - [ ] Go/No-Go documenté
 ```
 
-### Classe É — Élevé
+### Classe H — High
 
 ```
 - [ ] CI vert (tous gates)
 - [ ] 100 % des critères d'acceptation vérifiés
 - [ ] Tests E2E complets (parcours principaux + cas d'erreur)
 - [ ] Tests de contrat Pact (si frontières inter-service)
+- [ ] Tests par propriétés (fast-check/Hypothesis) sur parsers, validateurs, calculs financiers
 - [ ] Tests de charge (nominal + stress) vs SLO
 - [ ] DAST sur preprod (ZAP/Burp)
-- [ ] Tests exploratoires (2-3 sessions, heuristiques SFDPOT + STRIDE light)
+- [ ] Tests exploratoires (2-3 sessions, heuristiques SFDPOT + STRIDE light + LINDDUN si PII)
 - [ ] Tests accessibilité manuels (clavier + lecteur d'écran sur parcours critiques)
 - [ ] axe-core vert
 - [ ] ASVS L2 complet sur toutes les zones modifiées
@@ -1044,21 +1104,26 @@ Si un test exploratoire révèle un défaut de design (architecture de permissio
 - [ ] Validation AIPD mesures techniques (si données perso.)
 - [ ] Feature flag en place (deployé OFF)
 - [ ] Plan de rollback testé en staging
+- [ ] Tests i18n/RTL (si feature multi-langue ou marché international)
+- [ ] Vérification budget FinOps (coût staging mesuré vs budget cible)
+- [ ] Intégrité SBOM vérifiée + SLSA provenance
 - [ ] Go/No-Go documenté avec justification complète
 ```
 
 ### Classe C — Critique
 
 ```
-- [ ] Tous les critères É satisfaits
+- [ ] Tous les critères H satisfaits
 - [ ] ASVS L3 sur zones critiques
 - [ ] Fuzzing endpoints API
 - [ ] Audit accessibilité (expert ou utilisateurs en situation de handicap)
 - [ ] Mutation score ≥ 80 % zones critiques
+- [ ] Tests par propriétés renforcés (propriétés invariantes critiques exhaustives)
 - [ ] Tests de charge (soak test 72h si disponibilité critique)
-- [ ] Validation AIPD complète et signée
-- [ ] SBOM généré et archivé
-- [ ] Signature artefact (Cosign/Sigstore)
+- [ ] Validation AIPD complète et signée (LINDDUN obligatoire si données perso.)
+- [ ] SBOM généré, vérifié, archivé + Cosign/Sigstore signature
+- [ ] Tests i18n/RTL (si feature multi-langue ou marché international)
+- [ ] Vérification budget FinOps avec projection 30 jours
 - [ ] Communication parties prenantes préparée
 - [ ] Plan de rollback répété (pas seulement documenté)
 - [ ] Go/No-Go avec approbation formelle tracée
@@ -1073,7 +1138,7 @@ Si un test exploratoire révèle un défaut de design (architecture de permissio
 
 **Charter** : Explorer [cible] avec [outils] pour [découvrir/vérifier]
 **Durée** : [HH:MM] — [HH:MM] (XX min)
-**Heuristiques utilisées** : SFDPOT / CRUD / Boundary / Error guessing / [autres]
+**Heuristiques utilisées** : SFDPOT / CRUD / Boundary / Error guessing / STRIDE light / LINDDUN / [autres]
 **Tester** : [nom / agent IA + développeur]
 
 ### Couverture réelle
@@ -1100,4 +1165,4 @@ Si un test exploratoire révèle un défaut de design (architecture de permissio
 ---
 
 *Document produit par deep-researcher agent — cross-validé sur sources ISO, OWASP, DORA, W3C, Meszaros/Fowler.*
-*Prochaine révision prévue : après premier cycle de Build réel sur ce harness.*
+*v1.1 — Révision post-audit 05-validation.audit.md (2026-05-03) : DORA Rework Rate §12.2 (R040/R041) ; property-based testing §6.2 + §8.1 (R051) ; i18n/RTL testing §8.1 + Annexe A (R052) ; FinOps Validation §8.1 + Annexe A (R053) ; LINDDUN §6.5 + §8.2 + Annexe A/B (R054) ; fitness functions §10.2 (R055) ; ISO 25019:2023 §7.4 (R056) ; quality-debt-register §11.3 + §9 Étape 6 (R057) ; SPACE metrics §12.6 (R058) ; AI code risks §6.8 (R059) ; SBOM verification explicit §5.2 + §8.1 + §11.2 (R060) ; mutation DoD qualifié par classe §5.2 (C001) ; 5 RED CARDS résolus inline, 1 conservé (C002) ; protocole promotion de classe §8.2 (R047).*

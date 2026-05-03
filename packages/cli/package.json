@@ -1,0 +1,29 @@
+{
+  "name": "@harness/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "harness": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --sourcemap --clean && tsc -p tsconfig.json --emitDeclarationOnly --declaration --outDir dist",
+    "typecheck": "tsc --noEmit",
+    "test": "corepack pnpm --filter @harness/core build && corepack pnpm --filter @harness/adapter-codex build && corepack pnpm --filter @harness/adapter-claude build && corepack pnpm --filter @harness/adapter-hermes build && vitest run --root ../.. ../../packages/cli/test/index.test.ts"
+  },
+  "dependencies": {
+    "@harness/adapter-claude": "workspace:*",
+    "@harness/adapter-codex": "workspace:*",
+    "@harness/adapter-hermes": "workspace:*",
+    "@harness/core": "workspace:*",
+    "citty": "^0.2.2"
+  }
+}

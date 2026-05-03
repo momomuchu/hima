@@ -44,16 +44,16 @@ Le cycle Conception est le troisième cycle de la pipeline fractale v4. Il reço
 - Ne valide pas les exigences métier (domaine Cadrage)
 - Ne déploie pas en production (domaine Release)
 
-**Modulation par risque :** pour un changement T/F, le cycle Conception peut se réduire à un ADR d'une page et un diagramme de composant mis à jour. Pour É/C, chaque section de ce document s'applique intégralement, avec threat model et prototype de validation.
+**Modulation par risque :** pour un changement T/L, le cycle Conception peut se réduire à un ADR d'une page et un diagramme de composant mis à jour. Pour H/C, chaque section de ce document s'applique intégralement, avec threat model et prototype de validation.
 
-**Résultat attendu :** à la sortie de Conception, l'équipe (ou l'agent IA en mode auto-décision) peut démarrer Build sans ambiguïté architecturale majeure. Les décisions sont tracées, les risques connus sont adressés, les contrats sont définis.
+**Résultat attendu :** à la sortie de Conception, l'équipe (ou l'agent IA en mode auto) peut démarrer Build sans ambiguïté architecturale majeure. Les décisions sont tracées, les risques connus sont adressés, les contrats sont définis.
 
 ---
 
 ## 2. Position dans le pipeline
 
 ```
-[Discovery] → [Cadrage] → [CONCEPTION] → [Build] → [Validation] → [Release] → [Run] → [Apprentissage]
+[discovery] → [cadrage] → [conception] → [build] → [validation] → [release] → [run] → [learning]
                                ↑ ici
 ```
 
@@ -61,7 +61,7 @@ Le cycle Conception est le troisième cycle de la pipeline fractale v4. Il reço
 
 - Problem statement validé avec critères de succès mesurables
 - Scope IN/OUT explicite
-- Classification de risque globale T/F/M/É/C
+- Classification de risque globale T/L/M/H/C
 - Backlog initial avec items DoR-conformes
 - Contraintes réglementaires identifiées (RGPD, EAA, sectorielles)
 - Performance budget (technique + financier)
@@ -99,7 +99,7 @@ Produire une architecture suffisamment précise pour que le cycle Build puisse d
 ### 3.2 Objectifs secondaires
 
 1. **Traçabilité des décisions** : toute décision structurante a un ADR avec contexte, alternatives considérées, décision prise, conséquences.
-2. **Réduction des risques architecturaux** : les risques É/C sont soit adressés par des décisions explicites, soit transformés en PoC timeboxé.
+2. **Réduction des risques architecturaux** : les risques H/C sont soit adressés par des décisions explicites, soit transformés en PoC timeboxé.
 3. **Testabilité by design** : l'architecture résultante est testable à tous les niveaux (unitaire, intégration, contrat, E2E) sans refactoring majeur.
 4. **Sécurité by design** : les flux sont modelisés STRIDE, les menaces prioritaires ont des mitigations planifiées dans le backlog Build.
 5. **Contrats clairs** : les interfaces entre composants sont définies avant l'implémentation — découplage équipes/agents, parallélisation Build.
@@ -120,7 +120,7 @@ Un cycle Conception peut démarrer ssi **tous** les critères stricts sont rempl
 
 - [ ] Problem statement écrit avec critères de succès mesurables
 - [ ] Scope IN / OUT explicite — toute ambiguïté a un owner et une date de résolution
-- [ ] Classification de risque globale proposée et validée (T/F/M/É/C)
+- [ ] Classification de risque globale proposée et validée (T/L/M/H/C)
 - [ ] Parties prenantes identifiées avec rôles décision/consultation/information
 - [ ] Contraintes techniques non négociables listées (stack imposée, contraintes d'infrastructure, licences)
 - [ ] Contraintes réglementaires identifiées (RGPD, EAA, sectorielles) — même si "non applicable" doit être explicit
@@ -139,9 +139,9 @@ Un cycle Conception peut démarrer ssi **tous** les critères stricts sont rempl
 - [ ] Plan d'observabilité complet (relève de Build)
 - [ ] Plan de migration de données (si applicable — déterminé en Conception)
 
-### 4.4 Condition de démarrage minimal pour M/É/C
+### 4.4 Condition de démarrage minimal pour M/H/C
 
-Pour M/É/C, si un critère strict manque : documenter explicitement le gap, son impact, son owner, et la date de résolution attendue. Ne pas démarrer la Conception sans avoir au moins les critères 1, 2, 3, 4 remplis.
+Pour M/H/C, si un critère strict manque : documenter explicitement le gap, son impact, son owner, et la date de résolution attendue. Ne pas démarrer la Conception sans avoir au moins les critères 1, 2, 3, 4 remplis.
 
 ---
 
@@ -151,7 +151,7 @@ Le cycle Conception est terminé quand **tous** les critères obligatoires selon
 
 ### 5.1 Matrice DoD par classe de risque
 
-| Livrable | T | F | M | É | C |
+| Livrable | T | L | M | H | C |
 |---|:---:|:---:|:---:|:---:|:---:|
 | Diagramme C4 Niveau 1 (Context) mis à jour | — | ◔ | ✅ | ✅ | ✅ |
 | Diagramme C4 Niveau 2 (Container) | — | — | ✅ | ✅ | ✅ |
@@ -175,7 +175,7 @@ Légende : ✅ obligatoire — ◔ recommandé — — skippable
 
 Indépendamment de la classe de risque, **la sortie de Conception est bloquée si** :
 - Un décision d'architecture structurante est prise mais non documentée (même pour T : un commentaire minimal suffit)
-- Un risque É/C identifié en Cadrage n'a pas été adressé (adressé = ADR + mitigation ou PoC + décision)
+- Un risque H/C identifié en Cadrage n'a pas été adressé (adressé = ADR + mitigation ou PoC + décision)
 - Les quality gates CI pour le changement ne sont pas définis
 
 ---
@@ -516,7 +516,7 @@ ISO/IEC 25010:2023 définit 9 caractéristiques de qualité produit. En Concepti
 - Les fonctions hors scope sont explicitement exclues dans les contrats API (404, 403 explicites, pas de comportement implicite)
 - L'architecture ne sur-spécifie pas : aucune abstraction sans use case correspondant dans le backlog (YAGNI)
 
-**Gate :** vérifier la couverture use cases → architecture avant de valider la Conception pour M+.
+**GateType `stop` :** vérifier la couverture use cases → architecture avant de valider la Conception pour M+.
 
 ### 7.2 Efficacité de performance (Performance efficiency)
 
@@ -528,7 +528,7 @@ ISO/IEC 25010:2023 définit 9 caractéristiques de qualité produit. En Concepti
 - Anti-patterns de performance identifiés et interdits : N+1 (boucle + DB call), joins sur données non indexées, full table scans sur tables larges
 - Capacité estimée : nombre d'utilisateurs concurrents, volume de données à horizon 12 mois
 
-**Indicateur chiffré obligatoire pour É/C :** p99 latency ≤ X ms, throughput ≥ Y req/s, sous Z utilisateurs concurrents.
+**Indicateur chiffré obligatoire pour H/C :** p99 latency ≤ X ms, throughput ≥ Y req/s, sous Z utilisateurs concurrents.
 
 ### 7.3 Compatibilité (Compatibility)
 
@@ -559,7 +559,7 @@ ISO/IEC 25010:2023 définit 9 caractéristiques de qualité produit. En Concepti
 - Disponibilité cible définie : 99.9 % (8.7 h/an), 99.95 % (4.4 h/an), 99.99 % (52 min/an). Proportionnel à la classe de risque.
 - Circuit breaker identifié pour les appels vers systèmes externes instables
 - Graceful degradation : que se passe-t-il si le service X est indisponible ? L'architecture le prévoit (mode dégradé, queue, cache)
-- Plan de rollback défini à ce stade : le rollback d'une fonctionnalité É/C doit être planifié en Conception, pas improvisé en Release
+- Plan de rollback défini à ce stade : le rollback d'une fonctionnalité H/C doit être planifié en Conception, pas improvisé en Release
 
 **SLO défini en Conception pour M+ :**
 ```
@@ -579,7 +579,7 @@ Error budget : 43.8 min/mois
 - Données sensibles identifiées avec niveau de chiffrement requis (au repos, en transit)
 - Secrets management : aucun secret dans le code ou dans les fichiers de configuration versionnés
 - Non-repudiation : audit trail défini pour les actions sensibles (qui a fait quoi, quand)
-- OWASP ASVS v5 : niveau 1 minimum pour tout projet, niveau 2 pour É, niveau 3 pour C
+- OWASP ASVS v5 : niveau 1 minimum pour tout projet, niveau 2 pour H, niveau 3 pour C
 
 **Référentiel NIST SSDF SP 800-218 :** quatre groupes de pratiques applicables en Conception :
 - **PO (Prepare Organization)** : formation sécurité, environnement de développement sécurisé
@@ -622,7 +622,7 @@ Couplage afférent : surveiller pour les modules centraux
 
 **Critères Conception (applicables à un système solo + IA) :**
 - **Fail safe** : en cas d'erreur de l'agent IA, le système ne doit pas écrire en production sans validation humaine
-- **Operational constraint** : les frontières du harness (boundaries.yaml) définissent ce que l'agent peut faire selon la phase — défini en Conception, pas au fil de l'eau
+- **Operational constraint** : les frontières du harness (.planning/state.yaml, .planning/current-risk.yaml, .planning/run-set.json) définissent ce que l'agent peut faire selon la phase — défini en Conception, pas au fil de l'eau
 - **Safe integration** : toute intégration avec un système tiers est validée en staging avant prod (smoke tests obligatoires)
 - **Hazard warning** : les quality gates CI bloquants jouent le rôle d'avertisseur — aucun humain ne peut merger sans que les gates soient verts (sauf waiver explicite, enregistré, limité dans le temps)
 
@@ -636,17 +636,17 @@ Couplage afférent : surveiller pour les modules centraux
 
 **Cycle Conception pour T :**
 - Vérifier que le changement ne touche PAS à une interface publique, une API, un schéma DB, une règle d'auth
-- Si oui → reclasser en F minimum
+- Si oui → reclasser en L minimum
 - Si non → documenter en un commentaire dans la PR : "Pas d'impact architectural"
 - Durée cible : < 5 minutes
 
 **Artefacts :** aucun ADR formel. Un commentaire PR suffit.
 
-### 8.2 Classe F — Faible
+### 8.2 Classe L — Low
 
 **Exemples :** nouvelle fonctionnalité isolée derrière feature flag, sans donnée personnelle, sans migration DB.
 
-**Cycle Conception pour F :**
+**Cycle Conception pour L :**
 - Vérifier la compatibilité avec l'architecture existante (C4 niveau 2 — est-ce que le nouveau composant s'insère proprement ?)
 - Créer un ADR si et seulement si une nouvelle décision structurante est prise
 - Définir les quality gates CI pour ce changement
@@ -659,7 +659,7 @@ Couplage afférent : surveiller pour les modules centraux
 **Exemples :** nouvelle fonctionnalité visible utilisateur, pas de PII sensible, pas de schéma DB, pas d'impact tiers.
 
 **Cycle Conception pour M :**
-- Tous les éléments F +
+- Tous les éléments L +
 - Modèle de données logique (ERD) pour les nouvelles entités
 - Contrat API (OpenAPI) pour les nouveaux endpoints
 - Critères de testabilité explicites
@@ -670,11 +670,11 @@ Couplage afférent : surveiller pour les modules centraux
 
 **Artefacts :** ADR(s), C4 niveaux 2-3, modèle de données, contrat API, threat model léger, critères testabilité.
 
-### 8.4 Classe É — Élevé
+### 8.4 Classe H — High
 
 **Exemples :** touche authentification, autorisation, paiement, données personnelles, schéma DB, API publique, infra de production.
 
-**Cycle Conception pour É :**
+**Cycle Conception pour H :**
 - Tous les éléments M +
 - Threat model STRIDE complet (90 min) avec toutes les menaces documentées et mitigations planifiées
 - AIPD/DPIA si données personnelles (méthode CNIL, 7 étapes)
@@ -687,19 +687,19 @@ Couplage afférent : surveiller pour les modules centraux
 
 **Durée cible :** 1 à 3 jours.
 
-**Checkpoint humain obligatoire :** en mode auto-décision, les décisions É doivent être validées par le développeur avant que l'agent commence Build. Format : proposition Architecture (problème, alternatives, décision, critère de succès, classe de risque).
+**Checkpoint humain obligatoire :** en mode auto, les décisions H doivent être validées par le développeur avant que l'agent commence Build. Format : proposition Architecture (problème, alternatives, décision, critère de succès, classe de risque).
 
 ### 8.5 Classe C — Critique
 
 **Exemples :** impact transverse multi-services, données de santé/biométrie/financières, refonte d'architecture, rupture de contrat API, exigence réglementaire (RGPD, EAA, NIS2, DORA financier).
 
 **Cycle Conception pour C :**
-- Tous les éléments É +
+- Tous les éléments H +
 - arc42 complet (12 sections) avec C4 niveaux 1-2-3
 - Threat model STRIDE + LINDDUN (pour menaces privacy)
 - AIPD/DPIA obligatoire (si PII)
 - Revue de sécurité par expert externe ou processus de revue formelle
-- Validation Strangler Fig : le changement C doit être décomposé en une séquence de changements F/M via Strangler Fig ou Branch by Abstraction
+- Validation Strangler Fig : le changement C doit être décomposé en une séquence de changements L/M via Strangler Fig ou Branch by Abstraction
 - Prototype ou PoC validé avant toute implémentation Build
 - Checkpoint humain obligatoire + ratio de rejet mental ≥ 20 % (anti rubber-stamp)
 
@@ -725,7 +725,7 @@ Chaque cycle de la pipeline fractale v4 suit le même sous-cycle universel à 7 
 
 **Artefacts :** liste des ADR impactés, liste des composants C4 touchés, rapport SCA initial.
 
-### 9.2 Définir
+### 9.2 Define
 
 **But :** formuler les contraintes et objectifs architecturaux.
 
@@ -737,7 +737,7 @@ Chaque cycle de la pipeline fractale v4 suit le même sous-cycle universel à 7 
 
 **Artefacts :** liste QAR prioritaires avec seuils, liste des contraintes, liste des risques candidats PoC.
 
-### 9.3 Concevoir
+### 9.3 Design
 
 **But :** produire les livrables architecturaux.
 
@@ -750,9 +750,9 @@ Chaque cycle de la pipeline fractale v4 suit le même sous-cycle universel à 7 
 - Concevoir l'architecture de testabilité (ports/adapters, interfaces, fakes)
 - Lancer le(s) PoC si risques architecturaux non résolus
 
-**C'est le cœur du cycle.** Les activités précédentes (Observer, Définir) et suivantes (Exécuter, Vérifier) sont au service de cette étape.
+**C'est le cœur du cycle.** Les activités précédentes (Observer, Define) et suivantes (Execute, Verify) sont au service de cette étape.
 
-### 9.4 Exécuter
+### 9.4 Execute
 
 **But :** finaliser et valider les livrables architecturaux produits.
 
@@ -764,19 +764,19 @@ Chaque cycle de la pipeline fractale v4 suit le même sous-cycle universel à 7 
 
 **Durée :** proportionnelle à la classe de risque (voir §8).
 
-### 9.5 Vérifier
+### 9.5 Verify
 
 **But :** confirmer que les artefacts produits permettent de démarrer Build sans ambiguïté.
 
 **Checklist de vérification Conception :**
 - [ ] Tous les use cases du scope peuvent être tracés à une décision architecturale
-- [ ] Aucun "on verra en Build" sur un sujet É/C sans ADR explicite + owner
+- [ ] Aucun "on verra en Build" sur un sujet H/C sans ADR explicite + owner
 - [ ] Les quality gates CI sont définis (pas seulement "les tests passeront")
-- [ ] Un agent IA en mode auto-décision peut démarrer Build avec ces artefacts sans poser de question architecturale
+- [ ] Un agent IA en mode auto peut démarrer Build avec ces artefacts sans poser de question architecturale
 - [ ] Les ADR ont été révisés pour cohérence mutuelle (pas de contradiction entre ADR-001 et ADR-003)
 - [ ] Le threat model a des mitigations dans le backlog, pas juste des menaces listées
 
-### 9.6 Capitaliser
+### 9.6 Capitalize
 
 **But :** extraire les apprentissages architecturaux pour les cycles futurs.
 
@@ -784,9 +784,9 @@ Chaque cycle de la pipeline fractale v4 suit le même sous-cycle universel à 7 
 - Mettre à jour le glossaire du domaine (Ubiquitous Language) avec les nouveaux termes apparus en Conception
 - Documenter les alternatives rejetées dans les ADR (valeur pour les nouvelles personnes qui rejoignent le projet)
 - Identifier les patterns architecturaux réutilisables (→ `docs/07-architecture/patterns/`)
-- Documenter les dettes architecturales acceptées (→ `Planning/02-backlog/tech-debt/`)
+- Documenter les dettes architecturales acceptées (→ `.planning/02-backlog/tech-debt/`)
 
-### 9.7 Transmettre
+### 9.7 Transmit
 
 **But :** s'assurer que le cycle Build a tout ce dont il a besoin.
 
@@ -842,16 +842,16 @@ En Conception, définir :
 
 | Artefact | Emplacement | Format | Classe déclenchante |
 |---|---|---|---|
-| Diagrammes C4 (niveaux 1-3) | `docs/07-architecture/c4/` | Structurizr DSL ou Mermaid | F+ |
-| ADR(s) | `docs/07-architecture/decisions/ADR-NNN.md` | MADR 4.0 | F+ si décision structurante |
+| Diagrammes C4 (niveaux 1-3) | `docs/07-architecture/c4/` | Structurizr DSL ou Mermaid | L+ |
+| ADR(s) | `docs/07-architecture/decisions/ADR-NNN.md` | MADR 4.0 | L+ si décision structurante |
 | arc42 document | `docs/07-architecture/arc42.md` | Markdown 12 sections | C |
 | Modèle de données logique (ERD) | `docs/06-data/data-model.md` | Mermaid ERD | M+ |
 | Contrats API (OpenAPI / AsyncAPI) | `contracts/` | YAML OpenAPI 3.1+ | M+ |
 | Threat model STRIDE | `.planning/security/threat-model-[feature].md` | Tableau Markdown | M+ |
-| AIPD/DPIA | `docs/09-security-compliance/dpia-[feature].md` | Méthode CNIL 7 étapes | É si PII / C |
+| AIPD/DPIA | `docs/09-security-compliance/dpia-[feature].md` | Méthode CNIL 7 étapes | H si PII / C |
 | Rapport PoC | `.planning/spikes/poc-[date]-[slug]/README.md` | Markdown | si risque architectural |
 | Plan SLI/SLO | `docs/11-operations/slo-[service].md` | Markdown + formules | M+ |
-| Estimation FinOps | `.planning/00-dashboard/finops-estimate.md` | Tableau Markdown | É+ |
+| Estimation FinOps | `.planning/00-dashboard/finops-estimate.md` | Tableau Markdown | H+ |
 
 ### 11.2 Mises à jour déclenchées par Conception
 
@@ -879,11 +879,11 @@ En Conception, définir :
 
 | Métrique | Cible | Mode de mesure |
 |---|---|---|
-| Taux de couverture use cases → ADR | 100 % pour É/C | Revue manuelle ou script de traçabilité |
+| Taux de couverture use cases → ADR | 100 % pour H/C | Revue manuelle ou script de traçabilité |
 | Nombre d'ADR sans alternatives documentées | 0 | Linting Markdown sur le template MADR |
 | Menaces STRIDE sans mitigation dans backlog | 0 pour High/Critical | Revue threat model |
 | Ratio PoC réalisés / PoC identifiés nécessaires | 100 % avant démarrage Build | Dashboard |
-| Durée du cycle Conception vs classe risque | T<5min, F<2h, M<8h, É<3j, C<10j | Métadonnées sprint |
+| Durée du cycle Conception vs classe risque | T<5min, L<2h, M<8h, H<3j, C<10j | Métadonnées sprint |
 
 ### 12.2 Indicateurs de qualité des artefacts
 
@@ -951,36 +951,36 @@ Priorité 5 — Interaction capability : conformité WCAG 2.2 AA (axe-core vert 
 
 ## 14. Questions ouvertes (RED CARDS)
 
-Les RED CARDS sont des questions sans réponse définitive à la date de rédaction de ce document. Elles doivent être résolues avant de clôturer le cycle Conception pour un changement É/C.
+Les RED CARDS sont des questions sans réponse définitive à la date de rédaction de ce document. Elles doivent être résolues avant de clôturer le cycle Conception pour un changement H/C.
 
 ### RC-01 — Mécanisation de la classification de risque
 
-**Question :** comment mécaniser la classification T/F/M/É/C pour éviter la subjectivité ?
+**Question :** comment mécaniser la classification T/L/M/H/C pour éviter la subjectivité ?
 
-**Impact si non résolu :** classification floue → mauvaise modulation du cycle → sur-ingénierie sur T ou sous-sécurisation sur É.
+**Impact si non résolu :** classification floue → mauvaise modulation du cycle → sur-ingénierie sur T ou sous-sécurisation sur H.
 
-**Piste :** arbre de décision déterministe basé sur : fichiers touchés (auth/ → É minimum), présence de migrations DB, présence de données personnelles, nombre de services impactés.
+**Piste :** arbre de décision déterministe basé sur : fichiers touchés (auth/ → H minimum), présence de migrations DB, présence de données personnelles, nombre de services impactés.
 
 **Owner :** développeur principal
-**Deadline :** avant Build du premier sprint É ou C
+**Deadline :** avant Build du premier sprint H ou C
 
-**Statut :** OUVERT — voir rapport-discovery-cadrage.md §4.1
+**Statut :** fermé pour la taxonomie par PFV4 (`RiskClass = T/L/M/H/C`) ; la mécanisation fine reste une amélioration non bloquante.
 
 ### RC-02 — Frontières harness pour la phase Conception
 
 **Question :** quelles actions l'agent IA est-il autorisé à prendre SEUL en phase Conception ?
 
 **Proposé :**
-- Autorisé seul (bypass) : créer/modifier `.planning/`, `docs/07-architecture/`, `contracts/`
-- Assisté (propose, humain valide) : créer un ADR pour une décision É/C, lancer un PoC
+- Autorisé seul (bypass) : changements T/L bornés, sans décision H/C ni signal de forçage
+- auto : mode autonome par défaut avec checkpoints et validation humaine pour ADR H/C, PoC risqué ou politique projet
 - Interdit : modifier `docs/09-security-compliance/` sans review humaine, modifier les quality gates CI
 
 **Impact si non résolu :** soit l'agent est trop limité (ralentit la Conception), soit trop libre (décisions architecturales non validées).
 
 **Owner :** développeur principal
-**Deadline :** avant activation du mode auto-décision sur É/C
+**Deadline :** avant activation du mode auto sur H/C
 
-**Statut :** OUVERT
+**Statut :** fermé par PFV4 (`OperatingMode = bypass/auto/pairing`) ; les exemples de permissions restent des politiques projet.
 
 ### RC-03 — Format de revue de la Conception en mode solo + IA
 
@@ -1010,16 +1010,16 @@ Les RED CARDS sont des questions sans réponse définitive à la date de rédact
 
 ### RC-05 — Niveaux OWASP ASVS par classe de risque
 
-**Question :** quelle correspondance entre la matrice T/F/M/É/C et les niveaux OWASP ASVS (L1/L2/L3) ?
+**Question :** quelle correspondance entre la matrice T/L/M/H/C et les niveaux OWASP ASVS (L1/L2/L3) ?
 
 **Proposition initiale :**
-- T/F : ASVS L1 (auto-vérification, liste des exigences de base)
+- T/L : ASVS L1 (auto-vérification, liste des exigences de base)
 - M : ASVS L1 obligatoire, L2 recommandé pour les composants exposés
-- É : ASVS L2 obligatoire
+- H : ASVS L2 obligatoire
 - C : ASVS L3 (vérification par tiers indépendant sur les composants critiques)
 
 **Owner :** développeur principal
-**Deadline :** avant Conception du premier cycle É ou C
+**Deadline :** avant Conception du premier cycle H ou C
 
 **Statut :** PROPOSÉ — à valider en pratique
 
@@ -1078,12 +1078,12 @@ Les RED CARDS sont des questions sans réponse définitive à la date de rédact
 
 ### 15.4 Strangler Fig et promotion de classe inter-cycles
 
-Un changement C doit être décomposé en séquence de changements F/M via le pattern Strangler Fig. Cette décomposition se fait **en Conception**, pas en Build.
+Un changement C doit être décomposé en séquence de changements L/M via le pattern Strangler Fig. Cette décomposition se fait **en Conception**, pas en Build.
 
 **Processus :**
 1. Identifier la frontière entre l'ancien et le nouveau (façade de routage)
 2. Concevoir la migration progressive case par case
-3. Chaque cas migré est un changement F/M indépendant avec son propre sous-cycle
+3. Chaque cas migré est un changement L/M indépendant avec son propre sous-cycle
 4. Le changement C n'est clôturé que quand tous les cas sont migrés et l'ancien supprimé
 
 Référence : rapport-discovery-cadrage.md §3.5 — Décision Strangler Fig validée en Discovery.
@@ -1099,7 +1099,7 @@ Référence : rapport-discovery-cadrage.md §3.5 — Décision Strangler Fig val
 [ ] Commentaire PR : "Pas d'impact architectural"
 ```
 
-### Pour F
+### Pour L
 ```
 [ ] Compatibilité vérifiée avec C4 niveau 2 existant
 [ ] ADR créé si nouvelle décision structurante
@@ -1119,7 +1119,7 @@ Référence : rapport-discovery-cadrage.md §3.5 — Décision Strangler Fig val
 [ ] Estimation FinOps si applicable
 ```
 
-### Pour É
+### Pour H
 ```
 [ ] Tout M +
 [ ] Threat model STRIDE complet (90 min)
@@ -1135,7 +1135,7 @@ Référence : rapport-discovery-cadrage.md §3.5 — Décision Strangler Fig val
 
 ### Pour C
 ```
-[ ] Tout É +
+[ ] Tout H +
 [ ] arc42 complet (12 sections)
 [ ] Threat model STRIDE + LINDDUN
 [ ] AIPD obligatoire
@@ -1252,10 +1252,10 @@ informed: [personnes informées]
 - [Design for Testability — InfoQ](https://www.infoq.com/articles/Testability/)
 - [OpenAPI Specification v3.2.0](https://spec.openapis.org/oas/v3.2.0.html)
 - [Contract-First API Design](https://treblle.com/knowledgebase/design-phase/contract-definition-using-openapi-specification)
-- [DDD Aggregate Design — Martinfowler](https://martinfowler.com/bliki/DDD_Aggregate.html)
+- DDD Aggregate Design — Martin Fowler reference
 - [DDD Beyond Basics — SSENSE Tech](https://medium.com/ssense-tech/ddd-beyond-the-basics-mastering-aggregate-design-26591e218c8c)
 - [2025 DORA State of AI-Assisted Software Development](https://cloud.google.com/devops/state-of-devops)
 - [PoC Success Criteria — diceus.com](https://diceus.com/poc-success-criteria/)
 - rapport-discovery-cadrage.md (source de vérité interne — 2026-05-02)
 - compass_artifact_wf-049348c3 (cycle qualité v3 interne)
-- folder.md (architecture Planning/ interne)
+- folder.md (architecture .planning/ interne)

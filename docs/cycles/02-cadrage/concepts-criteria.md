@@ -8,7 +8,7 @@
 
 ## 1. Résumé exécutif
 
-Le cycle Cadrage est le **verrou de périmètre** de la Pipeline Fractale v4. Il transforme le problème validé en Discovery en un engagement partagé contractualisé : périmètre IN/OUT explicite, exigences fonctionnelles et non fonctionnelles mesurables, classification de risque formelle T/F/M/É/C, priorisation MoSCoW + RICE, contraintes techniques/budget/délais/réglementaires identifiées, critères d'acceptation testables, et DoR formelle pour le cycle Conception.
+Le cycle Cadrage est le **verrou de périmètre** de la Pipeline Fractale v4. Il transforme le problème validé en Discovery en un engagement partagé contractualisé : périmètre IN/OUT explicite, exigences fonctionnelles et non fonctionnelles mesurables, classification de risque formelle T/L/M/H/C, priorisation MoSCoW + RICE, contraintes techniques/budget/délais/réglementaires identifiées, critères d'acceptation testables, et DoR formelle pour le cycle Conception.
 
 Sans cadrage solide, toute l'énergie de Conception, Build et Validation est susceptible d'être mal orientée. C'est le cycle où le coût de l'erreur est encore minimal — une décision de périmètre corrigée ici coûte 1×, corrigée en Build elle coûte 10×, corrigée en production elle coûte 100×.
 
@@ -23,7 +23,7 @@ Sans cadrage solide, toute l'énergie de Conception, Build et Validation est sus
 ## 2. Position dans le pipeline
 
 ```
-[Discovery] ──▶ [CADRAGE] ──▶ [Conception] ──▶ [Build] ──▶ [Validation] ──▶ [Release] ──▶ [Run] ──▶ [Apprentissage]
+[discovery] ──▶ [cadrage] ──▶ [conception] ──▶ [build] ──▶ [validation] ──▶ [release] ──▶ [run] ──▶ [learning]
                     ▲
                  Cycle 02
 ```
@@ -47,7 +47,7 @@ Produire un **dossier de cadrage** suffisamment précis pour que le cycle Concep
 ### 3.2 Objectifs secondaires
 
 - Éliminer l'implicite : tout élément est Défini / Non défini / Non applicable / À confirmer / Risque accepté / Hors périmètre / Bloquant.
-- Créer la première version de la matrice de risque projet avec classification T/F/M/É/C.
+- Créer la première version de la matrice de risque projet avec classification T/L/M/H/C.
 - Identifier les décisions architecturales préliminaires nécessitant un ADR.
 - Établir le performance budget (technique ET financier) dès le cadrage.
 - Déclencher l'AIPD/DPIA préliminaire si le seuil RGPD est atteint.
@@ -72,7 +72,7 @@ Le cycle Cadrage ne démarre que si **tous** les critères stricts ci-dessous so
 - [ ] **Solution candidate** : au moins une hypothèse falsifiable sur l'approche de solution.
 - [ ] **Taille d'effort** : estimée à l'ordre de grandeur (S/M/L/XL ou jours/semaines/mois).
 - [ ] **Source du besoin identifiée** : mode Produit (utilisateurs externes) / Self-feedback (développeur = utilisateur) / Technique (changement d'architecture).
-- [ ] **Mode opératoire décidé** : Pairing / Auto-décision / Bypass — et classe de risque global pressentie.
+- [ ] **OperatingMode décidé** : `pairing` / `auto` / `bypass` — et classe de risque global pressentie.
 
 ### 4.2 Critères souhaitables
 
@@ -109,9 +109,9 @@ Le cycle Cadrage est terminé et la DoR Conception est satisfaite quand **tous**
 
 ### 5.3 Risques
 
-- [ ] Registre de risques initialisé (RIS-NNN) avec classification T/F/M/É/C.
-- [ ] Risques É et C ont une mesure de mitigation proposée.
-- [ ] Première classification de risque global du projet (T/F/M/É/C).
+- [ ] Registre de risques initialisé (RIS-NNN) avec classification T/L/M/H/C.
+- [ ] Risques H et C ont une mesure de mitigation proposée.
+- [ ] Première classification de risque global du projet (T/L/M/H/C).
 
 ### 5.4 Priorisation
 
@@ -132,7 +132,7 @@ Le cycle Cadrage est terminé et la DoR Conception est satisfaite quand **tous**
 
 ### 5.7 Estimation
 
-- [ ] Estimation macro par classe de risque : nombre d'items T/F/M/É/C pressentis.
+- [ ] Estimation macro par classe de risque : nombre d'items T/L/M/H/C pressentis.
 - [ ] Hypothèses de cadrage listées (H-NNN) avec impact si fausse.
 - [ ] Questions ouvertes listées (RED CARDS §14) avec responsable et échéance.
 
@@ -167,7 +167,7 @@ Critères d'acceptation :
   - Étant donné [contexte], quand [action], alors [résultat attendu].
   - Étant donné [contexte d'erreur], quand [action], alors [message d'erreur explicite].
 Règle métier liée : RM-NNN (si applicable)
-Classe de risque : T / F / M / É / C
+Classe de risque : T / L / M / H / C
 MoSCoW : Must / Should / Could / Won't
 ```
 
@@ -182,24 +182,24 @@ ENF-001 — [Titre court]
 Caractéristique ISO 25010 : [ex. Performance efficiency / Reliability / Security]
 Seuil mesurable : [ex. p99 < 200 ms sous charge nominale de 100 rps]
 Méthode de vérification : [outil, test de charge, monitoring]
-Classe de risque : T / F / M / É / C
+Classe de risque : T / L / M / H / C
 ```
 
-### 6.4 Classification de risque T/F/M/É/C
+### 6.4 Classification de risque T/L/M/H/C
 
 La classification est le **pivot d'adaptation** de toute la pipeline. Elle détermine la profondeur du cycle, les gates obligatoires, le mode opératoire par défaut, et la stratégie de déploiement.
 
 | Classe | Définition | Chemin pipeline |
 |--------|-----------|----------------|
 | **T — Trivial** | Cosmétique, doc, refactor sans changement de comportement, patch sans CVE. Code path testé par des tests existants. | Chemin ultra-court : commit direct, CI vert, merge. |
-| **F — Faible** | Nouvelle fonctionnalité isolée derrière feature flag, pas de donnée perso., pas de migration. | Chemin court : DoR légère, tests unitaires + intégration, revue solo. |
+| **L — Low** | Nouvelle fonctionnalité isolée derrière feature flag, pas de donnée perso., pas de migration. | Chemin court : DoR légère, tests unitaires + intégration, revue solo. |
 | **M — Moyen** | Fonctionnalité visible utilisateur, pas de PII sensible, pas de schéma DB, pas d'impact tiers. | Chemin standard : DoR formelle, analyse fonctionnelle, tests, QA. |
-| **É — Élevé** | Touche authentification, autorisation, paiement, données personnelles, schéma DB, API publique, infra prod. | Chemin long : threat modeling STRIDE, AIPD si données perso., tests de charge, canary deploy. |
+| **H — High** | Touche authentification, autorisation, paiement, données personnelles, schéma DB, API publique, infra prod. | Chemin long : threat modeling STRIDE, AIPD si données perso., tests de charge, canary deploy. |
 | **C — Critique** | Impact transverse multi-services, données sensibles (santé, biométrie, financières), refonte d'architecture, rupture contrat API, exigence réglementaire (RGPD, EAA, NIS2, DORA UE). | Chemin complet : tout le cycle, audit indépendant, feature flag obligatoire, postmortem prévu. |
 
 **Règle de classification en cadrage** : l'auteur propose, une deuxième lecture valide ou conteste. En solo, l'agent IA joue le rôle de reviewer antagoniste. La classification est inscrite dans chaque EF, ENF et item de backlog.
 
-**Règle de promotion** : si en cours de cycle on découvre qu'un item classé F est en réalité É, on déclenche une re-classification formelle avec re-cadrage partiel des activités obligatoires manquantes.
+**Règle de promotion** : si en cours de cycle on découvre qu'un item classé L est en réalité H, on déclenche une re-classification formelle avec re-cadrage partiel des activités obligatoires manquantes.
 
 ### 6.5 MoSCoW (priorisation qualitative)
 
@@ -338,8 +338,8 @@ En cadrage, produire un document `quality-model-instance.md` selon ce patron :
 
 | Caractéristique ISO 25010 | Classe minimale déclenchée |
 |--------------------------|--------------------------|
-| Security (confidentiality, integrity) | É si données personnelles, C si données sensibles |
-| Reliability (availability) | M si SLO défini, É si service critique |
+| Security (confidentiality, integrity) | H si données personnelles, C si données sensibles |
+| Reliability (availability) | M si SLO défini, H si service critique |
 | Safety | C systématiquement (nouveau critère 2023) |
 | Functional Suitability (correctness) | M minimum sur toute fonctionnalité visible utilisateur |
 | Performance Efficiency | M si SLO latence défini |
@@ -351,7 +351,7 @@ En cadrage, produire un document `quality-model-instance.md` selon ce patron :
 
 ### 8.1 Profondeur des activités de cadrage selon la classe
 
-| Activité de cadrage | T | F | M | É | C |
+| Activité de cadrage | T | L | M | H | C |
 |--------------------|:-:|:-:|:-:|:-:|:-:|
 | Périmètre IN/OUT | ◔ | ○ | ✅ | ✅ | ✅ |
 | EF avec AC testables | ◔ | ○ | ✅ | ✅ | ✅ |
@@ -374,28 +374,30 @@ Légende : ✅ Obligatoire | ○ Recommandé | ◔ Allégé | — Skippable
 
 ### 8.2 Mode opératoire par classe
 
-| Classe | Mode par défaut | Bypass autorisé | Validation humaine |
+| Classe | Mode par défaut | bypass autorisé | Validation humaine |
 |--------|----------------|-----------------|-------------------|
-| T | Auto-décision | Oui | Non requise |
-| F | Auto-décision | Oui | Non requise |
-| M | Auto-décision | Sous conditions | Sur la DoR formelle |
-| É | Pairing recommandé | Non | Sur la DoR + ADR |
-| C | Pairing obligatoire | Interdit | Sur DoR + ADR + revue externe |
+| T | auto | Oui | Non requise |
+| L | auto | Oui | Non requise |
+| M | auto | Sous conditions | Checkpoints selon DoR formelle |
+| H | pairing recommandé | Non | Sur la DoR + ADR |
+| C | pairing obligatoire | Interdit | Sur DoR + ADR + revue externe |
+
+`auto` est le mode autonome par défaut : l'agent avance sans supervision continue, mais déclenche des checkpoints et une validation humaine dès que la classe de risque ou une politique l'exige.
 
 ### 8.3 Strangler Fig pour les refontes
 
-Tout changement identifié comme É/C en cadrage et concernant une architecture existante doit déclencher une stratégie Strangler Fig :
+Tout changement identifié comme H/C en cadrage et concernant une architecture existante doit déclencher une stratégie Strangler Fig :
 
 1. Définir la façade (interface de routage vers ancien/nouveau).
-2. Décomposer le changement É/C en séquence d'items F/M.
-3. Chaque item F/M suit le chemin de risque approprié.
+2. Décomposer le changement H/C en séquence d'items L/M.
+3. Chaque item L/M suit le chemin de risque approprié.
 4. L'ADR préliminaire documente la stratégie de migration.
 
 ---
 
 ## 9. Sous-cycle fractal (7 étapes appliquées au Cadrage)
 
-Chaque cycle de la Pipeline Fractale applique le même sous-cycle universel : Observer → Définir → Concevoir → Exécuter → Vérifier → Capitaliser → Transmettre. Voici l'instanciation pour le cycle Cadrage.
+Chaque cycle de la Pipeline Fractale applique le même sous-cycle universel : Observer → Define → Design → Execute → Verify → Capitalize → Transmit. Voici l'instanciation pour le cycle Cadrage.
 
 ### 9.1 Observer
 
@@ -409,7 +411,7 @@ Activités :
 
 Artefacts consommés : Note de Discovery, Opportunity Solution Tree, notes de spike.
 
-### 9.2 Définir
+### 9.2 Define
 
 **But** : transformer les observations en structure de cadrage.
 
@@ -419,7 +421,7 @@ Activités :
 - Lister les contraintes connues par catégorie (réglementaire, budgétaire, temporelle, technique).
 - Poser la première version de la classification de risque global.
 
-### 9.3 Concevoir
+### 9.3 Design
 
 **But** : structurer les exigences et les décisions.
 
@@ -431,7 +433,7 @@ Activités :
 - Identifier les décisions architecturales préliminaires → ADR PRELIMINARY.
 - Vérifier la checklist AIPD/DPIA (déclenchement si ≥ 2 critères WP29).
 
-### 9.4 Exécuter
+### 9.4 Execute
 
 **But** : compléter le dossier de cadrage.
 
@@ -443,7 +445,7 @@ Activités :
 - Produire l'estimation macro.
 - Valider le format de chaque EF/ENF : critère d'acceptation testable présent ?
 
-### 9.5 Vérifier
+### 9.5 Verify
 
 **But** : s'assurer que la DoR Conception est satisfaite.
 
@@ -454,9 +456,9 @@ Activités :
 - Vérifier que la classification de risque global est cohérente avec les items listés.
 - Vérifier que les RED CARDS (§14) ont toutes un responsable et une échéance.
 
-Gate de sortie : DoD Cadrage vert → passer à Conception. Si des points bloquants restent, les documenter comme RED CARDS et décider : bloquer ou accepter le risque explicitement.
+Sortie : DoD Cadrage vert → passer à Conception. Si des points bloquants restent, les documenter comme RED CARDS et décider : bloquer ou accepter le risque explicitement.
 
-### 9.6 Capitaliser
+### 9.6 Capitalize
 
 **But** : extraire les apprentissages pour améliorer les cadrage futurs.
 
@@ -466,7 +468,7 @@ Activités :
 - Alimenter `.planning/08-risks/` avec les risques identifiés.
 - Mettre à jour `.planning/09-logs/decision-log.md` avec les ADR préliminaires.
 
-### 9.7 Transmettre
+### 9.7 Transmit
 
 **But** : préparer le cycle Conception à démarrer sans friction.
 
@@ -540,17 +542,17 @@ SLO-002 : Latence p99 < 200 ms sur le parcours [NOM] sous charge nominale
 |----------|------------|--------|-----------------|
 | Dossier de cadrage complet | `docs/02-cadrage/` | Markdown | Toutes classes ≥ M |
 | Périmètre IN/OUT/DEFERRED | `docs/02-cadrage/scope.md` | Tableau Markdown | Toutes classes ≥ M |
-| Catalogue EF (EF-NNN) | `docs/04-requirements/functional/` | Markdown par EF | Toutes classes ≥ F |
+| Catalogue EF (EF-NNN) | `docs/04-requirements/functional/` | Markdown par EF | Toutes classes ≥ L |
 | Catalogue ENF (ENF-NNN) | `docs/04-requirements/non-functional/` | Markdown par ENF | Toutes classes ≥ M |
 | Règles métier (RM-NNN) | `docs/04-requirements/business-rules/` | Markdown par règle | Classes ≥ M |
-| Registre de risques initial | `.planning/08-risks/risk-register.md` | Tableau JSONL ou Markdown | Toutes classes ≥ F |
+| Registre de risques initial | `.planning/08-risks/risk-register.md` | Tableau JSONL ou Markdown | Toutes classes ≥ L |
 | Modèle ISO 25010 instancié | `docs/08-quality/quality-model-instance.md` | Tableau Markdown | Classes ≥ M |
-| ADR préliminaires (ADR-NNN) | `docs/13-decisions/` | MADR 4.0 | Classes ≥ É ou décisions structurantes |
+| ADR préliminaires (ADR-NNN) | `docs/13-decisions/` | MADR 4.0 | Classes ≥ H ou décisions structurantes |
 | Performance budget | `docs/02-cadrage/performance-budget.md` | Tableau | Classes ≥ M |
 | Registre de traitement préliminaire | `docs/09-security-compliance/data-register.md` | Tableau CNIL | Si données perso. |
 | Hypothèses (H-NNN) | `docs/02-cadrage/assumptions.md` | Tableau | Classes ≥ M |
-| Résumé de cadrage (1 page) | `docs/02-cadrage/summary.md` | Markdown | Toutes classes ≥ F |
-| Estimation macro | `docs/02-cadrage/estimation-macro.md` | Tableau | Classes ≥ F |
+| Résumé de cadrage (1 page) | `docs/02-cadrage/summary.md` | Markdown | Toutes classes ≥ L |
+| Estimation macro | `docs/02-cadrage/estimation-macro.md` | Tableau | Classes ≥ L |
 | RED CARDS (questions ouvertes) | `docs/02-cadrage/open-questions.md` | Tableau avec owner/date | Toutes classes |
 | Log de décisions cadrage | `.planning/09-logs/decision-log.md` | Append-only ligne | Toutes classes |
 
@@ -564,9 +566,9 @@ SLO-002 : Latence p99 < 200 ms sur le parcours [NOM] sous charge nominale
 |---------|-----------|------------|----------------|
 | Taux de couverture AC | % d'EF avec ≥ 1 AC testable | 100 % des Must Have | Comptage manuel ou script |
 | Taux de couverture ENF | % d'ENF avec seuil numérique | 100 % des Must Have | Comptage manuel |
-| Taux de classification risque | % d'items avec classe T/F/M/É/C | 100 % | Comptage dans backlog |
+| Taux de classification risque | % d'items avec classe T/L/M/H/C | 100 % | Comptage dans backlog |
 | RED CARDS résolues | % de questions ouvertes avec owner et date | 100 % | Tableau §14 |
-| Hypothèses formalisées | Nombre de H-NNN avec impact documenté | ≥ 3 pour classes ≥ É | Comptage |
+| Hypothèses formalisées | Nombre de H-NNN avec impact documenté | ≥ 3 pour classes ≥ H | Comptage |
 | Items Must Have / capacité | Ratio Must Have vs capacité estimée | ≤ 60 % | Calcul MoSCoW |
 
 ### 12.2 DORA — applicabilité en cadrage
@@ -574,7 +576,7 @@ SLO-002 : Latence p99 < 200 ms sur le parcours [NOM] sous charge nominale
 Le cadrage n'est pas une phase de delivery, donc les métriques DORA (Change Lead Time, Deployment Frequency, Failed Deployment Recovery Time, Change Failure Rate, Rework Rate) ne s'appliquent pas directement. En revanche :
 
 - Le **Rework Rate** est la métrique post-hoc la plus utile pour évaluer la qualité d'un cadrage : si on revient en cadrage depuis Build ou Validation, c'est que le cadrage était insuffisant.
-- Le **Change Failure Rate** élevé en production peut signaler des problèmes de classification de risque en cadrage (items classés F qui étaient É).
+- Le **Change Failure Rate** élevé en production peut signaler des problèmes de classification de risque en cadrage (items classés L qui étaient H).
 
 Note 2024/2025 : le rapport DORA 2024 était le dernier utilisant la classification Elite/High/Medium/Low. Le rapport DORA 2025 adopte 7 archétypes d'équipes. Les seuils Elite restent des références utiles : Change Lead Time < 1 jour, Deployment Frequency à la demande, Failed Deployment Recovery Time < 1 h, Change Failure Rate < 5 %.
 
@@ -584,7 +586,7 @@ Note 2024/2025 : le rapport DORA 2024 était le dernier utilisant la classificat
 |-----------|-----------------|-------------|
 | EF documentées | 0 | Couverture complète du périmètre IN |
 | ENF documentées | 0 | ≥ 1 par caractéristique ISO prioritaire |
-| Risques classifiés | 0 | ≥ 5 risques É/C identifiés et mitigés |
+| Risques classifiés | 0 | ≥ 5 risques H/C identifiés et mitigés |
 | ADR préliminaires | 0 | ≥ 1 par décision structurante |
 | RED CARDS ouvertes | n | 0 bloquant sans owner |
 | DoD Cadrage | ≥ 1 point rouge | 0 point rouge |
@@ -633,12 +635,12 @@ RC-NNN | Question | Responsable | Échéance | Impact si non résolu | Statut
 
 ### 14.1 RED CARDS structurelles (héritées de Discovery)
 
-| ID | Question | Responsable | Échéance | Impact |
-|----|---------|------------|---------|--------|
-| RC-001 | Comment mécaniser la classification de risque T/F/M/É/C ? Arbre de décision déterministe vs subjectif. | Dev | Avant Build cycle 1 | Classification reste subjective, le pivot d'adaptation perd en fiabilité |
-| RC-002 | Quelle est la state machine formelle du harness ? Schéma états/transitions/actions autorisées. | Dev | Avant Build cycle 1 | Harness reste boîte noire, risque de désynchronisation |
-| RC-003 | Quel modèle ISO 25010 instancié pour ce projet ? 3-5 caractéristiques avec seuils. | Dev | Avant fin Cadrage | Quality gates arbitraires sans modèle conscient |
-| RC-004 | Quel protocole de promotion de classe en cours de cycle ? (F → É découvert en Build) | Dev | Avant Build cycle 2 | Promotion reste implicite, pas d'amélioration de la classification future |
+| ID | Question | Responsable | Échéance | Impact | Statut |
+|----|---------|------------|---------|--------|--------|
+| RC-001 | Comment mécaniser la classification de risque T/L/M/H/C ? Arbre de décision déterministe vs subjectif. | Dev | Avant Build cycle 1 | Classification reste subjective, le pivot d'adaptation perd en fiabilité | Démotée : taxonomie fermée par PFV4, mécanisation non bloquante |
+| RC-002 | Quelle est la state machine formelle du harness ? Schéma états/transitions/actions autorisées. | Dev | Avant Build cycle 1 | Harness reste boîte noire, risque de désynchronisation | Fermée : storage strict `.planning/state.yaml`, `.planning/current-risk.yaml`, `.planning/run-set.json` |
+| RC-003 | Quel modèle ISO 25010 instancié pour ce projet ? 3-5 caractéristiques avec seuils. | Dev | Avant fin Cadrage | Quality gates arbitraires sans modèle conscient | Ouverte : non couverte par PFV4 |
+| RC-004 | Quel protocole de promotion de classe en cours de cycle ? (L → H découvert en Build) | Dev | Avant Build cycle 2 | Promotion reste implicite, pas d'amélioration de la classification future | Fermée : promotion via `.planning/current-risk.yaml` + transition `.planning/state.yaml` |
 
 ### 14.2 RED CARDS propres au Cadrage
 
@@ -682,7 +684,7 @@ RC-NNN | Question | Responsable | Échéance | Impact si non résolu | Statut
 **Ce que Cadrage livre à Conception :**
 - Périmètre IN/OUT/DEFERRED figé.
 - Catalogue EF et ENF avec AC testables et seuils.
-- Registre de risques initial avec classification T/F/M/É/C.
+- Registre de risques initial avec classification T/L/M/H/C.
 - ADR préliminaires signés.
 - Performance budget technique et financier.
 - Modèle ISO 25010 instancié.
@@ -704,7 +706,7 @@ RC-NNN | Question | Responsable | Échéance | Impact si non résolu | Statut
 
 ### 15.5 Cycle 08 — Apprentissage → Cadrage
 
-**Patterns récurrents** de cadrage insuffisant (ex. : ENF manquantes sur la performance, sous-estimation récurrente des items É) sont intégrés dans les templates de cadrage.
+**Patterns récurrents** de cadrage insuffisant (ex. : ENF manquantes sur la performance, sous-estimation récurrente des items H) sont intégrés dans les templates de cadrage.
 
 **Biais détectés** (agent ou développeur) sont documentés dans `.planning/agent/audit.md` et corrigent les heuristiques de classification.
 

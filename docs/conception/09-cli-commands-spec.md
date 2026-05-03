@@ -95,7 +95,7 @@ Installing harness on claude...
   ✓ Detected claude 1.2.3
   ✓ Prerequisites OK
   ✓ Skills installed (12 files)
-  ✓ Hooks registered (6 events)
+  ✓ Hooks registered (7 events)
   ✓ MCP servers configured
   ✓ Doctor check passed
 
@@ -200,8 +200,9 @@ harness init [--name <project-name>] [--description <text>] [--force]
 
 ### Description
 
-Initialise un projet dans le répertoire courant. Crée l'arborescence `.planning/` et le
-squelette `docs/`, initialise `state.yaml` en phase Discovery. Détecte si le projet
+Initialise un projet dans le répertoire courant. Crée les trois fichiers canoniques
+dans `.planning/` et le squelette `docs/`, initialise `state.yaml` en phase discovery.
+Détecte si le projet
 est déjà initialisé.
 
 ### Flags
@@ -210,25 +211,21 @@ est déjà initialisé.
 |------|------|--------|-------------|
 | `--name <name>` | string | non | Nom du projet (défaut : basename du cwd) |
 | `--description <text>` | string | non | Description courte du projet |
-| `--force` | boolean | non | Réinitialise même si déjà initialisé (préserve les logs JSONL) |
+| `--force` | boolean | non | Réinitialise même si déjà initialisé (préserve les sections logiques existantes si possible) |
 
 ### Comportement
 
-1. Vérifie si `.planning/state/state.yaml` existe — si oui et sans `--force`, affiche l'état
+1. Vérifie si `.planning/state.yaml` existe — si oui et sans `--force`, affiche l'état
    courant et sort avec code 0.
 2. Crée les répertoires :
-   - `.planning/state/`
-   - `.planning/registry/`
-   - `.planning/timeline/`
-   - `.planning/metrics/`
-   - `.planning/logs/`
-   - `.planning/agent/`
+   - `.planning/`
    - `docs/`
-3. Écrit `.planning/state/state.yaml` avec `phase: discovery`, `sub_phase: observe`,
-   `risk_class: null`, `mode: auto-decision`, `run_id: <uuid>`.
-4. Crée `.planning/logs/events.jsonl` (vide, prêt pour append).
-5. Crée `.planning/logs/state-transitions.jsonl` (vide).
-6. Crée `.planning/agent/policies.yaml` depuis le template embarqué.
+3. Écrit `.planning/state.yaml` avec `phase: discovery`, `sub_phase: Observer`,
+   `risk_class: null`, `mode: auto`, `run_id: <uuid>`.
+4. Écrit `.planning/current-risk.yaml` avec `risk_class: null`, `mode: auto`,
+   `justification: "unclassified"`.
+5. Écrit `.planning/run-set.json` avec les sections logiques Run Set, Evidence Set,
+   événements et transitions.
 
 ### Format de sortie
 
@@ -237,9 +234,9 @@ Initializing project 'mon-projet'...
   ✓ .planning/ structure created
   ✓ docs/ skeleton created
   ✓ state.yaml initialized (phase: discovery)
-  ✓ events.jsonl ready
+  ✓ run-set.json initialized
 
-Project initialized. Current phase: DISCOVERY / observe
+Project initialized. Current phase: discovery / Observer
 Run `harness status` to inspect state.
 ```
 
@@ -275,11 +272,11 @@ run ID, gaps d'evidence, blockers actifs. Lecture seule, ne modifie rien.
 
 ### Comportement
 
-1. Lit `.planning/state/state.yaml` depuis le cwd (remonte jusqu'à trouver `.planning/`).
-2. Lit `.planning/state/active-run.json` si présent.
-3. Calcule les evidence gaps depuis `evidence-set.json` du run courant vs les exigences de
+1. Lit `.planning/state.yaml` depuis le cwd (remonte jusqu'à trouver `.planning/`).
+2. Lit `.planning/run-set.json` si présent.
+3. Calcule les evidence gaps depuis la section Evidence Set logique du run courant vs les exigences de
    la Policy Set pour la phase et la classe de risque courantes.
-4. Identifie les blockers depuis `run-set.json`.
+4. Identifie les blockers depuis la section Run Set.
 
 Si le projet n'est pas initialisé : message d'erreur explicite, suggestion de `harness init`.
 
@@ -288,10 +285,10 @@ Si le projet n'est pas initialisé : message d'erreur explicite, suggestion de `
 Mode humain (tableau) :
 ```
 ┌─────────────────┬──────────────────────────────┐
-│ Phase           │ BUILD                        │
-│ Sub-phase       │ execute                      │
-│ Risk class      │ F (Faible)                   │
-│ Mode            │ auto-decision                │
+│ MacroCycle      │ build                        │
+│ SubPhase        │ Execute                      │
+│ Risk class      │ L (Low)                      │
+│ Mode            │ auto                         │
 │ Run ID          │ run-2026-05-03-a7f2          │
 │ Evidence gaps   │ tests (missing), lint (ok)   │
 │ Blockers        │ none                         │
@@ -302,9 +299,9 @@ Mode `--json` :
 ```json
 {
   "phase": "build",
-  "sub_phase": "execute",
-  "risk_class": "F",
-  "mode": "auto-decision",
+  "sub_phase": "Execute",
+  "risk_class": "L",
+  "mode": "auto",
   "run_id": "run-2026-05-03-a7f2",
   "evidence_gaps": ["tests"],
   "blockers": [],
@@ -349,7 +346,7 @@ sur stdout. **Target : < 100 ms** (appelé à chaque outil utilisé par l'agent)
 
 | Argument | Requis | Valeurs |
 |----------|--------|---------|
-| `<event-name>` | oui | `pre_tool_use`, `post_tool_use`, `user_prompt_submit`, `session_start`, `stop`, `subagent_stop` |
+| `<event-name>` | oui | Label d'adapter runtime, ex. `pre_tool_use`, `post_tool_use`, `user_prompt_submit`, `session_start`, `stop`, `subagent_start`, `subagent_stop` |
 
 ### Comportement
 
@@ -357,12 +354,12 @@ sur stdout. **Target : < 100 ms** (appelé à chaque outil utilisé par l'agent)
 2. Charge `state.yaml` depuis le projet courant (cwd, résolution par remontée d'arbre).
 3. Évalue les gates applicables à l'événement selon la phase et la classe de risque courantes.
 4. Écrit la décision JSON sur stdout.
-5. Appende un enregistrement dans `.planning/logs/events.jsonl` (async, ne bloque pas la décision).
+5. Appende un enregistrement dans la section `events` de `.planning/run-set.json` (async, ne bloque pas la décision).
 
 **Chemin critique (doit tenir <100 ms)** :
 - Lecture `state.yaml` : YAML synchrone, fichier ≤ 2 KB.
 - Évaluation gates : logique pure, pas de I/O réseau.
-- Écriture `events.jsonl` : fire-and-forget async.
+- Écriture de l'événement logique : fire-and-forget async.
 
 Si `.planning/` est absent : allow immédiat, log sur stderr, pas de bloc.
 
@@ -389,8 +386,8 @@ Block :
 ```json
 {
   "decision": "block",
-  "reason": "Phase DISCOVERY: écriture de code source interdite avant transition vers BUILD.",
-  "gate": "gate.pre_tool",
+  "reason": "MacroCycle discovery: écriture de code source interdite avant transition vers build.",
+  "gate": "pre_tool",
   "hint": "Run `harness transition build` when ready."
 }
 ```
@@ -399,12 +396,16 @@ Block :
 
 | Événement | Sémantique | Gate évaluée |
 |-----------|-----------|--------------|
-| `pre_tool_use` | Avant exécution d'un outil | `gate.pre_tool` |
-| `post_tool_use` | Après exécution d'un outil | `gate.post_tool` |
-| `user_prompt_submit` | Avant traitement d'un prompt utilisateur | `gate.user_prompt` |
-| `session_start` | Démarrage de session agent | `gate.session_start` |
-| `stop` | Demande d'arrêt de session | `gate.stop` |
-| `subagent_stop` | Arrêt d'un sous-agent | `gate.subagent_stop` |
+| `pre_tool_use` | Avant exécution d'un outil | `pre_tool` |
+| `post_tool_use` | Après exécution d'un outil | `post_tool` |
+| `user_prompt_submit` | Avant traitement d'un prompt utilisateur | `user_prompt` |
+| `session_start` | Démarrage de session agent | `session_start` |
+| `stop` | Demande d'arrêt de session | `stop` |
+| `subagent_start` | Démarrage d'un sous-agent | `subagent_start` |
+| `subagent_stop` | Arrêt d'un sous-agent | `subagent_stop` |
+
+Les noms de gauche sont des labels d'adapter externes. Seules les valeurs de droite
+sont des `GateType` canoniques PFV4.
 
 ### Codes de sortie
 
@@ -436,21 +437,21 @@ harness transition <target-phase> [--reason <text>] [--force]
 
 ### Description
 
-Demande une transition de phase. Vérifie les guards, valide l'Evidence Set, met à jour
+Demande une transition de phase. Vérifie les guards, valide l'Evidence Set logique, met à jour
 `state.yaml`. Affiche ce qui manque si la transition est bloquée.
 
 ### Arguments
 
 | Argument | Requis | Valeurs |
 |----------|--------|---------|
-| `<target-phase>` | oui | `discovery`, `cadrage`, `conception`, `build`, `validation`, `release`, `run`, `apprentissage` |
+| `<target-phase>` | oui | `discovery`, `cadrage`, `conception`, `build`, `validation`, `release`, `run`, `learning` |
 
 ### Flags
 
 | Flag | Type | Requis | Description |
 |------|------|--------|-------------|
-| `--reason <text>` | string | non | Raison de la transition (ajoutée à `state-transitions.jsonl`) |
-| `--force` | boolean | non | Bypass des guards — autorisé uniquement sur classe T/F |
+| `--reason <text>` | string | non | Raison de la transition (ajoutée à la section `transitions` de `.planning/run-set.json`) |
+| `--force` | boolean | non | Bypass des guards — autorisé uniquement sur classe T/L |
 
 ### Comportement
 
@@ -460,29 +461,29 @@ Demande une transition de phase. Vérifie les guards, valide l'Evidence Set, met
 3. Évalue les guards de la transition pour la classe de risque courante :
    - Evidence Set suffisant ?
    - Critères DoR/DoD respectés ?
-4. Si guards OK : met à jour `state.yaml`, appende à `state-transitions.jsonl`, affiche confirmation.
+4. Si guards OK : met à jour `state.yaml`, appende à la section `transitions`, affiche confirmation.
 5. Si guards KO sans `--force` : affiche la liste des gaps, sort avec code `2`.
-6. Si `--force` sur classe É/C : erreur hard, code `1` (bypass interdit, D4).
+6. Si `--force` sur classe H/C : erreur hard, code `1` (bypass interdit, D4).
 
 ### Format de sortie
 
 Succès :
 ```
-Transitioning BUILD → VALIDATION...
+Transitioning build → validation...
   ✓ Evidence: tests (12 passing)
   ✓ Evidence: lint (clean)
   ✓ Evidence: typecheck (clean)
-  ✓ Guard: risk class F allows auto-transition
+  ✓ Guard: risk class L allows auto-transition
 
-Transition complete. Phase: VALIDATION / observe
+Transition complete. MacroCycle: validation / Observer
 ```
 
 Bloqué :
 ```
-Transition BUILD → VALIDATION blocked.
+Transition build → validation blocked.
 
 Missing evidence:
-  ✗ tests — no test results found in evidence-set.json
+  ✗ tests — no test results found in run-set.json evidence section
   ✗ typecheck — no typecheck output recorded
 
 Add evidence with `harness evidence add` or run your test suite.
@@ -505,7 +506,7 @@ Mode `--json` :
 | Code | Cas |
 |------|-----|
 | `0` | Transition effectuée |
-| `1` | Transition invalide dans la state machine, `--force` sur É/C |
+| `1` | Transition invalide dans la state machine, `--force` sur H/C |
 | `2` | Guards non satisfaits (evidence manquante) |
 | `3` | `state.yaml` corrompu |
 
@@ -514,7 +515,7 @@ Mode `--json` :
 ```bash
 harness transition build
 harness transition validation --reason "feature complete, all tests green"
-harness transition build --force   # bypass T/F uniquement
+harness transition build --force   # bypass T/L uniquement
 ```
 
 ---
@@ -529,7 +530,7 @@ harness classify [--auto | --manual <class>] [--reason <text>]
 
 ### Description
 
-Classifie ou reclassifie la classe de risque du changement courant selon la matrice T/F/M/É/C.
+Classifie ou reclassifie la classe de risque du changement courant selon la matrice T/L/M/H/C.
 Mode auto : arbre de décision déterministe basé sur les fichiers modifiés et les labels.
 Mode manuel : classification explicite avec raison obligatoire.
 
@@ -538,7 +539,7 @@ Mode manuel : classification explicite avec raison obligatoire.
 | Flag | Type | Requis | Description |
 |------|------|--------|-------------|
 | `--auto` | boolean | exclusif | Classification automatique par arbre de décision |
-| `--manual <class>` | string | exclusif | Classification manuelle : `T`, `F`, `M`, `E`, `C` |
+| `--manual <class>` | string | exclusif | Classification manuelle : `T`, `L`, `M`, `H`, `C` |
 | `--reason <text>` | string | requis si `--manual` | Justification de la classification manuelle |
 
 Un seul de `--auto` ou `--manual` est accepté. Sans flag : mode interactif (affiche
@@ -548,14 +549,14 @@ l'arbre de décision et pose les questions).
 
 L'arbre de décision évalue dans l'ordre :
 
-1. Fichiers touchés contiennent-ils des chemins d'auth, paiement, PII, schéma DB, API publique ? → É
+1. Fichiers touchés contiennent-ils des chemins d'auth, paiement, PII, schéma DB, API publique ? → H
 2. Fichiers touchés sont-ils des données santé/biométrie/financières, refonte d'architecture ? → C
 3. Changement visible utilisateur sans PII sensible ? → M
-4. Nouvelle fonctionnalité isolée derrière feature flag, pas de PII ? → F
+4. Nouvelle fonctionnalité isolée derrière feature flag, pas de PII ? → L
 5. Cosmétique, doc, refactor sans changement de comportement ? → T
 
-Sources utilisées : `git diff --name-only`, labels PR si disponibles, patterns configurable
-dans `.planning/agent/policies.yaml`.
+Sources utilisées : `git diff --name-only`, labels PR si disponibles, patterns configurables
+dans la section `policy_set` de `.planning/state.yaml`.
 
 ### Format de sortie
 
@@ -565,15 +566,15 @@ Classifying current change...
   ✓ No auth/payment/PII paths detected
   ✓ No schema migrations detected
   ✓ Feature flag detected: FEATURE_NEW_DASHBOARD
-  → Classification: F (Faible)
+  → Classification: L (Low)
 
-Risk class set to F. State updated.
+Risk class set to L. State updated.
 ```
 
 Mode `--json` :
 ```json
 {
-  "class": "F",
+  "class": "L",
   "method": "auto",
   "signals": ["feature_flag_detected", "no_pii_paths"],
   "previous_class": null
@@ -586,13 +587,13 @@ Mode `--json` :
 |------|-----|
 | `0` | Classification effectuée |
 | `1` | Classe invalide, raison manquante pour `--manual`, erreur git |
-| `2` | Reclassification vers É/C en mode bypass — avertissement (mode dégradé vers auto-décision) |
+| `2` | Reclassification vers H/C en mode bypass — avertissement (mode dégradé vers auto) |
 
 ### Exemples
 
 ```bash
 harness classify --auto
-harness classify --manual E --reason "Touches JWT secret rotation logic"
+harness classify --manual H --reason "Touches JWT secret rotation logic"
 harness classify --manual T --reason "Typo fix in README"
 ```
 
@@ -625,9 +626,9 @@ cohérence de l'état, fichiers manquants. Rapport structuré par catégorie.
 | **Installation** | `~/.harness/config.yaml` présent, manifestes par plateforme valides |
 | **Plateforme** | Binaire détectable, version compatible, chemins de config accessibles |
 | **Hooks** | Chaque hook enregistré correspond à un event-name valide, commande `harness hook` résolvable |
-| **Projet** | `.planning/state/state.yaml` présent et valide, JSONL lisibles |
-| **State** | Phase valide, classe de risque cohérente, run_id non-null si phase > discovery |
-| **Fichiers requis** | `policies.yaml`, `gates.yaml`, templates skills présents |
+| **Projet** | `.planning/state.yaml`, `.planning/current-risk.yaml` et `.planning/run-set.json` présents et valides |
+| **State** | MacroCycle valide, classe de risque cohérente, run_id non-null si macroCycle > discovery |
+| **Fichiers requis** | sections `policy_set` et `runtime_binding_set`, templates skills présents |
 
 ### Format de sortie
 
@@ -642,13 +643,13 @@ Installation
 Platform: claude
   ✓ Binary found: /usr/local/bin/claude (1.2.3)
   ✓ Config dir: ~/.claude/ (writable)
-  ✓ Hooks registered: 6/6
+  ✓ Hooks registered: 7/7
   ✗ MCP server harness-mcp: not responding
 
 Project
-  ✓ .planning/state/state.yaml (phase: build, class: F)
-  ✓ events.jsonl (847 entries)
-  ✗ policies.yaml — missing, run `harness doctor --fix`
+  ✓ .planning/state.yaml (phase: build, class: L)
+  ✓ .planning/run-set.json events section (847 entries)
+  ✗ policy_set section — missing, run `harness doctor --fix`
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 2 errors, 1 warning. Run `harness doctor --fix` to attempt auto-repair.
@@ -686,15 +687,15 @@ harness evidence add <type> <data>
 
 ### Description
 
-Consulte ou enrichit l'Evidence Set du run courant. L'Evidence Set est la source de vérité
-pour `DONE_VERIFIED` — aucune transition vers `DONE_VERIFIED` sans Evidence Set suffisant
-(cf. rms-runtime-sets-v1-draft.md §Evidence Set).
+Consulte ou enrichit la section Evidence Set logique du run courant. Elle est la source
+de vérité pour `DONE_VERIFIED` — aucune transition vers `DONE_VERIFIED` sans evidence
+suffisante (cf. rms-runtime-sets-v1-draft.md §Evidence Set).
 
 ### Sous-commandes
 
 #### `harness evidence show`
 
-Affiche l'Evidence Set du run courant (ou d'un run spécifique avec `--run`).
+Affiche la section Evidence Set du run courant (ou d'un run spécifique avec `--run`).
 
 **Flags** :
 
@@ -710,14 +711,14 @@ Evidence Set — run-2026-05-03-a7f2
   ✓ lint         ESLint clean (2026-05-03T14:21:00Z)
   ✗ typecheck    not recorded
   ✗ review       not recorded
-  - build        not required (class F)
+  - build        not required (class L)
 
 Confidence: MEDIUM (2/4 required evidence items)
 ```
 
 #### `harness evidence add <type> <data>`
 
-Ajoute une entrée à l'Evidence Set du run courant.
+Ajoute une entrée à la section Evidence Set du run courant.
 
 **Arguments** :
 
@@ -728,8 +729,8 @@ Ajoute une entrée à l'Evidence Set du run courant.
 
 **Comportement** :
 1. Valide le type d'évidence contre les types connus.
-2. Appende l'entrée dans `.planning/state/runs/<run-id>/evidence-set.json`.
-3. Appende dans `events.jsonl`.
+2. Appende l'entrée dans la section `evidence` de `.planning/run-set.json`.
+3. Appende un événement logique dans la section `events`.
 4. Recalcule le niveau de confiance (`NONE` / `LOW` / `MEDIUM` / `HIGH` / `DONE_VERIFIED`).
 
 ### Codes de sortie
@@ -767,7 +768,7 @@ harness evidence add build ".dist/bundle.js 142KB"
 - Pré-compilation TypeScript vers JS (pas de `ts-node` en production).
 - Lecture `state.yaml` synchrone unique, pas de parsing JSON profond.
 - Évaluation gates : logique pure, zéro I/O réseau.
-- Écriture `events.jsonl` : `setImmediate` ou `process.nextTick` après la décision.
+- Écriture de l'événement logique : `setImmediate` ou `process.nextTick` après la décision.
 - Pas de require dynamique dans le chemin chaud.
 
 ### Autres commandes

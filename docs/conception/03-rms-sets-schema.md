@@ -2,8 +2,11 @@
 
 > **Status**: conception v1
 > **Source**: `propositions/rms-runtime-sets-v1-draft.md`, `research-reports/checkpoint-implementation.md`
-> **Purpose**: TypeScript interfaces + JSON Schema (draft 2020-12) for all 8 canonical RMS sets.
+> **Purpose**: TypeScript interfaces + JSON Schema (draft 2020-12) for all 8 canonical RMS logical sets.
 > These schemas are the authoritative contract for type generation and runtime validation.
+> **PFV4 storage contract**: physical storage is strict and limited to `.planning/state.yaml`,
+> `.planning/current-risk.yaml`, and `.planning/run-set.json`. RMS Sets are logical
+> sections/projections inside those files, never separate physical files.
 
 ---
 
@@ -28,14 +31,14 @@
 
 ```mermaid
 flowchart TD
-    PS[Project Set\n.rms/state/project-set.json]
-    IS[Intent Set\n.rms/runs/<id>/intent-set.json]
-    CS[Runtime Capability Set\n.rms/runs/<id>/capability-set.json]
-    PL[Policy Set\n.rms/registry/policies.yaml]
-    BS[Runtime Binding Set\n.rms/registry/runtimes/<rt>.yaml]
-    RS[Route Set\n.rms/runs/<id>/route-set.json]
-    RN[Run Set\n.rms/runs/<id>/run-set.json]
-    EV[Evidence Set\n.rms/runs/<id>/evidence-set.json]
+    PS[Project Set\nstate.yaml.projectSet]
+    IS[Intent Set\nrun-set.json.intentSet]
+    CS[Runtime Capability Set\nrun-set.json.capabilitySet]
+    PL[Policy Set\nstate.yaml.policySet]
+    BS[Runtime Binding Set\nstate.yaml.bindingSet]
+    RS[Route Set\nrun-set.json.routeSet]
+    RN[Run Set\nrun-set.json]
+    EV[Evidence Set\nrun-set.json.evidenceSet]
     FS[Final State]
 
     PS --> RS
@@ -53,7 +56,30 @@ flowchart TD
 combined by the RMS router to produce a Route Set. The Route Set, translated through runtime-specific
 Bindings, drives the actual execution that populates the Run Set. Execution events and subagent outputs
 accumulate in the Evidence Set. Policy gates are re-applied to Evidence + Run state to authorize the
-Final State transition.
+Final State transition. The named sets are conceptual boundaries for validation and projection;
+they do not imply separate storage artifacts.
+
+---
+
+## Canonical Scalar Types
+
+```typescript
+export type RiskClass = "T" | "L" | "M" | "H" | "C";
+export type OperatingMode = "bypass" | "auto" | "pairing";
+export type GateType =
+  | "session_start"
+  | "user_prompt"
+  | "pre_tool"
+  | "post_tool"
+  | "stop"
+  | "subagent_start"
+  | "subagent_stop";
+export type SubPhase =
+  | "Observer" | "Define" | "Design" | "Execute" | "Verify" | "Capitalize" | "Transmit";
+```
+
+`auto` preserves checkpointing, full visibility, and human validation constraints. There are no
+additional automatic-mode variants.
 
 ---
 
@@ -135,8 +161,6 @@ export interface RepoPaths {
   docs: string;
   /** Execution planning root. Default: ".planning/". */
   planning: string;
-  /** RMS state root. Default: ".rms/". */
-  rms: string;
 }
 
 export interface SecurityPolicy {
@@ -157,7 +181,6 @@ export interface PathRiskOverride {
   reason: string;
 }
 
-export type RiskClass = "T" | "F" | "M" | "E" | "C";
 ```
 
 ### JSON Schema
@@ -165,7 +188,7 @@ export type RiskClass = "T" | "F" | "M" | "E" | "C";
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://harness.dev/schemas/rms/project-set.json",
+  "$id": "https://harness.dev/schemas/rms/project-set",
   "title": "ProjectSet",
   "type": "object",
   "required": ["schemaVersion", "projectId", "name", "vision", "platform",
@@ -197,13 +220,12 @@ export type RiskClass = "T" | "F" | "M" | "E" | "C";
     },
     "repoPaths": {
       "type": "object",
-      "required": ["src", "tests", "docs", "planning", "rms"],
+      "required": ["src", "tests", "docs", "planning"],
       "properties": {
         "src":      { "type": "string" },
         "tests":    { "type": "string" },
         "docs":     { "type": "string" },
-        "planning": { "type": "string" },
-        "rms":      { "type": "string" }
+        "planning": { "type": "string" }
       },
       "additionalProperties": false
     },
@@ -237,7 +259,7 @@ export type RiskClass = "T" | "F" | "M" | "E" | "C";
     "updatedAtCommit": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" }
   },
   "$defs": {
-    "riskClass": { "type": "string", "enum": ["T", "F", "M", "E", "C"] }
+    "riskClass": { "type": "string", "enum": ["T", "L", "M", "H", "C"] }
   }
 }
 ```
@@ -253,7 +275,7 @@ export type RiskClass = "T" | "F" | "M" | "E" | "C";
   "platform": "next",
   "architectureConstraints": [
     "No daemon process — hooks call harness binary inline",
-    "State lives in .rms/ at repo root, not in node_modules",
+    "State lives in .planning/ at repo root, not in node_modules",
     "Money fields must use integer cents, never float"
   ],
   "qualityStandards": [
@@ -265,17 +287,16 @@ export type RiskClass = "T" | "F" | "M" | "E" | "C";
     "src":      "packages/",
     "tests":    "packages/*/src/**/*.test.ts",
     "docs":     "docs/",
-    "planning": ".planning/",
-    "rms":      ".rms/"
+    "planning": ".planning/"
   },
   "securityPolicies": [
-    { "name": "no-secrets-in-code", "appliesTo": ["T","F","M","E","C"], "enforcement": "blocking" },
-    { "name": "pii-review-required", "appliesTo": ["E","C"], "enforcement": "blocking" }
+    { "name": "no-secrets-in-code", "appliesTo": ["T","L","M","H","C"], "enforcement": "blocking" },
+    { "name": "pii-review-required", "appliesTo": ["H","C"], "enforcement": "blocking" }
   ],
   "pathRiskOverrides": [
     { "glob": "packages/adapter-*/src/**", "minimumRiskClass": "M",
       "reason": "Adapter changes affect all runtime bindings" },
-    { "glob": "packages/core/src/gates/**", "minimumRiskClass": "E",
+    { "glob": "packages/core/src/gates/**", "minimumRiskClass": "H",
       "reason": "Gate changes affect security enforcement across all platforms" }
   ],
   "updatedAt": "2026-05-03T10:00:00Z",
@@ -286,16 +307,16 @@ export type RiskClass = "T" | "F" | "M" | "E" | "C";
 ### Constraints
 
 - `projectId` must match `^[a-z0-9-]+$` — used as a directory-safe identifier
-- `repoPaths.rms` must not equal `repoPaths.planning` — they are separate territories
-- `pathRiskOverrides[*].minimumRiskClass` must be F, M, E, or C (T is not meaningful as a minimum)
-- No agent may write to this file during a run; gate `gate.pre_tool` must block writes to the
+- `pathRiskOverrides[*].minimumRiskClass` must be L, M, H, or C (T is not meaningful as a minimum)
+- No agent may write to this file during a run; gate `pre_tool` must block writes to the
   Project Set path
 
-### Storage
+### Storage Projection
 
-- **Path**: `.rms/state/project-set.json`
-- **Format**: JSON (machine-written by `harness init`, human-editable between runs)
-- **Versioning**: committed to git; diff on update is the change record
+- **Physical file**: `.planning/state.yaml`
+- **Logical key**: `projectSet`
+- **Format**: YAML document section, validated against this JSON-compatible object shape
+- **Versioning**: committed with `state.yaml`; diffs to `projectSet` are the change record
 - **Singleton**: one per repo root (not per workspace)
 
 ---
@@ -314,7 +335,7 @@ decides whether autonomous execution is permitted.
 ### Lifecycle
 
 - **Created**: at run start, from the user's prompt (by the harness `user_prompt_submit` hook)
-- **Updated**: if scope is reclassified mid-run (e.g., class promoted from F to E on discovery)
+- **Updated**: if scope is reclassified mid-run (e.g., class promoted from L to H on discovery)
 - **Who updates**: harness classifier; developer for manual overrides
 - **Frequency**: once per run, with at most one scope-promotion update
 
@@ -356,7 +377,7 @@ export interface IntentSet {
   riskPromoted: boolean;
 
   /** Autonomy level the developer authorized for this run. */
-  authorizedAutonomy: "pairing" | "auto-decision" | "bypass";
+  authorizedAutonomy: OperatingMode;
 
   /** Expected deliverable type. */
   deliverableType: "feature" | "bugfix" | "refactor" | "spike" | "doc" | "config" | "release";
@@ -365,7 +386,7 @@ export interface IntentSet {
   explicitDoD: string | null;
 
   /** Pipeline cycles the RMS plans to traverse. */
-  plannedCycles: PipelineCycle[];
+  plannedCycles: MacroCycle[];
 }
 
 export interface Ambiguity {
@@ -377,7 +398,7 @@ export interface Ambiguity {
   impact: "low" | "medium" | "high";
 }
 
-export type PipelineCycle =
+export type MacroCycle =
   | "discovery"
   | "cadrage"
   | "conception"
@@ -393,7 +414,7 @@ export type PipelineCycle =
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://harness.dev/schemas/rms/intent-set.json",
+  "$id": "https://harness.dev/schemas/rms/intent-set",
   "title": "IntentSet",
   "type": "object",
   "required": ["schemaVersion", "runId", "capturedAt", "rawPrompt",
@@ -425,7 +446,7 @@ export type PipelineCycle =
     "initialRiskClass":   { "$ref": "#/$defs/riskClass" },
     "effectiveRiskClass": { "$ref": "#/$defs/riskClass" },
     "riskPromoted":       { "type": "boolean" },
-    "authorizedAutonomy": { "type": "string", "enum": ["pairing", "auto-decision", "bypass"] },
+    "authorizedAutonomy": { "type": "string", "enum": ["pairing", "auto", "bypass"] },
     "deliverableType": {
       "type": "string",
       "enum": ["feature", "bugfix", "refactor", "spike", "doc", "config", "release"]
@@ -441,7 +462,7 @@ export type PipelineCycle =
     }
   },
   "$defs": {
-    "riskClass": { "type": "string", "enum": ["T", "F", "M", "E", "C"] }
+    "riskClass": { "type": "string", "enum": ["T", "L", "M", "H", "C"] }
   }
 }
 ```
@@ -472,10 +493,10 @@ export type PipelineCycle =
       "impact": "low"
     }
   ],
-  "initialRiskClass": "F",
-  "effectiveRiskClass": "F",
+  "initialRiskClass": "L",
+  "effectiveRiskClass": "L",
   "riskPromoted": false,
-  "authorizedAutonomy": "auto-decision",
+  "authorizedAutonomy": "auto",
   "deliverableType": "feature",
   "explicitDoD": null,
   "plannedCycles": ["build", "validation"]
@@ -484,18 +505,19 @@ export type PipelineCycle =
 
 ### Constraints
 
-- `runId` must be a valid UUIDv4 and unique across all runs in `.rms/runs/`
+- `runId` must be a valid UUIDv4 and unique within the active `.planning/run-set.json`
 - `effectiveRiskClass` >= `initialRiskClass` (never downgraded, only promoted)
-- If `effectiveRiskClass` is "E" or "C", `authorizedAutonomy` must not be "bypass"
+- If `effectiveRiskClass` is "H" or "C", `authorizedAutonomy` must not be "bypass"
 - `inScope` must have at least one item
 - `plannedCycles` must include "build" if `deliverableType` is "feature" or "bugfix"
 
-### Storage
+### Storage Projection
 
-- **Path**: `.rms/runs/<runId>/intent-set.json`
-- **Format**: JSON
-- **Versioning**: immutable once created; a scope-promotion creates a new `intent-set-v2.json`
-  alongside the original for audit trail
+- **Physical file**: `.planning/run-set.json`
+- **Logical key**: `intentSet`
+- **Format**: JSON object nested in the canonical run file
+- **Versioning**: immutable after initial capture except for explicit scope promotion fields recorded
+  in the same `intentSet` and reflected in `current-risk.yaml.promotion_history`
 
 ---
 
@@ -561,8 +583,8 @@ export interface RuntimeCapabilitySet {
   /** Maximum subagent concurrency (0 = unknown/unlimited). */
   maxSubagentConcurrency: number;
 
-  /** Whether the runtime supports reading/writing .rms/ paths. */
-  canWriteRmsPaths: boolean;
+  /** Whether the runtime supports reading/writing .planning/ paths. */
+  canWritePlanningPaths: boolean;
 
   /** Known limitations observed during probe. */
   knownLimitations: string[];
@@ -572,8 +594,8 @@ export interface RuntimeCapabilitySet {
 }
 
 export interface HookCapability {
-  /** Canonical gate name: "gate.session_start", "gate.pre_tool", etc. */
-  canonicalGate: string;
+  /** Canonical gate name: "session_start", "pre_tool", etc. */
+  gateType: GateType;
   /** Whether this hook can block execution (vs. observe-only). */
   canBlock: boolean;
   /** Confirmed wired (present in settings). */
@@ -595,13 +617,13 @@ export interface McpServerCapability {
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://harness.dev/schemas/rms/runtime-capability-set.json",
+  "$id": "https://harness.dev/schemas/rms/runtime-capability-set",
   "title": "RuntimeCapabilitySet",
   "type": "object",
   "required": ["schemaVersion", "runId", "probedAt", "runtime", "runtimeVersion",
                "os", "shell", "sandboxMode", "activeHooks", "availableSkills",
                "connectedMcpServers", "canSpawnIsolatedSubagents",
-               "maxSubagentConcurrency", "canWriteRmsPaths", "knownLimitations",
+               "maxSubagentConcurrency", "canWritePlanningPaths", "knownLimitations",
                "activeFeatureFlags"],
   "additionalProperties": false,
   "properties": {
@@ -617,9 +639,9 @@ export interface McpServerCapability {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["canonicalGate", "canBlock", "wired"],
+        "required": ["gateType", "canBlock", "wired"],
         "properties": {
-          "canonicalGate": { "type": "string" },
+          "gateType": { "type": "string", "enum": ["session_start","user_prompt","pre_tool","post_tool","stop","subagent_start","subagent_stop"] },
           "canBlock":      { "type": "boolean" },
           "wired":         { "type": "boolean" }
         },
@@ -642,7 +664,7 @@ export interface McpServerCapability {
     },
     "canSpawnIsolatedSubagents":  { "type": "boolean" },
     "maxSubagentConcurrency":     { "type": "integer", "minimum": 0 },
-    "canWriteRmsPaths":           { "type": "boolean" },
+    "canWritePlanningPaths":      { "type": "boolean" },
     "knownLimitations":           { "type": "array", "items": { "type": "string" } },
     "activeFeatureFlags":         { "type": "array", "items": { "type": "string" } }
   }
@@ -662,12 +684,13 @@ export interface McpServerCapability {
   "shell": "powershell",
   "sandboxMode": "default",
   "activeHooks": [
-    { "canonicalGate": "gate.session_start",  "canBlock": false, "wired": true },
-    { "canonicalGate": "gate.pre_tool",       "canBlock": true,  "wired": true },
-    { "canonicalGate": "gate.post_tool",      "canBlock": false, "wired": true },
-    { "canonicalGate": "gate.stop",           "canBlock": true,  "wired": true },
-    { "canonicalGate": "gate.subagent_stop",  "canBlock": true,  "wired": true },
-    { "canonicalGate": "gate.user_prompt",    "canBlock": true,  "wired": false }
+    { "gateType": "session_start",   "canBlock": false, "wired": true },
+    { "gateType": "pre_tool",        "canBlock": true,  "wired": true },
+    { "gateType": "post_tool",       "canBlock": false, "wired": true },
+    { "gateType": "stop",            "canBlock": true,  "wired": true },
+    { "gateType": "subagent_start",  "canBlock": true,  "wired": true },
+    { "gateType": "subagent_stop",   "canBlock": true,  "wired": true },
+    { "gateType": "user_prompt",     "canBlock": true,  "wired": false }
   ],
   "availableSkills": ["feature-delivery", "testing", "refactoring", "session-start"],
   "connectedMcpServers": [
@@ -677,9 +700,9 @@ export interface McpServerCapability {
   ],
   "canSpawnIsolatedSubagents": true,
   "maxSubagentConcurrency": 0,
-  "canWriteRmsPaths": true,
+  "canWritePlanningPaths": true,
   "knownLimitations": [
-    "gate.user_prompt not wired — cannot block prompts pre-execution",
+    "user_prompt not wired — cannot block prompts pre-execution",
     "Windows shell: bash unavailable, PowerShell only"
   ],
   "activeFeatureFlags": []
@@ -688,18 +711,19 @@ export interface McpServerCapability {
 
 ### Constraints
 
-- If `canBlock` is false for `gate.pre_tool`, the Route Set must not plan any hard-blocking gates
+- If `canBlock` is false for `pre_tool`, the Route Set must not plan any hard-blocking gates
 - If `canSpawnIsolatedSubagents` is false, Route Set must not plan parallel worktree agents
 - `knownLimitations` must be non-empty if any wired hook has `canBlock: false`
 - Cross-reference: every gate listed in `Route.requiredGates` must exist in `activeHooks` with
   `wired: true`
 
-### Storage
+### Storage Projection
 
-- **Path**: `.rms/runs/<runId>/capability-set.json`
-- **Format**: JSON
-- **Versioning**: immutable (snapshot); a separate `.rms/state/last-capability-set.json` holds the
-  most recent probe for session-level caching
+- **Physical file**: `.planning/run-set.json`
+- **Logical key**: `capabilitySet`
+- **Format**: JSON object nested in the canonical run file
+- **Versioning**: immutable capability snapshot for the active run; refreshed by replacing the
+  active `run-set.json` at the next run start
 
 ---
 
@@ -709,8 +733,9 @@ export interface McpServerCapability {
 
 The Runtime Binding Set is the translation table between abstract RMS concepts (gates, procedures,
 workers, external tools) and the concrete primitives that the active runtime provides. It answers
-"how do I express `gate.pre_tool` on Claude Code vs. Codex?" without embedding platform knowledge in
-the RMS core. This set is static per runtime — it lives in the registry, not in a run directory.
+"how do I express `pre_tool` on Claude Code vs. Codex?" without embedding platform knowledge in
+the RMS core. This set is static per runtime and is stored as a logical section of the canonical
+state file rather than a separate runtime catalog.
 It is the bridge that makes the RMS runtime-agnostic: the same Policy Set and Route Set can drive
 three different runtimes because each binding resolves the abstractions differently.
 
@@ -735,7 +760,7 @@ export interface RuntimeBindingSet {
   harnessVersion: string;
 
   /** Gate bindings: how each canonical gate maps to a runtime primitive. */
-  gates: Record<CanonicalGate, GateBinding>;
+  gates: Record<GateType, GateBinding>;
 
   /** How reusable procedures (skills) are stored and invoked. */
   procedureBinding: ProcedureBinding;
@@ -750,16 +775,8 @@ export interface RuntimeBindingSet {
   instructionBinding: InstructionBinding;
 }
 
-export type CanonicalGate =
-  | "gate.session_start"
-  | "gate.user_prompt"
-  | "gate.pre_tool"
-  | "gate.post_tool"
-  | "gate.stop"
-  | "gate.subagent_stop";
-
 export interface GateBinding {
-  /** Runtime primitive type backing this gate. */
+  /** Runtime primitive type backing this GateType. */
   primitive: "hook" | "wrapper" | "post-run-check" | "no-op";
   /** Platform-specific event name. Null if primitive is no-op. */
   nativeEvent: string | null;
@@ -813,7 +830,7 @@ export interface InstructionBinding {
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://harness.dev/schemas/rms/runtime-binding-set.json",
+  "$id": "https://harness.dev/schemas/rms/runtime-binding-set",
   "title": "RuntimeBindingSet",
   "type": "object",
   "required": ["schemaVersion", "runtime", "harnessVersion", "gates",
@@ -827,8 +844,8 @@ export interface InstructionBinding {
     "gates": {
       "type": "object",
       "propertyNames": {
-        "enum": ["gate.session_start","gate.user_prompt","gate.pre_tool",
-                 "gate.post_tool","gate.stop","gate.subagent_stop"]
+        "enum": ["session_start","user_prompt","pre_tool",
+                  "post_tool","stop","subagent_start","subagent_stop"]
       },
       "additionalProperties": {
         "type": "object",
@@ -895,12 +912,13 @@ export interface InstructionBinding {
   "runtime": "claude",
   "harnessVersion": "0.1.0",
   "gates": {
-    "gate.session_start": { "primitive": "hook", "nativeEvent": "PostSessionStart", "canBlock": false },
-    "gate.user_prompt":   { "primitive": "hook", "nativeEvent": "UserPromptSubmit",  "canBlock": true },
-    "gate.pre_tool":      { "primitive": "hook", "nativeEvent": "PreToolUse",         "canBlock": true },
-    "gate.post_tool":     { "primitive": "hook", "nativeEvent": "PostToolUse",        "canBlock": false },
-    "gate.stop":          { "primitive": "hook", "nativeEvent": "Stop",               "canBlock": true },
-    "gate.subagent_stop": { "primitive": "hook", "nativeEvent": "SubagentStop",       "canBlock": true }
+    "session_start": { "primitive": "hook", "nativeEvent": "PostSessionStart", "canBlock": false },
+    "user_prompt":   { "primitive": "hook", "nativeEvent": "UserPromptSubmit",  "canBlock": true },
+    "pre_tool":      { "primitive": "hook", "nativeEvent": "PreToolUse",         "canBlock": true },
+    "post_tool":     { "primitive": "hook", "nativeEvent": "PostToolUse",        "canBlock": false },
+    "stop":          { "primitive": "hook", "nativeEvent": "Stop",               "canBlock": true },
+    "subagent_start": { "primitive": "hook", "nativeEvent": "SubagentStart",      "canBlock": true },
+    "subagent_stop":  { "primitive": "hook", "nativeEvent": "SubagentStop",       "canBlock": true }
   },
   "procedureBinding": {
     "format": "SKILL.md",
@@ -928,18 +946,19 @@ export interface InstructionBinding {
 
 ### Constraints
 
-- All 6 canonical gates must be present as keys in `gates`; missing gates are not allowed (use
+- All 7 canonical gates must be present as keys in `gates`; missing gates are not allowed (use
   `primitive: "no-op"` with `noOpReason`)
 - If `primitive` is "no-op", `nativeEvent` must be null and `noOpReason` must be set
 - `workerBinding.maxDepth` must be >= 1 if `workerBinding.worktreeIsolation` is true
-- Cross-set: `RuntimeCapabilitySet.activeHooks[*].canonicalGate` must match a key in
+- Cross-set: `RuntimeCapabilitySet.activeHooks[*].gateType` must match a key in
   `RuntimeBindingSet.gates`
 
-### Storage
+### Storage Projection
 
-- **Path**: `.rms/registry/runtimes/<runtime>.yaml`
-- **Format**: YAML (human-readable, rarely changed)
-- **Versioning**: committed to git; one file per supported runtime
+- **Physical file**: `.planning/state.yaml`
+- **Logical key**: `bindingSet`
+- **Format**: YAML document section, validated against this JSON-compatible object shape
+- **Versioning**: committed with `state.yaml`; one active binding set per workspace state
 
 ---
 
@@ -986,13 +1005,13 @@ export interface RiskPolicy {
   riskClass: RiskClass;
 
   /** Pipeline cycles required for this class (minimum traversal). */
-  requiredCycles: PipelineCycle[];
+  requiredCycles: MacroCycle[];
 
   /** Gates that must fire (and pass) before execution can proceed. */
-  mandatoryGates: CanonicalGate[];
+  mandatoryGates: GateType[];
 
   /** Gates that must fire before a Final State is authorized. */
-  mandatoryGatesBeforeDone: CanonicalGate[];
+  mandatoryGatesBeforeDone: GateType[];
 
   /** Whether bypass autonomy is permitted for this class. */
   bypassPermitted: boolean;
@@ -1039,7 +1058,7 @@ export type EvidenceType =
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://harness.dev/schemas/rms/policy-set.json",
+  "$id": "https://harness.dev/schemas/rms/policy-set",
   "title": "PolicySet",
   "type": "object",
   "required": ["schemaVersion", "projectId", "riskPolicies", "globalRules", "updatedAt"],
@@ -1049,7 +1068,7 @@ export type EvidenceType =
     "projectId":     { "type": "string" },
     "riskPolicies": {
       "type": "object",
-      "propertyNames": { "enum": ["T","F","M","E","C"] },
+      "propertyNames": { "enum": ["T","L","M","H","C"] },
       "minProperties": 5,
       "maxProperties": 5,
       "additionalProperties": {
@@ -1059,7 +1078,7 @@ export type EvidenceType =
                      "humanEscalationConditions", "minimumTestCoverageDelta",
                      "reviewRequired", "requiredEvidenceTypes", "requiredDocUpdates"],
         "properties": {
-          "riskClass":                   { "type": "string", "enum": ["T","F","M","E","C"] },
+          "riskClass":                   { "type": "string", "enum": ["T","L","M","H","C"] },
           "requiredCycles":              { "type": "array", "items": { "type": "string" } },
           "mandatoryGates":              { "type": "array", "items": { "type": "string" } },
           "mandatoryGatesBeforeDone":    { "type": "array", "items": { "type": "string" } },
@@ -1101,7 +1120,7 @@ export type EvidenceType =
     "T": {
       "riskClass": "T",
       "requiredCycles": ["build"],
-      "mandatoryGates": ["gate.pre_tool"],
+      "mandatoryGates": ["pre_tool"],
       "mandatoryGatesBeforeDone": [],
       "bypassPermitted": true,
       "humanEscalationConditions": [],
@@ -1110,11 +1129,11 @@ export type EvidenceType =
       "requiredEvidenceTypes": ["files-modified"],
       "requiredDocUpdates": []
     },
-    "F": {
-      "riskClass": "F",
+    "L": {
+      "riskClass": "L",
       "requiredCycles": ["build", "validation"],
-      "mandatoryGates": ["gate.pre_tool", "gate.post_tool"],
-      "mandatoryGatesBeforeDone": ["gate.stop"],
+      "mandatoryGates": ["pre_tool", "post_tool"],
+      "mandatoryGatesBeforeDone": ["stop"],
       "bypassPermitted": true,
       "humanEscalationConditions": ["scope-promoted-during-run"],
       "minimumTestCoverageDelta": null,
@@ -1125,8 +1144,8 @@ export type EvidenceType =
     "M": {
       "riskClass": "M",
       "requiredCycles": ["build", "validation"],
-      "mandatoryGates": ["gate.pre_tool", "gate.post_tool", "gate.stop"],
-      "mandatoryGatesBeforeDone": ["gate.stop"],
+      "mandatoryGates": ["pre_tool", "post_tool", "stop"],
+      "mandatoryGatesBeforeDone": ["stop"],
       "bypassPermitted": false,
       "humanEscalationConditions": ["ambiguity-impact-high"],
       "minimumTestCoverageDelta": 0,
@@ -1134,11 +1153,11 @@ export type EvidenceType =
       "requiredEvidenceTypes": ["test-results", "lint-results", "typecheck-results", "files-modified"],
       "requiredDocUpdates": []
     },
-    "E": {
-      "riskClass": "E",
+    "H": {
+      "riskClass": "H",
       "requiredCycles": ["cadrage", "conception", "build", "validation"],
-      "mandatoryGates": ["gate.user_prompt", "gate.pre_tool", "gate.post_tool", "gate.stop"],
-      "mandatoryGatesBeforeDone": ["gate.stop"],
+      "mandatoryGates": ["user_prompt", "pre_tool", "post_tool", "stop"],
+      "mandatoryGatesBeforeDone": ["stop"],
       "bypassPermitted": false,
       "humanEscalationConditions": ["auth-change", "pii-touched", "payment-flow", "public-api-change"],
       "minimumTestCoverageDelta": 5,
@@ -1149,8 +1168,8 @@ export type EvidenceType =
     "C": {
       "riskClass": "C",
       "requiredCycles": ["discovery", "cadrage", "conception", "build", "validation", "release"],
-      "mandatoryGates": ["gate.session_start","gate.user_prompt","gate.pre_tool","gate.post_tool","gate.stop"],
-      "mandatoryGatesBeforeDone": ["gate.stop"],
+      "mandatoryGates": ["session_start","user_prompt","pre_tool","post_tool","stop"],
+      "mandatoryGatesBeforeDone": ["stop"],
       "bypassPermitted": false,
       "humanEscalationConditions": ["health-data", "biometric-data", "financial-data", "regulatory-requirement", "architecture-overhaul"],
       "minimumTestCoverageDelta": 10,
@@ -1170,17 +1189,18 @@ export type EvidenceType =
 
 ### Constraints
 
-- All 5 risk classes (T, F, M, E, C) must be present as keys in `riskPolicies`
-- `bypassPermitted` must be `false` for classes E and C
-- `humanEscalationConditions` must be non-empty for classes E and C
-- `reviewRequired` must be `true` for classes E and C
+- All 5 risk classes (T, L, M, H, C) must be present as keys in `riskPolicies`
+- `bypassPermitted` must be `false` for classes H and C
+- `humanEscalationConditions` must be non-empty for classes H and C
+- `reviewRequired` must be `true` for classes H and C
 - Cross-set: every `requiredEvidenceTypes` entry must correspond to a field in `EvidenceSet`
 
-### Storage
+### Storage Projection
 
-- **Path**: `.rms/registry/policies.yaml`
-- **Format**: YAML (human-readable policy declaration)
-- **Versioning**: committed to git; changes require a structural commit (`refactor:` or `docs:`)
+- **Physical file**: `.planning/state.yaml`
+- **Logical key**: `policySet`
+- **Format**: YAML document section, validated against this JSON-compatible object shape
+- **Versioning**: committed with `state.yaml`; policy changes require a structural decision record
 
 ---
 
@@ -1198,7 +1218,7 @@ per run and is immutable once execution begins (to prevent retroactive justifica
 ### Lifecycle
 
 - **Created**: after Intent Set capture and Capability probe, before any tool execution
-- **Updated**: never once execution starts (immutable after `gate.pre_tool` first fires)
+- **Updated**: never once execution starts (immutable after `pre_tool` first fires)
 - **Who updates**: RMS router (harness core)
 - **Frequency**: once per run
 
@@ -1216,16 +1236,16 @@ export interface RouteSet {
   decidedAt: string;
 
   /** Execution mode selected. */
-  selectedMode: "pairing" | "auto-decision" | "bypass";
+  selectedMode: OperatingMode;
 
   /** Runtime the execution will run on. Must exist in CapabilitySet. */
   selectedRuntime: "claude" | "codex" | "hermes";
 
   /** Pipeline cycles that will be executed (ordered). */
-  selectedCycles: PipelineCycle[];
+  selectedCycles: MacroCycle[];
 
   /** Gates that will be active for this run. */
-  activatedGates: CanonicalGate[];
+  activatedGates: GateType[];
 
   /** Skills the agent is permitted to invoke. */
   permittedSkills: string[];
@@ -1275,7 +1295,7 @@ export interface RejectedAlternative {
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://harness.dev/schemas/rms/route-set.json",
+  "$id": "https://harness.dev/schemas/rms/route-set",
   "title": "RouteSet",
   "type": "object",
   "required": ["schemaVersion", "runId", "decidedAt", "selectedMode", "selectedRuntime",
@@ -1287,7 +1307,7 @@ export interface RejectedAlternative {
     "schemaVersion":          { "type": "string", "const": "1.0" },
     "runId":                  { "type": "string", "format": "uuid" },
     "decidedAt":              { "type": "string", "format": "date-time" },
-    "selectedMode":           { "type": "string", "enum": ["pairing","auto-decision","bypass"] },
+    "selectedMode":           { "type": "string", "enum": ["pairing","auto","bypass"] },
     "selectedRuntime":        { "type": "string", "enum": ["claude","codex","hermes"] },
     "selectedCycles":         { "type": "array", "items": { "type": "string" }, "minItems": 1 },
     "activatedGates":         { "type": "array", "items": { "type": "string" } },
@@ -1333,10 +1353,10 @@ export interface RejectedAlternative {
   "schemaVersion": "1.0",
   "runId": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
   "decidedAt": "2026-05-03T14:32:10Z",
-  "selectedMode": "auto-decision",
+  "selectedMode": "auto",
   "selectedRuntime": "claude",
   "selectedCycles": ["build", "validation"],
-  "activatedGates": ["gate.pre_tool", "gate.post_tool", "gate.stop"],
+  "activatedGates": ["pre_tool", "post_tool", "stop"],
   "permittedSkills": ["feature-delivery", "testing"],
   "requiredSkills": [
     { "skill": "feature-delivery", "atStep": "build.execute" }
@@ -1347,10 +1367,10 @@ export interface RejectedAlternative {
   "rejectedAlternatives": [
     {
       "description": "Bypass mode",
-      "reason": "Risk class F with --watch flag touches process lifecycle — auto-decision safer"
+      "reason": "Risk class L with --watch flag touches process lifecycle; auto mode keeps checkpoint visibility and validation constraints active"
     }
   ],
-  "rationale": "M-class feature addition scoped to a single CLI command. Build + validation cycles sufficient. Auto-decision mode appropriate as no PII or auth paths touched.",
+  "rationale": "M-class feature addition scoped to a single CLI command. Build + validation cycles sufficient. Auto mode is appropriate because checkpoint visibility and human validation constraints remain active.",
   "stopConditions": [
     "TypeScript compilation fails after 3 attempts",
     "Test suite regression detected"
@@ -1367,13 +1387,16 @@ export interface RejectedAlternative {
 - Every MCP in `permittedMcpServers` must appear in `RuntimeCapabilitySet.connectedMcpServers` with
   `healthy: true`
 - `selectedMode` must comply with `PolicySet.riskPolicies[effectiveRiskClass].bypassPermitted`
+- `selectedMode: "auto"` must preserve checkpointing, full visibility, and human validation
+  constraints; there are no separate automatic-mode variants
 - `rejectedAlternatives` must be non-empty for any run where multiple modes were viable
 
-### Storage
+### Storage Projection
 
-- **Path**: `.rms/runs/<runId>/route-set.json`
-- **Format**: JSON
-- **Versioning**: immutable once execution starts; file timestamp serves as the lock point
+- **Physical file**: `.planning/run-set.json`
+- **Logical key**: `routeSet`
+- **Format**: JSON object nested in the canonical run file
+- **Versioning**: immutable once execution starts; `routeSet.decidedAt` serves as the lock point
 
 ---
 
@@ -1384,13 +1407,13 @@ export interface RejectedAlternative {
 The Run Set is the live execution state for a run. It tracks phase transitions, open and completed
 tasks, active subagents, detected loops, and blockers. It is the operational dashboard of the RMS,
 updated continuously as execution progresses. It answers "where is this run right now and is it
-healthy?" The Run Set is ephemeral in the sense that it reflects the current moment — it complements
-`events.jsonl` (the append-only event log) but does not duplicate it: the Run Set holds the
-latest-known state; `events.jsonl` holds the full history.
+healthy?" The Run Set is ephemeral in the sense that it reflects the current moment. Its
+`events` array is the logical event history for the active run, while the other Run Set fields hold
+the latest-known state.
 
 ### Lifecycle
 
-- **Created**: at first gate firing (`gate.pre_tool` or `gate.session_start`)
+- **Created**: at first gate firing (`pre_tool` or `session_start`)
 - **Updated**: at every phase transition, task state change, subagent event, or blocker
 - **Who updates**: harness hook handlers (pre_tool, post_tool, subagent_stop, stop)
 - **Frequency**: frequently — potentially every tool call
@@ -1409,10 +1432,10 @@ export interface RunSet {
   updatedAt: string;
 
   /** Current pipeline phase. */
-  currentPhase: PipelineCycle;
+  currentPhase: MacroCycle;
 
   /** Current sub-cycle step within the current phase. */
-  currentStep: SubCycleStep;
+  currentStep: SubPhase;
 
   /** All tasks in this run, with their current state. */
   tasks: RunTask[];
@@ -1441,9 +1464,6 @@ export interface RunSet {
   /** Candidate final states (computed, not yet committed). */
   candidateFinalStates: FinalState[];
 }
-
-export type SubCycleStep =
-  | "observe" | "define" | "conceive" | "execute" | "verify" | "capitalize" | "transmit";
 
 export interface RunTask {
   /** Unique task identifier within the run. */
@@ -1504,7 +1524,7 @@ export type FinalState =
     "runId":                 { "type": "string", "format": "uuid" },
     "updatedAt":             { "type": "string", "format": "date-time" },
     "currentPhase":          { "type": "string" },
-    "currentStep":           { "type": "string", "enum": ["observe","define","conceive","execute","verify","capitalize","transmit"] },
+    "currentStep":           { "type": "string", "enum": ["Observer","Define","Design","Execute","Verify","Capitalize","Transmit"] },
     "tasks": {
       "type": "array",
       "items": {
@@ -1570,7 +1590,7 @@ export type FinalState =
   "runId": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
   "updatedAt": "2026-05-03T14:45:00Z",
   "currentPhase": "validation",
-  "currentStep": "verify",
+  "currentStep": "Verify",
   "tasks": [
     { "id": "t1", "description": "Add --watch flag to status command signature", "state": "done", "updatedAt": "2026-05-03T14:40:00Z", "attempts": 1 },
     { "id": "t2", "description": "Implement setInterval polling loop with SIGINT handler", "state": "done", "updatedAt": "2026-05-03T14:43:00Z", "attempts": 1 },
@@ -1594,14 +1614,14 @@ export type FinalState =
 - `loopEvidence` must be non-empty when `loopDetected` is true
 - `candidateFinalStates` must be empty until all mandatory gates in
   `PolicySet.riskPolicies[class].mandatoryGatesBeforeDone` have fired
-- `writeLocks` must not contain paths in `.rms/state/project-set.json` or registry paths
+- `writeLocks` must not target the protected logical sections of `.planning/state.yaml`
 
 ### Storage
 
-- **Path**: `.rms/runs/<runId>/run-set.json`
+- **Physical file**: `.planning/run-set.json`
 - **Format**: JSON
-- **Companion**: `.rms/runs/<runId>/events.jsonl` — append-only event log (not duplicated in RunSet)
-- **Versioning**: overwritten on each update (latest state only); full history in `events.jsonl`
+- **Versioning**: overwritten on each update (latest state only); immutable audit details are nested
+  under `evidenceSet.items` and `eventLog`
 
 ---
 
@@ -1660,7 +1680,7 @@ export interface BaseEvidence {
   /** ISO 8601 timestamp when collected. */
   collectedAt: string;
   /** Gate that triggered collection. */
-  collectedByGate: CanonicalGate | "manual";
+  collectedByGate: GateType | "manual";
   /** Whether this evidence item is passing. */
   passing: boolean;
 }
@@ -1677,7 +1697,7 @@ export interface TestResultEvidence extends BaseEvidence {
   skipped: number;
   /** Coverage delta vs. baseline (null if not measured). */
   coverageDelta: number | null;
-  /** Path to full test output artifact. */
+  /** Stable reference to full test output if it is retained outside canonical state. */
   outputPath: string;
 }
 
@@ -1705,7 +1725,7 @@ export interface BuildResultEvidence extends BaseEvidence {
   tool: string;
   /** Build exit code. */
   exitCode: number;
-  /** Path to build output artifact. */
+  /** Stable reference to build output if it is retained outside canonical state. */
   outputPath?: string;
 }
 
@@ -1731,7 +1751,7 @@ export interface VisualScreenshotEvidence extends BaseEvidence {
   type: "visual-screenshot";
   /** Viewport width in pixels. */
   viewportWidth: number;
-  /** Path to screenshot artifact. */
+  /** Stable reference to screenshot evidence if it is retained outside canonical state. */
   screenshotPath: string;
   /** Pass/fail verdict from visual check. */
   visualVerdict: "pass" | "fail" | "needs-review";
@@ -1741,7 +1761,7 @@ export interface SubagentOutputEvidence extends BaseEvidence {
   type: "subagent-output";
   /** Role of the subagent that produced this output. */
   subagentRole: string;
-  /** Path to subagent output artifact. */
+  /** Stable reference to subagent output if it is retained outside canonical state. */
   outputPath: string;
   /** One-sentence summary of the subagent's conclusion. */
   conclusion: string;
@@ -1750,8 +1770,8 @@ export interface SubagentOutputEvidence extends BaseEvidence {
 export interface HookDecisionEvidence extends BaseEvidence {
   type: "hook-decisions";
   /** Gate that fired. */
-  gate: CanonicalGate;
-  /** Decision taken by the gate. */
+  gateType: GateType;
+  /** Decision taken by this GateType. */
   decision: "allow" | "block" | "warn";
   /** Reason for the decision. */
   reason: string;
@@ -1778,7 +1798,7 @@ export interface EvidenceVerdict {
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://harness.dev/schemas/rms/evidence-set.json",
+  "$id": "https://harness.dev/schemas/rms/evidence-set",
   "title": "EvidenceSet",
   "type": "object",
   "required": ["schemaVersion", "runId", "lastAppendedAt", "items", "verdict"],
@@ -1828,7 +1848,7 @@ export interface EvidenceVerdict {
     {
       "type": "files-modified",
       "collectedAt": "2026-05-03T14:43:00Z",
-      "collectedByGate": "gate.post_tool",
+      "collectedByGate": "post_tool",
       "passing": true,
       "files": ["packages/cli/src/commands/status.ts", "packages/cli/src/commands/status.test.ts"],
       "diffSummary": "+47 -3 lines across 2 files"
@@ -1836,7 +1856,7 @@ export interface EvidenceVerdict {
     {
       "type": "typecheck-results",
       "collectedAt": "2026-05-03T14:45:00Z",
-      "collectedByGate": "gate.post_tool",
+      "collectedByGate": "post_tool",
       "passing": true,
       "errors": 0,
       "tscVersion": "5.7.2"
@@ -1844,14 +1864,14 @@ export interface EvidenceVerdict {
     {
       "type": "test-results",
       "collectedAt": "2026-05-03T14:46:00Z",
-      "collectedByGate": "gate.stop",
+      "collectedByGate": "stop",
       "passing": true,
       "runner": "vitest",
       "passed": 34,
       "failed": 0,
       "skipped": 1,
       "coverageDelta": null,
-      "outputPath": ".rms/runs/f47ac10b/artifacts/vitest-output.txt"
+      "outputPath": "ci://ci-run-f47ac10b/vitest-output"
     }
   ],
   "verdict": {
@@ -1875,12 +1895,12 @@ export interface EvidenceVerdict {
 - `typecheck-results` must have `errors === 0` for `passing: true`
 - `review-verdict` items with `verdict: "changes-requested"` must have `passing: false`
 
-### Storage
+### Storage Projection
 
-- **Path**: `.rms/runs/<runId>/evidence-set.json`
-- **Format**: JSON
-- **Companion**: `.rms/runs/<runId>/artifacts/` — binary and large text artifacts referenced by path
-- **Versioning**: append-only during a run; frozen (read-only) once Final State is committed
+- **Physical file**: `.planning/run-set.json`
+- **Logical key**: `evidenceSet`
+- **Format**: JSON object nested in the canonical run file
+- **Versioning**: append-only during a run; frozen once the final state is committed in `run-set.json`
 
 ---
 
@@ -1900,7 +1920,7 @@ RuntimeBindingSet.runtime == RuntimeCapabilitySet.runtime   (for same runId)
 
 ```
 ∀ gate ∈ RouteSet.activatedGates :
-  RuntimeCapabilitySet.activeHooks.find(h => h.canonicalGate == gate && h.wired == true)
+  RuntimeCapabilitySet.activeHooks.find(h => h.gateType == gate && h.wired == true)
 ```
 
 A route must not activate a gate that is not wired in the runtime.
@@ -1922,7 +1942,7 @@ A route must not activate a gate that is not wired in the runtime.
 ### R5 — Autonomy-risk consistency
 
 ```
-IntentSet.effectiveRiskClass ∈ {E, C}  ⟹  IntentSet.authorizedAutonomy ≠ "bypass"
+IntentSet.effectiveRiskClass ∈ {H, C}  ⟹  IntentSet.authorizedAutonomy ≠ "bypass"
 PolicySet.riskPolicies[class].bypassPermitted == false  ⟹  RouteSet.selectedMode ≠ "bypass"
 ```
 
@@ -1948,25 +1968,25 @@ any further tool calls.
 
 ```
 No agent tool call may write to:
-  - ProjectSet path (.rms/state/project-set.json)
-  - PolicySet path (.rms/registry/policies.yaml)
-  - RuntimeBindingSet paths (.rms/registry/runtimes/*.yaml)
+  - ProjectSet logical section in .planning/state.yaml
+  - PolicySet logical section in .planning/state.yaml
+  - RuntimeBindingSet logical section in .planning/state.yaml
 ```
 
-Enforced by `gate.pre_tool` checking the target path against the locked list.
+Enforced by `pre_tool` checking the target path against the locked list.
 
-### R9 — Run Set / events.jsonl duality
+### R9 — Run Set event-log duality
 
 ```
-Every RunSet.tasks[*].state transition must produce an append to events.jsonl.
-RunSet reflects current state; events.jsonl is the immutable history.
+Every RunSet.tasks[*].state transition must append an event to run-set.json.eventLog.
+RunSet reflects current state; eventLog is the immutable logical history inside the same file.
 These must not contradict each other.
 ```
 
 ### R10 — runId uniqueness
 
 ```
-∀ files in .rms/runs/ : runId values must be globally unique (UUIDv4, no collision)
+The active .planning/run-set.json runId must be UUIDv4 and must not be reused when a new run starts.
 ```
 
 ---
@@ -1980,10 +2000,10 @@ The answer is risk-class-dependent. The table below shows the minimum per class:
 | Risk Class | Required Evidence Types | Notes |
 |------------|------------------------|-------|
 | **T**      | `files-modified`       | Trivial changes: proof of what changed is sufficient |
-| **F**      | `files-modified` + `test-results` (passing) | Tests must pass; coverage delta not required |
+| **L**      | `files-modified` + `test-results` (passing) | Tests must pass; coverage delta not required |
 | **M**      | `files-modified` + `test-results` + `lint-results` + `typecheck-results` (all passing) | Full static analysis required |
-| **E**      | All M types + `build-results` + `review-verdict` (approved or approved-with-comments) | Build artifact + review gate mandatory |
-| **C**      | All E types + `hook-decisions` (all gate firings recorded) | Full audit trail of every gate decision required |
+| **H**      | All M types + `build-results` + `review-verdict` (approved or approved-with-comments) | Build artifact + review gate mandatory |
+| **C**      | All H types + `hook-decisions` (all gate firings recorded) | Full audit trail of every gate decision required |
 
 **Absolute floor** (applies regardless of class):
 
@@ -1996,71 +2016,48 @@ The answer is risk-class-dependent. The table below shows the minimum per class:
 - All `files-modified` evidence is present (work was done)
 - Some optional evidence types are missing or have `passing: false`
 - `verdict.gapDescriptions` is non-empty and explicitly lists each gap
-- Risk class is T or F only — DONE_WITH_GAPS is not permitted for E or C
+- Risk class is T or L only — DONE_WITH_GAPS is not permitted for H or C
 
 **Hard rule**: a `DONE_VERIFIED` emitted without a valid Evidence Set is a harness bug. The gate
-handler at `gate.stop` must re-validate before accepting the final state.
+handler at `stop` must re-validate before accepting the final state.
 
 ---
 
 ## Storage Location Decision
 
-**Question from RMS doc Q1**: Should the RMS state live in `.rms/`, `.planning/`, `.omx/`, or
-a harness-specific folder?
+**Question from RMS doc Q1**: Where does PFV4 persist RMS state?
 
-**Decision**: `.rms/` at repo root.
+**Decision**: `.planning/` at repo root, with exactly three physical canonical files:
+`.planning/state.yaml`, `.planning/current-risk.yaml`, and `.planning/run-set.json`.
 
 **Rationale**:
 
 | Option | Problem |
 |--------|---------|
-| `.planning/` | Already used by the existing planning/tracing convention (sprint plans, loop traces, agent artifacts). Mixing RMS state into it creates ambiguity between "agent working notes" and "RMS control plane state". |
-| `.omx/` | Tied to the OMX/OMC branding. The harness is runtime-agnostic; the storage should not be OMC-specific. |
-| `.harness/` | Generic but collides with other harness tools (e.g., test harnesses). |
-| `.rms/` | Unambiguous, short, directly maps to the acronym, no collision risk with existing conventions, easy to gitignore selectively. |
+| Separate RMS folder | Creates a second state authority beside `.planning/`. |
+| Runtime-branded folder | Couples a runtime-agnostic harness to one ecosystem. |
+| Multiple per-set files | Makes the logical RMS model look like the physical storage model and increases recovery ambiguity. |
+| Three canonical files | Keeps the storage surface small while preserving logical RMS projections for validation. |
 
 **Directory structure**:
 
 ```
-.rms/
-  registry/                     # Static definitions (committed to git)
-    policies.yaml               # PolicySet
-    modes.yaml                  # Autonomy mode rules
-    gates.yaml                  # Gate catalog with semantics
-    runtimes/
-      claude.yaml               # RuntimeBindingSet for Claude Code
-      codex.yaml                # RuntimeBindingSet for Codex
-      hermes.yaml               # RuntimeBindingSet for Hermes
-  state/                        # Current project-level state (committed)
-    project-set.json            # ProjectSet (stable, committed)
-    last-capability-set.json    # Latest RuntimeCapabilitySet snapshot (gitignored)
-  runs/                         # Per-run data (gitignored in production, committed in CI)
-    <runId>/
-      intent-set.json
-      capability-set.json
-      binding-set.json          # Symlink or copy from registry/runtimes/<rt>.yaml
-      route-set.json
-      run-set.json
-      evidence-set.json
-      events.jsonl              # Append-only event log
-      decisions.md              # Human-readable decision narrative
-      artifacts/                # Binary artifacts (screenshots, test output)
+.planning/
+  state.yaml                    # ProjectSet, PolicySet, RuntimeBindingSet, phase/mode state
+  current-risk.yaml             # RiskClass classification and promotion history
+  run-set.json                  # IntentSet, CapabilitySet, RouteSet, RunSet, EvidenceSet, eventLog
 ```
 
-**Gitignore strategy**:
+**Versioning strategy**:
 
-```gitignore
-# .rms/ gitignore rules
-.rms/runs/              # Run state is transient — do not commit
-.rms/state/last-capability-set.json   # Regenerated per session
-# Keep committed:
-# .rms/registry/       — static definitions
-# .rms/state/project-set.json — stable project truth
-```
+- `.planning/state.yaml` is committed when project, policy, binding, or mode defaults change.
+- `.planning/current-risk.yaml` and `.planning/run-set.json` are active-run state and may be
+  committed only when a workflow explicitly captures planning state for review.
+- No other RMS storage path is canonical.
 
 **Format rules** (from checkpoint D15):
 
-- Registry files: **YAML** — human-readable, rarely changed, supports comments
-- Run state files: **JSON** — machine-written, validated by schema, no comments needed
-- Event logs: **JSONL** — append-only, one event per line, streamed by hooks
-- Artifacts: binary or plain text, referenced by path from Evidence Set
+- `.planning/state.yaml`: **YAML** — human-readable durable project and routing defaults.
+- `.planning/current-risk.yaml`: **YAML** — compact current risk classification.
+- `.planning/run-set.json`: **JSON** — machine-written active run state, including logical
+  evidence and event-log projections.

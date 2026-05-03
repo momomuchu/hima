@@ -5,6 +5,7 @@
 > **Périmètre** : Pipeline fractale v4 — Cycle Discovery, tous modes (Produit / Self-feedback / Technique)
 > **Auteur** : Deep-researcher + sources croisées (≥ 2 sources par claim)
 > **Standards** : ISO/IEC 25010:2023 · NIST SSDF 1.1/1.2-draft · OWASP Top 10:2025 · WCAG 2.2 · DORA 2024 · FinOps Foundation 2024
+> **Contrat PFV4** : macro cycles `discovery → cadrage → conception → build → validation → release → run → learning` ; `RiskClass = T/L/M/H/C` ; `OperatingMode = bypass/auto/pairing`
 
 ---
 
@@ -36,7 +37,7 @@ Le cycle Discovery est le **point d'entrée de la pipeline fractale v4**. Sa mis
 
 **Ce que ce document établit** :
 - Les 19 sections de clarification obligatoires (Phase 0 — r1.md) comme ossature de l'exploration
-- La classification T/F/M/É/C comme mécanisme central de modulation de profondeur
+- La classification T/L/M/H/C comme mécanisme central de modulation de profondeur
 - La DoR et DoD spécifiques à Discovery
 - Les critères qualité ISO/IEC 25010:2023 applicables à cette phase
 - Les 7 étapes du sous-cycle fractal appliquées à Discovery
@@ -51,28 +52,28 @@ Le cycle Discovery est le **point d'entrée de la pipeline fractale v4**. Sa mis
 ```
 Pipeline fractale v4 — vue macro
 
-[01 DISCOVERY] ──► [02 CADRAGE] ──► [03 CONCEPTION] ──► [04 BUILD]
+[01 discovery] ──► [02 cadrage] ──► [03 conception] ──► [04 build]
      │                                                        │
      │                  ◄──────────────────────────────────────
      │                         feedbacks de cycle
      ▼
-[08 APPRENTISSAGE] ◄── [07 RUN] ◄── [06 RELEASE] ◄── [05 VALIDATION]
+[08 learning] ◄── [07 run] ◄── [06 release] ◄── [05 validation]
 ```
 
 **Rôle de Discovery dans ce flux** :
 - Premier cycle — aucun prédécesseur dans la pipeline principale
-- Reçoit des feedbacks entrants de [08 Apprentissage] (rétros, postmortems) et de [07 Run] (signaux production)
+- Reçoit des feedbacks entrants de [08 learning] (rétros, postmortems) et de [07 run] (signaux production)
 - Alimente [02 Cadrage] avec un problème validé, une recommandation (build / pivot / kill) et une première estimation de classe de risque
 
-**Pattern fractal** : Discovery applique lui-même le sous-cycle universel à 7 étapes (Observer → Définir → Concevoir → Exécuter → Vérifier → Capitaliser → Transmettre). La même discipline s'applique à tous les niveaux de la pipeline.
+**Pattern fractal** : Discovery applique lui-même le sous-cycle universel à 7 étapes (Observer → Define → Design → Execute → Verify → Capitalize → Transmit). La même discipline s'applique à tous les niveaux de la pipeline.
 
 **Modes opératoires actifs dans ce cycle** :
 
 | Mode | Description | Usage Discovery |
 |------|-------------|-----------------|
-| Pairing | Développeur présent en continu | Entretiens utilisateurs, décisions ambiguës |
-| Auto-décision | Agent propose, développeur valide au triage | Mode par défaut visé — exploration, analyse |
-| Bypass | Agent fait tout, périmètre borné | T/F uniquement — recherche documentaire, veille |
+| pairing | Développeur présent en continu | Entretiens utilisateurs, décisions ambiguës |
+| auto | Agent autonome par défaut, avec checkpoints et validation humaine quand le risque ou la politique l'exige | Mode par défaut — exploration, analyse |
+| bypass | Agent fait tout, périmètre borné | T/L uniquement — recherche documentaire, veille |
 
 ---
 
@@ -87,7 +88,7 @@ Transformer une idée ou un signal en **intention claire, problème validé et r
 **Doit produire** :
 - Une fiche idée structurée (titre, contexte, problème observé, population concernée, impact actuel, opportunité, hypothèses, contraintes, décision attendue)
 - Un problem statement validé (pas supposé)
-- Une première estimation de classe de risque (T/F/M/É/C)
+- Une première estimation de classe de risque (T/L/M/H/C)
 - Une recommandation explicite : build / pivot / kill
 - Les hypothèses classées : définies / non définies / à confirmer / bloquantes
 
@@ -122,7 +123,7 @@ Mode Technique
 
 Discovery peut démarrer seulement si les conditions suivantes sont remplies.
 
-### 4.1 DoR minimale (T/F)
+### 4.1 DoR minimale (T/L)
 
 - [ ] Signal d'entrée identifié : idée, feedback, signal production, opportunité technique
 - [ ] Source du signal documentée (qui, quand, contexte)
@@ -135,7 +136,7 @@ Tout ce qui précède, plus :
 - [ ] Impact potentiel estimé à l'ordre de grandeur (pas précis)
 - [ ] Fenêtre de Discovery timeboxée définie (ex. : 2 jours max pour M)
 
-### 4.3 DoR renforcée (É/C)
+### 4.3 DoR renforcée (H/C)
 
 Tout ce qui précède, plus :
 - [ ] Sponsor ou décideur identifié (pour ce projet solo : développeur en tant que PO)
@@ -167,14 +168,14 @@ Discovery est terminé quand **tous** les critères stricts sont remplis ET les 
 - [ ] L'idée est formulée en intention claire (fiche idée complète)
 - [ ] Le problème est nommé : réel, observé ou supposé — distinction explicite
 - [ ] La recommandation est tranchée : build / pivot / kill (pas "à étudier")
-- [ ] La classe de risque initiale est proposée : T / F / M / É / C avec justification
+- [ ] La classe de risque initiale est proposée : T / L / M / H / C avec justification
 - [ ] Les hypothèses sont listées et classées (définies / à confirmer / bloquantes)
 - [ ] Les questions ouvertes ont un responsable, un impact et une échéance
 - [ ] Le livrable Discovery est versionné dans `docs/03-discovery/`
 
 ### 5.2 Critères conditionnels par classe de risque
 
-| Critère | T | F | M | É | C |
+| Critère | T | L | M | H | C |
 |---------|---|---|---|---|---|
 | Entretiens utilisateurs (≥ 5 ou équivalent quant.) | — | — | ○ | Obligatoire | Obligatoire |
 | Problem Statement formalisé (r1.md §2) | — | ○ | Obligatoire | Obligatoire | Obligatoire |
@@ -187,7 +188,7 @@ Discovery est terminé quand **tous** les critères stricts sont remplis ET les 
 | Signal privacy/RGPD identifié (oui/non + détail) | — | — | ○ | Obligatoire | Obligatoire |
 | Spike technique timeboxé si faisabilité incertaine | — | — | ○ | ○ | Obligatoire |
 
-Légende : Obligatoire = gate bloquant · ○ = recommandé · — = optionnel
+Légende : Obligatoire = blocage de sortie · ○ = recommandé · — = optionnel
 
 ### 5.3 Critères de sortie — les 19 points de r1.md
 
@@ -205,7 +206,7 @@ Bloquant         → la section manquante bloque le Cadrage (ne pas avancer sans
 
 Les 19 sections (r1.md) et leur statut attendu à la sortie de Discovery :
 
-| # | Section | T/F | M | É/C |
+| # | Section | T/L | M | H/C |
 |---|---------|-----|---|-----|
 | 1 | Idée initiale | Défini | Défini | Défini |
 | 2 | Problème à résoudre | À confirmer | Défini | Défini |
@@ -262,45 +263,45 @@ Décision attendue : [avant quelle étape]
 ```
 
 Les hypothèses actives sur la pipeline fractale v4 (rapport-discovery-cadrage.md §8) :
-- H1 : classification T/F/M/É/C en 5 niveaux est suffisante
-- H2 : auto-décision tenable sans dérive rubber-stamp
+- H1 : classification T/L/M/H/C en 5 niveaux est suffisante
+- H2 : auto tenable sans dérive rubber-stamp
 - H3 : harness mono-état tenable pour dev solo
 - H4 : économiser sur le planning ne dégrade pas la traçabilité utile
 - H5 : l'agent respecte les frontières du harness
 - H6 : Strangler Fig applicable à tous les changements d'architecture significatifs
 - H7 : le cycle s'auto-améliore via rétros et postmortems
 
-### 6.4 Classification de risque T/F/M/É/C
+### 6.4 Classification de risque T/L/M/H/C
 
 Mécanisme central de modulation de toute la pipeline. Défini en Discovery, propagé à tous les cycles aval.
 
 | Classe | Critères de classification |
 |--------|---------------------------|
 | **T — Trivial** | Changement cosmétique, doc, refactor sans comportement, dépendance patch sans CVE. Code path déjà testé. |
-| **F — Faible** | Nouvelle fonctionnalité isolée derrière feature flag, pas de PII, pas de migration. |
+| **L — Low** | Nouvelle fonctionnalité isolée derrière feature flag, pas de PII, pas de migration. |
 | **M — Moyen** | Fonctionnalité visible utilisateur, pas de PII sensible, pas de schéma DB, pas d'impact tiers. |
-| **É — Élevé** | Touche auth, autorisation, paiement, PII, schéma DB, API publique, infra de production. |
+| **H — High** | Touche auth, autorisation, paiement, PII, schéma DB, API publique, infra de production. |
 | **C — Critique** | Impact transverse multi-services, données santé/biométrie/financières, refonte architecture, rupture contrat API, exigence réglementaire (RGPD, EAA, NIS2, DORA financier). |
 
 **Règle anti-pattern** : ne jamais laisser la classification à la seule discrétion de l'auteur. En mode solo, l'agent propose la classe, le développeur la valide explicitement — trace dans l'artefact Discovery.
 
-**Protocole de promotion en cours de cycle** (ouvert — RED CARD RC-001) : quand un changement F se révèle être É en cours d'exploration, la promotion doit être tracée, le cycle re-planifié, et l'apprentissage archivé pour améliorer la classification future.
+**Protocole de promotion en cours de cycle** (fermé par PFV4) : quand un changement L se révèle être H en cours d'exploration, la promotion est tracée dans `.planning/current-risk.yaml`, la transition est enregistrée dans `.planning/state.yaml`, le cycle reprend à la SubPhase appropriée, et l'apprentissage est archivé pour améliorer la classification future.
 
 ### 6.5 Mode opératoire et frontières de contrôle humain
 
-Les trois modes (Pairing / Auto-décision / Bypass) ne créent pas trois cycles différents. Ils définissent où se situe la frontière de contrôle humain dans le même cycle.
+Les trois modes (pairing / auto / bypass) ne créent pas trois cycles différents. Ils définissent où se situe la frontière de contrôle humain dans le même cycle.
 
 **En Discovery** :
-- Mode Auto-décision (par défaut) : l'agent fait l'exploration, analyse les signaux, propose la fiche idée et la classe de risque. Le développeur valide au triage.
-- Mode Bypass : acceptable uniquement pour T/F — recherche documentaire, veille technologique, analyse de logs. Interdit pour É/C où la décision de classification engage des ressources importantes.
-- Garde-fous obligatoires en Auto-décision : format de proposition obligatoire (problème + alternatives + choix + critère de succès + classe de risque), quota mental de rejets ≥ 20 %, audit aléatoire hebdomadaire.
+- Mode auto (par défaut) : l'agent fait l'exploration, analyse les signaux, propose la fiche idée et la classe de risque. Le développeur valide uniquement aux checkpoints requis par le risque ou la politique.
+- Mode bypass : acceptable uniquement pour T/L — recherche documentaire, veille technologique, analyse de logs. Interdit pour H/C où la décision de classification engage des ressources importantes.
+- Garde-fous obligatoires en auto : format de proposition obligatoire (problème + alternatives + choix + critère de succès + classe de risque), quota mental de rejets ≥ 20 %, audit aléatoire hebdomadaire.
 
 ### 6.6 State management externe — harness
 
 Le harness contrôle ce que l'agent peut écrire selon la phase courante. En phase Discovery :
 - **Autorisé** : écriture dans `docs/03-discovery/`, `.planning/02-backlog/spikes/`, `.planning/08-risks/`, `.planning/09-logs/decision-log.md`
 - **Interdit** : écriture dans `code/`, `.planning/03-sprints/`, fichiers de Cadrage non encore ouverts
-- **Frontières déclaratives** dans `.planning/agent/boundaries.yaml` doublées par les contraintes effectives du harness
+- **Frontières déclaratives** dans `.planning/state.yaml`, `.planning/current-risk.yaml`, `.planning/run-set.json` doublées par les contraintes effectives du harness
 
 ### 6.7 Trois territoires et artefacts Discovery
 
@@ -326,11 +327,11 @@ En phase Discovery, les caractéristiques qualité sont **définies et priorisé
 | Caractéristique ISO 25010:2023 | Rôle en Discovery | Priorité type |
 |-------------------------------|-------------------|---------------|
 | **Functional suitability** | Valider que le problème ciblé est réel et que la solution envisagée y répond (completeness, correctness, appropriateness) | Critique — toujours |
-| **Interaction capability** | Identifier les utilisateurs, leurs contextes, leurs besoins d'accessibilité, niveau technique, fréquence (ex-Usability) | Élevée si UI |
-| **Reliability** | Identifier les exigences de disponibilité, tolérance aux pannes, recoverability | Élevée si service critique |
-| **Security** | Identifier les données personnelles, les surfaces d'attaque, les contraintes d'authentification/autorisation | Critique si É/C |
+| **Interaction capability** | Identifier les utilisateurs, leurs contextes, leurs besoins d'accessibilité, niveau technique, fréquence (ex-Usability) | High si UI |
+| **Reliability** | Identifier les exigences de disponibilité, tolérance aux pannes, recoverability | High si service critique |
+| **Security** | Identifier les données personnelles, les surfaces d'attaque, les contraintes d'authentification/autorisation | Critique si H/C |
 | **Safety** *(nouveau 2023)* | Identifier les risques opérationnels, fail-safe requirements, contraintes réglementaires de sécurité fonctionnelle | Critique si santé/finance/transport |
-| **Maintainability** | Identifier les contraintes de modularité, testabilité, évolutivité — impacte les choix d'architecture en Conception | Élevée si projet long |
+| **Maintainability** | Identifier les contraintes de modularité, testabilité, évolutivité — impacte les choix d'architecture en Conception | High si projet long |
 | **Flexibility** | Identifier scalabilité, adaptabilité aux changements de contexte, installatibilité (ex-Portability) | Selon roadmap |
 | **Performance efficiency** | Identifier les budgets de latence, de charge, de consommation de ressources | Selon classe de risque |
 | **Compatibility** | Identifier les contraintes d'interopérabilité, coexistence avec systèmes existants | Si intégrations identifiées |
@@ -344,7 +345,7 @@ Le modèle ISO 25010 doit être **instancié par projet** — pas appliqué unif
 2. Reliability (availability, fault tolerance) — le harness doit tenir sous charge et sur la durée
 3. Functional suitability — les fonctions couvertes doivent être correctes et complètes
 4. Security — les politiques de l'agent et les frontières doivent être robustes
-5. Safety — les décisions de classification É/C ne doivent pas passer en bypass
+5. Safety — les décisions de classification H/C ne doivent pas passer en bypass
 
 **Application utilisateur (projet futur)** :
 1. Functional suitability — résoudre le bon problème
@@ -373,7 +374,7 @@ La matrice suivante définit la **profondeur du Discovery** selon la classe de r
 
 ### 8.1 Matrice Discovery × Classe de risque
 
-| Activité Discovery | T | F | M | É | C |
+| Activité Discovery | T | L | M | H | C |
 |-------------------|---|---|---|---|---|
 | Fiche idée | Informel | Minimal | Structuré | Complet | Complet + validé |
 | Problem statement (r1.md §2) | — | Résumé | Obligatoire | Obligatoire | Obligatoire + peer review IA |
@@ -388,24 +389,24 @@ La matrice suivante définit la **profondeur du Discovery** selon la classe de r
 | Estimation FinOps (ordre de grandeur) | — | — | ○ | Obligatoire | Obligatoire |
 | Classification de risque explicite | ✅ | ✅ | ✅ | ✅ + justification | ✅ + justification + validation |
 | Note Discovery (`discovery.md`) | Informel | ✅ | ✅ | ✅ complet | ✅ complet + versionné |
-| Gate de sortie explicite | Implicite | Checklist | Checklist | Review développeur | Review développeur + IA antagoniste |
+| Checkpoint de sortie explicite | Implicite | Checklist | Checklist | Review développeur | Review développeur + IA antagoniste |
 
 Légende : ✅ = obligatoire · ○ = recommandé · — = skip autorisé
 
 ### 8.2 Chemin court vs chemin long
 
-**Chemin court (T/F)** : Discovery peut être fait en 5-30 minutes. Fiche idée informelle, classification explicite, note minimale dans `docs/03-discovery/`. L'essentiel : la classification de risque est toujours tracée, même sur T.
+**Chemin court (T/L)** : Discovery peut être fait en 5-30 minutes. Fiche idée informelle, classification explicite, note minimale dans `docs/03-discovery/`. L'essentiel : la classification de risque est toujours tracée, même sur T.
 
-**Chemin long (É/C)** : Discovery prend 1 à plusieurs jours. Les 19 sections de r1.md sont traitées, les hypothèses formalisées, les risques listés, les contraintes réglementaires identifiées, un spike technique lancé si la faisabilité est incertaine. La recommandation build/pivot/kill est validée par le développeur avant de passer en Cadrage.
+**Chemin long (H/C)** : Discovery prend 1 à plusieurs jours. Les 19 sections de r1.md sont traitées, les hypothèses formalisées, les risques listés, les contraintes réglementaires identifiées, un spike technique lancé si la faisabilité est incertaine. La recommandation build/pivot/kill est validée par le développeur avant de passer en Cadrage.
 
-### 8.3 Bypass et ses limites
+### 8.3 bypass et ses limites
 
-Le Bypass est **autorisé uniquement pour T/F** en Discovery. Exemples légitimes :
+Le bypass est **autorisé uniquement pour T/L** en Discovery. Exemples légitimes :
 - Recherche documentaire (agent cherche, synthétise, présente)
 - Analyse de logs ou de métriques (agent parse, statistiques, anomalies)
 - Veille technologique (agent lit, classe, résume les alternatives)
 
-**Interdit en Bypass pour É/C** : la classification de risque est une décision du développeur, pas de l'agent. Si l'agent propose É ou C, c'est une requête de décision humaine — pas une action autonome.
+**Interdit en bypass pour H/C** : la classification de risque est une décision du développeur, pas de l'agent. Si l'agent propose H ou C, c'est une requête de décision humaine — pas une action autonome.
 
 ---
 
@@ -425,9 +426,9 @@ Chaque cycle de la pipeline fractale suit le même sous-cycle universel. Voici s
 
 **Artefact** : journal d'observation brut (ne pas trier à ce stade)
 
-**Durée** : T = 5 min, F = 15 min, M = 1-2 h, É = demi-journée, C = 1-2 jours
+**Durée** : T = 5 min, L = 15 min, M = 1-2 h, H = demi-journée, C = 1-2 jours
 
-### Étape 2 — Définir
+### Étape 2 — Define
 
 **But** : transformer les observations en problème clair et en intention formulée.
 
@@ -442,14 +443,14 @@ Chaque cycle de la pipeline fractale suit le même sous-cycle universel. Voici s
 
 **Garde-fou** : distinguer explicitement "problème observé" vs "problème supposé". Un problème supposé sans validation utilisateur reste une hypothèse, pas un fait.
 
-### Étape 3 — Concevoir
+### Étape 3 — Design
 
 **But** : générer des options d'exploration, pas une solution finale.
 
 **Activités** :
 - Construire ou mettre à jour l'Opportunity Solution Tree
 - Identifier 2-3 approches possibles pour valider le problème (entretiens, spike, benchmark, données quantitatives)
-- Si É/C : lancer un spike technique timeboxé ≤ 5 jours pour valider la faisabilité
+- Si H/C : lancer un spike technique timeboxé ≤ 5 jours pour valider la faisabilité
 - Identifier les hypothèses clés à tester en priorité (r1.md §16)
 - Première estimation FinOps à l'ordre de grandeur (combien ça coûte de construire, combien ça coûte de ne pas construire)
 
@@ -457,7 +458,7 @@ Chaque cycle de la pipeline fractale suit le même sous-cycle universel. Voici s
 
 **Règle spike** : un spike a une seule question, un seul livrable (décision + trace dans `.planning/02-backlog/spikes/`). Un spike qui dépasse 5 jours est de l'implémentation déguisée — stopper et reclassifier.
 
-### Étape 4 — Exécuter
+### Étape 4 — Execute
 
 **But** : explorer, ne pas construire. Collecter des preuves, pas des certitudes.
 
@@ -468,11 +469,11 @@ Chaque cycle de la pipeline fractale suit le même sous-cycle universel. Voici s
 - Collecter des données quantitatives si disponibles
 - Documenter chaque entretien : verbatim, observations, surprises, contradictions
 
-**Règle** : en mode Bypass (T/F), l'agent peut exécuter l'exploration documentaire. Pour M+, le développeur conduit ou co-conduit les entretiens — l'agent ne peut pas remplacer l'empathie directe.
+**Règle** : en mode bypass (T/L), l'agent peut exécuter l'exploration documentaire. Pour M+, le développeur conduit ou co-conduit les entretiens — l'agent ne peut pas remplacer l'empathie directe.
 
-**Durée** : respecter le timebox défini en Concevoir. Une Discovery sans fin est de la procrastination architecturale sophistiquée.
+**Durée** : respecter le timebox défini en Design. Une Discovery sans fin est de la procrastination architecturale sophistiquée.
 
-### Étape 5 — Vérifier
+### Étape 5 — Verify
 
 **But** : confronter les observations à la réalité, valider ou invalider les hypothèses.
 
@@ -487,7 +488,7 @@ Chaque cycle de la pipeline fractale suit le même sous-cycle universel. Voici s
 
 **Vérification IA antagoniste** : pour M+, l'agent joue l'avocat du diable sur la recommandation. Il doit produire ≥ 3 arguments contre la recommandation. Le développeur doit y répondre explicitement dans la note Discovery.
 
-### Étape 6 — Capitaliser
+### Étape 6 — Capitalize
 
 **But** : transformer les apprentissages en mémoire réutilisable pour les cycles futurs.
 
@@ -500,7 +501,7 @@ Chaque cycle de la pipeline fractale suit le même sous-cycle universel. Voici s
 
 **Règle d'économie** : ne pas archiver tout ce qui a été produit — archiver ce qui est utile pour la prochaine décision ou le prochain Discovery similaire.
 
-### Étape 7 — Transmettre
+### Étape 7 — Transmit
 
 **But** : rendre la sortie de Discovery explicite et actionnable pour le cycle Cadrage.
 
@@ -590,11 +591,11 @@ Artefact : liste de 2-3 SLI candidats à formaliser en Conception
 
 | Artefact | Chemin | Format | Classe minimale |
 |----------|--------|--------|-----------------|
-| Note Discovery | `docs/03-discovery/<id>-discovery-note.md` | Markdown | F |
+| Note Discovery | `docs/03-discovery/<id>-discovery-note.md` | Markdown | L |
 | Fiche idée | Dans la Note Discovery (r1.md §1) | Section structurée | T |
 | Problem Statement | Dans la Note Discovery (r1.md §2) | Section structurée | M |
 | Grille DoD Discovery | `docs/03-discovery/<id>-dod-check.md` | Checklist | M |
-| Classification de risque | Dans la Note Discovery | T/F/M/É/C + justification | T (toujours) |
+| Classification de risque | Dans la Note Discovery | T/L/M/H/C + justification | T (toujours) |
 | Recommandation | Dans la Note Discovery | build / pivot / kill | T (toujours) |
 | Hypothèses formalisées | `docs/03-discovery/<id>-hypotheses.md` | Liste H-XXX | M |
 | Décision-log entry | `.planning/09-logs/decision-log.md` | Ligne chronologique | M |
@@ -607,9 +608,9 @@ Artefact : liste de 2-3 SLI candidats à formaliser en Conception
 | Spike report | `.planning/02-backlog/spikes/<id>-spike.md` | Si spike technique lancé |
 | Opportunity Solution Tree | `docs/03-discovery/<id>-ost.md` | Mode Produit, M+ |
 | Transcriptions entretiens | `docs/03-discovery/interviews/<date>-<personne>.md` | Mode Produit, M+ |
-| Risk register entries | `.planning/08-risks/<type>/RISK-XXX.md` | É/C |
+| Risk register entries | `.planning/08-risks/<type>/RISK-XXX.md` | H/C |
 | AIPD trigger memo | `docs/09-security-compliance/aipd-trigger.md` | Si RGPD trigger détecté |
-| FinOps estimation | Dans la Note Discovery | É/C |
+| FinOps estimation | Dans la Note Discovery | H/C |
 | Bias log entry | `docs/03-discovery/bias-log.md` | Si biais détecté |
 
 ### 11.3 Artefacts jamais produits en Discovery
@@ -627,7 +628,7 @@ Artefact : liste de 2-3 SLI candidats à formaliser en Conception
 
 | Métrique | Définition | Cible | Source |
 |----------|------------|-------|--------|
-| **Durée de Discovery** | Temps entre ouverture et clôture du cycle Discovery | T ≤ 30 min, F ≤ 2h, M ≤ 2j, É ≤ 5j, C ≤ 10j | `.planning/07-metrics/` |
+| **Durée de Discovery** | Temps entre ouverture et clôture du cycle Discovery | T ≤ 30 min, L ≤ 2h, M ≤ 2j, H ≤ 5j, C ≤ 10j | `.planning/07-metrics/` |
 | **Taux de pivot/kill** | % de Discoveries qui ne passent pas en Build | Healthy range : 20-40 % (trop bas = pas assez d'exploration, trop haut = DoR trop stricte) | Calculé trimestriellement |
 | **Précision de classification** | % de changements dont la classe initiale correspond à la classe finale après Build | Cible : ≥ 80 % sans promotion | Comparaison Discovery vs Apprentissage |
 | **Hypothèses validées / invalidées** | Ratio hypothèses confirmées vs infirmées par cycle | Valeur neutre — suivre la tendance | Log des hypothèses |
@@ -637,7 +638,7 @@ Artefact : liste de 2-3 SLI candidats à formaliser en Conception
 
 DORA 2024 mesure 5 métriques officielles. En Discovery, les métriques directement applicables sont :
 
-- **Change Lead Time** : la durée du Discovery contribue au lead time global. Un Discovery trop long (É prenant 3 semaines) détériore le lead time. Objectif : Discovery timeboxé par classe.
+- **Change Lead Time** : la durée du Discovery contribue au lead time global. Un Discovery trop long (H prenant 3 semaines) détériore le lead time. Objectif : Discovery timeboxé par classe.
 - **Rework Rate** *(nouveau DORA 2024)* : un Discovery incomplet génère du rework en Build ou Validation. Mesurer le rework issu d'hypothèses Discovery non validées.
 
 ### 12.3 Métriques qualité ISO 25010 à déclarer en Discovery
@@ -648,7 +649,7 @@ Pour chaque caractéristique prioritaire identifiée, déclarer :
 Caractéristique : [nom]
 Seuil de discovery : [valeur cible à mesurer en Run]
 Méthode de mesure : [comment on mesurera]
-Gate : [seuil en dessous duquel on retourne en Discovery ou on stoppe]
+GateType `stop` : [seuil en dessous duquel on retourne en Discovery ou on stoppe]
 ```
 
 ### 12.4 Indicateurs de santé du Discovery continu
@@ -668,7 +669,7 @@ Gate : [seuil en dessous duquel on retourne en Discovery ou on stoppe]
 | Sécurité SDLC | NIST SSDF | SP 800-218 v1.1 | Officiel. v1.2 en draft public (jan 2026) — ne pas citer v1.2 comme officiel | csrc.nist.gov |
 | Sécurité applicative | OWASP Top 10 | 2025 | Publié — 175 000 CVEs analysés. A01 Broken Access Control, A02 Security Misconfiguration, A10 Mishandling Exceptional Conditions (nouveau) | owasp.org/Top10/2025 |
 | Maturité sécurité | OWASP SAMM | v2 | Référence courante | owaspsamm.org |
-| Exigences sécurité | OWASP ASVS | v5 (draft) | Vérifier version finale | owasp.org |
+| Exigences sécurité | OWASP ASVS | v5 (draft) | Check final version | owasp.org |
 | Accessibilité | WCAG | 2.2 (oct 2023) | Baseline industry. EAA en vigueur depuis 28/06/2025. EN 301 549 v3.2.1 référence encore WCAG 2.1 légalement | w3.org/TR/WCAG22 |
 | Accessibilité UE | EAA / Directive 2019/882 | En vigueur | 28/06/2025 — pénalités nationales actives | eur-lex.europa.eu |
 | Performance livraison | DORA | Rapport 2024 | 5 métriques : CLT, DF, FDRT (ex-MTTR), CFR, Rework Rate (nouveau). 19 % d'équipes Elite | dora.dev/research/2024 |
@@ -685,16 +686,16 @@ Gate : [seuil en dessous duquel on retourne en Discovery ou on stoppe]
 
 ## 14. Questions ouvertes — RED CARDS
 
-Les RED CARDS sont des questions non résolues qui doivent être adressées avant ou pendant les cycles aval. Elles ne bloquent pas Discovery mais doivent avoir un responsable, une échéance et un impact documenté.
+Les RED CARDS listent les risques de décision encore ouverts ou récemment fermés par le contrat PFV4. Les entrées fermées ne bloquent plus discovery ; les entrées ouvertes doivent garder un responsable, une échéance et un impact documenté.
 
 ### RC-001 — Classification de risque mécanique
 
-**Question** : Comment opérationnaliser la classification T/F/M/É/C de manière déterministe et résistante au biais de l'auteur ?
+**Question** : Comment opérationnaliser la classification T/L/M/H/C de manière déterministe et résistante au biais de l'auteur ?
 
-**Impact** : sans mécanisation, la classification reste subjective. Le système fonctionne mais avec un curseur flou — risque de sous-estimer É/C et de passer en Bypass sur des changements risqués.
+**Impact** : sans mécanisation, la classification reste subjective. Le système fonctionne mais avec un curseur flou — risque de sous-estimer H/C et de passer en bypass sur des changements risqués.
 
 **Pistes** :
-- Arbre de décision déterministe (touche auth → É minimum, touche données santé → C minimum)
+- Arbre de décision déterministe (touche auth → H minimum, touche données santé → C minimum)
 - Critères automatisables : parsing des fichiers touchés, labels git, scan de migrations
 - Critères ambigus → requête humaine obligatoire
 
@@ -702,7 +703,7 @@ Les RED CARDS sont des questions non résolues qui doivent être adressées avan
 
 **Propriétaire** : Développeur (décision architecturale)
 
-**Statut** : Ouvert (rapport-discovery-cadrage.md §4.1)
+**Statut** : fermé par le contrat PFV4 pour la taxonomie (`RiskClass = T/L/M/H/C`) ; la mécanisation fine reste une amélioration non bloquante.
 
 ---
 
@@ -714,20 +715,21 @@ Les RED CARDS sont des questions non résolues qui doivent être adressées avan
 
 **Pistes** :
 - `docs/01-governance/operating-model.md` (conceptuel)
-- `.planning/agent/state-machine.yaml` (exécutable)
-- Log des transitions dans `logs/state-transitions.jsonl`
+- `.planning/state.yaml` (état canonique)
+- `.planning/current-risk.yaml` (risque courant)
+- `.planning/run-set.json` (ensemble d'exécution)
 
 **Priorité** : ÉLEVÉE — à formaliser avant le premier sprint de complexité M+
 
 **Propriétaire** : Développeur
 
-**Statut** : Ouvert (rapport-discovery-cadrage.md §4.2)
+**Statut** : fermé par le contrat PFV4 storage strict (`.planning/state.yaml`, `.planning/current-risk.yaml`, `.planning/run-set.json`).
 
 ---
 
 ### RC-003 — Protocole de promotion de classe en cours de cycle
 
-**Question** : Quand une classe F se révèle É en cours d'exploration, quel est le protocole exact ?
+**Question** : Quand une classe L se révèle H en cours d'exploration, quel est le protocole exact ?
 
 **Impact** : sans protocole, la promotion reste un concept — la classification initiale ne s'améliore jamais, et les sous-estimations se répètent.
 
@@ -741,7 +743,7 @@ Les RED CARDS sont des questions non résolues qui doivent être adressées avan
 
 **Propriétaire** : Développeur
 
-**Statut** : Ouvert (rapport-discovery-cadrage.md §4.6)
+**Statut** : fermé par le contrat PFV4 : promotion tracée dans `.planning/current-risk.yaml`, transition enregistrée dans `.planning/state.yaml`, puis reprise du cycle à la SubPhase appropriée.
 
 ---
 
@@ -790,7 +792,7 @@ Les RED CARDS sont des questions non résolues qui doivent être adressées avan
 
 **Hypothèses** :
 - H1 : classification 5 niveaux suffisante
-- H2 : auto-décision tenable sans rubber-stamp
+- H2 : auto tenable sans rubber-stamp
 - H3 : mono-état tenable pour dev solo
 - H4 : économie planning ne dégrade pas la traçabilité utile
 - H5 : agent respecte les frontières du harness
@@ -808,12 +810,12 @@ Les RED CARDS sont des questions non résolues qui doivent être adressées avan
 ### 15.1 Discovery → Cadrage (cycle suivant)
 
 Discovery alimente Cadrage avec :
-- Problem statement validé (r1.md §2) — gate obligatoire M+
-- Classification de risque initiale (T/F/M/É/C) — always
+- Problem statement validé (r1.md §2) — checkpoint obligatoire M+
+- Classification de risque initiale (T/L/M/H/C) — always
 - Recommandation build/pivot/kill — always
-- Hypothèses formalisées (r1.md §16) — à partir de F
+- Hypothèses formalisées (r1.md §16) — à partir de L
 - Liste des contraintes réglementaires identifiées — à partir de M
-- Première estimation FinOps (ordre de grandeur) — à partir de É
+- Première estimation FinOps (ordre de grandeur) — à partir de H
 - Liste des parties prenantes (r1.md §4) — à partir de M
 - 19 sections r1.md avec statut (défini/à confirmer/bloquant/etc.) — à partir de M
 
@@ -824,7 +826,7 @@ Discovery alimente Cadrage avec :
 Cadrage peut renvoyer en Discovery si :
 - La DoR de Cadrage n'est pas satisfaite (problème insuffisamment validé)
 - Un nouveau scope émerge en Cadrage qui nécessite une exploration préalable
-- La classification de risque initiale est promue (F → É) suite à l'analyse fonctionnelle
+- La classification de risque initiale est promue (L → H) suite à l'analyse fonctionnelle
 
 ### 15.3 Apprentissage → Discovery (feedback entrant)
 
@@ -843,37 +845,37 @@ Le cycle [07 Run] génère des signaux continus qui alimentent le Discovery cont
 
 ### 15.5 Parallélisme et mono-état actuel
 
-La contrainte actuelle est le **mono-état strict** : un seul cycle Discovery actif à la fois. Si un signal entrant de Run arrive pendant un Discovery É en cours, il est enregistré dans le backlog d'opportunités OST mais ne déclenche pas un second Discovery parallèle. Cette limitation est assumée et reportée (RC-005 adjacent — multi-états par objet est le chemin cible).
+La contrainte actuelle est le **mono-état strict** : un seul cycle Discovery actif à la fois. Si un signal entrant de Run arrive pendant un Discovery H en cours, il est enregistré dans le backlog d'opportunités OST mais ne déclenche pas un second Discovery parallèle. Cette limitation est assumée et reportée (RC-005 adjacent — multi-états par objet est le chemin cible).
 
 ```
 Règle de non-préemption :
 Un Discovery de classe inférieure ne préempte pas un Discovery de classe supérieure en cours.
-Un signal C peut interrompre un Discovery F en cours (et seulement C).
+Un signal C peut interrompre un Discovery L en cours (et seulement C).
 ```
 
 ### 15.6 Vue des relations inter-cycles
 
 ```
-[08 APPRENTISSAGE]
+[08 learning]
   postmortems, rétros, patterns récurrents
          │
          ▼
-[01 DISCOVERY] ◄─── [07 RUN] (SLO, error budget, tickets, FinOps drift)
+[01 discovery] ◄─── [07 run] (SLO, error budget, tickets, FinOps drift)
      │
      │ Problem validé + classification + recommandation
      ▼
-[02 CADRAGE]
+[02 cadrage]
      │
      │ (si retour) DoR non satisfaite → retour Discovery
      │
      ▼
-[03 CONCEPTION]
+[03 conception]
 ...
-[05 VALIDATION]
+[05 validation]
      │
      │ (si problème non résolu détecté) → retour Discovery
      ▼
-[06 RELEASE] → [07 RUN] → [08 APPRENTISSAGE] → (nouveau signal) → [01 DISCOVERY]
+[06 release] → [07 run] → [08 learning] → (nouveau signal) → [01 discovery]
 ```
 
 ---
@@ -887,7 +889,7 @@ Un signal C peut interrompre un Discovery F en cours (et seulement C).
 - Cycle ID : DISC-XXX
 - Date ouverture :
 - Date clôture :
-- Classe de risque : [ ] T  [ ] F  [ ] M  [ ] É  [ ] C
+- Classe de risque : [ ] T  [ ] L  [ ] M  [ ] H  [ ] C
 - Mode : [ ] Produit  [ ] Self-feedback  [ ] Technique
 - Recommandation : [ ] Build  [ ] Pivot  [ ] Kill
 
@@ -909,7 +911,7 @@ Un signal C peut interrompre un Discovery F en cours (et seulement C).
 - [ ] Hypothèses formalisées format H-XXX
 - [ ] 19 sections r1.md avec statut
 
-### DoD conditionnelle É/C
+### DoD conditionnelle H/C
 - [ ] Entretiens utilisateurs ≥ 5 ou source quantitative équivalente
 - [ ] Risques principaux listés (r1.md §12)
 - [ ] Contraintes réglementaires identifiées (r1.md §11)
@@ -932,7 +934,7 @@ Un signal C peut interrompre un Discovery F en cours (et seulement C).
 
 **Titre** :
 **Date** :
-**Classe de risque** : T / F / M / É / C
+**Classe de risque** : T / L / M / H / C
 **Mode** : Produit / Self-feedback / Technique
 
 ### Contexte
@@ -974,9 +976,9 @@ Ces tensions sont documentées depuis le rapport-discovery-cadrage.md §7 et res
 
 | Tension | Description | Arbitrage actuel |
 |---------|-------------|-----------------|
-| **Rigueur vs vélocité** | Cadre détaillé protège contre les oublis mais ralentit | Modulation par risque — T/F chemin court, É/C chemin long |
-| **Auto-décision vs rubber-stamp** | Auto-décision dégrade silencieusement en bypass si on valide sans lire | Format de proposition obligatoire, quota mental ≥ 20 % rejets, audit aléatoire |
-| **Bypass vs perte de contrôle** | Bypass libère du temps mais risque de décision mal prise | Bypass borné aux T/F, jamais É/C, quality gates bloquants |
+| **Rigueur vs vélocité** | Cadre détaillé protège contre les oublis mais ralentit | Modulation par risque — T/L chemin court, H/C chemin long |
+| **auto vs rubber-stamp** | auto dégrade silencieusement en bypass si on valide sans lire | Format de proposition obligatoire, quota mental ≥ 20 % rejets, audit aléatoire |
+| **bypass vs perte de contrôle** | bypass libère du temps mais risque de décision mal prise | bypass borné aux T/L, jamais H/C, quality gates bloquants |
 | **Documentation vs économie tokens** | Tracer permet la mémoire mais coûte des tokens | Doc produit à fond, planning au strict nécessaire à la prochaine décision |
 | **Discovery continue vs procrastination** | Continuer à raffiner sans confronter au réel est procrastination sophistiquée | Timebox par classe, critères de sortie binaires, recommandation tranchée |
 

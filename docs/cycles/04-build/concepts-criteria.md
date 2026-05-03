@@ -11,7 +11,7 @@
 
 Le cycle Build est le quatrième des huit cycles de la Pipeline Fractale v4. Il transforme un plan validé issu de la Conception en incréments de code déployables, couverts par des tests automatisés, soumis aux quality gates CI, et enregistrés dans Git via des commits typés (S ou B, jamais mixtes).
 
-Le Build n'est pas une phase de production libre. C'est une discipline contrainte : chaque incrément doit respecter la Definition of Done au niveau code, traverser les quality gates sans dérogation humaine non tracée, et être classé par classe de risque T/F/M/É/C avant toute décision sur la profondeur du processus.
+Le Build n'est pas une phase de production libre. C'est une discipline contrainte : chaque incrément doit respecter la Definition of Done au niveau code, traverser les quality gates sans dérogation humaine non tracée, et être classé par classe de risque T/L/M/H/C avant toute décision sur la profondeur du processus.
 
 **Trois invariants du cycle Build :**
 1. Aucun code ne merge sans quality gates CI verts.
@@ -25,14 +25,14 @@ Le Build n'est pas une phase de production libre. C'est une discipline contraint
 ## 2. Position dans le pipeline
 
 ```
-[01-Discovery] → [02-Cadrage] → [03-Conception] → [04-BUILD] → [05-Validation] → [06-Release] → [07-Run] → [08-Apprentissage]
+[01-discovery] → [02-cadrage] → [03-conception] → [04-build] → [05-validation] → [06-release] → [07-run] → [08-learning]
                                         ↓                  ↑
                               Plan validé (DoR)    Incrément mergé (DoD code)
 ```
 
 **Cycle précédent (03-Conception)** fournit :
 - ADR signés, design doc finalisé
-- Threat model STRIDE si É/C
+- Threat model STRIDE si H/C
 - Plan de tests défini
 - SLI/SLO documentés pour les nouveaux services
 - Quality gates CI définis pour le changement
@@ -81,7 +81,7 @@ Un incrément peut entrer en Build ssi **toutes** les conditions suivantes sont 
 ### 4.1 DoR stricte (bloquante)
 
 - [ ] **Problème formulé** : story ou PBI avec critères d'acceptation en format Given-When-Then.
-- [ ] **Classe de risque assignée** : T / F / M / É / C — proposée par l'auteur, validée par le cycle Conception.
+- [ ] **Classe de risque assignée** : T / L / M / H / C — proposée par l'auteur, validée par le cycle Conception.
 - [ ] **Design doc existant** (si M+) : interfaces, contrats, schémas DB, modèles d'événements — lisible dans `docs/07-architecture/`.
 - [ ] **ADR signés** pour toute décision d'architecture nouvelle.
 - [ ] **Plan de tests défini** : unitaires, intégration, E2E si requis par classe de risque — documenté dans `docs/10-testing/`.
@@ -92,18 +92,18 @@ Un incrément peut entrer en Build ssi **toutes** les conditions suivantes sont 
 ### 4.2 DoR souhaitée (non bloquante, mais tracée si absente)
 
 - [ ] Spike de faisabilité conclu (si technologie nouvelle).
-- [ ] Threat model STRIDE produit (si É/C).
+- [ ] Threat model STRIDE produit (si H/C).
 - [ ] AIPD en cours ou validée (si traitement de données personnelles sensibles).
-- [ ] Estimation de coût FinOps documentée (si É/C).
+- [ ] Estimation de coût FinOps documentée (si H/C).
 
 ### 4.3 Modulation par classe de risque
 
 | Classe | DoR minimale | Design doc | Threat model | Plan tests |
 |---|---|---|---|---|
 | T | Critères d'acceptation | Non requis | Non requis | Tests existants couvrent |
-| F | Critères d'acceptation + classe | Non requis | Non requis | Plan unitaires |
+| L | Critères d'acceptation + classe | Non requis | Non requis | Plan unitaires |
 | M | Complet | Recommandé | Non requis | Plan unitaires + intégration |
-| É | Complet + ADR | Obligatoire | Obligatoire | Plan complet |
+| H | Complet + ADR | Obligatoire | Obligatoire | Plan complet |
 | C | Complet + ADR + review Conception | Obligatoire | Obligatoire | Plan complet + contrats |
 
 ---
@@ -114,7 +114,7 @@ Un incrément est **Done** au niveau code quand **tous** les points suivants son
 
 ### 5.1 DoD invariante (toutes classes de risque)
 
-- [ ] **Code revu** : self-review différée ≥ 4h avec checklist explicite en mode solo ; peer review pour F+ avec deux reviewers pour É/C.
+- [ ] **Code revu** : self-review différée ≥ 24h avec checklist explicite en mode solo ; peer review pour L+ avec deux reviewers pour H/C.
 - [ ] **Tests automatisés écrits et passants** : cohérents avec le plan de tests défini en Conception.
 - [ ] **Quality gates CI verts** : lint, type-check, SAST, SCA, secrets scan, tests, couverture.
 - [ ] **Aucune CVE Critical/High non triée** dans les dépendances introduites.
@@ -126,7 +126,7 @@ Un incrément est **Done** au niveau code quand **tous** les points suivants son
 
 ### 5.2 DoD additionnelle par classe de risque
 
-| Condition | F | M | É | C |
+| Condition | L | M | H | C |
 |---|:---:|:---:|:---:|:---:|
 | Tests d'intégration passants | ✅ | ✅ | ✅ | ✅ |
 | Tests E2E sur parcours critique | — | ○ | ✅ | ✅ |
@@ -172,15 +172,15 @@ L'unité de travail en Build est l'**incrément quotidien** : un changement comp
 
 ```
 Observer (contexte actuel)
-  → Définir (scope de l'incrément)
-    → Concevoir (design local — ≤ 30 min)
-      → Exécuter (code + tests TDD/BDD)
-        → Vérifier (quality gates CI)
-          → Capitaliser (commit + documentation)
-            → Transmettre (merge + notification)
+  → Define (scope de l'incrément)
+    → Design (design local — ≤ 30 min)
+      → Execute (code + tests TDD/BDD)
+        → Verify (quality gates CI)
+          → Capitalize (commit + documentation)
+            → Transmit (merge + notification)
 ```
 
-Ce sous-cycle fractal (7 étapes) s'applique à chaque incrément, quelle que soit la classe de risque. La profondeur de chaque étape est modulée par T/F/M/É/C.
+Ce sous-cycle fractal (7 étapes) s'applique à chaque incrément, quelle que soit la classe de risque. La profondeur de chaque étape est modulée par T/L/M/H/C.
 
 ### 6.3 TDD et BDD — intégration dans le Build
 
@@ -225,9 +225,9 @@ Stage 5 — Accessibilité + performance (sur preview env)
 
 ### 6.5 Revue de code — critères et pratiques
 
-**Solo avec IA :** self-review différée (≥ 4h) avec l'agent IA en reviewer antagoniste. Checklist explicite, lecture inversée (commencer par les tests, pas par le code de production).
+**Solo avec IA :** self-review différée (≥ 24h) avec l'agent IA en reviewer antagoniste. Checklist explicite, lecture inversée (commencer par les tests, pas par le code de production).
 
-**En équipe (F+) :** au moins un reviewer indépendant. Pour É/C : deux reviewers minimum.
+**En équipe (L+) :** au moins un reviewer indépendant. Pour H/C : deux reviewers minimum.
 
 **Checklist du reviewer :**
 1. Correctness : le code fait-il ce qu'il prétend faire ?
@@ -243,12 +243,17 @@ Stage 5 — Accessibilité + performance (sur preview env)
 
 **Limite de taille de PR :** pas de PR > 400 lignes de diff (hors refactoring mécanique). Au-delà, la qualité de la revue chute fortement (source : rapport v3, §Phase 8).
 
+**Modes opératoires en Build** :
+- **bypass** (T/L uniquement) : agent implémente sans validation humaine, CI vert, aucun signal de forçage.
+- **auto** (M, défaut) : agent autonome par défaut, avec checkpoints et validation humaine quand le risque, la politique ou un signal de forçage l'exige. Format: [problème][alternatives][choix][critère succès][classe]. Quota rejets ≥ 20%.
+- **bypass interdit H/C** — validation humaine explicite avant merge.
+
 ### 6.6 Branching strategy — Trunk-Based Development
 
 **Recommandation principale pour le mode solo + CI/CD continue :** Trunk-Based Development.
 
-- Commits directs sur `main` (solo, changements T/F/M) ou branches éphémères < 24h (É/C).
-- Feature flags pour les fonctionnalités É/C non terminées : déployer sans activer.
+- Commits directs sur `main` (solo, changements T/L/M) ou branches éphémères < 24h (H/C).
+- Feature flags pour les fonctionnalités H/C non terminées : déployer sans activer.
 - Aucun long-lived branch (> 2 jours) sauf hotfix ou release branch.
 - Hotfix : branche depuis le tag de release prod, correctif minimal, même pipeline CI, merge back vers `main`.
 
@@ -260,7 +265,7 @@ Stage 5 — Accessibilité + performance (sur preview env)
 
 **SCA (Software Composition Analysis)** en CI sur chaque commit : scanner les dépendances directes et transitives pour CVE connues et licences incompatibles.
 
-**SBOM (Software Bill of Materials)** généré à chaque build pour É/C, recommandé pour M. Format CycloneDX ou SPDX. Associé à l'artefact dans le registre.
+**SBOM (Software Bill of Materials)** généré à chaque build pour H/C, recommandé pour M. Format CycloneDX ou SPDX. Associé à l'artefact dans le registre.
 
 **SLA de remédiation des CVE :**
 - Critical : 24h
@@ -281,7 +286,8 @@ Stage 5 — Accessibilité + performance (sur preview env)
 | Complexité cyclomatique | > 10 | > 20 | SonarQube |
 | Lignes par fichier | > 300 | > 500 | lint / SonarQube |
 | Lignes par fonction | > 50 | > 80 | lint / SonarQube |
-| Couverture de tests (zones critiques) | < 80 % | < 60 % | nyc / coverage.py |
+| Couverture domaine (domain/) | < 90 % | < 70 % | nyc / coverage.py |
+| Couverture infra (adapters/) | < 70 % | < 50 % | nyc / coverage.py |
 | Duplication de code | > 5 % | > 15 % | SonarQube / jscpd |
 | Dépendances avec CVE High | > 0 | > 0 (unreviewed) | OSV-Scanner / Trivy |
 | Secrets détectés | > 0 | > 0 | gitleaks / TruffleHog |
@@ -292,12 +298,16 @@ La dette technique n'est pas un problème à éliminer immédiatement, mais à r
 
 **Catégories de dette en Build :**
 - **Dette intentionnelle** (décision consciente, trade-off de vitesse) : tracée avec un tag `tech-debt` dans le backlog, estimation de remboursement, classe de risque.
-- **Dette découverte** : identifiée pendant le Build, ajoutée immédiatement au registre `Planning/02-backlog/tech-debt/`.
+- **Dette découverte** : identifiée pendant le Build, ajoutée immédiatement au registre `.planning/02-backlog/tech-debt/`.
 - **Dette de qualité** : violations de quality gates temporairement waiverées (avec justification + date d'expiration du waiver).
 
 **Règle de la Dette** : le total de dette non adressée ne doit pas dépasser 20 % de la capacité d'un cycle. Au-delà, le prochain cycle commence par du remboursement de dette avant toute nouvelle feature.
 
 **Intégration dans la DoD :** toute dette créée intentionnellement pendant un incrément est capturée dans le backlog avant que l'incrément soit considéré Done.
+
+### 6.10 Harness et frontières de phase
+
+En mode agent IA, un harness externe (state machine) contrôle les écritures selon la phase. En Build, l'agent modifie code et tests ; pas la planification sprint (.planning/00-dashboard, .planning/01-sprint). Les frontières de .planning/state.yaml, .planning/current-risk.yaml, .planning/run-set.json sont doublées par le harness — quality gates CI = couche d'audit, pas couche de prévention.
 
 ---
 
@@ -324,7 +334,7 @@ La maintenabilité est la caractéristique la plus directement adressée par le 
 | **Sans défauts** | Quality gates verts, mutation testing sur zones critiques (score > 70 %). |
 | **Disponibilité** | Aucun code qui bloque le thread principal sans timeout. Toujours un timeout sur les appels externes. |
 | **Tolérance aux pannes** | Gestion d'erreur explicite sur tous les appels externes (4xx non retryés, 5xx retryés max 3 fois avec backoff). |
-| **Recoverabilité** | Feature flags activables/désactivables sans redéploiement pour É/C. Plan de rollback défini. |
+| **Recoverabilité** | Feature flags activables/désactivables sans redéploiement pour H/C. Plan de rollback défini. |
 
 ### 7.3 Sécurité
 
@@ -333,7 +343,7 @@ La maintenabilité est la caractéristique la plus directement adressée par le 
 | **Confidentialité** | Aucune donnée personnelle en clair dans les logs. Pseudonymisation des PII en observabilité. |
 | **Intégrité** | Validation des entrées côté serveur (pas seulement client). Paramétrage préparé (pas de concaténation SQL). |
 | **Non-répudiation** | Actions sensibles journalisées avec user_id, timestamp, action. Logs append-only. |
-| **Authenticité** | Signature des artefacts (Cosign/Sigstore) pour É/C. SBOM associé au build. |
+| **Authenticité** | Signature des artefacts (Cosign/Sigstore) pour H/C. SBOM associé au build. |
 | **Résistance** | Rate limiting implémenté sur les endpoints exposés. Pas d'information disclosure dans les messages d'erreur. |
 
 ### 7.4 Performance
@@ -369,7 +379,7 @@ La profondeur du Build est déterminée par la classe de risque assignée en Con
 
 ### 8.1 Tableau de modulation Build
 
-| Activité | T | F | M | É | C |
+| Activité | T | L | M | H | C |
 |---|:---:|:---:|:---:|:---:|:---:|
 | TDD obligatoire | ◔ | ○ | ✅ | ✅ | ✅ |
 | BDD sur critères d'acceptation | — | ◔ | ✅ | ✅ | ✅ |
@@ -385,6 +395,7 @@ La profondeur du Build est déterminée par la classe de risque assignée en Con
 | Secrets scan en CI | ✅ | ✅ | ✅ | ✅ | ✅ |
 | IaC scan si touché | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Container scan si image | ✅ | ✅ | ✅ | ✅ | ✅ |
+| DAST sur preprod | — | — | ○ | ✅ | ✅ |
 | SBOM généré | — | ○ | ✅ | ✅ | ✅ |
 | Signature artefact Cosign | — | — | — | ✅ | ✅ |
 | SLSA provenance | — | — | — | ✅ | ✅ |
@@ -404,15 +415,17 @@ Si, pendant le Build, le développeur ou l'IA identifie que la classe de risque 
 1. **Pause immédiate** du Build sur cet incrément.
 2. **Commit WIP** sur branche temporaire pour préserver l'état.
 3. **Re-classification** : mise à jour du PBI avec la nouvelle classe et justification.
-4. **Retour en Conception** si la nouvelle classe est É ou C (threat model, plan de tests, ADR peuvent être requis).
-5. **Log de promotion** dans `Planning/08-risks/` : classe initiale, classe réelle, date, raison.
+4. **Retour en Conception** si la nouvelle classe est H ou C (threat model, plan de tests, ADR peuvent être requis).
+5. **Log de promotion** dans `.planning/08-risks/` : classe initiale, classe réelle, date, raison.
 6. **Apprentissage** : la promotion alimente l'amélioration de la classification future (rétro de cycle).
 
+**Pattern Strangler Fig** : si la promotion conduit à classe C pour un changement d'architecture, décomposer via Strangler Fig en séquence M/H. Chaque étape reclassifiée individuellement. Voir risk-classification.md §9.3.
+
 **Seuil de déclenchement de promotion :**
-- Touche auth, autorisation, paiement → É minimum
+- Touche auth, autorisation, paiement → H minimum
 - Touche données de santé / biométrie / financières → C minimum
-- Touche API publique ou schéma DB → É minimum
-- Impact multi-services non anticipé → É minimum
+- Touche API publique ou schéma DB → H minimum
+- Impact multi-services non anticipé → H minimum
 
 ---
 
@@ -432,9 +445,9 @@ Activités :
 
 Livrable : compréhension validée, tests existants verts.
 
-Durée : T/F = 5-15 min. M = 15-30 min. É/C = 30-60 min.
+Durée : T/L = 5-15 min. M = 15-30 min. H/C = 30-60 min.
 
-### Étape 2 — Définir
+### Étape 2 — Define
 
 **But :** délimiter précisément ce que l'incrément va changer, et rien de plus.
 
@@ -446,26 +459,26 @@ Activités :
 
 Livrable : décision explicite S ou B. Liste des commits S préalables si nécessaire.
 
-### Étape 3 — Concevoir
+### Étape 3 — Design
 
 **But :** design local avant de coder.
 
 Activités :
 - TDD : écrire le test avant le code. Le test doit être RED pour la bonne raison.
 - BDD : traduire les Given-When-Then en scénarios de test exécutables.
-- Si É/C : vérifier que le design respecte le threat model et le plan de tests de la Conception.
+- Si H/C : vérifier que le design respecte le threat model et le plan de tests de la Conception.
 
 Livrable : tests RED (si TDD), ou plan de test validé par l'IA.
 
-Durée : T/F = 5-10 min. M = 15-30 min. É/C = 30-60 min.
+Durée : T/L = 5-10 min. M = 15-30 min. H/C = 30-60 min.
 
-### Étape 4 — Exécuter
+### Étape 4 — Execute
 
 **But :** implémenter l'incrément en code minimal pour rendre les tests verts.
 
 Pratiques :
 - Cycle TDD : RED → GREEN → (commit B minimal) → REFACTOR (commit S séparé).
-- Branches éphémères (< 24h pour É/C, direct sur main pour T/F/M).
+- Branches éphémères (< 24h pour H/C, direct sur main pour T/L/M).
 - Pré-commit hooks : lint, format, secrets scan, conventional commits validator.
 - Logs/métriques/traces ajoutés au moment de l'écriture.
 - Aucune logique métier dans les controllers/handlers.
@@ -473,7 +486,7 @@ Pratiques :
 - Retry seulement 5xx/timeout (max 3, backoff exponentiel + jitter). Jamais retry 4xx.
 - Timeout obligatoire sur tout appel externe.
 
-### Étape 5 — Vérifier
+### Étape 5 — Verify
 
 **But :** confirmer que le code satisfait la DoD au niveau code avant merge.
 
@@ -484,9 +497,9 @@ Activités (dans l'ordre) :
 4. Revue IA antagoniste (si solo) : l'agent liste les objections, le développeur répond à chacune.
 5. Vérification de la DoD complète (checklist de PR).
 
-Gate de sortie : tous les quality gates CI verts + DoD code satisfaite.
+Sortie : tous les quality gates CI verts + DoD code satisfaite.
 
-### Étape 6 — Capitaliser
+### Étape 6 — Capitalize
 
 **But :** enregistrer l'incrément de façon permanente et traçable.
 
@@ -497,15 +510,17 @@ Activités :
 - Mise à jour de la dette technique si créée intentionnellement.
 - Documentation à jour (README, ADR, changelog).
 
-### Étape 7 — Transmettre
+### Étape 7 — Transmit
 
 **But :** notifier les cycles aval et préparer la transition vers la Validation.
 
 Activités :
 - Notification au cycle Validation : incrément mergé, quality gates verts, lien vers le rapport CI.
-- Mise à jour du tableau de bord `Planning/00-dashboard/current-status.md`.
+- Mise à jour du tableau de bord `.planning/00-dashboard/current-status.md`.
 - Si dernier incrément du sprint : déclenchement de la clôture de sprint.
-- Si anomalie détectée post-merge : ouverture immédiate d'un PBI de correction classé F minimum.
+- Si anomalie détectée post-merge : ouverture immédiate d'un PBI de correction classé L minimum.
+
+**Postmortem blameless** : déclenché par incident, distinct de la rétrospective de cycle. Protocole : cf. cross-cutting-activities.md AT-11.
 
 ---
 
@@ -523,6 +538,11 @@ Ces activités ne sont pas des étapes séquentielles. Elles sont actives en per
   - Niveau 1 : build automatisé, dépendances déclarées, scan basique.
   - Niveau 2 : SAST intégré, SBOM généré, signature artefact.
   - Niveau 3 : SLSA niveau 2+, vérification de provenance, supply chain scanning.
+
+**DAST (sur preprod, H/C obligatoire)** :
+- OWASP ZAP en mode headless CI ou Nuclei pour les scans H/C.
+- Bloquant si finding High/Critical non mitigée.
+- Résultats archivés dans `.planning/06-quality/dast-<incrément>.html`.
 
 **Solo + IA :** l'agent IA joue le rôle du security reviewer — il applique la checklist STRIDE rapide sur chaque PR avant merge.
 
@@ -556,6 +576,8 @@ Les logs, métriques, et traces sont écrits **au moment de l'implémentation**,
 - Pas d'appel LLM sans cap de tokens et sans logging du coût réel.
 - Pas de régression de coût unitaire > 10 % sans justification de valeur.
 
+Principe d'économie de tokens : `.planning/` ne contient que ce nécessaire à la prochaine décision (checkpoint-implementation.md D8).
+
 ### 10.6 Privacy by design
 
 - Nouvelle donnée personnelle : mise à jour du registre de traitement avant merge.
@@ -577,17 +599,17 @@ Les artefacts suivants sont produits pendant et à la fin du cycle Build.
 | Commits typés S/B | `git log` | Agent / Développeur | Chaque incrément |
 | Tag SemVer | `git tag` | CI (semantic-release) | Merge user-facing |
 | SBOM (CycloneDX/SPDX) | Registre artefacts | CI | À chaque build M+ |
-| Signature artefact | Registre artefacts | CI (Cosign) | Build É/C |
+| Signature artefact | Registre artefacts | CI (Cosign) | Build H/C |
 
 ### 11.2 Artefacts qualité
 
 | Artefact | Emplacement | Responsable | Quand |
 |---|---|---|---|
-| Rapport CI (quality gates) | CI system + `Planning/06-quality/` | CI | Chaque run |
-| Rapport couverture | CI + `Planning/06-quality/` | CI | Chaque run |
+| Rapport CI (quality gates) | CI system + `.planning/06-quality/` | CI | Chaque run |
+| Rapport couverture | CI + `.planning/06-quality/` | CI | Chaque run |
 | Checklist PR (DoD code) | PR description | Auteur | Avant merge |
 | Rapport de revue IA | `.planning/<feature>/` | Agent IA | Avant merge M+ |
-| Mise à jour registre dette | `Planning/02-backlog/tech-debt/` | Développeur | Si dette créée |
+| Mise à jour registre dette | `.planning/02-backlog/tech-debt/` | Développeur | Si dette créée |
 
 ### 11.3 Artefacts documentation
 
@@ -612,6 +634,8 @@ Les artefacts suivants sont produits pendant et à la fin du cycle Build.
 | **Rework Rate** (nouveau 2024) | % du temps passé à refaire ce qui était considéré Done | Suivre la tendance | Git blame + estimation |
 
 Note : la cinquième métrique DORA (Failed Deployment Recovery Time, anciennement MTTR) est gérée par le cycle Run, pas par le Build.
+
+Métriques DORA publiées en fin de sprint sur dashboard qualité (cross-cutting AT-11).
 
 ### 12.2 Métriques de qualité code
 
@@ -658,14 +682,14 @@ Ces indicateurs déclenchent une pause et une analyse avant de continuer :
 | Sécurité cycle | NIST SSDF SP 800-218 v1.1 (v1.2 en draft) | PW Produce Well-Secured Software | csrc.nist.gov |
 | Sécurité applicative | OWASP SAMM v2 — Implementation (Secure Build) | Pratique SB niveaux 1-3 | owaspsamm.org |
 | Sécurité exigences | OWASP ASVS v5 | Référentiel d'exigences applicatives | owasp.org |
-| Supply chain | SLSA + SBOM (CycloneDX, SPDX) | SLSA niveau 2 minimum pour É/C | slsa.dev |
+| Supply chain | SLSA + SBOM (CycloneDX, SPDX) | SLSA niveau 2 minimum pour H/C | slsa.dev |
 | Performance livraison | DORA 2024/25 (5 métriques) | Change Lead Time, Frequency, CFR, Rework Rate | dora.dev |
 | Design commits | Tidy First (Beck 2023) | S/B séparation — invariant absolu | O'Reilly 2023 |
 | Versioning | SemVer 2.0 | MAJOR.MINOR.PATCH | semver.org |
 | Commits | Conventional Commits 1.0 | `type(scope): description` | conventionalcommits.org |
 | Branching | Trunk-Based Development | Direct sur main ou branches < 24h | trunkbaseddevelopment.com |
 | Observabilité | OpenTelemetry | Logs, métriques, traces by design | opentelemetry.io |
-| Accessibilité | WCAG 2.2 AA + EN 301 549 | axe-core en CI, tests manuels É/C | w3.org/TR/WCAG22 |
+| Accessibilité | WCAG 2.2 AA + EN 301 549 | axe-core en CI, tests manuels H/C | w3.org/TR/WCAG22 |
 | Privacy | RGPD art. 25 + Privacy by Design | Pseudonymisation logs, registre traitement | eur-lex.europa.eu |
 | Qualité metric | SonarQube Cognitive Complexity | Seuil 15 (default SonarQube) | docs.sonarsource.com |
 
@@ -677,17 +701,17 @@ Les questions suivantes sont ouvertes à la date de rédaction de ce document. E
 
 ### RC-01 — Seuil de couverture par classe de risque
 
-**Question :** quel seuil exact de couverture par classe de risque (T, F, M, É, C) ?
+**Question :** quel seuil exact de couverture par classe de risque (T, L, M, H, C) ?
 
 **Contexte :** le seuil de 80 % pour les zones critiques est issu de la pratique courante. Mais « zone critique » n'est pas encore définie mécaniquement. Un coverage 80 % uniforme est un anti-pattern (peut masquer des zones non couvertes importantes).
 
-**Piste :** définir la couverture par *type de code* plutôt que par fichier global :
+**Piste retenue :** définir la couverture par *type de code* plutôt que par fichier global :
 - Logique métier (domain/ layer) : ≥ 90 %
 - Infrastructure / adapters : ≥ 70 %
 - Configuration / scripts : pas de seuil
 
 **Responsable :** développeur — à trancher au premier sprint Build.
-**Bloquant :** non — valeur par défaut 80 % en attendant.
+**Bloquant :** à trancher au premier sprint Build.
 
 ### RC-02 — Automatisation de la classification Tidy First
 
@@ -709,7 +733,7 @@ Les questions suivantes sont ouvertes à la date de rédaction de ce document. E
 **Format proposé :**
 ```
 WAIVER-NNN
-Gate : SAST — CVE-2025-XXXXX
+GateType `stop` : SAST — CVE-2025-XXXXX
 Justification : dépendance transitive, aucun code path exploitable (analyse manuelle)
 Durée : 7 jours (jusqu'au YYYY-MM-DD)
 Approbateur : développeur (solo) | tech lead (équipe)
@@ -732,13 +756,13 @@ Action de remédiation : upgrade dépendance X vers v2.x planifié sprint N+1
 
 ### RC-05 — AI self-review vs peer review
 
-**Question :** la revue IA antagoniste est-elle équivalente à une peer review pour les classes F et M ?
+**Question :** la revue IA antagoniste est-elle équivalente à une peer review pour les classes L et M ?
 
 **Contexte :** en mode solo, la peer review est remplacée par la self-review différée + revue IA. Le DORA 2024 Report note que les outils IA accélèrent les tâches bas niveau mais n'ont pas encore démontré d'impact significatif sur le change failure rate. La revue IA peut avoir des angles morts (biais d'entraînement sur les patterns communs).
 
 **Tension :** utiliser le même modèle IA pour générer et reviewer le code est un angle mort reconnu (single-source-of-failure sur les biais).
 
-**Piste :** pour les classes M+, utiliser deux passes IA avec des prompts antagonistes différents (un reviewer cherche les bugs fonctionnels, un reviewer cherche les vulnérabilités de sécurité). Pour É/C, exiger une revue humaine même en mode solo (délai de 24h, lecture fraîche).
+**Piste :** pour les classes M+, utiliser deux passes IA avec des prompts antagonistes différents (un reviewer cherche les bugs fonctionnels, un reviewer cherche les vulnérabilités de sécurité). Pour H/C, exiger une revue humaine même en mode solo (délai de 24h, lecture fraîche).
 
 **Responsable :** développeur.
 **Bloquant :** non — procédure actuelle en attente de validation empirique.
@@ -747,13 +771,13 @@ Action de remédiation : upgrade dépendance X vers v2.x planifié sprint N+1
 
 **Question :** le harness (state management externe) doit-il bloquer automatiquement le Build quand une promotion de classe est détectée ?
 
-**Contexte :** actuellement, la promotion est un protocole manuel. Le harness pourrait détecter certains déclencheurs automatiquement (ex : si le diff touche un fichier `auth/`, promotion automatique à É).
+**Contexte :** actuellement, la promotion est un protocole manuel. Le harness pourrait détecter certains déclencheurs automatiquement (ex : si le diff touche un fichier `auth/`, promotion automatique à H).
 
 **Risque :** faux positifs sur les promotions automatiques qui bloquent inutilement le Build.
 
-**Décision à prendre** : règles de promotion automatique vs liste de vérification manuelle.
+**Décision PFV4** : le harness bloque automatiquement quand une promotion est confirmée ; la nouvelle classe est écrite dans `.planning/current-risk.yaml`, la transition dans `.planning/state.yaml`, puis le cycle reprend au checkpoint approprié.
 **Responsable :** développeur — à trancher au premier cycle Build réel.
-**Bloquant :** non.
+**Bloquant :** fermé par le contrat PFV4 ; seules les heuristiques de détection automatique restent à calibrer.
 
 ---
 
@@ -765,7 +789,7 @@ Action de remédiation : upgrade dépendance X vers v2.x planifié sprint N+1
 |---|---|
 | ADR signés | Guide les choix d'implémentation. Non négociable. |
 | Design doc | Plan de l'incrément. Référence pour la self-review. |
-| Plan de tests | Base pour l'écriture TDD/BDD. Gate de DoD. |
+| Plan de tests | Base pour l'écriture TDD/BDD. Checkpoint de DoD. |
 | Threat model STRIDE | Checklist sécurité pour la revue de code. |
 | Quality gates configurés | Seuils CI utilisés dans les pipelines. |
 | SLI/SLO documentés | Base pour l'observabilité by design. |
@@ -778,7 +802,7 @@ Action de remédiation : upgrade dépendance X vers v2.x planifié sprint N+1
 | Rapport CI | Preuve que la DoD code est satisfaite. |
 | SBOM + artefact signé | Vérification de provenance avant déploiement staging. |
 | Changelog / ADR mis à jour | Scope de la validation produit. |
-| Feature flags configurés (É/C) | Activation progressive pendant la Validation. |
+| Feature flags configurés (H/C) | Activation progressive pendant la Validation. |
 
 ### 15.3 Cycle 04-Build → Cycle 08-Apprentissage (feedback direct)
 
@@ -805,7 +829,7 @@ Le Build alimente directement l'Apprentissage via :
 
 ```markdown
 ## Classe de risque
-- [ ] T (Trivial)  - [ ] F (Faible)  - [ ] M (Moyen)  - [ ] É (Élevé)  - [ ] C (Critique)
+- [ ] T (Trivial)  - [ ] L (Low)  - [ ] M (Moyen)  - [ ] H (High)  - [ ] C (Critique)
 Justification : ...
 
 ## Tidy First
@@ -826,13 +850,13 @@ Justification : ...
 - [ ] WCAG 2.2 AA : axe-core vert sur tout composant UI touché
 - [ ] Privacy : registre à jour si nouvelle donnée personnelle
 - [ ] Impact FinOps documenté si M+
-- [ ] Feature flag configuré si É/C
+- [ ] Feature flag configuré si H/C
 - [ ] Plan de rollback défini si M+
 - [ ] SBOM généré si M+
 - [ ] Conventional commit : type(scope): description
 
 ## Revue
-- [ ] Self-review différée ≥ 4h avec checklist (solo)
+- [ ] Self-review différée ≥ 24h avec checklist (solo)
   OU
 - [ ] Peer review par (nom du reviewer)
 - [ ] Revue IA antagoniste effectuée (objections listées + réponses)

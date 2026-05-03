@@ -23,6 +23,8 @@ Verdict per dimension:
 | AGPL internal use does not require commercial license | CONFIRMED | High — FSF + FOSSA + OCV confirm |
 | AGPL-based revenue model is weakened by this | CONFIRMED | High — OCV calls AGPL "non-starter" |
 
+> **Post-verification decision (2026-05-03)**: These AGPL findings contributed to the founder decision to use **MIT** for the public core instead of AGPL. See `decision-2026-05-03-mit-core-cloud-enterprise.md`. The AGPL analysis below is retained as the evidence base for that decision.
+
 ---
 
 ## Evidence FOR: Risk-Depth Gating Model
@@ -152,7 +154,9 @@ Sources: [BVP — AI Pricing and Monetization Playbook](https://www.bvp.com/atla
 
 ---
 
-## AGPL Revenue Model Verification
+## AGPL Revenue Model Verification (Historical — AGPL rejected in favor of MIT)
+
+> **Note**: This section documents the AGPL analysis that was conducted before the licensing decision. The findings below directly contributed to rejecting AGPL in favor of MIT for the public core. The revenue model now relies on value-pull (cloud, team governance, premium packs, compliance, support) rather than license enforcement. See `decision-2026-05-03-mit-core-cloud-enterprise.md`.
 
 ### The legal reality of AGPL internal use
 
@@ -258,11 +262,9 @@ Before launch, design the classifier as a session-scoped semantic accumulator, n
 
 This is non-trivial engineering but is the model's single most critical vulnerability. Without it, the gate is meaningless for sophisticated users (who will game it) while blocking unsophisticated users (who will be frustrated).
 
-### R3. Fix the AGPL revenue model — do not rely on license enforcement
+### R3. ~~Fix the AGPL revenue model~~ RESOLVED — MIT chosen, license enforcement not part of revenue model
 
-Change the revenue narrative from "enterprises must pay because AGPL" to "enterprises pay for: SLA, indemnification, shared team state, org analytics, compliance artifacts." These are genuine value-adds that justify payment. The AGPL internal-use exemption is real and widely known in legal teams. Relying on AGPL to force payment is a weak legal argument that sophisticated enterprise buyers will immediately identify and reject.
-
-Consider a dual license model: AGPL for community edition, a commercial license (with explicit enterprise terms) sold separately. The commercial license is sold on value (support, compliance, shared state), not on legal compulsion.
+~~Change the revenue narrative from "enterprises must pay because AGPL" to "enterprises pay for: SLA, indemnification, shared team state, org analytics, compliance artifacts."~~ **Resolved**: The MIT decision eliminates this issue entirely. The revenue model is now value-pull by design: enterprises pay for cloud convenience, team governance, premium maintained packs, compliance artifacts, and support/SLA. No license enforcement component exists. See `decision-2026-05-03-mit-core-cloud-enterprise.md` and `business-model-proposal.md` sections 4-5.
 
 ### R4. Reprice with an Enterprise anchor to protect quality perception
 
@@ -278,14 +280,14 @@ The current $99/seat/year for Team is not enterprise-viable. $300/seat/year for 
 
 The depth-gating + generous-free-tier model requires community scale to generate revenue. Define explicitly: the model becomes viable at 50K active free users (target: 500 conversions at $99 = $49,500 ARR, not a business). The model becomes self-sustaining at 300K users (3,000 conversions at $300 Team tier = $900K ARR). Plan community growth as the primary KPI for the first 18 months, not conversion rate.
 
-### R6. Resolve the AGPL vs. permissive tension in the licensing strategy
+### R6. ~~Resolve the AGPL vs. permissive tension~~ RESOLVED — MIT chosen
 
-AGPL may drive enterprise legal teams to fork or avoid entirely. Consider:
-- MIT/Apache for the harness core (rules, orchestration logic) — maximizes adoption
-- Proprietary license for the cloud services layer (shared state, analytics, compliance artifacts) — monetizes through genuine service value
-- This is the Grafana/Elastic model: open core tool + proprietary cloud services
+~~AGPL may drive enterprise legal teams to fork or avoid entirely.~~ **Resolved**: The founder chose MIT for the public core with a commercial/source-available license for `enterprise/` code. This follows the recommended shape exactly:
+- MIT for the harness core (rules, orchestration logic) — maximizes adoption
+- Commercial license for the enterprise layer (SSO, SCIM, audit, compliance, team governance) — monetizes through genuine organizational value
+- This is the OpenHands/Supabase model: open core tool + commercial enterprise features + cloud services
 
-This is structurally more defensible than AGPL because it monetizes what enterprises actually need (managed services), not what the license technically requires.
+See `decision-2026-05-03-mit-core-cloud-enterprise.md` for the full decision and boundary architecture.
 
 ---
 
@@ -297,9 +299,11 @@ The claim is used to justify depth-gating over feature-count gating. But the evi
 
 Verdict: the risk is real but the claim that 50 skills is definitively unmanageable is not proven. Depth-gating is still preferred, but for simplicity/elegance reasons, not because feature-count gating is impossible.
 
-### D2. "AGPL forces enterprises to buy commercial licenses" — refuted
+### D2. "AGPL forces enterprises to buy commercial licenses" — refuted (moot under MIT decision)
 
 As documented above, this is legally incorrect for internal use. Multiple authoritative sources (FSF, FOSSA, OCV, vaultinum) confirm that AGPL does not trigger on internal corporate deployment. The claim may persist in sales conversations because enterprise legal teams often choose commercial licenses for risk-avoidance (not legal necessity), but the mechanism is different from what the claim implies.
+
+> **Status**: This dispute is now moot. The MIT decision eliminates any AGPL-based revenue assumption. The revenue model relies on value-pull (cloud, team governance, premium packs, compliance), not license enforcement.
 
 ---
 

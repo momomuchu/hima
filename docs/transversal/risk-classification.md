@@ -1,9 +1,9 @@
 # Classification des risques — Document transversal
 ## Pipeline fractale v4 — Mécanisme pivot central
 
-> **Statut** : document de référence transversal, version initiale  
-> **Date** : 2026-05-03  
-> **Scope** : tous les cycles (Discovery → Apprentissage), tous les modes (Pairing / Auto-décision / Bypass)  
+> **Statut** : document de référence transversal, version 2 (fixes audit GAP-1 à GAP-5)
+> **Date** : 2026-05-03
+> **Scope** : tous les cycles (`discovery → cadrage → conception → build → validation → release → run → learning`), tous les modes (`bypass` / `auto` / `pairing`)
 > **Rôle dans le système** : pivot de modulation — sans classification robuste, le reste du pipeline perd son adaptabilité
 
 ---
@@ -32,8 +32,8 @@
 
 La classification des risques est **le mécanisme pivot** de la Pipeline fractale v4. Elle conditionne :
 
-- la **profondeur** de chaque sous-cycle (Observer → Transmettre)
-- le **mode de supervision** autorisé (Pairing / Auto-décision / Bypass)
+- la **profondeur** de chaque sous-cycle (Observer → Transmit)
+- le **mode de supervision** autorisé (`bypass` / `auto` / `pairing`)
 - les **activités obligatoires** vs allégées vs skippables
 - les **quality gates** bloquants dans le CI/CD
 - la **stratégie de déploiement** (direct → canary + feature flag)
@@ -43,14 +43,14 @@ La classification des risques est **le mécanisme pivot** de la Pipeline fractal
 | Classe | Libellé | Décision de supervision |
 |--------|---------|------------------------|
 | **T** | Trivial | Bypass autorisé |
-| **F** | Faible | Bypass autorisé sous conditions |
-| **M** | Moyen | Auto-décision (défaut) |
-| **É** | Élevé | Auto-décision avec validation humaine obligatoire |
+| **L** | Low | Bypass autorisé sous conditions |
+| **M** | Moyen | `auto` (défaut) |
+| **H** | High | `auto` avec validation humaine obligatoire |
 | **C** | Critique | Pairing obligatoire ou validation humaine explicite |
 
-**Règle absolue** : le Bypass est interdit pour É et C. Non négociable.
+**Règle absolue** : le mode `bypass` est interdit pour H et C. Non négociable.
 
-**Principe de fonctionnement** : l'auteur propose la classe → le harness la vérifie via l'arbre de décision → la classe détermine le chemin obligatoire. Une promotion de classe (F → É découvert en cours de cycle) déclenche un protocole d'escalade immédiat.
+**Principe de fonctionnement** : l'auteur propose la classe → le harness la vérifie via l'arbre de décision déterministe (4 passes séquentielles) → la classe détermine le chemin obligatoire. Une promotion de classe (L → H découvert en cours de cycle) déclenche un protocole d'escalade immédiat.
 
 ---
 
@@ -62,22 +62,22 @@ La classification des risques s'applique **à chaque changement individuel** tra
 
 Tous les 8 cycles de la pipeline fractale :
 
-1. **Discovery** — classification du risque de l'opportunité (construire la mauvaise chose, validation insuffisante du problème)
-2. **Cadrage** — classification du risque de l'item au moment de la DoR (avant engagement de build)
-3. **Conception** — reclassification possible selon la profondeur des décisions techniques
-4. **Build** — classification de chaque PR / incrément
-5. **Validation** — profondeur de test déterminée par la classe
-6. **Release** — stratégie de déploiement déterminée par la classe
-7. **Run** — severity des incidents entrants classifiés sur la même échelle
-8. **Apprentissage** — analyse de la justesse des classifications passées (feedback loop)
+1. **discovery** — classification du risque de l'opportunité (construire la mauvaise chose, validation insuffisante du problème)
+2. **cadrage** — classification du risque de l'item au moment de la DoR (avant engagement de build)
+3. **conception** — reclassification possible selon la profondeur des décisions techniques
+4. **build** — classification de chaque PR / incrément
+5. **validation** — profondeur de test déterminée par la classe
+6. **release** — stratégie de déploiement déterminée par la classe
+7. **run** — severity des incidents entrants classifiés sur la même échelle
+8. **learning** — analyse de la justesse des classifications passées (feedback loop)
 
 ### 2.2 Sous-cycles couverts
 
-Les 7 étapes fractales — **Observer → Définir → Concevoir → Exécuter → Vérifier → Capitaliser → Transmettre** — sont traversées à une profondeur variable selon la classe :
+Les 7 étapes fractales — **Observer → Define → Design → Execute → Verify → Capitalize → Transmit** — sont traversées à une profondeur variable selon la classe :
 
-- **T/F** : traverse les 7 étapes en chemin court (secondes à minutes)
+- **T/L** : traverse les 7 étapes en chemin court (secondes à minutes)
 - **M** : traverse les 7 étapes en chemin standard (heures)
-- **É** : traverse les 7 étapes avec checkpoints obligatoires (heures à jours)
+- **H** : traverse les 7 étapes avec checkpoints obligatoires (heures à jours)
 - **C** : traverse les 7 étapes avec traces et validations humaines à chaque étape (jours)
 
 ### 2.3 Ce que la classification ne couvre PAS
@@ -94,8 +94,8 @@ Les 7 étapes fractales — **Observer → Définir → Concevoir → Exécuter 
 
 **Objectifs secondaires** :
 - Protéger le développeur solo contre la dérive en rubber-stamp (validation aveugle de l'agent)
-- Garantir que les changements à fort risque (É/C) ne passent jamais en Bypass
-- Permettre aux changements T/F d'avancer sans friction inutile
+- Garantir que les changements à fort risque (H/C) ne passent jamais en Bypass
+- Permettre aux changements T/L d'avancer sans friction inutile
 - Créer une base de données d'apprentissage pour améliorer la classification future
 - Aligner la profondeur de test sur le risque réel (risk-based testing per ISO/IEC/IEEE 29119)
 
@@ -111,12 +111,12 @@ La classification est déclenchée **systématiquement** aux moments suivants :
 
 | Moment | Déclencheur | Qui |
 |--------|-------------|-----|
-| Entrée en Cadrage | Item candidat ajouté au backlog | Agent (proposition) + Développeur (validation) |
+| Entrée en `cadrage` | Item candidat ajouté au backlog | Agent (proposition) + Développeur (validation) |
 | Création de PR/branche | Début de développement d'un incrément | Agent (proposition automatique via arbre) |
 | Revue de PR | Gate CI obligatoire | Harness (vérification) |
 | Découverte en cours de cycle | Signal d'escalade de classe | Agent (détection) + Développeur (confirmation) |
-| Incident en Run | Ticket d'incident entrant | Agent (classification initiale) |
-| Rétrospective Apprentissage | Audit des classifications passées | Développeur |
+| Incident en `run` | Ticket d'incident entrant | Agent (classification initiale) |
+| Rétrospective learning | Audit des classifications passées | Développeur |
 
 ### 4.2 Entrées nécessaires pour classifier
 
@@ -137,12 +137,12 @@ Les signaux ci-dessous forcent une classe minimale, indépendamment de l'estimat
 
 | Signal détecté | Classe minimale forcée |
 |----------------|----------------------|
-| Touche auth / autorisation / sessions | **É** |
-| Touche paiement / facturation | **É** |
-| Touche schéma DB (migration) | **É** |
-| Touche API publique / contrat inter-services | **É** |
-| Touche infra de production | **É** |
-| Données personnelles (PII) | **É** |
+| Touche auth / autorisation / sessions | **H** |
+| Touche paiement / facturation | **H** |
+| Touche schéma DB (migration) | **H** |
+| Touche API publique / contrat inter-services | **H** |
+| Touche infra de production | **H** |
+| Données personnelles (PII) | **H** |
 | Données de santé / biométrie | **C** |
 | Données financières réglementées | **C** |
 | Impact multi-services / multi-repos | **C** |
@@ -159,20 +159,20 @@ Les signaux ci-dessous forcent une classe minimale, indépendamment de l'estimat
 
 ```yaml
 # Exemple de métadonnée de classification (en-tête PR / item backlog)
-risk_class: "É"
+risk_class: "H"
 risk_justification: "Touche le schéma d'authentification et la table sessions"
 risk_proposed_by: "agent"
 risk_validated_by: "developer"
 risk_override: false
 risk_classification_date: "2026-05-03"
 escalation_history: []
-supervision_mode_required: "auto-decision+human-validation"
-deployment_strategy: "canary+feature-flag"
+supervision_mode_required: "auto"
+deployment_strategy: "canary-progressive"
 ```
 
 ### 5.2 Au niveau du Risk Register projet
 
-Le risk register (`.planning/08-risks/risk-register.md`) est mis à jour à chaque nouveau changement É/C avec :
+Le risk register (`.planning/08-risks/risk-register.md`) est mis à jour à chaque nouveau changement H/C avec :
 
 - ID du risque
 - Classe courante
@@ -184,12 +184,25 @@ Le risk register (`.planning/08-risks/risk-register.md`) est mis à jour à chaq
 - Statut
 - Date de revue suivante
 
-### 5.3 Au niveau du cycle Apprentissage
+### 5.3 Au niveau du cycle learning
 
 Un rapport de calibration des classifications est produit à chaque cycle, contenant :
-- Taux de promotions de classe (F → É, M → C, etc.) — indicateur de sous-estimation systématique
-- Taux de déclassements (É → M, etc.) — indicateur de sur-estimation systématique
+- Taux de promotions de classe (L → H, M → C, etc.) — indicateur de sous-estimation systématique
+- Taux de déclassements (H → M, etc.) — indicateur de sur-estimation systématique
 - Corrélation classe initiale / incidents réels en production
+
+### 5.4 Evidence Set obligatoire pour H et C
+
+Pour qu'un item H ou C puisse atteindre le statut `DONE_VERIFIED`, l'Evidence Set doit contenir :
+
+| Preuve | H | C |
+|--------|---|---|
+| `human_approval_log` — horodatage + identifiant humain | ✅ | ✅ |
+| `threat_model_ref` — référence fichier ADR/threat model | ✅ | ✅ |
+| `dast_report_ref` — résultat DAST préprod | ✅ | ✅ |
+| `rollback_test_evidence` — résultat test rollback staging | ✅ | ✅ |
+| `aipd_ref` — référence AIPD produite | ✅ si PII | ✅ |
+| `security_audit_ref` — trace revue sécurité indépendante | — | ✅ |
 
 ---
 
@@ -208,29 +221,42 @@ Un rapport de calibration des classifications est produit à chaque cycle, conte
 - Changement cosmétique UI non user-critical (couleur de fond, espacement non-fonctionnel)
 - Tests ajoutés sur un code path déjà testé (renforcement de suite existante)
 
-**Critères d'exclusion** (forçage vers F au minimum) :
+**Critères d'exclusion** (forçage vers L au minimum) :
 - Toute modification de logique, même d'une ligne
 - Toute dépendance avec CVE, même Low
 - Tout changement dans un fichier de configuration de sécurité
+- Tout fichier dans `auth/`, `security/`, `.env*`, `config/security*`, `migrations/`
 
 **Chemin** : CI verts → merge. Pas de gate humain requis.
 
-#### F — Faible
+**Exemples** : `README.md` mis à jour, variable locale renommée, `lodash@4.17.20 → 4.17.21`
+
+#### L — Low
 
 **Définition** : nouvelle fonctionnalité isolée ou correction de bug non-critique, derrière feature flag, sans données personnelles, sans migration de schéma, sans impact sur des tiers.
 
 **Critères d'inclusion** :
 - Nouvelle feature UI isolée derrière feature flag
-- Bug fix sur code path non-critique sans changement de contrat
+- Bug fix sur code path non-critique sans changement de contrat API
 - Mise à jour de dépendance mineure sans migration
 - Ajout de tests d'intégration sur périmètre existant
 - Changement de configuration non-sécuritaire dans un service non-critique
 
 **Critères d'exclusion** :
-- Tout signal de forçage É (voir §4.3)
-- Feature sans feature flag qui modifie un flux utilisateur existant
+- Tout signal de forçage H (voir §4.3)
+- Feature sans feature flag qui modifie un flux utilisateur existant → M minimum
+- Diff net > 300 lignes de code de production → M minimum
 
 **Chemin** : review de code ≥1 + CI verts → merge.
+
+**Bypass conditionnel** : autorisé si ET SEULEMENT SI les cinq conditions suivantes sont toutes vraies :
+1. CI 100% verts (tous gates : lint, unit, SAST, secrets scan)
+2. Aucun signal de forçage H/C détecté par l'arbre automatique
+3. Diff net ≤ 100 lignes de code de production
+4. Aucun fichier dans : `auth/`, `migrations/`, `payments/`, `.env*`, `config/security*`
+5. Aucun nouvel endpoint exposé ni modification de contrat API
+
+**Exemples** : bouton "dark mode" derrière `ff_dark_mode`, correction d'une typo dans un message d'erreur non sécuritaire
 
 #### M — Moyen
 
@@ -241,32 +267,39 @@ Un rapport de calibration des classifications est produit à chaque cycle, conte
 - Bug fix sur un flux critique mais sans données sensibles
 - Refactor structurel modifiant des interfaces internes (mais non-publiques)
 - Dépendance minor upgrade avec changements non-breaking documentés
+- Changement de configuration avec impact sur le comportement visible
 
 **Critères d'exclusion** :
-- Dès qu'un signal É apparaît (auth, PII, migration DB, API publique)
+- Dès qu'un signal H apparaît (auth, PII, migration DB, API publique)
 
-**Chemin** : Discovery partielle + analyse fonctionnelle + review ≥1 + tests intégration + CI verts → merge. Validation produit requise.
+**Chemin** : `discovery` partielle + analyse fonctionnelle + review ≥1 + tests intégration + CI verts → merge. Validation produit requise.
 
-#### É — Élevé
+**Bypass** : INTERDIT. Exception unique : si un HUMAN_OVERRIDE est enregistré avec justification documentée et CI 100% verts et aucun signal de forçage actif, le bypass M peut être autorisé. Ce cas est tracé dans `escalation_history` avec `type: "bypass_override_M"`.
+
+**Exemples** : nouvelle page de résultats de recherche, refactor du service de recommandations, upgrade `react@18.2 → 18.3`
+
+#### H — High
 
 **Définition** : changement touchant un système sensible (auth, paiement, données perso, infra prod, API publique, schéma DB). Risque de régression grave ou d'incident de sécurité si mal traité.
 
 **Critères d'inclusion** : voir signaux de forçage §4.3 (auth, paiement, PII, schéma DB, API publique, infra prod).
 
 **Chemin obligatoire** :
-- Discovery complète avec validation du problème
+- `discovery` complète avec validation du problème
 - ADR documenté
 - Threat modeling STRIDE (si touche sécurité)
 - AIPD si données personnelles
 - Tests E2E sur parcours critiques
 - DAST sur preprod
 - Review ≥2 (ou développeur + self-review différée + agent antagoniste en solo)
-- Déploiement canary 5%→25%→50%→100% avec gates SLO
+- Déploiement canary 5%→25%→50%→100% avec gates SLO à chaque palier
 - Feature flag obligatoire
-- Plan de rollback testé
-- Validation humaine explicite avant merge
+- Plan de rollback testé en staging
+- Validation humaine explicite et loggée avant merge
 
-**Mode supervision** : Auto-décision avec checkpoint humain obligatoire. Bypass interdit.
+**Mode supervision** : `auto` avec checkpoint humain obligatoire. `bypass` interdit.
+
+**Exemples** : modification du flux d'authentification, migration de la table `users`, ajout d'un endpoint REST public, changement de politique de session
 
 #### C — Critique
 
@@ -275,17 +308,19 @@ Un rapport de calibration des classifications est produit à chaque cycle, conte
 **Critères d'inclusion** : voir signaux de forçage §4.3 (santé, biométrie, financier réglementé, multi-services, refonte archi, réglementaire).
 
 **Chemin obligatoire** :
-- Tout ce qui est obligatoire pour É, PLUS :
+- Tout ce qui est obligatoire pour H, PLUS :
 - Threat modeling complet (STRIDE + LINDDUN si privacy)
 - AIPD obligatoire
 - Revue sécurité indépendante (ou agent antagoniste en solo avec trace)
 - Tests de charge si applicable
 - Canary + feature flag + communication aux parties prenantes
-- Plan de rollback répété (testé plusieurs fois)
-- Postmortem prévu si échec (template pré-rempli)
+- Plan de rollback répété (testé ≥ 2 fois en staging)
+- Postmortem prévu si échec (template pré-rempli avant déploiement)
 - Validation humaine avec signature explicite (log)
 
-**Mode supervision** : Pairing recommandé. Auto-décision uniquement si le développeur a une visibilité complète sur le changement. Bypass absolument interdit.
+**Mode supervision** : `pairing` recommandé. `auto` uniquement si le développeur a une visibilité complète sur le changement. `bypass` absolument interdit.
+
+**Exemples** : intégration paiements Stripe production, modification schéma données santé, refonte architecture multi-tenant, mise en conformité NIS2
 
 ---
 
@@ -320,12 +355,12 @@ Score = Impact × Probabilité (1–25)
 | Score | Classe | Interprétation |
 |-------|--------|---------------|
 | 1–2 | **T** | Trivial — aucune attention particulière requise |
-| 3–5 | **F** | Faible — traitement standard allégé |
+| 3–5 | **L** | Low — traitement standard allégé |
 | 6–10 | **M** | Moyen — traitement standard complet |
-| 11–17 | **É** | Élevé — traitement renforcé, validation humaine |
+| 11–17 | **H** | High — traitement renforcé, validation humaine |
 | 18–25 | **C** | Critique — traitement maximal, pairing recommandé |
 
-**Note sur la combinatoire** : un impact catastrophique (5) même avec une probabilité très faible (1) donne un score de 5 = classe F. C'est intentionnel — dans le contexte dev solo, on ne peut pas traiter chaque changement théoriquement risqué comme critique. Cependant, les signaux de forçage §4.3 surchargent ce calcul pour les domaines où le développeur a démontré des conséquences concrètes (auth, PII, etc.).
+**Note sur la combinatoire** : un impact catastrophique (5) même avec une probabilité très faible (1) donne un score de 5 = classe L. C'est intentionnel — dans le contexte dev solo, on ne peut pas traiter chaque changement théoriquement risqué comme critique. Cependant, les signaux de forçage §4.3 surchargent ce calcul pour les domaines où le développeur a démontré des conséquences concrètes (auth, PII, etc.).
 
 ### 6.5 Risk appetite — profil du développeur solo
 
@@ -333,21 +368,21 @@ Le risk appetite du développeur solo + agent IA est le suivant :
 
 | Dimension | Tolérance | Justification |
 |-----------|-----------|--------------|
-| Vitesse de livraison T/F | Élevée | Friction nulle justifiée pour les changements réversibles à faible impact |
-| Sécurité applicative | Zéro tolérance pour É/C | Bypass interdit sur auth/PII/paiement — non négociable |
+| Vitesse de livraison T/L | High | Friction nulle justifiée pour les changements réversibles à faible impact |
+| Sécurité applicative | Zéro tolérance pour H/C | Bypass interdit sur auth/PII/paiement — non négociable |
 | Disponibilité | Tolérance faible | Solo dev : pas de garde de nuit, incident = perte de productivité significative |
 | Compliance réglementaire | Zéro tolérance | Sanctions RGPD (jusqu'à 4% CA ou 20M€) et EAA rendent l'acceptation impossible |
 | Dette technique | Tolérance moyenne | Acceptable si trackée et remboursée dans les 2 cycles suivants |
 | Coût LLM/infra | Tolérance moyenne | Budget cap requis mais non bloquant si ROI positif documenté |
 
-**Seuil d'acceptation du risque résiduel** : après traitement, un risque est acceptable si son score résiduel est ≤ 5 (classes T/F). Un risque résiduel M (6-10) est acceptable uniquement avec une décision documentée et une date de revue. Un risque résiduel É/C n'est jamais acceptable sans traitement complémentaire.
+**Seuil d'acceptation du risque résiduel** : après traitement, un risque est acceptable si son score résiduel est ≤ 5 (classes T/L). Un risque résiduel M (6-10) est acceptable uniquement avec une décision documentée et une date de revue. Un risque résiduel H/C n'est jamais acceptable sans traitement complémentaire.
 
 ### 6.6 Risk tolerance — limites non négociables
 
 Quatre limites absolues, jamais overridables :
 
-1. **Bypass interdit sur É/C** — quelle que soit la confiance dans l'agent
-2. **Aucun changement de schéma DB sans plan expand/contract documenté** — classe É minimum
+1. **`bypass` interdit sur H/C** — quelle que soit la confiance dans l'agent
+2. **Aucun changement de schéma DB sans plan expand/contract documenté** — classe H minimum
 3. **Aucune donnée de santé/biométrie sans AIPD et chiffrement validés** — classe C minimum
 4. **Aucune CVE Critical non triée en production > 24h** — déclenche une escalade immédiate vers C si non corrigée
 
@@ -361,18 +396,18 @@ ISO 25010:2023 introduit **Safety** comme 9e caractéristique produit (nouveaut�
 
 | Sous-caractéristique | Application à la classification |
 |---------------------|--------------------------------|
-| **Operational constraint** | Les limites de bypass (T/F uniquement) constituent une contrainte opérationnelle formelle |
+| **Operational constraint** | Les limites de bypass (T/L uniquement) constituent une contrainte opérationnelle formelle |
 | **Risk identification** | L'arbre de décision §4.3 est le mécanisme d'identification des risques |
 | **Fail safe** | La promotion de classe déclenchée par les signaux de forçage est le comportement fail-safe |
 | **Hazard warning** | Les RED CARDS §14 sont les avertissements de danger actifs |
-| **Safe integration** | La stratégie de déploiement modulée par classe (canary pour É/C) est le mécanisme de safe integration |
+| **Safe integration** | La stratégie de déploiement modulée par classe (canary pour H/C) est le mécanisme de safe integration |
 
 ### 7.2 Interaction avec les autres caractéristiques ISO 25010:2023
 
-- **Security** : directement pilotée par les classes É/C (threat modeling, DAST, revue sécurité)
+- **Security** : directement pilotée par les classes H/C (threat modeling, DAST, revue sécurité)
 - **Reliability** : la stratégie de déploiement canary pour M+ protège la fiabilité en production
 - **Maintainability** : la traçabilité de la classification (arbre + justification) améliore l'analysabilité
-- **Functional suitability** : la Discovery obligatoire pour É/C valide l'adéquation fonctionnelle
+- **Functional suitability** : la Discovery obligatoire pour H/C valide l'adéquation fonctionnelle
 
 ---
 
@@ -380,20 +415,20 @@ ISO 25010:2023 introduit **Safety** comme 9e caractéristique produit (nouveaut�
 
 **C'est le livrable central.** Cette matrice définit ce qui est obligatoire (✅), recommandé (○), allégé (◔), conditionnel (≈), ou skippable (—) pour chaque activité de la pipeline, selon la classe de risque.
 
-### 8.1 Matrice complète — 27 activités × 5 classes
+### 8.1 Matrice complète — 48 activités × 5 classes
 
-| Activité | T (Trivial) | F (Faible) | M (Moyen) | É (Élevé) | C (Critique) |
+| Activité | T (Trivial) | L (Low) | M (Moyen) | H (High) | C (Critique) |
 |----------|:-----------:|:----------:|:---------:|:---------:|:------------:|
-| **DISCOVERY** | | | | | |
-| Validation problème / Discovery formelle | — | ◔ | ○ | ✅ | ✅ |
+| **discovery** | | | | | |
+| Validation problème / discovery formelle | — | ◔ | ○ | ✅ | ✅ |
 | Entretiens utilisateurs / JTBD | — | — | ○ | ✅ | ✅ |
 | Opportunity Solution Tree | — | — | ◔ | ✅ | ✅ |
 | Spike technique timeboxé | — | — | ○ | ○ | ○ |
-| **CADRAGE** | | | | | |
+| **cadrage** | | | | | |
 | DoR formelle | ◔ | ○ | ✅ | ✅ | ✅ |
 | Classification de risque explicite | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Analyse fonctionnelle | — | ◔ | ✅ | ✅ | ✅ |
-| **CONCEPTION** | | | | | |
+| **conception** | | | | | |
 | ADR (Architecture Decision Record) | — | ◔ | ○ | ✅ | ✅ |
 | Threat modeling STRIDE | — | — | ○ | ✅ | ✅ |
 | AIPD / DPIA | — | — | ≈ données perso | ✅ si PII | ✅ |
@@ -401,7 +436,7 @@ ISO 25010:2023 introduit **Safety** comme 9e caractéristique produit (nouveaut�
 | Estimation FinOps | — | ◔ | ○ | ✅ | ✅ |
 | Conception détaillée (design doc) | — | ◔ | ○ | ✅ | ✅ |
 | Plan de migration expand/contract | — | — | ≈ si schéma | ✅ si schéma | ✅ |
-| **BUILD** | | | | | |
+| **build** | | | | | |
 | Tests unitaires | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Tests d'intégration | ◔ | ✅ | ✅ | ✅ | ✅ |
 | Tests E2E parcours critiques | — | ◔ | ○ | ✅ | ✅ |
@@ -411,7 +446,9 @@ ISO 25010:2023 introduit **Safety** comme 9e caractéristique produit (nouveaut�
 | Secrets scan | ✅ | ✅ | ✅ | ✅ | ✅ |
 | SBOM (CycloneDX/SPDX) | — | — | ○ | ✅ | ✅ |
 | Signature artefact (Cosign/Sigstore) | — | — | — | ✅ | ✅ |
-| **VALIDATION** | | | | | |
+| TDD obligatoire | ◔ | ○ | ✅ | ✅ | ✅ |
+| Mutation testing zones critiques | — | — | ○ | ✅ | ✅ |
+| **validation** | | | | | |
 | Revue de code (peer / self-review différée) | ◔ | ✅ | ✅ | ✅ (≥2 ou solo+agent) | ✅ (≥2) |
 | Quality gates CI | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Validation produit / acceptance | — | ◔ | ✅ | ✅ | ✅ |
@@ -420,18 +457,22 @@ ISO 25010:2023 introduit **Safety** comme 9e caractéristique produit (nouveaut�
 | Tests de charge / performance | — | — | ○ | ✅ | ✅ |
 | Tests i18n / RTL | — | ◔ | ○ | ✅ | ✅ |
 | Vérification budget FinOps | — | ◔ | ○ | ✅ | ✅ |
-| **RELEASE** | | | | | |
-| Stratégie déploiement | direct | direct | canary 10% | canary + blue/green | canary + feature flag obligatoire |
+| Tests de contrat (Pact / OpenAPI) | — | — | ○ | ✅ | ✅ |
+| ASVS L1/L2/L3 | — | — | L1 | L2 | L3 |
+| Fuzzing endpoints API | — | — | — | ○ | ✅ |
+| Revue de sécurité indépendante | — | — | — | ○ | ✅ |
+| **release** | | | | | |
+| Stratégie déploiement | direct | direct | canary 10% | canary 5%→25%→50%→100% gates SLO | canary 5%→25%→50%→100% + feature flag obligatoire |
 | Feature flag | — | ○ | ○ | ✅ | ✅ |
 | Plan de rollback | implicite | ✅ | ✅ | ✅ + testé | ✅ + répété |
 | Smoke tests post-déploiement | — | ◔ | ✅ | ✅ | ✅ |
 | Communication parties prenantes | — | équipe | équipe | élargie | élargie + externe |
-| **RUN** | | | | | |
+| **run** | | | | | |
 | Surveillance SLO active | ◔ | ◔ | ✅ | ✅ | ✅ |
 | Postmortem si incident | léger | ✅ | ✅ | ✅ + revue | ✅ + audit indépendant |
 | **MODE DE SUPERVISION** | | | | | |
-| Bypass autorisé | ✅ | ✅ (conditions) | ✗ | ✗ | ✗ |
-| Auto-décision | ✅ | ✅ | ✅ (défaut) | ✅ + checkpoint | ✗ (si doute) |
+| `bypass` autorisé | ✅ | ✅ (5 conditions §6.1.L) | ✗ sauf HUMAN_OVERRIDE | ✗ | ✗ |
+| `auto` | ✅ | ✅ | ✅ (défaut) | ✅ + checkpoint | ✗ (si doute) |
 | Pairing | ○ | ○ | ○ | ○ | ✅ recommandé |
 | Validation humaine explicite requise | — | — | — | ✅ | ✅ |
 
@@ -452,23 +493,24 @@ ISO 25010:2023 introduit **Safety** comme 9e caractéristique produit (nouveaut�
 SI classe == T :
   chemin = CI verts → merge
   supervision = Bypass autorisé
-  
-SI classe == F :
+
+SI classe == L :
   chemin = review ≥1 + CI verts → merge
-  supervision = Bypass autorisé (si CI verts ET aucun signal d'escalade)
-  
+  supervision = bypass autorisé (si CI verts ET 5 conditions §6.1.L réunies)
+
 SI classe == M :
   chemin = analyse fonctionnelle + review ≥1 + tests intégration + CI verts + validation produit → merge
-  supervision = Auto-décision (mode par défaut)
-  
-SI classe == É :
-  chemin = Discovery + ADR + Threat model + review ≥2 + DAST + canary + feature flag + rollback testé + VALIDATION HUMAINE → merge
-  supervision = Auto-décision avec checkpoint humain obligatoire
+  supervision = auto (mode par défaut)
+  Bypass = INTERDIT (sauf HUMAN_OVERRIDE enregistré, tracé, CI verts, aucun signal forçage)
+
+SI classe == H :
+  chemin = discovery + ADR + Threat model + review ≥2 + DAST + canary 5%→100% + feature flag + rollback testé + VALIDATION HUMAINE → merge
+  supervision = auto avec checkpoint humain obligatoire
   Bypass = INTERDIT
-  
+
 SI classe == C :
-  chemin = Tout É PLUS threat model complet + AIPD + audit sécurité + canary + communication + rollback répété + VALIDATION HUMAINE EXPLICITE + LOG → merge
-  supervision = Pairing recommandé, auto-décision uniquement si visibilité totale
+  chemin = Tout H PLUS threat model complet + AIPD + audit sécurité + canary + communication + rollback répété + VALIDATION HUMAINE EXPLICITE + LOG → merge
+  supervision = pairing recommandé, auto uniquement si visibilité totale
   Bypass = ABSOLUMENT INTERDIT
 ```
 
@@ -476,26 +518,26 @@ SI classe == C :
 
 ## 9. Application fractale par cycle
 
-### 9.1 Discovery
+### 9.1 discovery
 
 **Risques spécifiques** : construire la mauvaise chose, valider un problème fictif, spike sans fin.
 
-| Activité Discovery | Modulation |
+| Activité discovery | Modulation |
 |-------------------|-----------|
-| Validation du problème | Obligatoire si É/C, optionnelle si M, skippable si T/F |
-| Nombre d'entretiens utilisateurs requis | T/F : 0, M : ≥3, É : ≥5, C : ≥5 + source quantitative |
-| Spike timeboxé | T/F : non requis, M/É/C : max 5 jours, sortie = décision + ADR |
-| Classification de l'opportunité | Se fait en sortie de Discovery, avant entrée en Cadrage |
+| Validation du problème | Obligatoire si H/C, optionnelle si M, skippable si T/L |
+| Nombre d'entretiens utilisateurs requis | T/L : 0, M : ≥3, H : ≥5, C : ≥5 + source quantitative |
+| Spike timeboxé | T/L : non requis, M/H/C : max 5 jours, sortie = décision + ADR |
+| Classification de l'opportunité | Se fait en sortie de discovery, avant entrée en cadrage |
 
-**Mécanisme fractal** : l'étape Observer de la Discovery classe d'abord l'opportunité. Si É/C, l'étape Définir est approfondie (entretiens, JTBD complet). Si T/F, l'étape Définir est réduite à un one-liner.
+**Mécanisme fractal** : l'étape Observer de `discovery` classe d'abord l'opportunité. Si H/C, l'étape Define est approfondie (entretiens, JTBD complet). Si T/L, l'étape Define est réduite à un one-liner.
 
-### 9.2 Cadrage
+### 9.2 cadrage
 
 **Risques spécifiques** : engagement de build sans DoR suffisante, périmètre flou, dépendances non identifiées.
 
-La classification se cristallise en Cadrage : c'est ici que la classe devient officielle et est inscrite dans le backlog item.
+La classification se cristallise en `cadrage` : c'est ici que la classe devient officielle et est inscrite dans le backlog item.
 
-| Sortie obligatoire du Cadrage | T | F | M | É | C |
+| Sortie obligatoire du cadrage | T | L | M | H | C |
 |------------------------------|---|---|---|---|---|
 | Classe de risque inscrite | ✅ | ✅ | ✅ | ✅ | ✅ |
 | DoR formelle complète | ◔ | ○ | ✅ | ✅ | ✅ |
@@ -504,21 +546,21 @@ La classification se cristallise en Cadrage : c'est ici que la classe devient of
 | Impact accessibility identifié | — | ◔ | ✅ | ✅ | ✅ |
 | Périmètre IN/OUT explicite | — | ◔ | ✅ | ✅ | ✅ |
 
-### 9.3 Conception
+### 9.3 conception
 
 **Risques spécifiques** : décision d'architecture non documentée, surface d'attaque non modélisée, migration de schéma sans plan.
 
-Pour É/C, la Conception est une phase non-négociable. Elle produit l'ADR, le threat model, et déclenche l'AIPD si applicable.
+Pour H/C, `conception` est une phase non-négociable. Elle produit l'ADR, le threat model, et déclenche l'AIPD si applicable.
 
-**Pattern Strangler Fig** : tout changement d'architecture classé C doit être décomposé via Strangler Fig en une séquence de changements M/É. Chaque étape de la décomposition est reclassifiée individuellement. Ce pattern transforme un C en séquence F/M, réduisant le risque à chaque étape tout en maintenant la traçabilité du changement global.
+**Pattern Strangler Fig** : tout changement d'architecture classé C doit être décomposé via Strangler Fig en une séquence de changements M/H. Chaque étape de la décomposition est reclassifiée individuellement. Ce pattern transforme un C en séquence L/M, réduisant le risque à chaque étape tout en maintenant la traçabilité du changement global.
 
-### 9.4 Build
+### 9.4 build
 
 **Risques spécifiques** : régression, dette technique accumulée, sécurité non implémentée.
 
-L'inner loop du Build traverse le sous-cycle Observer → Vérifier pour chaque incrément. La classe détermine le niveau de quality gates CI bloquants :
+L'inner loop de `build` traverse le sous-cycle Observer → Verify pour chaque incrément. La classe détermine le niveau de quality gates CI bloquants :
 
-| Gate CI | T | F | M | É | C |
+| Gate CI | T | L | M | H | C |
 |---------|---|---|---|---|---|
 | Lint/format | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Tests unitaires | ✅ | ✅ | ✅ | ✅ | ✅ |
@@ -531,49 +573,51 @@ L'inner loop du Build traverse le sous-cycle Observer → Vérifier pour chaque 
 | SBOM | — | — | ○ | ✅ | ✅ |
 | Signature artefact | — | — | — | ✅ | ✅ |
 
-### 9.5 Validation
+### 9.5 validation
 
 **Risques spécifiques** : défaut non détecté avant production, test coverage inadéquat.
 
-Le risk-based testing (ISO/IEC/IEEE 29119) alloue l'effort de test proportionnellement au produit vraisemblance × impact. Pour É/C :
+Le risk-based testing (ISO/IEC/IEEE 29119) alloue l'effort de test proportionnellement au produit vraisemblance × impact. Pour H/C :
 
 - Tests exploratoires sur les zones rouges (chemin happy + chemins d'erreur + edge cases sécurité)
 - Tests de régression complète (non seulement la zone touchée)
-- Tests d'authz/authn pour É
+- Tests d'authz/authn pour H
 - Fuzzing pour C sur les endpoints exposés
+- Tests de contrat (Pact / OpenAPI contract testing) pour les services avec API publique
+- ASVS L2 pour H, ASVS L3 pour C
 
-### 9.6 Release
+### 9.6 release
 
 **Risques spécifiques** : incident de déploiement, rollback impossible, communication insuffisante.
 
 | Stratégie de déploiement | Justification |
 |--------------------------|--------------|
-| T/F → direct | Changement réversible, impact minimal |
+| T/L → direct | Changement réversible, impact minimal |
 | M → canary 10% | Valide en production avant exposition totale |
-| É → canary 5%→25%→50%→100% avec gates SLO | Chaque palier conditionné au maintien des SLO |
-| C → canary + feature flag obligatoire | Découplage déploiement / release ; rollback en un toggle |
+| H → canary 5%→25%→50%→100% avec gates SLO | Chaque palier conditionné au maintien des SLO |
+| C → canary 5%→25%→50%→100% + feature flag obligatoire | Découplage déploiement / release ; rollback en un toggle |
 
-### 9.7 Run
+### 9.7 run
 
 **Risques spécifiques** : dégradation silencieuse, erreur budget épuisé, incident non détecté.
 
-La classification des incidents entrants utilise la même échelle T/F/M/É/C :
+La classification des incidents entrants utilise la même échelle T/L/M/H/C :
 
 | Sévérité incident | Classe | Action |
 |------------------|--------|--------|
 | Cosmétique, aucun utilisateur impacté | T | Log uniquement |
-| Impact partiel, <10 utilisateurs, récupération <1h | F | Hotfix dans le sprint courant |
+| Impact partiel, <10 utilisateurs, récupération <1h | L | Hotfix dans le sprint courant |
 | Flux dégradé, >10 utilisateurs, récupération <4h | M | Hotfix prioritaire + postmortem léger |
-| Service critique indisponible, toute user-base | É | War room immédiate + postmortem complet |
+| Service critique indisponible, toute user-base | H | War room immédiate + postmortem complet |
 | Atteinte données sensibles, violation réglementaire | C | War room + notification CNIL 72h + postmortem + audit |
 
-### 9.8 Apprentissage
+### 9.8 learning
 
-**C'est ici que le système s'améliore.** Chaque cycle Apprentissage produit :
+**C'est ici que le système s'améliore.** Chaque cycle learning produit :
 
 1. **Calibration report** : combien de promotions de classe ont eu lieu, dans quel sens, sur quel type de changement
 2. **Pattern update** : l'arbre de décision §4.3 est mis à jour avec les nouveaux signaux identifiés
-3. **Biais détectés** : l'agent sous-estime-t-il systématiquement certaines classes ? (ex : migration DB classée M au lieu de É)
+3. **Biais détectés** : l'agent sous-estime-t-il systématiquement certaines classes ? (ex : migration DB classée M au lieu de H)
 4. **Risk appetite review** : les seuils de tolérance §6.5 sont-ils encore calibrés correctement ?
 
 ---
@@ -587,36 +631,36 @@ Ces activités ne sont pas des phases — elles imprègnent tous les cycles. La 
 | Classe | Threat Modeling | SAST | DAST | IaC/Container | Supply chain (SLSA) |
 |--------|----------------|------|------|---------------|---------------------|
 | T | — | ✅ CI | — | ≈ si touché | — |
-| F | — | ✅ CI | — | ✅ | — |
+| L | — | ✅ CI | — | ✅ | — |
 | M | ○ (STRIDE léger) | ✅ CI | ○ preprod | ✅ | ○ |
-| É | ✅ STRIDE complet | ✅ + revue | ✅ bloquant | ✅ | ✅ SLSA 2+ |
+| H | ✅ STRIDE complet | ✅ + revue | ✅ bloquant | ✅ | ✅ SLSA 2+ |
 | C | ✅ STRIDE + LINDDUN | ✅ + audit | ✅ + fuzzing | ✅ | ✅ SLSA 3 |
 
 ### 10.2 Privacy / RGPD by Design
 
 | Classe | Registre traitement | AIPD | Droits personnes | Pseudonymisation |
 |--------|--------------------|----|-----------------|-----------------|
-| T/F | — | — | — | ≈ si logs |
+| T/L | — | — | — | ≈ si logs |
 | M | ≈ si nouvelles données | ≈ conditionnel | ✅ si nouvelles données | ✅ si données staging |
-| É | ✅ mise à jour | ✅ si PII | ✅ | ✅ |
+| H | ✅ mise à jour | ✅ si PII | ✅ | ✅ |
 | C | ✅ mise à jour | ✅ obligatoire | ✅ + délai ≤30j | ✅ + chiffrement validé |
 
 ### 10.3 FinOps
 
 | Classe | Impact coût documenté | Budget cap LLM | Anomaly detection |
 |--------|-----------------------|----------------|------------------|
-| T/F | — | ◔ | ◔ |
+| T/L | — | ◔ | ◔ |
 | M | ○ | ✅ | ✅ |
-| É | ✅ | ✅ | ✅ |
+| H | ✅ | ✅ | ✅ |
 | C | ✅ + revue architecture | ✅ | ✅ bloquant |
 
 ### 10.4 Accessibilité by design (EAA — en vigueur depuis 28 juin 2025)
 
 | Classe | Tests auto (axe-core CI) | Tests manuels | Audit expert |
 |--------|--------------------------|---------------|-------------|
-| T/F | ◔ | — | — |
+| T/L | ◔ | — | — |
 | M | ✅ | — | — |
-| É | ✅ | ✅ sur parcours touchés | ○ |
+| H | ✅ | ✅ sur parcours touchés | ○ |
 | C | ✅ | ✅ complet | ✅ si produit critique EAA |
 
 ### 10.5 Tests (risk-based testing, ISO/IEC/IEEE 29119)
@@ -625,10 +669,10 @@ La profondeur de test est **directement fonction de la classe** :
 
 ```
 Classe T : tests existants verts suffisent (pas de nouveaux tests requis si refactor)
-Classe F : nouveaux tests unitaires + intégration sur les fonctionnalités ajoutées
-Classe M : tests pyramide / trophée selon le type de code, mutation testing ○
-Classe É : tests pyramide + contrat inter-services + mutation testing ✅ > 70% score zones critiques
-Classe C : tout É + property-based testing + tests de charge + fuzzing endpoints exposés
+Classe L : nouveaux tests unitaires + intégration sur les fonctionnalités ajoutées
+Classe M : tests pyramide / trophée selon le type de code, mutation testing ○ (≥ 60% zones critiques recommandé)
+Classe H : tests pyramide + contrat inter-services + mutation testing ✅ ≥ 70% score zones critiques
+Classe C : tout H + mutation testing ≥ 80% zones critiques + property-based testing + tests de charge + fuzzing endpoints exposés
 ```
 
 ---
@@ -637,7 +681,7 @@ Classe C : tout É + property-based testing + tests de charge + fuzzing endpoint
 
 ### 11.1 Par changement
 
-| Artefact | T | F | M | É | C |
+| Artefact | T | L | M | H | C |
 |---------|---|---|---|---|---|
 | Classe dans PR metadata | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Justification 1 ligne | ✅ | ✅ | ✅ | ✅ | ✅ |
@@ -654,7 +698,7 @@ Classe C : tout É + property-based testing + tests de charge + fuzzing endpoint
 # .planning/08-risks/risk-register.md — entrée individuelle
 id: "RISK-042"
 item_ref: "PBI-017"
-class: "É"
+class: "H"
 title: "Migration schéma auth — risque de régression session"
 description: >
   La migration du champ user_role vers une table séparée peut casser
@@ -664,7 +708,7 @@ impact_description: "Service auth indisponible, tous les utilisateurs déconnect
 probability_level: 2       # Improbable
 probability_description: "Stratégie expand/contract réduit la probabilité"
 score: 8                   # = 4 × 2
-residual_class: "F"        # Après mitigation
+residual_class: "L"        # Après mitigation
 treatment: "mitigate"
 treatment_actions:
   - "Pattern expand/contract documenté dans ADR-028"
@@ -683,7 +727,7 @@ created: "2026-05-03"
 ```markdown
 ## Classification de risque
 
-**Classe proposée** : [ ] T  [ ] F  [x] É  [ ] M  [ ] C
+**Classe proposée** : [ ] T  [ ] L  [ ] M  [x] H  [ ] C
 
 **Justification** :
 Touche le schéma d'authentification (table sessions, migration expand/contract).
@@ -699,7 +743,7 @@ Signaux de forçage actifs : schéma DB ✅, auth ✅.
 - [ ] Multi-services
 - [ ] Réglementaire
 
-**Mode de supervision requis** : Auto-décision + validation humaine explicite
+**Mode de supervision requis** : auto + validation humaine explicite
 **Bypass autorisé** : NON
 
 **Chemin obligatoire activé** :
@@ -724,16 +768,16 @@ Signaux de forçage actifs : schéma DB ✅, auth ✅.
 |---------|-----------|-------|--------|
 | **Taux de promotion de classe** | % de changements dont la classe initiale a été augmentée en cours de cycle | < 10% | > 20% → l'arbre de décision est insuffisant |
 | **Taux de déclassement** | % de changements dont la classe initiale a été réduite | < 15% | > 30% → sur-classification systématique |
-| **Corrélation classe / incident** | % des incidents en production provenant de changements classés T/F | < 5% | > 15% → les signaux de forçage ne capturent pas les vrais risques |
-| **Délai de classification** | Temps entre création de l'item et classification dans le backlog | < 1h pour T/F/M, < 4h pour É/C | > 24h → goulot d'étranglement au Cadrage |
-| **Override rate** | % de classes overridées par le développeur vs l'arbre automatique | À mesurer | Tout override É→M ou C→É doit être justifié par écrit |
+| **Corrélation classe / incident** | % des incidents en production provenant de changements classés T/L | < 5% | > 15% → les signaux de forçage ne capturent pas les vrais risques |
+| **Délai de classification** | Temps entre création de l'item et classification dans le backlog | < 1h pour T/L/M, < 4h pour H/C | > 24h → goulot d'étranglement au Cadrage |
+| **Override rate** | % de classes overridées par le développeur vs l'arbre automatique | À mesurer | Tout override H→M ou C→H doit être justifié par écrit |
 
 ### 12.2 Métriques DORA corrélées à la classification
 
 | Métrique DORA | Lien avec la classification |
 |--------------|---------------------------|
-| **Change Failure Rate** (cible < 5%) | Si CFR > 10% : audit des changements récents T/F, peut indiquer une sous-classification |
-| **Failed Deployment Recovery Time** (cible < 1h) | Si FDRT > 4h sur un É/C : le plan de rollback était insuffisant |
+| **Change Failure Rate** (cible < 5%) | Si CFR > 10% : audit des changements récents T/L, peut indiquer une sous-classification |
+| **Failed Deployment Recovery Time** (cible < 1h) | Si FDRT > 4h sur un H/C : le plan de rollback était insuffisant |
 | **Rework Rate** (2024) | Si rework sur des changements T : revoir les critères de classification T |
 | **Change Lead Time** | Mesure l'impact de la friction introduite par le chemin obligatoire selon la classe |
 
@@ -741,10 +785,10 @@ Signaux de forçage actifs : schéma DB ✅, auth ✅.
 
 | Indicateur | Mesure | Seuil d'alerte |
 |-----------|--------|---------------|
-| Score risque résiduel moyen (É/C) | Moyenne des scores résiduels après traitement | > 5 → traitement insuffisant |
-| Backlog risques É/C ouverts | Nombre de risques É/C sans owner ou sans date de revue | > 3 ouverts → risque de drift |
+| Score risque résiduel moyen (H/C) | Moyenne des scores résiduels après traitement | > 5 → traitement insuffisant |
+| Backlog risques H/C ouverts | Nombre de risques H/C sans owner ou sans date de revue | > 3 ouverts → risque de drift |
 | CVE Critical en prod non triées | Âge des CVE Critical non corrigées | > 0 après 24h = violation risk tolerance |
-| Bypasses non autorisés | Nombre de merges É/C sans validation humaine tracée | 0 toléré → tout écart = incident de processus |
+| Bypasses non autorisés | Nombre de merges H/C sans validation humaine tracée | 0 toléré → tout écart = incident de processus |
 
 ---
 
@@ -752,92 +796,153 @@ Signaux de forçage actifs : schéma DB ✅, auth ✅.
 
 | Standard | Aspect couvert | Lien avec la classification |
 |---------|---------------|---------------------------|
-| **ISO 31000:2018** — Risk management guidelines | Framework de gestion des risques, processus en 8 étapes | Les 5 classes T/F/M/É/C implémentent le processus ISO 31000 adapté au contexte solo |
+| **ISO 31000:2018** — Risk management guidelines | Framework de gestion des risques, processus en 8 étapes | Les 5 classes T/L/M/H/C implémentent le processus ISO 31000 adapté au contexte solo |
 | **NIST SP 800-30 Rev.1** — Guide for Conducting Risk Assessments | Impact × likelihood matrix, 5 niveaux qualitatives | La grille d'impact (1-5) et probabilité (1-5) s'aligne sur les 5 niveaux NIST |
-| **OWASP Risk Rating Methodology** | Likelihood factors (skill, motive, opportunity, ease of exploit) × Impact factors (financial, reputation, non-compliance, privacy) | Les signaux de forçage §4.3 capturent les impact factors OWASP les plus élevés (privacy violation, non-compliance) |
+| **OWASP Risk Rating Methodology** | Likelihood factors × Impact factors (financial, reputation, non-compliance, privacy) | Les signaux de forçage §4.3 capturent les impact factors OWASP les plus élevés (privacy violation, non-compliance) |
 | **ISO/IEC/IEEE 29119** — Software Testing | Risk-based testing : depth of test proportional to risk | La modulation de la profondeur de tests dans la matrice §8.1 implémente directement ISO 29119 |
 | **ISO/IEC 25010:2023** — Software Quality Model | Safety (nouveau en 2023) : operational constraint, risk identification, fail safe, hazard warning, safe integration | §7 couvre intégralement la dimension Safety |
 | **DORA 2024/2025** | Change Failure Rate, Rework Rate, Failed Deployment Recovery Time | §12.2 lie les métriques DORA aux classes de risque |
-| **NIST SP 800-218 SSDF v1.1** | Secure Software Development Framework | Les activités obligatoires pour É/C (threat modeling, SAST, DAST, SBOM) implémentent SSDF |
-| **OWASP SAMM v2** | Security maturity dans le cycle de développement | Le niveau de maturité sécurité attendu varie par classe (T/F = niveau 1, É/C = niveau 2-3) |
+| **NIST SP 800-218 SSDF v1.1** | Secure Software Development Framework | Les activités obligatoires pour H/C (threat modeling, SAST, DAST, SBOM) implémentent SSDF |
+| **OWASP SAMM v2** | Security maturity dans le cycle de développement | Le niveau de maturité sécurité attendu varie par classe (T/L = niveau 1, H/C = niveau 2-3) |
+| **SPACE Framework** (Forsgren et al., 2021) | Satisfaction, Performance, Activity, Communication/Collaboration, Efficiency | La calibration du risk appetite §6.5 inclut la dimension productivité (Efficiency) et bien-être (Satisfaction) du développeur solo |
 
 ---
 
-## 14. Questions ouvertes (RED CARDS)
+## 14. Décisions closes et suivis résiduels (RED CARDS)
 
-Les RED CARDS sont des questions non résolues dont la non-résolution crée un risque systémique pour la classification.
+Les anciennes RED CARDS dont la réponse est couverte par les specs ne restent pas ouvertes dans ce document. Les éléments ci-dessous sont des décisions closes ou des suivis d'implémentation non bloquants.
 
-### RED-01 — Mécanisation de la classification (HAUTE PRIORITÉ)
+### RED-01 — Mécanisation de la classification (RÉSOLUE en Conception)
 
-**Question** : comment automatiser la proposition de classe par l'agent, de façon déterministe, sans que l'auteur du changement influe sur la classification ?
+**Statut** : RÉSOLUE — formalisée dans `docs/conception/02-risk-classifier-spec.md`
 
-**Risque d'inaction** : la classification reste subjective. L'agent peut sous-estimer une classe pour éviter le chemin long.
+**Résolution** : classification déterministe en 4 passes séquentielles, proposée par l'agent via `classifyRisk(changeset)` en < 30ms. Les passes 1 et 2 (signaux de forçage C puis H) sont non négociables et produisent une classe minimale forcée. La passe 3 (score composite impact × probabilité) s'applique uniquement en l'absence de signal de forçage. La passe 4 prend le maximum des deux.
 
-**Pistes** :
-- Parser les fichiers touchés dans le diff → matching avec l'arbre de forçage §4.3
-- Lire les labels du PR (auth, payment, migration, etc.)
-- Scanner les migrations DB automatiquement
-- Croiser avec un catalogue de patterns risqués (ex : `.env`, `migrations/`, `auth/`, `payment/`)
+```
+PASSE 1 — Signaux de forçage C (non négociables)
+  a. Fichier dans health/, biometric/, medical/
+  b. Types : health_data, biometric, financial_regulated
+  c. Changement touchant ≥ 2 services/repos distincts
+  d. Type : architecture_refactor ou label arch-refactor
+  e. Label/mention : RGPD art.35, NIS2, EAA, DORA-financial, PCI-DSS
+  → classe_min = C
 
-**Critère de résolution** : l'arbre produit une classe proposée en < 30 secondes sur tout diff, avec justification automatique, avant toute interaction humaine.
+PASSE 2 — Signaux de forçage H (non négociables, si classe_min < H)
+  a. Fichier dans auth/, authorization/, sessions/, oauth/, sso/
+  b. Fichier dans payments/, billing/, invoices/, subscriptions/
+  c. Fichier dans migrations/, *.migration.ts, *.sql (DDL)
+  d. Contenu diff : CREATE TABLE, ALTER TABLE, DROP, ADD COLUMN
+  e. Fichier dans api/public/, openapi.yaml, swagger.json, *.proto
+  f. Fichier dans infra/, terraform/, k8s/, docker-compose.prod*
+  g. Label : auth, payment, migration, api-breaking, pii, infra-prod
+  h. Champ PII dans diff : email, password, ssn, phone, address
+  → classe_min = H
 
-**Deadline cible** : premier sprint de Build.
+PASSE 3 — Score composite (si aucun signal de forçage actif)
+  score = impact_estimé × probabilité_estimée (1–25)
+  → classe_calculée via mapping §6.4
 
-### RED-02 — Protocole de promotion de classe en cours de cycle (HAUTE PRIORITÉ)
+PASSE 4 — Classe finale
+  classe_finale = MAX(classe_min, classe_calculée)
+```
 
-**Question** : quand un changement classé F s'avère É en cours de Build (ex : découverte d'une table auth dans le diff), quel est le protocole exact ?
+**Propriété de monotonie** : la classe finale est toujours ≥ à chaque classe intermédiaire. L'arbre ne peut jamais produire une classe inférieure à un signal de forçage actif.
 
-**Pistes** :
-- Détection : l'agent scanne chaque commit et signale si un signal de forçage apparaît
-- Action immédiate : pause de la PR, re-Classification, notification développeur
-- Traçabilité : log de la promotion dans `escalation_history`
-- Impact sur le sprint : l'item F promu É peut exiger un re-planification de sprint
+**Critère atteint** : arbre déterministe, < 30 secondes, justification automatique produite avant toute interaction humaine.
+
+**Référence d'implémentation** : l'arbre algorithmique complet en Annexe A (format pseudocode) constitue la référence exécutable de la classification. En attendant l'automatisation complète dans le harness (`packages/core/src/risk-classifier/`), l'Annexe A sert de spécification de référence pour toute classification manuelle ou semi-automatique.
+
+### RED-02 — Protocole de promotion de classe en cours de cycle (RÉSOLUE en Conception)
+
+**Statut** : RÉSOLUE — formalisée dans `docs/conception/02-risk-classifier-spec.md §5`
+
+**Résolution** : protocole formalisé avec machine à états explicite. Principe central : pause immédiate + notification + re-classification + déclenchement du chemin obligatoire de la nouvelle classe.
+
+**Machine à états de promotion** :
+```
+État CLASSIFIED(L)
+      │
+      │ [signal de forçage H détecté dans commit — scan à chaque push]
+      ▼
+État ESCALATION_DETECTED
+      │
+      │ [notification immédiate au développeur]
+      │ [PR mise en pause — aucun nouveau commit accepté]
+      ▼
+État AWAITING_HUMAN_CONFIRMATION
+      │                    │
+      │ [confirmé]         │ [contesté dans < 4h]
+      ▼                    ▼
+État PROMOTED(H)      État OVERRIDE_REVIEW
+```
 
 **Format de log de promotion** :
 ```yaml
 escalation_history:
-  - date: "2026-05-05T14:32:00Z"
-    from_class: "F"
-    to_class: "É"
-    trigger: "Fichier auth/session.ts modifié dans commit abc123"
-    detected_by: "agent"
+  - timestamp: "2026-05-05T14:32:00Z"
+    from_class: "L"
+    to_class: "H"
+    trigger_signal: "auth"
+    trigger_file: "src/auth/session.ts"
+    trigger_commit: "abc1234"
+    detected_by: "harness-auto"
     confirmed_by: "developer"
-    action: "PR pausée, ADR et threat modeling requis avant reprise"
+    confirmation_timestamp: "2026-05-05T14:45:00Z"
+    actions_triggered:
+      - "PR pausée"
+      - "ADR requis"
+      - "Threat modeling STRIDE requis"
+      - "Review ≥2 activée"
+      - "Canary 5%→100% activé"
+    sprint_impact: "estimation +2 jours"
 ```
 
-**Critère de résolution** : protocole formalisé dans `.planning/agent/boundaries.yaml` avec test de simulation.
+**Règles d'escalade chaînée** :
+- Une promotion ne peut sauter qu'une classe à la fois (L → H autorisé, L → C requiert confirmation supplémentaire)
+- Chaque promotion est irréversible sans dérogation manuelle explicite (voir §6.1 critères d'exclusion)
+- Une promotion ne peut jamais être silencieuse — tout signal de forçage détecté produit soit une promotion tracée, soit une dérogation documentée
 
-### RED-03 — Granularité M / ambiguïté M↔É (MOYENNE PRIORITÉ)
+**Critère atteint** : protocole formalisé dans la spec de Conception. Implémentation cible : `packages/core/src/risk-classifier/` + section `policy` de `.planning/run-set.json`.
 
-**Question** : la frontière M/É est la plus floue. Une feature visible utilisateur touchant des données d'usage (non-PII mais comportementales) est-elle M ou É ?
+### RED-03 — Granularité M / ambiguïté M↔H (CLOSE)
 
-**Tension** : trop de É = sur-friction, vélocité dégradée. Trop de M = sous-protection des données comportementales.
+**Statut** : CLOSE — la frontière M/H est couverte par les signaux de forçage §4.3 et par `docs/conception/02-risk-classifier-spec.md`.
 
-**Piste** : définir explicitement une liste de "données quasi-sensibles" (comportementales, géolocalisation imprécise, préférences révélatrices) avec leur classe minimum.
+**Décision** : les données personnelles, auth, paiement, schéma DB, API publique, contrat inter-services et infra production forcent H. Les données d'usage non-PII restent M sauf si elles deviennent quasi-sensibles par combinaison, suivi individualisé, décision automatisée à effet significatif, ou obligation réglementaire ; dans ces cas le signal privacy/compliance force H ou C.
 
-**Critère de résolution** : liste documentée dans l'arbre de forçage §4.3, avec exemples concrets du projet réel.
+**Suivi non bloquant** : enrichir les exemples projet dans la spec quand de nouveaux cas réels apparaissent.
 
-### RED-04 — Bypass conditionnel pour F (BASSE PRIORITÉ)
+### RED-04 — Bypass conditionnel pour L et M (CLOSE)
 
-**Question** : les conditions exactes du Bypass pour F ne sont pas encore formalisées. "Bypass autorisé sous conditions" est insuffisamment précis.
+**Statut L** : RÉSOLU — les 5 conditions exactes sont formalisées dans §6.1.L ci-dessus et dans `docs/conception/02-risk-classifier-spec.md`.
 
-**Proposition** :
 ```
-Bypass F autorisé si ET SEULEMENT SI :
+Bypass L autorisé si ET SEULEMENT SI :
+  1. CI 100% verts (tous gates : lint, unit, SAST, secrets scan)
+  2. Aucun signal de forçage H/C détecté par l'arbre automatique
+  3. Diff net ≤ 100 lignes de code de production
+  4. Aucun fichier dans : auth/, migrations/, payments/, .env*, config/security*
+  5. Aucun nouvel endpoint exposé ni modification de contrat API
+```
+
+**Statut M** : PARTIELLEMENT RÉSOLU — conditions définies ci-dessous, implémentation harness à faire.
+
+```
+Bypass M autorisé si ET SEULEMENT SI (exception stricte) :
+  - HUMAN_OVERRIDE enregistré avec justification documentée
   - CI 100% verts (tous gates)
-  - Aucun signal de forçage détecté par l'arbre automatique
-  - Diff < 100 lignes
-  - Aucune modification dans les répertoires : auth/, migrations/, payments/, .env*, config/security*
-  - Pas de nouveaux endpoints exposés
+  - Aucun signal de forçage H/C détecté par l'arbre automatique
+  - Développeur présent et confirmant explicitement
+  - Tracé dans escalation_history avec type: "bypass_override_M"
 ```
 
-**Critère de résolution** : conditions formalisées et implémentées dans le harness.
+**Critère de résolution** : conditions M formalisées et implémentées dans le harness. Source de vérité : `docs/conception/02-risk-classifier-spec.md`.
 
-### RED-05 — Mémoire à long terme des classifications (BASSE PRIORITÉ)
+### RED-05 — Mémoire à long terme des classifications (SUIVI)
 
-**Question** : comment utiliser l'historique des classifications pour informer les futures (ex : "ce type de migration DB a été classé É 3 fois et a généré un incident 2 fois") ?
+**Question résiduelle** : comment exploiter les historiques de classification stockés comme sections de `.planning/run-set.json` pour informer les futures décisions (ex : "ce type de migration DB a été classé H 3 fois et a généré un incident 2 fois") ?
 
-**Piste** : index sémantique dans `.planning/` permettant de requêter les décisions passées.
+**Piste** : index sémantique dérivé de `.planning/run-set.json`, sans introduire de nouveau fichier physique contractuel.
 
 **Critère de résolution** : reporté à après stabilisation du cycle mono-état.
 
@@ -848,41 +953,41 @@ Bypass F autorisé si ET SEULEMENT SI :
 ### 15.1 Vue de synthèse des points de contact
 
 ```
-[Discovery]
+[discovery]
   └── Classe de l'opportunité → profondeur Discovery (entretiens, OST, spike)
   └── Sortie : class_proposal dans note Discovery
 
-[Cadrage]
+[cadrage]
   └── Classe cristallisée dans le backlog item (DoR)
   └── Signaux de forçage vérifiés → classe validée ou forcée
   └── Sortie : risk_class dans backlog item metadata
 
-[Conception]
-  └── Classe É/C → ADR + Threat model + AIPD déclenchés
-  └── Strangler Fig pour C → décomposition en M/É
+[conception]
+  └── Classe H/C → ADR + Threat model + AIPD déclenchés
+  └── Strangler Fig pour C → décomposition en M/H
   └── Sortie : ADR, threat model, AIPD (selon classe)
 
-[Build]
+[build]
   └── Classe → quality gates CI activés / désactivés
-  └── Promotion de classe possible (RED-02)
+  └── Promotion de classe possible (RED-02 — résolu)
   └── Sortie : CI report avec classe actée, risk_class dans PR metadata
 
-[Validation]
+[validation]
   └── Classe → profondeur de tests (risk-based testing)
-  └── Classe É/C → tests manuels, DAST, mutation testing
+  └── Classe H/C → tests manuels, DAST, mutation testing
   └── Sortie : rapport de validation avec couverture risk-aligned
 
-[Release]
-  └── Classe → stratégie de déploiement (direct / canary / canary+flag)
-  └── Classe É/C → feature flag, rollback plan testé
+[release]
+  └── Classe → stratégie de déploiement (direct / canary 10% / canary progressif 5%→100%)
+  └── Classe H/C → feature flag, rollback plan testé
   └── Sortie : deployment-evidence.md avec classe + stratégie appliquée
 
-[Run]
+[run]
   └── Incidents classifiés T→C (même échelle)
   └── Classe incident → protocole de réponse (log → war room → CNIL 72h)
   └── Sortie : incident report avec classe, durée, actions
 
-[Apprentissage]
+[learning]
   └── Audit des classifications passées (promotions, déclassements, corrélation incidents)
   └── Mise à jour de l'arbre de forçage §4.3
   └── Révision du risk appetite §6.5
@@ -894,20 +999,20 @@ Bypass F autorisé si ET SEULEMENT SI :
 Ces règles s'appliquent **quelle que soit la position dans le pipeline** :
 
 1. **Une classe ne peut pas être réduite sans trace** — tout déclassement doit être justifié et loggué
-2. **Le Bypass É/C est interdit dans tous les cycles** — cette règle est indépendante du cycle
-3. **La classe d'un incident Run est indépendante de la classe du changement qui l'a causé** — un changement T peut causer un incident É si le contexte a changé
+2. **Le Bypass H/C est interdit dans tous les cycles** — cette règle est indépendante du cycle
+3. **La classe d'un incident run est indépendante de la classe du changement qui l'a causé** — un changement T peut causer un incident H si le contexte a changé
 4. **La classification est la première action documentée**, avant tout développement ou analyse approfondie
 5. **L'arbre de forçage §4.3 prime sur l'estimation humaine** — si un signal de forçage est présent, la classe minimum est forcée, non négociable
 
 ### 15.3 Feedback loops inter-cycles
 
 ```
-Apprentissage → Discovery   : patterns de mauvaise identification du problème (taux d'abandon M+)
-Apprentissage → Cadrage     : mise à jour de l'arbre de forçage
-Apprentissage → Conception  : patterns de threat models insuffisants
-Run           → Cadrage     : incidents récurrents → nouveau signal de forçage dans l'arbre
-Validation    → Cadrage     : défauts échappés post-release → révision des seuils de test par classe
-Build         → Conception  : promotions de classe en Build → renforcer la Conception pour ce type de changement
+learning   → discovery  : patterns de mauvaise identification du problème (taux d'abandon M+)
+learning   → cadrage    : mise à jour de l'arbre de forçage
+learning   → conception : patterns de threat models insuffisants
+run        → cadrage    : incidents récurrents → nouveau signal de forçage dans l'arbre
+validation → cadrage    : défauts échappés post-release → révision des seuils de test par classe
+build      → conception : promotions de classe en build → renforcer la conception pour ce type de changement
 ```
 
 ---
@@ -917,30 +1022,33 @@ Build         → Conception  : promotions de classe en Build → renforcer la C
 ```
 FONCTION classifier(changement):
 
-  // Étape 1 : signaux de forçage — non négociables
-  SI changement.touche(auth | autorisation | sessions) → classe_min = É
-  SI changement.touche(paiement | facturation) → classe_min = É
-  SI changement.touche(migration_db | schema_db) → classe_min = É
-  SI changement.touche(api_publique | contrat_inter_services) → classe_min = É
-  SI changement.touche(infra_production) → classe_min = É
-  SI changement.touche(pii | données_personnelles) → classe_min = É
+  // Étape 1 (PASSE 1) : signaux de forçage C — non négociables
   SI changement.touche(données_santé | biométrie) → classe_min = C
   SI changement.touche(données_financières_réglementées) → classe_min = C
   SI changement.touche(multi_services | multi_repos) → classe_min = C
   SI changement.type == "refonte_architecture" → classe_min = C
   SI changement.touche(réglementaire: RGPD | NIS2 | EAA | DORA_financier) → classe_min = C
 
-  // Étape 2 : calcul score composite (si pas de forçage)
+  // Étape 2 (PASSE 2) : signaux de forçage H — non négociables (si classe_min < H)
+  SI classe_min < H :
+    SI changement.touche(auth | autorisation | sessions) → classe_min = H
+    SI changement.touche(paiement | facturation) → classe_min = H
+    SI changement.touche(migration_db | schema_db) → classe_min = H
+    SI changement.touche(api_publique | contrat_inter_services) → classe_min = H
+    SI changement.touche(infra_production) → classe_min = H
+    SI changement.touche(pii | données_personnelles) → classe_min = H
+
+  // Étape 3 (PASSE 3) : calcul score composite (si pas de forçage)
   score = impact_estimé × probabilité_estimée
 
-  // Étape 3 : mapping score → classe
+  // Étape 4 (PASSE 4) : mapping score → classe
   SI score IN [1-2]  → classe_calculée = T
-  SI score IN [3-5]  → classe_calculée = F
+  SI score IN [3-5]  → classe_calculée = L
   SI score IN [6-10] → classe_calculée = M
-  SI score IN [11-17] → classe_calculée = É
+  SI score IN [11-17] → classe_calculée = H
   SI score IN [18-25] → classe_calculée = C
 
-  // Étape 4 : classe finale = max(classe_min, classe_calculée)
+  // Étape finale : classe finale = max(classe_min, classe_calculée)
   classe_finale = MAX(classe_min, classe_calculée)
 
   RETOURNER {
@@ -948,7 +1056,8 @@ FONCTION classifier(changement):
     justification: liste_des_signaux_actifs,
     supervision_mode: supervision_mapping[classe_finale],
     deployment_strategy: deployment_mapping[classe_finale],
-    mandatory_activities: activities_matrix[classe_finale]
+    mandatory_activities: activities_matrix[classe_finale],
+    bypass_eligible: (classe_finale == T) OU (classe_finale == L ET conditions_bypass_L_réunies)
   }
 ```
 
@@ -956,28 +1065,29 @@ FONCTION classifier(changement):
 
 ## Annexe B — Mapping modes de supervision
 
-| Classe | Mode par défaut | Bypass | Auto-décision | Pairing |
-|--------|----------------|--------|---------------|---------|
-| T | Bypass | ✅ autorisé | ✅ | ○ |
-| F | Bypass (conditionnel) | ✅ si conditions RED-04 | ✅ | ○ |
-| M | Auto-décision | ✗ | ✅ (défaut) | ○ |
-| É | Auto-décision + checkpoint | ✗ | ✅ + validation humaine | ○ |
-| C | Pairing recommandé | ✗ ABSOLU | ✅ seulement si visibilité totale | ✅ recommandé |
+| Classe | Mode par défaut | `bypass` | `auto` | `pairing` |
+|--------|----------------|----------|--------|-----------|
+| T | `bypass` | ✅ autorisé | ✅ | ○ |
+| L | `bypass` conditionnel | ✅ si 5 conditions §6.1.L | ✅ | ○ |
+| M | `auto` | ✗ (sauf HUMAN_OVERRIDE tracé) | ✅ défaut | ○ |
+| H | `auto` + checkpoint | ✗ ABSOLU | ✅ + validation humaine obligatoire | ○ |
+| C | `pairing` recommandé | ✗ ABSOLU | ✅ seulement si visibilité totale | ✅ recommandé |
 
 **Définition des modes** :
 
-- **Bypass** : l'agent fait tout, y compris le triage. Aucune validation humaine active. Acceptable seulement sur T/F car le CI bloquant reste le garde-fou.
-- **Auto-décision** : l'agent fait Discovery + propose la solution + le chemin. Le développeur valide au triage. Mode par défaut.
-- **Auto-décision + checkpoint** : comme Auto-décision, mais la validation humaine est obligatoire avant merge. L'agent ne peut pas merger seul.
-- **Pairing** : le développeur est présent en continu. L'agent suit le flux de pensée. Recommandé pour C, non imposé mais fortement suggéré.
+- **`bypass`** : l'agent fait tout, y compris le triage. Aucune validation humaine active. Acceptable seulement sur T/L car le CI bloquant reste le garde-fou.
+- **`auto`** : mode autonome par défaut. L'agent exécute et propose les décisions avec visibilité complète ; les checkpoints, la validation humaine et les restrictions de merge restent obligatoires dès que la classe de risque ou une règle de policy l'exige.
+- **`pairing`** : le développeur est présent en continu. L'agent suit le flux de pensée. Recommandé pour C, non imposé mais fortement suggéré.
 
-**Garde-fous anti-rubber-stamp** (s'appliquent en Auto-décision) :
+**Garde-fous anti-rubber-stamp** (s'appliquent en `auto`) :
 - Format de proposition obligatoire : `[problème][alternatives][choix][critère de succès][classe de risque]`
 - Quota mental de rejets : ≥ 20% des propositions doivent être challengées ou rejetées
 - Audit aléatoire hebdomadaire : une proposition acceptée la veille est relue à froid
 
 ---
 
-*Document transversal — Pipeline fractale v4*  
-*Maintenu dans : `harness-architecture/docs/transversal/risk-classification.md`*  
-*Référence les standards : ISO 31000:2018, NIST SP 800-30 Rev.1, OWASP Risk Rating, ISO/IEC 25010:2023, ISO/IEC/IEEE 29119, DORA 2024/2025*
+*Document transversal — Pipeline fractale v4*
+*Version 4 — alignement PFV4 : RiskClass T/L/M/H/C, OperatingMode `bypass`/`auto`/`pairing`, macro cycles `discovery → cadrage → conception → build → validation → release → run → learning`.*
+*Maintenu dans : `hima/docs/transversal/risk-classification.md`*
+*Référence les standards : ISO 31000:2018, NIST SP 800-30 Rev.1, OWASP Risk Rating, ISO/IEC 25010:2023, ISO/IEC/IEEE 29119, DORA 2024/2025, SPACE Framework*
+*Spec d'implémentation : `docs/conception/02-risk-classifier-spec.md`*

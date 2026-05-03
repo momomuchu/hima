@@ -30,13 +30,13 @@
 @harness/core
 ├── state-machine/    Machine Harel — 8 cycles × 7 sous-étapes, guards, permissions territoire
 │                     Dépend de : types, gates (évaluation des guards)
-├── risk-classifier/  Classification T/F/M/É/C + promotion de classe en cours de cycle
+├── risk-classifier/  Classification T/L/M/H/C + promotion de classe en cours de cycle
 │                     Dépend de : types
 ├── gates/            Évaluation gates RMS abstraites et politiques d'action agent
 │                     Dépend de : types, risk-classifier
-├── planning/         Lecture/écriture .planning/ — état courant, 8 sets RMS, Evidence Set
+├── planning/         Lecture/écriture .planning/ — 3 fichiers canoniques + sections RMS logiques
 │                     Dépend de : types, logging
-└── logging/          JSONL append-only — transitions, événements harness
+└── logging/          Journal append-only logique — transitions, événements harness
                       Dépend de : types
 ```
 
@@ -50,20 +50,33 @@
 
 ```typescript
 // 8 cycles + états transversaux de la Pipeline Fractale v4
-export type Phase =
-  | "IDLE" | "DISCOVERY" | "CADRAGE" | "CONCEPTION" | "BUILD"
-  | "VALIDATION" | "RELEASE" | "RUN" | "APPRENTISSAGE"
-  | "ERROR" | "SUSPENDED" | "ABORTED";
+export type MacroCycle =
+  | "discovery" | "cadrage" | "conception" | "build"
+  | "validation" | "release" | "run" | "learning";
 
 // 7 sous-étapes du sous-cycle universel
 export type SubPhase =
-  | "Observer" | "Definir" | "Concevoir" | "Executer"
-  | "Verifier" | "Capitaliser" | "Transmettre";
+  | "Observer" | "Define" | "Design" | "Execute"
+  | "Verify" | "Capitalize" | "Transmit";
 
 // Pivot central — module tout le reste (profondeur, mode, gates, artefacts)
-export type RiskClass = "T" | "F" | "M" | "E" | "C";
+export type RiskClass = "T" | "L" | "M" | "H" | "C";
 
-export type OperatingMode = "pairing" | "auto" | "bypass";
+export const RISK_CLASS_RANK: Record<RiskClass, number> = {
+  T: 0,
+  L: 1,
+  M: 2,
+  H: 3,
+  C: 4,
+};
+
+export type OperatingMode = "bypass" | "auto" | "pairing";
+
+// `auto` garde checkpoints, visibilité complète et validations humaines requises
+// par la classe de risque. Il n'existe aucune variante canonique de ce mode.
+
+// Comparaison obligatoire : utiliser RISK_CLASS_RANK, jamais l'ordre lexicographique.
+export declare function compareRiskClass(a: RiskClass, b: RiskClass): number;
 
 // États finaux explicites du RMS — pas de "done" vague
 export type FinalState =
@@ -73,8 +86,8 @@ export type FinalState =
 
 // Gates abstraites RMS — portables entre runtimes
 export type GateType =
-  | "gate.session_start" | "gate.user_prompt" | "gate.pre_tool"
-  | "gate.post_tool" | "gate.stop" | "gate.subagent_stop";
+  | "session_start" | "user_prompt" | "pre_tool"
+  | "post_tool" | "stop" | "subagent_start" | "subagent_stop";
 
 // Actions agent évaluées par PolicyDecision
 export type AgentAction =
@@ -95,15 +108,15 @@ export type EvidenceKind =
 
 ```typescript
 export interface MachineSnapshot {
-  macroState: Phase;
-  microState: SubPhase | null;    // null si IDLE / ERROR / ABORTED
+  phase: MacroCycle;
+  subPhase: SubPhase;
   mode: OperatingMode;
   riskClass: RiskClass;
   sessionId: string;
   activeItemRef: string | null;   // chemin vers le PBI actif
   activeCycleStart: string | null;
-  gatesPassed: string[];
-  gatesPending: string[];
+  gatesPassed: GateType[];
+  gatesPending: GateType[];
   errorState: "RECOVERABLE" | "ESCALATED" | null;
   suspendReason: string | null;
   lastTransition: StateTransition | null;
@@ -151,7 +164,7 @@ export interface TransitionEvent {
 
 export interface TransitionRequest {
   event: TransitionEvent;
-  targetPhase?: Phase;
+  targetPhase?: MacroCycle;
   targetSubPhase?: SubPhase;
   reason?: string;
 }
@@ -174,8 +187,8 @@ export interface GuardResult {
 export interface StateTransition {
   ts: string;
   session: string;
-  from: string;         // "PHASE.SubPhase" ou "IDLE"
-  to: string;
+  from: { phase: MacroCycle; subPhase: SubPhase };
+  to: { phase: MacroCycle; subPhase: SubPhase };
   event: TransitionEventType;
   guards: Record<string, boolean>;
   mode: OperatingMode;
@@ -216,7 +229,7 @@ export interface PolicyRule {
   action: AgentAction;
   decision: "allow" | "block" | "require_evidence" | "require_human";
   condition?: string;
-  gates?: string[];
+  gates?: GateType[];
 }
 
 export interface PolicySet {
@@ -242,7 +255,7 @@ export interface PolicyDecision {
 }
 ```
 
-### 2.5 Evidence Set
+### 2.5 Evidence Set logique
 
 ```typescript
 export interface EvidenceItem {
@@ -268,7 +281,19 @@ export interface EvidenceSet {
 }
 ```
 
+L'Evidence Set est une section logique du fichier `.planning/run-set.json`. Le contrat
+PFV4 n'autorise pas de fichier physique séparé pour ce set.
+
 ### 2.6 Les 8 Sets canoniques RMS
+
+Les Sets RMS sont des sections logiques stockées dans les trois fichiers canoniques :
+
+- `.planning/state.yaml` : snapshot machine, Project Set, Intent Set, Runtime Capability Set,
+  Runtime Binding Set, Policy Set et Route Set.
+- `.planning/current-risk.yaml` : classification de risque courante et justification.
+- `.planning/run-set.json` : Run Set, Evidence Set logique, événements et transitions du run.
+
+Ils ne sont jamais matérialisés comme fichiers séparés.
 
 ```typescript
 // Set 1 — Vérité stable du projet (vision, contraintes, politiques)
@@ -315,7 +340,8 @@ export interface RuntimeCapabilitySet {
 // Set 4 — Traduction gates RMS → primitives runtime
 export interface RuntimeBinding {
   primitive: "hook" | "skill" | "subagent" | "mcp" | "noop";
-  event?: string;
+  /** Label runtime externe, ex. pre_tool_use ou user_prompt_submit. Jamais un GateType canonique. */
+  adapterEvent?: string;
   canBlock?: boolean;
   format?: string;
   transport?: string[];
@@ -324,7 +350,7 @@ export interface RuntimeBinding {
 
 export interface RuntimeBindingSet {
   runtimeId: string;
-  bindings: Record<string, RuntimeBinding>;
+  bindings: Record<GateType, RuntimeBinding>;
 }
 
 // Set 5 — Règles de politique (voir PolicySet §2.4)
@@ -333,7 +359,7 @@ export interface RouteSet {
   runId: string;
   chosenMode: OperatingMode;
   chosenRuntimeId: string;
-  chosenPipeline: Phase[];
+  chosenPipeline: MacroCycle[];
   activatedGates: GateType[];
   authorizedSkills: string[];
   requiredSkills: string[];
@@ -347,7 +373,7 @@ export interface RouteSet {
 // Set 7 — État vivant de l'exécution
 export interface RunSet {
   runId: string;
-  currentPhase: Phase;
+  currentPhase: MacroCycle;
   openTasks: string[];
   completedTasks: string[];
   attempts: number;
@@ -374,9 +400,10 @@ export interface MachineConfig {
   projectRoot: string;
   sessionId: string;
   runtimeId: string;
-  initialRiskClass?: RiskClass;   // défaut: "F"
+  initialRiskClass?: RiskClass;   // défaut: "L"
   initialMode?: OperatingMode;    // défaut: "auto"
-  initialPhase?: Phase;           // défaut: "IDLE"
+  initialPhase?: MacroCycle;           // défaut: "discovery"
+  initialSubPhase?: SubPhase;     // défaut: "Observer"
 }
 
 export interface HarnessMachine {
@@ -384,7 +411,7 @@ export interface HarnessMachine {
   readonly snapshot: MachineSnapshot;
 }
 
-/** Crée la machine. Si un état persisté existe dans .planning/, le restaure. */
+/** Crée la machine. Si .planning/state.yaml existe, le restaure. */
 export declare function createHarnessMachine(config: MachineConfig): HarnessMachine;
 
 /**
@@ -401,11 +428,11 @@ export declare function transition(
 export declare function getSnapshot(machine: HarnessMachine): MachineSnapshot;
 
 /** Vérifie si une transition vers la phase cible est possible sans l'effectuer. */
-export declare function canTransition(machine: HarnessMachine, target: Phase): boolean;
+export declare function canTransition(machine: HarnessMachine, target: MacroCycle): boolean;
 
 /**
  * Vérifie si une sous-étape peut être skippée.
- * T → tout sauf Executer ; F → Observer optionnel ; M/É/C → aucun skip.
+ * T → tout sauf Execute ; L → Observer optionnel ; M/H/C → aucun skip.
  */
 export declare function canSkipSubPhase(
   machine: HarnessMachine,
@@ -430,7 +457,7 @@ export declare function getTerritoryPermissions(
 
 ## 4. Module `risk-classifier`
 
-Classifie un changeset en T/F/M/É/C, gère les promotions de classe, retourne la politique applicable.
+Classifie un changeset en T/L/M/H/C, gère les promotions de classe, retourne la politique applicable.
 
 ```typescript
 export interface Changeset {
@@ -470,7 +497,7 @@ export interface PromotionResult {
 export interface RiskPolicy {
   riskClass: RiskClass;
   bypassAllowed: boolean;
-  autoDecisionAllowed: boolean;
+  autoAllowed: boolean;
   humanValidationRequired: boolean;
   skipAllowedSubPhases: SubPhase[];
   adrRequired: boolean;
@@ -484,15 +511,15 @@ export interface RiskPolicy {
 
 /**
  * Classifie un changeset via un arbre de décision déterministe.
- * Règles clés : données santé → C minimum ; auth/paiements → É minimum ;
- * API publique / schéma DB → É ; PII → É ; fonctionnalité isolée → F ; cosmétique → T.
+ * Règles clés : données santé → C minimum ; auth/paiements → H minimum ;
+ * API publique / schéma DB → H ; PII → H ; fonctionnalité isolée → L ; cosmétique → T.
  * En cas d'ambiguïté, retourne la classe la plus haute (fail-safe).
  */
 export declare function classifyRisk(changeset: Changeset): RiskClassification;
 
 /**
  * Promeut la classe de risque d'un run en cours.
- * Déclenche CYCLE_SUSPEND automatique si promotion vers É/C.
+ * Déclenche CYCLE_SUSPEND automatique si promotion vers H/C.
  */
 export declare function promoteRisk(
   current: RiskClass,
@@ -531,10 +558,10 @@ export interface GateDefinition {
 /**
  * Évalue une gate RMS dans le contexte courant.
  * Consulte le PolicySet et la RiskClassification.
- * Toute évaluation est tracée dans logs/ (append).
+ * Toute évaluation est tracée dans .planning/run-set.json (append logique).
  */
 export declare function evaluateGate(
-  gate: GateType,
+  gateType: GateType,
   context: RunContext,
   event: GateEvent
 ): GateResult;
@@ -553,7 +580,7 @@ export declare function evaluatePolicy(
  * Enregistre une gate custom.
  * Lance une erreur si une gate du même type est déjà enregistrée (pas de silent override).
  */
-export declare function registerGate(gate: GateDefinition): void;
+export declare function registerGate(gateDefinition: GateDefinition): void;
 
 /** Retourne les gates enregistrées, filtrées optionnellement par runtimeId. */
 export declare function listGates(runtimeId?: string): GateDefinition[];
@@ -570,11 +597,11 @@ export declare function isEvidenceSufficient(
 
 /**
  * Évalue les phase-gates entre deux cycles consécutifs.
- * Ex: BUILD→VALIDATION = dod_satisfied + critical_path_clear + no_open_critical_risk.
+ * Ex: build/Verify → validation/Observer = dod_satisfied + critical_path_clear + no_open_critical_risk.
  */
 export declare function evaluatePhaseGate(
-  fromPhase: Phase,
-  toPhase: Phase,
+  fromPhase: MacroCycle,
+  toPhase: MacroCycle,
   context: RunContext
 ): { passed: boolean; guards: GuardResult[]; blockedBy?: string };
 ```
@@ -583,36 +610,36 @@ export declare function evaluatePhaseGate(
 
 ## 6. Module `planning`
 
-Abstraction filesystem pour `.planning/` — état courant, 8 sets RMS, Evidence Set.
+Abstraction filesystem pour `.planning/` — trois fichiers canoniques et sections RMS logiques.
 
 ```typescript
 export interface PlanningState {
   version: "1";
   updatedAt: string;
   sessionId: string;
-  macroState: Phase;
-  microState: SubPhase | null;
+  phase: MacroCycle;
+  subPhase: SubPhase;
   mode: OperatingMode;
   riskClass: RiskClass;
   activeItemRef: string | null;
   activeCycleStart: string | null;
-  gatesPassed: string[];
-  gatesPending: string[];
+  gatesPassed: GateType[];
+  gatesPending: GateType[];
   lastTransition: StateTransition | null;
   errorState: "RECOVERABLE" | "ESCALATED" | null;
   suspendReason: string | null;
 }
 
 export interface InitOptions {
-  riskClass?: RiskClass;     // défaut: "F"
+  riskClass?: RiskClass;     // défaut: "L"
   mode?: OperatingMode;      // défaut: "auto"
   overwrite?: boolean;       // défaut: false
   createDocs?: boolean;      // défaut: true
 }
 
 /**
- * Lit l'état depuis .planning/agent/current-state.yaml.
- * Retourne un état IDLE synthétique si le fichier est absent.
+ * Lit l'état depuis .planning/state.yaml.
+ * Retourne un état discovery/Observer synthétique si le fichier est absent.
  */
 export declare function readState(
   projectRoot: string,
@@ -620,18 +647,19 @@ export declare function readState(
 ): PlanningState;
 
 /**
- * Écrit l'état dans .planning/agent/current-state.yaml (write atomique).
+ * Écrit l'état dans .planning/state.yaml (write atomique).
  * À appeler via state-machine.transition() — pas directement sauf HARNESS_SYNC.
  */
 export declare function writeState(projectRoot: string, state: PlanningState): void;
 
 /**
  * Initialise la structure .planning/ pour un nouveau projet.
- * Crée agent/, logs/, registry/, state/, metrics/ + boundaries.yaml par défaut.
+ * Crée uniquement les fichiers canoniques state.yaml, current-risk.yaml et run-set.json,
+ * plus docs/ si demandé.
  */
 export declare function initPlanning(projectRoot: string, options?: InitOptions): void;
 
-/** Lit l'Evidence Set du run courant. Retourne un set vide si absent (jamais null). */
+/** Lit la section Evidence Set logique de .planning/run-set.json. Retourne un set vide si absent. */
 export declare function readEvidence(projectRoot: string, runId?: string): EvidenceSet;
 
 /** Ajoute un EvidenceItem et recalcule sufficientForDoneVerified. */
@@ -641,7 +669,7 @@ export declare function addEvidence(
   runId?: string
 ): EvidenceSet;
 
-/** Lit un des 8 sets RMS depuis le filesystem (.rms/state/ ou .rms/runs/<runId>/). */
+/** Lit un Set RMS logique depuis les trois fichiers canoniques .planning/*. */
 export declare function readRmsSet<T>(
   projectRoot: string,
   setName:
@@ -668,7 +696,8 @@ export declare function validatePlanningStructure(
 
 ## 7. Module `logging`
 
-JSONL append-only — invariant : aucune entrée n'est modifiée ni supprimée.
+Journal logique append-only dans `.planning/run-set.json` — invariant : aucune entrée
+n'est modifiée ni supprimée.
 
 ```typescript
 export interface HarnessEvent {
@@ -677,8 +706,8 @@ export interface HarnessEvent {
   sessionId: string;
   runId?: string;
   type: TransitionEventType | GateType | string;
-  phase: Phase;
-  subPhase: SubPhase | null;
+  phase: MacroCycle;
+  subPhase: SubPhase;
   riskClass: RiskClass;
   mode: OperatingMode;
   triggeredBy: "agent" | "human" | "ci" | "hook" | "system";
@@ -690,7 +719,7 @@ export interface EventFilter {
   sessionId?: string;
   runId?: string;
   types?: string[];
-  phases?: Phase[];
+  phases?: MacroCycle[];
   riskClasses?: RiskClass[];
   fromTs?: string;
   toTs?: string;
@@ -712,28 +741,28 @@ export interface StateMachineMetrics {
   computedAt: string;
 }
 
-/** Ajoute un événement dans logs/events.jsonl. Jamais bloquant — retry 3× puis stderr. */
+/** Ajoute un événement dans la section events de .planning/run-set.json. */
 export declare function appendEvent(projectRoot: string, event: HarnessEvent): void;
 
-/** Ajoute une transition dans logs/state-transitions.jsonl. */
+/** Ajoute une transition dans la section transitions de .planning/run-set.json. */
 export declare function appendTransition(
   projectRoot: string,
   transition: StateTransition
 ): void;
 
-/** Requête les événements passés. Scan séquentiel JSONL — performant < 10 000 lignes. */
+/** Requête les événements passés. Scan séquentiel de la section events. */
 export declare function queryEvents(
   projectRoot: string,
   filter: EventFilter
 ): HarnessEvent[];
 
-/** Requête les transitions passées depuis state-transitions.jsonl. */
+/** Requête les transitions passées depuis .planning/run-set.json. */
 export declare function queryTransitions(
   projectRoot: string,
   filter: Pick<EventFilter, "sessionId" | "runId" | "fromTs" | "toTs" | "limit" | "offset">
 ): StateTransition[];
 
-/** Calcule les métriques de santé de la machine à états depuis les logs. */
+/** Calcule les métriques de santé de la machine à états depuis .planning/run-set.json. */
 export declare function computeStateMachineMetrics(
   projectRoot: string,
   options?: { windowDays?: number }
@@ -789,7 +818,7 @@ export interface RuntimeAdapter {
    * Traduit une GateDefinition core en hook natif du runtime.
    * Retourne null si la gate n'est pas supportée (no-op explicite, pas silencieux).
    */
-  formatHookConfig(gate: GateDefinition): HookConfig | null;
+  formatHookConfig(gateDefinition: GateDefinition): HookConfig | null;
 
   /** Chemin absolu où installer une skill pour ce runtime. */
   getSkillPath(skillName: string): string;
@@ -827,7 +856,7 @@ export class InvalidTransitionError extends HarnessError {
   readonly requestedEvent: TransitionEventType;
   constructor(guard: string, snapshot: MachineSnapshot, event: TransitionEventType) {
     super(
-      `Transition bloquée par "${guard}" depuis ${snapshot.macroState}.${snapshot.microState ?? "–"} sur ${event}`,
+      `Transition bloquée par "${guard}" depuis ${snapshot.phase}.${snapshot.subPhase} sur ${event}`,
       "INVALID_TRANSITION",
       { guard, event }
     );
@@ -907,9 +936,9 @@ export class RuntimeNotSupportedError extends HarnessError {
 /** Tentative d'écriture hors territoire autorisé — invariant absolu de la matrice §5.2. */
 export class TerritoryViolationError extends HarnessError {
   readonly territory: string;
-  readonly currentPhase: Phase;
+  readonly currentPhase: MacroCycle;
   readonly currentSubPhase: SubPhase | null;
-  constructor(territory: string, phase: Phase, subPhase: SubPhase | null) {
+  constructor(territory: string, phase: MacroCycle, subPhase: SubPhase | null) {
     super(
       `Écriture interdite dans "${territory}" depuis ${phase}.${subPhase ?? "–"}`,
       "TERRITORY_VIOLATION",
@@ -933,7 +962,7 @@ export class TerritoryViolationError extends HarnessError {
 // ─── Types ───────────────────────────────────────────────────────────────────
 export type {
   // Énumérations
-  Phase, SubPhase, RiskClass, OperatingMode, FinalState,
+  MacroCycle, SubPhase, RiskClass, OperatingMode, FinalState,
   GateType, AgentAction, EvidenceKind,
   // Machine
   MachineSnapshot, MachineConfig, HarnessMachine,
@@ -965,7 +994,8 @@ export {
 } from "./state-machine";
 
 export {
-  classifyRisk, promoteRisk, getRiskPolicy, canDemoteRisk,
+  RISK_CLASS_RANK,
+  classifyRisk, promoteRisk, getRiskPolicy, canDemoteRisk, compareRiskClass,
 } from "./risk-classifier";
 
 export {
@@ -994,8 +1024,8 @@ export {
 // ─── Internals (NON exportés) ────────────────────────────────────────────────
 // guards/      — fonctions de garde individuelles (dor_satisfied, bypass_allowed…)
 // schema/      — schémas Zod/Valibot pour validation YAML/JSON
-// utils/       — helpers filesystem, atomic write, JSONL parser
-// constants/   — chemins par défaut (.planning/agent/current-state.yaml…)
+// utils/       — helpers filesystem, atomic write, parsers YAML/JSON
+// constants/   — chemins par défaut (.planning/state.yaml, current-risk.yaml, run-set.json)
 //               les adapters utilisent getSkillPath() / getInstructionsPath()
 ```
 

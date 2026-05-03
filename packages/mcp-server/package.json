@@ -1,0 +1,25 @@
+{
+  "name": "@harness/mcp-server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "harness-mcp-server": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --sourcemap --clean --external @harness/core && tsc -p tsconfig.json --emitDeclarationOnly --declaration --outDir dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --root ../.. ../../packages/mcp-server/test/index.test.ts"
+  },
+  "dependencies": {
+    "@harness/core": "workspace:*"
+  }
+}

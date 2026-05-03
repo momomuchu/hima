@@ -13,15 +13,15 @@ Tableau de référence : tous les subagents du harness, MVP et post-MVP.
 
 | Nom | Mission (une ligne) | Cycle + déclencheur | Classe min | Evidence produite | Claude | Codex | Hermes |
 |---|---|---|---|---|---|---|---|
-| `reviewer` | Revue de code antagoniste contre les standards qualité | Build.Vérifier — à chaque incrément M+ | M | `review-report.md` dans Evidence Set | Markdown | TOML | delegate_task |
-| `threat-modeler` | Analyse de menaces STRIDE sur les flux nouveaux | Conception — si classe É ou C | É | `threat-model.md` dans Evidence Set | Markdown | TOML | delegate_task |
-| `test-writer` | Rédige les tests TDD RED, aveugle à l'implémentation | Build.Concevoir — avant tout code B | F | `tests-red-evidence.md` + fichiers tests | Markdown | TOML | delegate_task |
-| `evidence-collector` | Collecte et structure l'Evidence Set avant stop gate | gate.stop — avant tout DONE_VERIFIED | T | `evidence-set.json` complet | Markdown | TOML | delegate_task |
-| `security-auditor` | Audit OWASP ASVS + scan SAST/SCA étendu | Validation — classe É/C | É | `security-audit-report.md` | Markdown | TOML | delegate_task |
-| `accessibility-checker` | Vérifie WCAG 2.2 AA sur les parcours UI critiques | Validation — tout changement UI M+ | M | `a11y-report.md` | Markdown | TOML | delegate_task |
-| `perf-profiler` | Mesure latence p99/taux d'erreur contre SLO définis | Validation — classe M+ avec SLO | M | `perf-report.md` + résultats k6 | Markdown | TOML | delegate_task |
-| `doc-generator` | Génère/met à jour README, ADR, CHANGELOG à partir des diffs | Build.Capitaliser — incrément user-facing | F | `doc-update-report.md` | Markdown | TOML | delegate_task |
-| `retro-facilitator` | Anime la rétrospective de cycle, produit les action items | Apprentissage — fin de chaque cycle M+ | M | `retro-report.md` | Markdown | TOML | delegate_task |
+| `reviewer` | Revue de code antagoniste contre les standards qualité | `phase=build`, `sub_phase=Verify` — à chaque incrément M+ | M | section `evidence.subagents.reviewer` | Markdown | TOML | delegate_task |
+| `threat-modeler` | Analyse de menaces STRIDE sur les flux nouveaux | `phase=conception`, `sub_phase=Design` — si classe H ou C | H | section `evidence.subagents.threat_modeler` | Markdown | TOML | delegate_task |
+| `test-writer` | Rédige les tests TDD RED, aveugle à l'implémentation | `phase=build`, `sub_phase=Design` — avant tout code B | L | section `evidence.tests.red_phase` + fichiers tests | Markdown | TOML | delegate_task |
+| `evidence-collector` | Collecte et structure l'Evidence Set avant stop gate | `gate=stop` — avant tout DONE_VERIFIED | T | section Evidence Set de `.planning/run-set.json` | Markdown | TOML | delegate_task |
+| `security-auditor` | Audit OWASP ASVS + scan SAST/SCA étendu | `phase=validation` — classe H/C | H | section `evidence.subagents.security_auditor` | Markdown | TOML | delegate_task |
+| `accessibility-checker` | Vérifie WCAG 2.2 AA sur les parcours UI critiques | `phase=validation` — tout changement UI M+ | M | section `evidence.subagents.accessibility_checker` | Markdown | TOML | delegate_task |
+| `perf-profiler` | Mesure latence p99/taux d'erreur contre SLO définis | `phase=validation` — classe M+ avec SLO | M | section `evidence.subagents.perf_profiler` + résultats k6 | Markdown | TOML | delegate_task |
+| `doc-generator` | Génère/met à jour README, ADR, CHANGELOG à partir des diffs | `phase=build`, `sub_phase=Capitalize` — incrément user-facing | L | section `evidence.subagents.doc_generator` | Markdown | TOML | delegate_task |
+| `retro-facilitator` | Anime la rétrospective de cycle, produit les action items | `phase=learning` — fin de chaque cycle M+ | M | section `evidence.subagents.retro` | Markdown | TOML | delegate_task |
 
 ---
 
@@ -39,7 +39,7 @@ Tableau de référence : tous les subagents du harness, MVP et post-MVP.
     "diff": "<git diff ou contenu des fichiers modifiés>",
     "risk_class": "M",
     "acceptance_criteria": ["Given...", "When...", "Then..."],
-    "threat_model_ref": ".planning/<feature>/threat-model.md",
+    "threat_model_ref": ".planning/run-set.json#evidence.conception.threat_model",
     "checklist": "build-review-checklist"
   }
 }
@@ -59,10 +59,10 @@ Tableau de référence : tous les subagents du harness, MVP et post-MVP.
 ```
 
 **Contribution à l'Evidence Set** :
-- Fichier `review-report.md` écrit dans `.rms/runs/<run-id>/evidence/`
-- Champ `review` de `evidence-set.json` alimenté avec le verdict et la liste des objections
+- Résultat retourné au parent puis persisté dans `.planning/run-set.json`
+- Section `evidence.subagents.reviewer` alimentée avec le verdict et la liste des objections
 
-**Quand spawner** : étape Build.Vérifier (sous-cycle étape 5), obligatoire pour M/É/C. Pour T/F : optionnel mais recommandé.
+**Quand spawner** : `phase=build`, `sub_phase=Verify`, obligatoire pour M/H/C. Pour T/L : optionnel mais recommandé.
 
 **Fichier de définition** : `artifacts/subagents/reviewer.md` (voir §4)
 
@@ -77,9 +77,9 @@ Tableau de référence : tous les subagents du harness, MVP et post-MVP.
 {
   "type": "threat-modeler",
   "input": {
-    "design_doc": ".planning/<feature>/design-doc.md",
+    "design_doc": ".planning/run-set.json#evidence.conception.design_doc",
     "new_data_flows": ["flux auth", "flux paiement"],
-    "risk_class": "É",
+    "risk_class": "H",
     "existing_threat_model_ref": "docs/07-architecture/threat-model.md"
   }
 }
@@ -106,10 +106,10 @@ Tableau de référence : tous les subagents du harness, MVP et post-MVP.
 ```
 
 **Contribution à l'Evidence Set** :
-- Fichier `threat-model.md` écrit dans `.rms/runs/<run-id>/evidence/`
-- Champ `security.threat_model` de `evidence-set.json` alimenté
+- Résultat retourné au parent puis persisté dans `.planning/run-set.json`
+- Section `evidence.security.threat_model` alimentée
 
-**Quand spawner** : cycle Conception, sous-cycle étape 3 (Concevoir), obligatoire pour É et C. Jamais pour T/F/M.
+**Quand spawner** : cycle Conception, sous-cycle étape 3 (Design), obligatoire pour H et C. Jamais pour T/L/M.
 
 **Fichier de définition** : `artifacts/subagents/threat-modeler.md`
 
@@ -153,11 +153,11 @@ Tableau de référence : tous les subagents du harness, MVP et post-MVP.
 ```
 
 **Contribution à l'Evidence Set** :
-- Fichier `tests-red-evidence.md` dans `.rms/runs/<run-id>/evidence/`
+- Résultat retourné au parent puis persisté dans `.planning/run-set.json`
 - Les fichiers de test sont écrits dans le repo cible
-- Champ `tests.red_phase` de `evidence-set.json` alimenté
+- Section `evidence.tests.red_phase` alimentée
 
-**Quand spawner** : Build.Concevoir (étape 3), avant tout code B. Obligatoire pour M/É/C en mode TDD. Déclenché par le harness avant d'autoriser `gate.pre_tool` sur les fichiers de production.
+**Quand spawner** : `phase=build`, `sub_phase=Design`, avant tout code B. Obligatoire pour M/H/C en mode TDD. Déclenché par le harness avant d'autoriser `pre_tool` sur les fichiers de production.
 
 **Fichier de définition** : `artifacts/subagents/test-writer.md`
 
@@ -165,7 +165,7 @@ Tableau de référence : tous les subagents du harness, MVP et post-MVP.
 
 ### 2.4 `evidence-collector`
 
-**Mission** : parcourir l'état courant du run (Run Set), collecter toutes les preuves disponibles (résultats CI, rapports subagents, fichiers modifiés, décisions de hooks), assembler un `evidence-set.json` complet et évaluer si le niveau d'evidence est suffisant pour autoriser `DONE_VERIFIED`. Si insuffisant, lister explicitement les gaps.
+**Mission** : parcourir l'état courant du run (Run Set), collecter toutes les preuves disponibles (résultats CI, rapports subagents, fichiers modifiés, décisions de hooks), assembler la section Evidence Set de `.planning/run-set.json` et évaluer si le niveau d'evidence est suffisant pour autoriser `DONE_VERIFIED`. Si insuffisant, lister explicitement les gaps.
 
 **Input** :
 ```json
@@ -173,10 +173,10 @@ Tableau de référence : tous les subagents du harness, MVP et post-MVP.
   "type": "evidence-collector",
   "input": {
     "run_id": "<run-id>",
-    "run_set_path": ".rms/runs/<run-id>/run-set.json",
-    "policy_set_path": ".rms/registry/policies.yaml",
-    "risk_class": "É",
-    "events_log": ".rms/runs/<run-id>/events.jsonl"
+    "run_set_path": ".planning/run-set.json",
+    "policy_set_path": ".planning/state.yaml#policy_set",
+    "risk_class": "H",
+    "events_ref": ".planning/run-set.json#events"
   }
 }
 ```
@@ -203,10 +203,10 @@ Tableau de référence : tous les subagents du harness, MVP et post-MVP.
 ```
 
 **Contribution à l'Evidence Set** :
-- Produit directement `evidence-set.json` dans `.rms/runs/<run-id>/`
-- C'est le seul subagent qui écrit le fichier `evidence-set.json` — les autres subagents écrivent leurs rapports dans `evidence/`, `evidence-collector` les consolide
+- Produit la mise à jour de la section `evidence` dans `.planning/run-set.json`
+- C'est le seul subagent dont le résultat peut remplacer l'Evidence Set logique complet ; les autres subagents retournent des rapports structurés que le parent consolide
 
-**Quand spawner** : gate.stop, avant toute décision `DONE_VERIFIED`. Obligatoire pour toutes les classes. Bloquant : si `blocking_gaps` non vide, le final state est `DONE_WITH_GAPS` ou `BLOCKED_NEEDS_USER`.
+**Quand spawner** : stop, avant toute décision `DONE_VERIFIED`. Obligatoire pour toutes les classes. Bloquant : si `blocking_gaps` non vide, le final state est `DONE_WITH_GAPS` ou `BLOCKED_NEEDS_USER`.
 
 **Fichier de définition** : `artifacts/subagents/evidence-collector.md`
 
@@ -214,14 +214,14 @@ Tableau de référence : tous les subagents du harness, MVP et post-MVP.
 
 ## 3. Subagents étendus (post-MVP)
 
-Ces subagents ne font pas partie du MVP minimal. Ils sont planifiés pour l'Étape 3 (extension aux classes É/C) ou au-delà.
+Ces subagents ne font pas partie du MVP minimal. Ils sont planifiés pour l'Étape 3 (extension aux classes H/C) ou au-delà.
 
 ### 3.1 `security-auditor`
 
-**Mission** : audit de sécurité complet sur un incrément de classe É/C. Vérification des contrôles OWASP ASVS pertinents, lancement d'un scan DAST simulé sur les endpoints exposés, vérification des CVE dans les dépendances introduites, production d'un rapport structuré par chapitre ASVS.
+**Mission** : audit de sécurité complet sur un incrément de classe H/C. Vérification des contrôles OWASP ASVS pertinents, lancement d'un scan DAST simulé sur les endpoints exposés, vérification des CVE dans les dépendances introduites, production d'un rapport structuré par chapitre ASVS.
 
-**Déclencheur** : Validation, incrément É/C.
-**Evidence** : `security-audit-report.md` + tableau ASVS coverage dans Evidence Set.
+**Déclencheur** : Validation, incrément H/C.
+**Evidence** : section `evidence.subagents.security_auditor` + tableau ASVS coverage dans l'Evidence Set logique.
 **Dépend de** : résultats SAST/SCA CI déjà disponibles, threat model produit par `threat-modeler`.
 
 ---
@@ -231,7 +231,7 @@ Ces subagents ne font pas partie du MVP minimal. Ils sont planifiés pour l'Éta
 **Mission** : vérification WCAG 2.2 AA sur les parcours UI critiques. Analyse de l'arbre d'accessibilité (accessibility tree), simulation de navigation clavier, vérification des contrastes, contrôle des attributs ARIA. Produit un rapport de conformité avec les critères A/AA violés et les corrections recommandées.
 
 **Déclencheur** : Validation, tout changement UI de classe M+.
-**Evidence** : `a11y-report.md` dans Evidence Set, zéro violation A/AA bloquante.
+**Evidence** : section `evidence.subagents.accessibility_checker`, zéro violation A/AA bloquante.
 **Note plateforme** : sur Expo/mobile, utilise l'accessibility tree natif — jamais de screenshots.
 
 ---
@@ -241,7 +241,7 @@ Ces subagents ne font pas partie du MVP minimal. Ils sont planifiés pour l'Éta
 **Mission** : mesurer les métriques de performance (latence p50/p95/p99, throughput, taux d'erreur) sur l'environnement de staging, comparer aux SLO définis en Conception, identifier les régressions > 10 % sans justification.
 
 **Déclencheur** : Validation, incrément M+ avec SLO définis.
-**Evidence** : `perf-report.md` + résultats k6/Gatling dans Evidence Set.
+**Evidence** : section `evidence.subagents.perf_profiler` + résultats k6/Gatling.
 **Input requis** : SLO documentés en Conception (latence p99 cible, taux d'erreur max, throughput nominal).
 
 ---
@@ -250,8 +250,8 @@ Ces subagents ne font pas partie du MVP minimal. Ils sont planifiés pour l'Éta
 
 **Mission** : à partir du diff Git et des critères d'acceptation, générer ou mettre à jour les artefacts de documentation : README (si comportement change), ADR (si nouvelle décision d'architecture), CHANGELOG (si changement user-facing). Ne pas créer de documentation si aucun changement observable ne le justifie.
 
-**Déclencheur** : Build.Capitaliser, incrément user-facing.
-**Evidence** : `doc-update-report.md` listant les fichiers créés/modifiés.
+**Déclencheur** : `phase=build`, `sub_phase=Capitalize`, incrément user-facing.
+**Evidence** : section `evidence.subagents.doc_generator` listant les fichiers créés/modifiés.
 **Règle** : ne jamais créer de doc pour des changements purement internes (refactoring S).
 
 ---
@@ -260,9 +260,9 @@ Ces subagents ne font pas partie du MVP minimal. Ils sont planifiés pour l'Éta
 
 **Mission** : animer la rétrospective de fin de cycle. Collecter les métriques du cycle (DORA, qualité, dette), identifier les patterns récurrents (défauts escaped, commits mixtes S+B, promotions de classe), formuler 3-5 action items concrets et mesurables pour le cycle suivant.
 
-**Déclencheur** : cycle Apprentissage, fin de chaque cycle M+.
-**Evidence** : `retro-report.md` dans `.planning/timeline/`.
-**Input** : `events.jsonl` du cycle, métriques DORA, registre dette, promotions de classe.
+**Déclencheur** : `phase=learning`, fin de chaque cycle M+.
+**Evidence** : section `evidence.subagents.retro` dans `.planning/run-set.json`.
+**Input** : section `events` du cycle, métriques DORA, registre dette, promotions de classe.
 
 ---
 
@@ -291,7 +291,7 @@ allowedTools:
   - Read
   - Grep
   - Glob
-  - Write(path:.rms/runs/**/evidence/*)
+  # Aucun Write direct dans .planning/ ; le parent harness persiste les résultats.
 ---
 
 # <Subagent Name>
@@ -302,10 +302,10 @@ allowedTools:
 
 ## Règles invariantes
 
-- Écrire les résultats UNIQUEMENT dans `.rms/runs/<run-id>/evidence/` — jamais en mémoire implicite.
+- Retourner les résultats au parent sous forme structurée ; le parent persiste dans `.planning/run-set.json`.
 - Ne jamais modifier de fichiers de production hors du périmètre de la mission.
-- Si le run_id n'est pas fourni en input, lire `.rms/state/active-run.json`.
-- Chaque output doit être un JSON structuré ou un fichier Markdown dans l'Evidence Set.
+- Si le run_id n'est pas fourni en input, lire `.planning/state.yaml`.
+- Chaque output doit être un JSON structuré intégrable dans l'Evidence Set logique.
 
 ## Input attendu
 
@@ -317,8 +317,8 @@ allowedTools:
 
 ## Contribution à l'Evidence Set
 
-- Fichier : `<nom-du-rapport>.md` dans `.rms/runs/<run-id>/evidence/`
-- Champ JSON : `evidence-set.json["<section>"]`
+- Section logique : `.planning/run-set.json#evidence.subagents.<subagent-name>`
+- Champ JSON : `evidence["<section>"]`
 ```
 
 **Exemple concret** (`artifacts/subagents/reviewer.md`) :
@@ -330,7 +330,7 @@ description: >
   Revue de code antagoniste. Lit un diff Git, applique la checklist de revue
   qualité (correctness, tests, sécurité STRIDE, observabilité, accessibilité,
   Tidy First), liste les objections numérotées, rend un verdict APPROVED ou
-  CHANGES_REQUIRED. Spawner à Build.Vérifier pour tout incrément M+.
+  CHANGES_REQUIRED. Spawner à phase=build, sub_phase=Verify pour tout incrément M+.
 model: claude-sonnet-4-6
 tools:
   - Read
@@ -370,10 +370,10 @@ instructions = """
 
 ## Règles invariantes
 
-- Écrire les résultats UNIQUEMENT dans .rms/runs/<run-id>/evidence/
+- Retourner les résultats au parent sous forme structurée pour persistance dans .planning/run-set.json
 - Ne jamais modifier de fichiers de production hors du périmètre.
 - Input JSON depuis stdin ou variable d'environnement HARNESS_INPUT.
-- Output JSON structuré vers stdout + fichier dans l'Evidence Set.
+- Output JSON structuré vers stdout + section dans l'Evidence Set logique.
 
 ## Input attendu
 
@@ -389,7 +389,7 @@ provider = "openai"
 name = "gpt-5.4"
 
 [sandbox]
-writable_roots = [".rms/runs"]
+writable_roots = []
 network = false
 
 [tools]
@@ -440,7 +440,7 @@ metadata:
 
 ## Règles
 
-- Output JSON dans `.rms/runs/<run-id>/evidence/`
+- Output JSON au parent pour persistance dans `.planning/run-set.json`
 - Lire run_id depuis l'environnement HARNESS_RUN_ID si non fourni.
 - Résultat final retourné comme texte structuré au parent via delegate_task.
 
@@ -453,33 +453,32 @@ metadata:
 
 **Règle fondamentale** (issue de `rms-runtime-sets-v1-draft.md`) :
 
-> Le résultat d'un subagent doit toujours remonter dans l'Evidence Set ou `events.jsonl`. Il ne doit jamais devenir une mémoire implicite invisible.
+> Le résultat d'un subagent doit toujours remonter dans l'Evidence Set logique ou la section `events` de `.planning/run-set.json`. Il ne doit jamais devenir une mémoire implicite invisible.
 
 ### 5.1 Circuit obligatoire
 
 ```
 subagent exécuté
-  → écrit son rapport dans .rms/runs/<run-id>/evidence/<rapport>.md
   → retourne JSON structuré au thread parent
-  → thread parent écrit une ligne dans events.jsonl :
+  → thread parent appende un événement dans .planning/run-set.json#events :
       { "ts": "...", "event": "subagent_completed", "type": "reviewer",
-        "verdict": "APPROVED", "evidence_path": "evidence/review-report.md" }
-  → evidence-collector consolide dans evidence-set.json
+        "verdict": "APPROVED", "evidence_ref": "evidence.subagents.reviewer" }
+  → evidence-collector consolide dans .planning/run-set.json#evidence
 ```
 
 ### 5.2 Interdits explicites
 
-- Un subagent ne doit **jamais** écrire directement dans `evidence-set.json` (sauf `evidence-collector`).
+- Un subagent ne doit **jamais** écrire directement dans `.planning/run-set.json` ; seul le parent harness persiste les sections canoniques.
 - Un subagent ne doit **jamais** modifier des fichiers de production hors de son périmètre déclaré.
 - Un subagent ne doit **jamais** spawner d'autres subagents (toutes les plateformes interdisent le nested spawn ou le limitent à depth 1 — respecter depth 0 en MVP).
-- Un résultat subagent non tracé dans `events.jsonl` est considéré invalide par le RMS.
+- Un résultat subagent non tracé dans `.planning/run-set.json#events` est considéré invalide par le RMS.
 
 ### 5.3 Traitement des échecs
 
 | État du subagent | Action du harness |
 |---|---|
-| Résultat structuré valide | Enregistrer dans Evidence Set, continuer |
-| Timeout (> seuil configuré) | Log dans events.jsonl, marquer gap dans evidence-set.json |
+| Résultat structuré valide | Enregistrer dans l'Evidence Set logique, continuer |
+| Timeout (> seuil configuré) | Log dans `.planning/run-set.json#events`, marquer gap dans `.planning/run-set.json#evidence` |
 | Erreur d'exécution | Log, incrémenter attempt counter, retry si < 3 |
 | 3 tentatives échouées | Final state → `BLOCKED_RUNTIME_MISSING` si plateforme absente, sinon `MAX_ATTEMPTS_REACHED` |
 | Verdict bloquant (ex: reviewer CHANGES_REQUIRED) | Suspendre le run, notifier le développeur, attendre correction |
@@ -488,7 +487,7 @@ subagent exécuté
 
 ## 6. Matrice Subagent × Classe de risque
 
-| Subagent | T | F | M | É | C |
+| Subagent | T | L | M | H | C |
 |---|:---:|:---:|:---:|:---:|:---:|
 | `reviewer` | — | ○ | **M** | **M** | **M** |
 | `threat-modeler` | — | — | — | **M** | **M** |
@@ -504,7 +503,7 @@ subagent exécuté
 
 **Règle de cumul** : quand un incrément contient des changements de classes différentes, c'est la **classe maximale** qui détermine la colonne applicable.
 
-**Règle bypass** : en mode bypass (classes T/F uniquement), seul `evidence-collector` reste mandatory. Les autres sont skipped. Le bypass est interdit pour É/C (décision D4 du checkpoint).
+**Règle bypass** : en mode bypass (classes T/L uniquement), seul `evidence-collector` reste mandatory. Les autres sont skipped. Le bypass est interdit pour H/C (décision D4 du checkpoint).
 
 ---
 
@@ -533,18 +532,18 @@ Cette isolation est garantie nativement par les 3 plateformes (Claude Code : con
 
 Pour éviter les conflits d'écriture en cas de subagents parallèles :
 
-- Chaque subagent écrit **uniquement** dans son répertoire dédié : `.rms/runs/<run-id>/evidence/<subagent-name>/`
+- Chaque subagent retourne un JSON structuré sans écriture `.planning/` directe
 - `evidence-collector` est **toujours séquentiel** (spawné en dernier, après tous les autres)
-- `events.jsonl` est append-only — les écritures concurrentes sont tolérées (chaque ligne est atomique)
+- Le parent harness sérialise les écritures vers `.planning/run-set.json`
 
 ### 7.4 Séquençage recommandé par cycle
 
-**Build.Concevoir** :
+**phase=build, sub_phase=Design** :
 ```
 spawn test-writer (séquentiel — doit finir avant le code)
 ```
 
-**Build.Vérifier** (M+) :
+**phase=build, sub_phase=Verify** (M+) :
 ```
 spawn reviewer        ─┐
 spawn security-auditor ─┤ parallèle (3 max)
@@ -553,7 +552,7 @@ spawn accessibility-checker (si UI) ─┘
 spawn evidence-collector (séquentiel)
 ```
 
-**Validation** (É/C) :
+**Validation** (H/C) :
 ```
 spawn security-auditor ─┐
 spawn perf-profiler     ─┤ parallèle
@@ -562,7 +561,7 @@ spawn accessibility-checker ─┘
 spawn evidence-collector
 ```
 
-**gate.stop** (toutes classes) :
+**stop** (toutes classes) :
 ```
 spawn evidence-collector (séquentiel — toujours en dernier)
 → évaluer final state
@@ -597,7 +596,19 @@ export type SubagentType =
   | 'doc-generator'
   | 'retro-facilitator';
 
-export type RiskClass = 'T' | 'F' | 'M' | 'É' | 'C';
+export type RiskClass = 'T' | 'L' | 'M' | 'H' | 'C';
+
+export const RISK_CLASS_RANK: Record<RiskClass, number> = {
+  T: 0,
+  L: 1,
+  M: 2,
+  H: 3,
+  C: 4,
+};
+
+export function riskAtLeast(current: RiskClass, minimum: RiskClass): boolean {
+  return RISK_CLASS_RANK[current] >= RISK_CLASS_RANK[minimum];
+}
 
 export type SubagentStatus =
   | 'PENDING'
@@ -644,7 +655,7 @@ export interface TestWriterInput {
 export interface EvidenceCollectorInput {
   runSetPath: string;
   policySetPath: string;
-  eventsLog: string;
+  eventsRef: string;
 }
 
 export interface SubagentResult {
@@ -653,8 +664,8 @@ export interface SubagentResult {
   status: SubagentStatus;
   /** Verdict structuré, dépend du type */
   output: ReviewerOutput | ThreatModelerOutput | TestWriterOutput | EvidenceCollectorOutput | Record<string, unknown>;
-  /** Chemin du fichier rapport dans l'Evidence Set */
-  evidencePath: string;
+  /** Référence logique dans la section evidence de .planning/run-set.json */
+  evidenceRef: string;
   /** Durée d'exécution en millisecondes */
   durationMs: number;
   /** Erreur éventuelle si status === 'FAILED' */
@@ -709,7 +720,7 @@ export interface EvidenceSet {
   lintTypecheck: 'green' | 'red' | 'skipped';
   sastSca: 'green' | 'red' | 'skipped';
   filesModified: string[];
-  hookDecisions: Array<{ gate: string; decision: 'allow' | 'deny'; ts: string }>;
+  hookDecisions: Array<{ gateType: string; decision: 'allow' | 'deny'; ts: string }>;
   subagentOutputs: Partial<Record<SubagentType, string>>;
   review?: { verdict: string; objectionsResolved: boolean };
   residualRisks: string[];
@@ -728,12 +739,12 @@ import type { SubagentType, SubagentInput, SubagentResult } from './types.js';
 /**
  * Spawne un subagent isolé et attend son résultat.
  *
- * Le résultat est toujours persisté dans l'Evidence Set avant d'être retourné.
+ * Le résultat est toujours persisté dans l'Evidence Set logique avant d'être retourné.
  * En cas d'échec (max 3 tentatives), lève une SubagentError avec le détail.
  *
  * @param type   - Type de subagent à spawner
  * @param input  - Input structuré, validé avant spawn
- * @returns      - Résultat du subagent avec chemin evidence et durée
+ * @returns      - Résultat du subagent avec référence evidence et durée
  */
 export async function spawnSubagent(
   type: SubagentType,
@@ -755,7 +766,7 @@ export async function spawnSubagentBatch(
  */
 export function getRequiredSubagents(
   riskClass: RiskClass,
-  cycle: 'build' | 'validation' | 'stop-gate'
+  cycle: 'build' | 'validation' | 'stop'
 ): {
   mandatory: SubagentType[];
   optional: SubagentType[];
@@ -768,13 +779,13 @@ export function getRequiredSubagents(
 ```typescript
 // Exemple d'utilisation dans packages/runtime/src/pre-tool-use.ts
 
-import { spawnSubagent, getRequiredSubagents } from '@harness/core/subagents';
+import { spawnSubagent, getRequiredSubagents, riskAtLeast } from '@harness/core/subagents';
 import { readRunState } from '@harness/core/planning';
 
 const state = await readRunState();
 
-// À Build.Concevoir — avant d'autoriser l'écriture de code B
-if (state.phase === 'build.concevoir' && state.riskClass >= 'M') {
+// À phase=build, sub_phase=Design — avant d'autoriser l'écriture de code B
+if (state.phase === 'build' && state.subPhase === 'Design' && riskAtLeast(state.riskClass, 'M')) {
   const result = await spawnSubagent('test-writer', {
     runId: state.runId,
     riskClass: state.riskClass,
@@ -791,14 +802,14 @@ if (state.phase === 'build.concevoir' && state.riskClass >= 'M') {
   }
 }
 
-// À gate.stop — toujours
+// À stop — toujours
 const evidenceResult = await spawnSubagent('evidence-collector', {
   runId: state.runId,
   riskClass: state.riskClass,
   payload: {
-    runSetPath: `.rms/runs/${state.runId}/run-set.json`,
-    policySetPath: '.rms/registry/policies.yaml',
-    eventsLog: `.rms/runs/${state.runId}/events.jsonl`,
+    runSetPath: '.planning/run-set.json',
+    policySetPath: '.planning/state.yaml#policy_set',
+    eventsRef: '.planning/run-set.json#events',
   },
 });
 
@@ -849,7 +860,7 @@ artifacts/
 | Max parallèle | Non documenté (MVP: 3) | 6 | 3 | MVP: 3 (plus restrictif) |
 | Max depth | 1 (pas de nested) | 1 | 1 (cap 3) | MVP: 0 nested spawn |
 | Retour résultat | Réponse finale au parent | Output final remonte | Résumé final synchrone | JSON structuré attendu |
-| Écriture evidence | `Write` tool sur `.rms/` | `write_file` sur `.rms/` | Tool writing Hermes | Path `.rms/runs/<id>/evidence/` |
+| Écriture evidence | Retour JSON au parent | Retour JSON au parent | Résumé final synchrone | Persistance parent dans `.planning/run-set.json#evidence` |
 
 ---
 

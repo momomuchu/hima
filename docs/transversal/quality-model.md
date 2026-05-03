@@ -35,7 +35,7 @@ Fondation normative : **ISO/IEC 25010:2023** (9 dimensions produit) + **ISO/IEC 
 Trois décisions structurantes de ce modèle :
 
 1. **La qualité est mesurable ou elle n'existe pas.** Toute exigence qualité sans métrique associée est une opinion, pas un contrat.
-2. **La profondeur qualité se module par classe de risque T/F/M/É/C**, pas par dogme. Appliquer ISO 25010 intégralement à un changement trivial est un anti-pattern aussi grave qu'ignorer la qualité sur un changement critique.
+2. **La profondeur qualité se module par classe de risque T/L/M/H/C**, pas par dogme. Appliquer ISO 25010 intégralement à un changement trivial est un anti-pattern aussi grave qu'ignorer la qualité sur un changement critique.
 3. **Les fitness functions automatisent la gouvernance qualité.** Ce qui peut être vérifié par la machine doit l'être. Le jugement humain est réservé au risque, à l'ambiguïté et aux décisions stratégiques.
 
 Résultat attendu : un système de développement solo + IA où la qualité n'est pas un audit de fin de cycle mais une propriété continue, mesurable, et auto-régulée.
@@ -48,14 +48,14 @@ Ce document s'applique à **tous les cycles** de la pipeline :
 
 | Cycle | Rôle dans le modèle qualité |
 |-------|----------------------------|
-| Discovery | Définit les exigences qualité métier (quelles dimensions ISO 25010 prioritaires pour ce projet) |
-| Cadrage | Formalise le quality model instance + les seuils + la DoR/DoD qualité |
-| Conception | Traduit les exigences qualité en contraintes d'architecture (fitness functions à créer) |
-| Build | Exécute les contrôles qualité continus (CI gates, fitness functions, tests) |
-| Validation | Vérifie que les critères qualité sont atteints sur le produit réel |
-| Release | Quality gate de sortie obligatoire avant promotion en production |
-| Run | Surveille la qualité en production (SLO, observabilité, dégradation continue) |
-| Apprentissage | Capitalise sur les écarts qualité pour améliorer le modèle (postmortem, rétrospective) |
+| discovery | Définit les exigences qualité métier (quelles dimensions ISO 25010 prioritaires pour ce projet) |
+| cadrage | Formalise le quality model instance + les seuils + la DoR/DoD qualité |
+| conception | Traduit les exigences qualité en contraintes d'architecture (fitness functions à créer) |
+| build | Exécute les contrôles qualité continus (CI gates, fitness functions, tests) |
+| validation | Vérifie que les critères qualité sont atteints sur le produit réel |
+| release | Quality gate de sortie obligatoire avant promotion en production |
+| run | Surveille la qualité en production (SLO, observabilité, dégradation continue) |
+| learning | Capitalise sur les écarts qualité pour améliorer le modèle (postmortem, rétrospective) |
 
 Ce document ne remplace pas les documents de cycle. Il est leur **référence qualité commune**. Chaque cycle y fait référence, ne le duplique pas.
 
@@ -73,13 +73,13 @@ Le modèle qualité poursuit **cinq objectifs** :
 
 **O1 — Référence commune** : fournir un langage qualité partagé entre le développeur et l'agent IA, ancré sur des standards ouverts (pas des opinions).
 
-**O2 — Prévention plutôt que détection** : déplacer les contrôles qualité vers l'amont (shift-left). Chaque dimension ISO 25010 doit avoir des vérifications actives dès la Conception, pas seulement en Validation.
+**O2 — Prévention plutôt que détection** : déplacer les contrôles qualité vers l'amont (shift-left). Chaque dimension ISO 25010 doit avoir des vérifications actives dès `conception`, pas seulement en `validation`.
 
-**O3 — Adaptabilité par risque** : modeler la profondeur qualité sur la classe de risque T/F/M/É/C. Ni sur-ingénierie sur les changements triviaux, ni sous-protection sur les changements critiques.
+**O3 — Adaptabilité par risque** : modeler la profondeur qualité sur la classe de risque T/L/M/H/C. Ni sur-ingénierie sur les changements triviaux, ni sous-protection sur les changements critiques.
 
-**O4 — Automatisation prioritaire** : tout contrôle qualité automatisable doit être automatisé dans le pipeline CI/CD sous forme de fitness function ou quality gate. Le coût de vérification manuelle répétée est éliminé.
+**O4 — Automatisation prioritaire** : tout contrôle qualité automatisable doit être automatisé dans le pipeline CI/CD sous forme de fitness function ou contrôle qualité automatisé. Le coût de vérification manuelle répétée est éliminé.
 
-**O5 — Amélioration continue** : le modèle lui-même est une cible d'amélioration. Chaque cycle Apprentissage peut proposer des ajustements aux seuils, aux dimensions prioritaires, ou aux fitness functions.
+**O5 — Amélioration continue** : le modèle lui-même est une cible d'amélioration. Chaque cycle `learning` peut proposer des ajustements aux seuils, aux dimensions prioritaires, ou aux fitness functions.
 
 ---
 
@@ -89,14 +89,14 @@ Le modèle qualité poursuit **cinq objectifs** :
 
 | Cycle | Entrée fournie |
 |-------|---------------|
-| Discovery | Contexte métier, profil utilisateur, secteur (détermine quelles dimensions ISO 25010 sont critiques), contraintes réglementaires initiales |
-| Cadrage | Exigences qualité formalisées (seuils cibles par dimension), classe de risque globale du projet, DoR/DoD qualité initiale, budget qualité |
-| Conception | Contraintes architecturales qualité (ex : latence cible, disponibilité SLO), liste des fitness functions à implémenter, threat model (sécurité), AIPD si applicable |
-| Build | Résultats des contrôles CI (SAST, SCA, coverage, lint, type-check), feedback continu des fitness functions, métriques de qualité de code |
-| Validation | Résultats des tests risk-based (fonctionnel, sécurité, performance, accessibilité, i18n), validation produit sur critères d'acceptation |
-| Release | Quality gate de release (synthèse de tous les contrôles), go/no-go basé sur les seuils définis en Cadrage |
-| Run | Métriques de qualité en production (SLO réels, error rate, latence p99, incidents), signaux de dégradation continue |
-| Apprentissage | Écarts qualité identifiés (pourquoi les seuils ont été manqués ou pourquoi ils étaient trop stricts), amélioration des fitness functions |
+| discovery | Contexte métier, profil utilisateur, secteur (détermine quelles dimensions ISO 25010 sont critiques), contraintes réglementaires initiales |
+| cadrage | Exigences qualité formalisées (seuils cibles par dimension), classe de risque globale du projet, DoR/DoD qualité initiale, budget qualité |
+| conception | Contraintes architecturales qualité (ex : latence cible, disponibilité SLO), liste des fitness functions à implémenter, threat model (sécurité), AIPD si applicable |
+| build | Résultats des contrôles CI (SAST, SCA, coverage, lint, type-check), feedback continu des fitness functions, métriques de qualité de code |
+| validation | Résultats des tests risk-based (fonctionnel, sécurité, performance, accessibilité, i18n), validation produit sur critères d'acceptation |
+| release | Quality gate de release (synthèse de tous les contrôles), go/no-go basé sur les seuils définis en `cadrage` |
+| run | Métriques de qualité en production (SLO réels, error rate, latence p99, incidents), signaux de dégradation continue |
+| learning | Écarts qualité identifiés (pourquoi les seuils ont été manqués ou pourquoi ils étaient trop stricts), amélioration des fitness functions |
 
 ### 4.2 Format d'exigence qualité standard
 
@@ -208,7 +208,7 @@ Complément : **ISO/IEC 25019:2023** couvre la **qualité en usage** (Quality-in
 - `resource-regression` : pas de régression > 10% sur CPU/mémoire entre builds
 - `llm-cost-cap` : coût LLM par requête ≤ seuil FinOps défini
 
-**Mapping cycles prioritaires :** Conception (budgets), Build (surveillance), Validation (tests charge É/C), Run (monitoring continu)
+**Mapping cycles prioritaires :** Conception (budgets), Build (surveillance), Validation (tests charge H/C), Run (monitoring continu)
 
 ---
 
@@ -253,7 +253,7 @@ Anciennement *Usability* (2011). Enrichie de 3 nouvelles sous-caractéristiques 
 - `i18n-no-hardcoded-strings` : 0 chaîne hardcodée (détection via pseudo-localisation en CI)
 - `keyboard-navigation-test` : tests de navigation clavier sur parcours critiques (Playwright)
 
-**Mapping cycles prioritaires :** Conception (design accessible), Build (axe-core CI), Validation (tests manuels WCAG É/C), Run (monitoring NPS)
+**Mapping cycles prioritaires :** Conception (design accessible), Build (axe-core CI), Validation (tests manuels WCAG H/C), Run (monitoring NPS)
 
 ---
 
@@ -271,11 +271,11 @@ Anciennement *Usability* (2011). Enrichie de 3 nouvelles sous-caractéristiques 
 **Fitness functions associées :**
 - `slo-availability` : disponibilité ≥ seuil SLO défini (Prometheus/Datadog)
 - `error-rate-threshold` : error rate production ≤ seuil (ex: < 0.1% sur endpoints critiques)
-- `chaos-engineering` : tests de résilience automatisés (Chaos Monkey / Toxiproxy) pour É/C
-- `rto-rpo-test` : test de restauration trimestriel avec mesure du temps réel (obligatoire É/C)
+- `chaos-engineering` : tests de résilience automatisés (Chaos Monkey / Toxiproxy) pour H/C
+- `rto-rpo-test` : test de restauration trimestriel avec mesure du temps réel (obligatoire H/C)
 - `flaky-test-detector` : 0 test flaky non résolu dans la suite principale
 
-**Mapping cycles prioritaires :** Conception (SLO définis), Build (tests résilience), Release (smoke tests), Run (monitoring SLO), Apprentissage (postmortem si incident)
+**Mapping cycles prioritaires :** `conception` (SLO définis), `build` (tests résilience), `release` (smoke tests), `run` (monitoring SLO), `learning` (postmortem si incident)
 
 ---
 
@@ -298,8 +298,8 @@ Anciennement *Usability* (2011). Enrichie de 3 nouvelles sous-caractéristiques 
 - `secrets-scan` : 0 secret détecté dans le code (gitleaks, TruffleHog)
 - `iac-scan` : 0 finding Critical/High sur IaC (tfsec, Checkov) si IaC touché
 - `container-scan` : 0 CVE Critical/High dans les images (Trivy, Grype)
-- `sbom-generated` : SBOM CycloneDX/SPDX généré et archivé à chaque build É/C
-- `dast-scan` : 0 finding High en DAST sur preprod (OWASP ZAP) pour É/C
+- `sbom-generated` : SBOM CycloneDX/SPDX généré et archivé à chaque build H/C
+- `dast-scan` : 0 finding High en DAST sur preprod (OWASP ZAP) pour H/C
 - `authz-boundary-test` : tests d'autorisation — aucun accès hors périmètre possible
 
 **SLA de remédiation :**
@@ -333,7 +333,7 @@ Anciennement *Usability* (2011). Enrichie de 3 nouvelles sous-caractéristiques 
 - `cognitive-complexity` : complexité cognitive ≤ 15 (Sonar cognitive complexity)
 - `dead-code` : 0 code mort non justifié (ts-prune, knip)
 
-**Mapping cycles prioritaires :** Conception (architecture), Build (continu), Apprentissage (remboursement dette)
+**Mapping cycles prioritaires :** `conception` (architecture), `build` (continu), `learning` (remboursement dette)
 
 ---
 
@@ -352,10 +352,10 @@ Anciennement *Portability* (2011). Scalability ajoutée en 2023.
 
 **Fitness functions associées :**
 - `environment-parity` : configuration 100% externalisée (pas de valeur hardcodée par env)
-- `scalability-test` : pas de dégradation non-linéaire sous charge 2x nominale (obligatoire É/C)
+- `scalability-test` : pas de dégradation non-linéaire sous charge 2x nominale (obligatoire H/C)
 - `cold-start-time` : temps de démarrage ≤ seuil défini
 
-**Mapping cycles prioritaires :** Conception (architecture scalable), Build (config externalisée), Validation (tests scalabilité É/C)
+**Mapping cycles prioritaires :** Conception (architecture scalable), Build (config externalisée), Validation (tests scalabilité H/C)
 
 ---
 
@@ -374,7 +374,7 @@ Anciennement *Portability* (2011). Scalability ajoutée en 2023.
 | **Intégration sûre** (Safe Integration) | Le produit s'intègre de façon sûre avec d'autres systèmes | Tests d'intégration avec mode dégradé des systèmes tiers |
 
 **Fitness functions associées :**
-- `fail-safe-behavior` : tests de comportement en cas de défaillance (obligatoire C, recommandé É)
+- `fail-safe-behavior` : tests de comportement en cas de défaillance (obligatoire C, recommandé H)
 - `hazard-detection-latency` : temps de détection d'anomalie ≤ seuil défini
 - `safe-defaults` : configuration par défaut la plus restrictive possible
 
@@ -394,7 +394,7 @@ Complément essentiel à ISO 25010. Mesure la qualité **perçue par l'utilisate
 | **Freedom from Risk** | Economic risk mitigation, Health and safety risk mitigation, Environmental risk mitigation | Privacy impact ; safety assessment |
 | **Context Coverage** | Context completeness, Flexibility | Tests sur devices cibles ; contextes d'usage réels |
 
-Usage dans la pipeline : prioritaire dans les cycles Discovery (définition des critères), Validation (mesure réelle), et Apprentissage (feedback utilisateur).
+Usage dans la pipeline : prioritaire dans les cycles `discovery` (définition des critères), `validation` (mesure réelle), et `learning` (feedback utilisateur).
 
 ---
 
@@ -440,11 +440,11 @@ Indicateurs à mesurer trimestriellement :
 
 ## 8. Modulation par classe de risque
 
-La profondeur qualité est modulée sur la classe de risque T/F/M/É/C. Tableau de référence :
+La profondeur qualité est modulée sur la classe de risque T/L/M/H/C. Tableau de référence :
 
 ### 8.1 Matrice qualité × risque
 
-| Dimension ISO 25010 | T (Trivial) | F (Faible) | M (Moyen) | É (Élevé) | C (Critique) |
+| Dimension ISO 25010 | T (Trivial) | L (Low) | M (Moyen) | H (High) | C (Critique) |
 |--------------------|:-----------:|:----------:|:---------:|:---------:|:------------:|
 | Adéquation Fonctionnelle | CI auto | CI auto | CI + AC tests | CI + AC + acceptance | CI + AC + acceptance + mutation |
 | Performance Efficiency | — | Smoke | Budget défini | Tests charge | Tests charge + SLO stricts |
@@ -456,7 +456,13 @@ La profondeur qualité est modulée sur la classe de risque T/F/M/É/C. Tableau 
 | Flexibilité | Config ext. | Config ext. | + env parity | + scalability test | + scalability + replaceability |
 | Sûreté | N/A si hors scope | N/A si hors scope | Évaluer | Fail-safe tests | FMEA + fail-safe + hazard warning |
 
+| OperatingMode | `bypass` | `bypass` cond. | `auto` | `auto` + checkpoint | `pairing` recommandé |
+
 **Légende :** CI auto = quality gate automatisé en CI ; — = non requis pour cette classe
+
+**Règle non négociable :** `bypass` est interdit pour les classes H et C — aucune dérogation possible. Voir risk-classification.md §6.6 pour les limites de risk tolerance et l'Annexe B pour le mapping complet des modes de supervision. Les garde-fous anti-rubber-stamp (format de proposition, quota de rejets ≥ 20 %, audit aléatoire hebdomadaire) s'appliquent en mode `auto` — voir risk-classification.md Annexe B.
+
+**Référence :** la classification de risque T/L/M/H/C qui module cette matrice est définie dans `docs/transversal/risk-classification.md`. Le score composite (impact × probabilité), les signaux de forçage automatique, et le protocole de promotion de classe y sont formalisés.
 
 ### 8.2 Règles de dérogation (waivers)
 
@@ -473,19 +479,19 @@ Un waiver (dérogation temporaire à un quality gate) est exceptionnellement aut
 
 ### 9.1 Principe fractal
 
-Le sous-cycle universel `Observer → Définir → Concevoir → Exécuter → Vérifier → Capitaliser → Transmettre` s'applique à chaque cycle avec une dimension qualité propre.
+Le sous-cycle universel `Observer → Define → Design → Execute → Verify → Capitalize → Transmit` s'applique à chaque cycle avec une dimension qualité propre.
 
 | Sous-étape | Rôle qualité universel |
 |-----------|----------------------|
 | **Observer** | Collecter les signaux qualité existants (métriques, incidents, feedbacks) |
-| **Définir** | Préciser les exigences qualité pour ce cycle (quelles dimensions, quels seuils) |
-| **Concevoir** | Planifier les fitness functions et contrôles qualité adaptés à la classe de risque |
-| **Exécuter** | Implémenter en maintenant les quality gates actifs |
-| **Vérifier** | Évaluer les résultats des fitness functions ; go/no-go |
-| **Capitaliser** | Documenter les résultats, mettre à jour le registre de dette qualité |
-| **Transmettre** | Passer le rapport quality gate au cycle suivant |
+| **Define** | Préciser les exigences qualité pour ce cycle (quelles dimensions, quels seuils) |
+| **Design** | Planifier les fitness functions et contrôles qualité adaptés à la classe de risque |
+| **Execute** | Implémenter en maintenant les quality gates actifs |
+| **Verify** | Évaluer les résultats des fitness functions ; go/no-go |
+| **Capitalize** | Documenter les résultats, mettre à jour le registre de dette qualité |
+| **Transmit** | Passer le rapport quality gate au cycle suivant |
 
-### 9.2 Cycle 1 — Discovery
+### 9.2 Cycle 1 — discovery
 
 **Dimensions ISO 25010 prioritaires :** Adéquation Fonctionnelle (comprendre ce que le produit doit faire), Interaction Capability (comprendre les utilisateurs réels), Safety (identifier si applicable).
 
@@ -496,7 +502,7 @@ Le sous-cycle universel `Observer → Définir → Concevoir → Exécuter → V
 
 **Livrable qualité :** Section "Exigences qualité initiales" dans la Note de Discovery
 
-### 9.3 Cycle 2 — Cadrage
+### 9.3 Cycle 2 — cadrage
 
 **Dimensions ISO 25010 prioritaires :** Toutes, pour établir la priorité relative.
 
@@ -509,7 +515,7 @@ Le sous-cycle universel `Observer → Définir → Concevoir → Exécuter → V
 
 **Livrable qualité :** `docs/08-quality/quality-model-instance.md` + DoR/DoD qualité dans le Charter
 
-### 9.4 Cycle 3 — Conception
+### 9.4 Cycle 3 — conception
 
 **Dimensions ISO 25010 prioritaires :** Maintenabilité (architecture), Sécurité (threat model), Fiabilité (SLO design), Performance Efficiency (budgets).
 
@@ -517,15 +523,18 @@ Le sous-cycle universel `Observer → Définir → Concevoir → Exécuter → V
 - Définir la liste complète des fitness functions à implémenter dans le pipeline CI
 - Créer les SLI/SLO pour chaque service/endpoint critique
 - Mener le threat modeling STRIDE sur les nouveaux flux (Sécurité — sous-caractéristique Résistance)
-- Déclencher l'AIPD si applicable (Sécurité — Confidentialité + Safety si données de santé)
+- Déclencher l'AIPD si applicable (Sécurité — Confidentialité + Safety si données de santé). L'AIPD est obligatoire dès que ≥ 2 des 9 critères WP29/CNIL sont remplis : (1) évaluation/scoring, (2) décision automatisée avec effets légaux, (3) surveillance systématique, (4) données sensibles ou hautement personnelles, (5) traitement à grande échelle, (6) croisement/combinaison de données, (7) données de personnes vulnérables, (8) usage innovant/nouvelles technologies, (9) empêche l'exercice d'un droit ou l'accès à un service. Voir cross-cutting-activities.md §AT-05 pour le protocole complet
 - Définir la stratégie de tests (pyramide, trophée, honeycomb selon contexte)
 - Définir les quality gates CI (liste et seuils) pour ce projet
+- Changements C architecturaux : décomposer via Strangler Fig en séquence M/H — chaque étape reclassifiée individuellement, réduisant le risque à chaque incrément tout en maintenant la traçabilité du changement global (voir risk-classification.md §9.3)
 
 **Livrable qualité :** Liste des fitness functions dans le Design Doc + SLI/SLO documentés + Quality gates CI définis
 
-### 9.5 Cycle 4 — Build
+### 9.5 Cycle 4 — build
 
 **Dimensions ISO 25010 prioritaires :** Maintenabilité (continu), Adéquation Fonctionnelle (tests), Sécurité (SAST/SCA continu), Performance (benchmarks).
+
+**Stratégie de branchement :** Trunk-Based Development (TBD) — les développeurs mergent sur la branche principale (trunk) au moins quotidiennement. Les feature branches sont de courte durée (< 2 jours). Ce modèle est corrélé positivement avec les métriques DORA (change lead time, deployment frequency) et réduit le risque de conflits de merge. Les changements H/C utilisent des feature flags pour découpler déploiement et release.
 
 **Activités qualité — inner loop :**
 
@@ -564,15 +573,15 @@ Le code généré par un agent IA est soumis aux mêmes quality gates que le cod
 
 **Livrable qualité :** Quality gate results dans chaque PR ; `quality-metrics.jsonl` mis à jour
 
-### 9.6 Cycle 5 — Validation
+### 9.6 Cycle 5 — validation
 
-**Dimensions ISO 25010 prioritaires :** Adéquation Fonctionnelle (acceptance), Interaction Capability (WCAG manuel), Fiabilité (tests charge É/C), Sécurité (DAST), Safety si applicable.
+**Dimensions ISO 25010 prioritaires :** Adéquation Fonctionnelle (acceptance), Interaction Capability (WCAG manuel), Fiabilité (tests charge H/C), Sécurité (DAST), Safety si applicable.
 
 **Activités qualité (risk-based testing) :**
 
 L'effort de test est alloué proportionnellement au produit *probabilité × impact*.
 
-| Type de test | T | F | M | É | C |
+| Type de test | T | L | M | H | C |
 |-------------|:-:|:-:|:-:|:-:|:-:|
 | Acceptance criteria | CI | CI | CI + manual | CI + manual | CI + manual + stakeholder |
 | Tests d'accessibilité manuels | — | — | keyboard + reader | keyboard + reader + contrast | full audit WCAG 2.2 AA |
@@ -583,7 +592,7 @@ L'effort de test est alloué proportionnellement au produit *probabilité × imp
 
 **Livrable qualité :** Test and Validation Results (`04-test-and-validation-results.md`) avec go/no-go explicite
 
-### 9.7 Cycle 6 — Release
+### 9.7 Cycle 6 — release
 
 **Dimensions ISO 25010 prioritaires :** Fiabilité (rollback), Sécurité (SBOM, signature), Compatibilité (rétrocompatibilité API), Flexibilité (déploiement progressif).
 
@@ -601,7 +610,7 @@ Release Quality Gate — BLOQUANTS MODULÉS par classe de risque :
   M:
     - performance-regression: pas de régression > 10% vs baseline
     - rollback-plan: plan documenté
-  É:
+  H:
     - load-test: tests de charge verts
     - sbom-generated: SBOM archivé
     - canary-ready: feature flag OFF configuré
@@ -613,9 +622,11 @@ Release Quality Gate — BLOQUANTS MODULÉS par classe de risque :
     - canary-plan: plan canary documenté (5% → 25% → 50% → 100%)
 ```
 
+**Règle schéma DB :** tout changement de schéma DB = plan expand/contract documenté avant release. Le pattern expand/contract (ajouter → dual-write → switch read → contract) garantit zéro downtime et rollback possible à chaque étape. Classe H minimum pour toute migration de schéma — voir risk-classification.md §6.6 limite non négociable n°2.
+
 **Livrable qualité :** Release Readiness document (`release-readiness.md`) avec verdict explicite go/no-go
 
-### 9.8 Cycle 7 — Run
+### 9.8 Cycle 7 — run
 
 **Dimensions ISO 25010 prioritaires :** Fiabilité (SLO en production), Performance Efficiency (latence réelle), Sécurité (surveillance CVE), Interaction Capability (NPS, satisfaction).
 
@@ -636,7 +647,7 @@ Release Quality Gate — BLOQUANTS MODULÉS par classe de risque :
 
 **Livrable qualité :** `stability-metrics.md` mis à jour ; Quality Incident si déclencheur atteint
 
-### 9.9 Cycle 8 — Apprentissage
+### 9.9 Cycle 8 — learning
 
 **Dimensions ISO 25010 prioritaires :** Toutes, pour analyse rétrospective.
 
@@ -646,7 +657,9 @@ Release Quality Gate — BLOQUANTS MODULÉS par classe de risque :
 - Mise à jour du registre de dette qualité
 - Proposition de nouvelles fitness functions si patterns récurrents identifiés
 - Mise à jour du `quality-model-instance.md` si seuils doivent changer
-- Postmortem blameless si incident de qualité en production (distinct de la rétrospective)
+- Postmortem blameless si incident de qualité en production — voir cross-cutting-activities.md §AT-11 pour le protocole complet. Postmortem ≠ rétrospective de cycle.
+- Mesurer SPACE trimestriellement (Satisfaction, Performance, Activity, Communication, Efficiency) pour évaluer la productivité au-delà de la simple activité
+- Culture Westrum sondée via les 6 questions DORA — viser une culture générative (information flows, messengers not shot, responsibilities shared, bridging encouraged, failure leads to inquiry, novelty implemented)
 
 **Anti-patterns à détecter :**
 - Fitness functions qui n'ont jamais échoué en 6 mois → peut-être trop permissives
@@ -687,7 +700,7 @@ La **dette qualité** est distincte de la dette technique ordinaire. Elle repré
 - Type: dette de couverture
 - Dimension: Performance Efficiency — Time Behaviour
 - Créée: 2026-05-10
-- Classe de risque concernée: É
+- Classe de risque concernée: H
 - Owner: @dev
 - Date cible: 2026-06-15
 - Impact: SLO de latence non vérifié sous charge nominale
@@ -727,7 +740,7 @@ Le contexte solo + IA est un contexte d'amplification des risques qualité. Le m
 **Mesures d'adaptation :**
 1. SAST et SCA sont non-skippables même pour le code généré (pas de "l'IA a déjà vérifié")
 2. Tests de mutation obligatoires sur la logique métier générée par IA (classe M et au-delà)
-3. Review humaine différée (24h) avant merge pour le code IA sur des changements É/C
+3. Review humaine différée (24h) avant merge pour le code IA sur des changements H/C
 4. Architecture tests automatisés pour vérifier que le code IA respecte les limites architecturales
 5. Observabilité spécifique LLM : tokens, coût, latence, taux d'erreur, hallucination rate si l'IA est dans la boucle produit
 
@@ -815,7 +828,7 @@ DORA a officialisé **5 métriques** en 2024 (l'ancienne MTTR est remplacée par
 | CVE High non triées | CVE High en production non adressées | 0 sous 7j |
 | Secrets détectés | Secrets dans le code | 0 — BLOQUANT |
 | SLA remédiation respecté | % CVE traitées dans le SLA défini | 100% |
-| Couverture SBOM | % builds É/C avec SBOM archivé | 100% |
+| Couverture SBOM | % builds H/C avec SBOM archivé | 100% |
 
 #### Maintenabilité
 
@@ -883,8 +896,8 @@ Seuils déclenchant une action immédiate :
 | Building Evolutionary Architectures | Ford, Parsons, Kua — 2e éd. 2022 | Fitness functions | Taxonomy, implémentation, CI/CD integration |
 | NIST SSDF SP 800-218 | v1.1 | Sécurité du cycle | Cadre sécurité shift-left (PO/PS/PW/RV) |
 | OWASP SAMM | v2 | Maturité sécurité | Governance, Design, Implementation, Verification, Operations |
-| OWASP ASVS | v5 | Exigences de sécurité | Référentiel d'exigences de sécurité applicatives |
-| OWASP Top 10 | 2021 (mise à jour 2025 attendue) | Risques web | Inventaire des risques courants |
+| OWASP ASVS | v5.0.0 (mai 2025) | Exigences de sécurité | Référentiel d'exigences de sécurité applicatives — 17 chapitres, ~350 exigences, 3 niveaux (L1/L2/L3) |
+| OWASP Top 10 | 2025 (officiel) | Risques web | Inventaire des risques courants — A10 renommé Mishandling of Exceptional Conditions ; A06 renommé Software Supply Chain Failures |
 | WCAG | 2.2 AA | Accessibilité | Baseline accessibilité (incluse dans Interaction Capability) |
 | EN 301 549 | v3.2.1 | Accessibilité UE | Obligation légale EAA depuis 28 juin 2025 |
 | RGPD | 2016/679 + art.25/35 | Privacy | Privacy by design + AIPD (Sécurité — Confidentialité) |
@@ -893,14 +906,19 @@ Seuils déclenchant une action immédiate :
 | OpenTelemetry | 1.x (stable) | Observabilité | Instrumentation standard (Fiabilité — Disponibilité) |
 | SLSA | 1.0 | Supply chain | Provenance (Sécurité — Résistance) |
 | ISO/IEC/IEEE 29119 | Parties 1-5 | Tests | Risk-based testing strategy |
+| SPACE | Forsgren et al. 2021 | Productivité | Mesure bien-être vs activité — Satisfaction, Performance, Activity, Communication, Efficiency |
+| Westrum | Typologie organisationnelle | Culture | Postmortem blameless, culture générative — sondée via 6 questions DORA |
+| Diátaxis Framework | Courant | Documentation | 4 types docs : tutoriels, how-to guides, référence, explication |
+| Conventional Commits | 1.0 | Versioning | Format de commits standardisé — changelog automatique |
+| SemVer 2.0 | Courant | Versioning | MAJOR.MINOR.PATCH — contrat de compatibilité |
 
 ---
 
-## 14. Questions ouvertes (RED CARDS)
+## 14. Questions ouvertes et suivis (RED CARDS)
 
 ### RC-001 — Classification automatique vs manuelle pour Safety
 
-**Statut :** Ouvert — priorité haute
+**Statut :** Suivi ouvert — priorité haute
 
 **Question :** Pour un projet donné, comment déterminer automatiquement si la dimension Safety est applicable ? Quels critères objectifs déclenchent l'application des sous-caractéristiques Safety (operational constraint, fail safe, etc.) ?
 
@@ -908,11 +926,11 @@ Seuils déclenchant une action immédiate :
 
 **Conséquence d'inaction :** Safety ignorée sur des systèmes où elle s'applique → risque réel non géré.
 
-**Owner :** @dev — à résoudre en Cadrage du premier projet.
+**Owner :** @dev — à résoudre en `cadrage` du premier projet.
 
 ### RC-002 — Seuils ISO 25010 par profil de projet
 
-**Statut :** Ouvert — priorité normale
+**Statut :** Suivi ouvert — priorité normale
 
 **Question :** Les seuils dans ce document sont des recommandations génériques. Pour un SaaS B2C, une app médicale, un outil interne, ou une API publique, les seuils sont différents. Comment paramétrer le `quality-model-instance.md` de façon assez précise pour que les fitness functions soient calibrées au vrai contexte ?
 
@@ -922,29 +940,29 @@ Seuils déclenchant une action immédiate :
 
 ### RC-003 — Fitness functions pour le code IA généré
 
-**Statut :** Ouvert — priorité haute (contexte solo + IA)
+**Statut :** Suivi ouvert — priorité haute (contexte solo + IA)
 
 **Question :** Au-delà des fitness functions classiques (SAST, SCA, coverage), quelles fitness functions sont spécifiques au code généré par IA ? Comment détecter automatiquement la correctness sémantique plutôt que syntaxique ?
 
-**Pistes :** (1) Mutation testing systématique sur tout code de logique métier (pas seulement É/C) ; (2) Architecture conformance tests pour vérifier que le code IA respecte les boundaries ; (3) Hallucination detection pour les packages référencés (vérification d'existence dans les registres officiels) ; (4) Property-based testing sur les fonctions générées par IA.
+**Pistes :** (1) Mutation testing systématique sur tout code de logique métier (pas seulement H/C) ; (2) Architecture conformance tests pour vérifier que le code IA respecte les boundaries ; (3) Hallucination detection pour les packages référencés (vérification d'existence dans les registres officiels) ; (4) Property-based testing sur les fonctions générées par IA.
 
 **Conséquence d'inaction :** Le code IA passe les quality gates classiques mais contient des bugs sémantiques invisibles.
 
 ### RC-004 — Intégration ISO 25019 dans la pipeline
 
-**Statut :** Ouvert — priorité basse
+**Statut :** Suivi ouvert — priorité basse
 
 **Question :** ISO 25019 (qualité en usage) est référencée mais pas encore intégrée dans des fitness functions automatisées. Comment mesurer automatiquement l'effectiveness et l'efficiency en contexte réel, sans requérir de tests utilisateur manuels à chaque cycle ?
 
 **Pistes :** RUM (Real User Monitoring) — temps de complétion de tâches mesurés en production (via Datadog RUM, PostHog, etc.) ; funnel analytics sur les parcours critiques.
 
-### RC-005 — Promotion de classe de risque en cours de Build
+### RC-005 — Promotion de classe de risque en cours de build (CLOSE)
 
-**Statut :** Ouvert — priorité normale (partagé avec rapport-discovery-cadrage §4.6)
+**Statut :** CLOSE — répondu par `docs/transversal/risk-classification.md` §14 RED-02 et par `docs/conception/02-risk-classifier-spec.md §5`.
 
-**Question :** Quand un changement classé F s'avère être É en cours de Build (découverte d'un impact de sécurité non anticipé), quel quality gate de rattrapage s'applique ? Le processus doit être explicite pour éviter de livrer un changement É avec des contrôles F.
+**Décision :** quand un changement classé L s'avère être H en cours de build, le harness suspend le cycle, reclassifie dans `.planning/current-risk.yaml`, ajoute la promotion dans `.planning/run-set.json#risk_promotions`, puis relance les contrôles H obligatoires avant toute reprise.
 
-**Pistes :** (1) Détection automatique (si le SAST détecte un finding High → promotion automatique à É minimum) ; (2) Protocole de re-classification documenté dans la PR (annotation obligatoire + nouveau quality gate run) ; (3) Log dans le quality debt register.
+**Effet qualité :** les contrôles de rattrapage sont ceux de la nouvelle classe H/C, pas ceux de la classe initiale.
 
 ---
 
@@ -955,10 +973,10 @@ Seuils déclenchant une action immédiate :
 ```
 quality-model.md (ce document)
         │
-        ├── RÉFÉRENCÉ PAR → Discovery
+        ├── RÉFÉRENCÉ PAR → discovery
         │   → Détermine quelles dimensions ISO 25010 sont critiques pour le projet
         │
-        ├── RÉFÉRENCÉ PAR → Cadrage
+        ├── RÉFÉRENCÉ PAR → cadrage
         │   → Produit quality-model-instance.md (instance projet)
         │   → Définit DoR/DoD qualité
         │   → Définit les seuils bloquants par dimension
@@ -977,16 +995,16 @@ quality-model.md (ce document)
         │   → Risk-based testing conforme au quality-model-instance.md
         │   → Go/no-go basé sur les seuils définis
         │
-        ├── GATE FINAL → Release
-        │   → Release quality gate (synthèse)
+        ├── CONTRÔLE FINAL → release
+        │   → Release quality control (synthèse)
         │   → SBOM, provenance, rollback plan
         │
-        ├── SURVEILLÉ PAR → Run
+        ├── SURVEILLÉ PAR → run
         │   → SLO en production
         │   → DORA metrics réels
         │   → Security monitoring
         │
-        └── AMÉLIORÉ PAR → Apprentissage
+        └── AMÉLIORÉ PAR → learning
             → Ajustements des seuils
             → Nouvelles fitness functions
             → Remboursement dette qualité
@@ -996,14 +1014,14 @@ quality-model.md (ce document)
 
 | Cycle source | Cycle cible | Contrat qualité |
 |-------------|------------|-----------------|
-| Discovery → Cadrage | Cadrage reçoit les dimensions ISO 25010 prioritaires + contraintes réglementaires | Si Discovery ne fournit pas ces données, Cadrage ne peut pas produire un quality-model-instance.md valide |
-| Cadrage → Conception | Conception reçoit les seuils qualité et la liste des dimensions à couvrir | Si les seuils ne sont pas définis, les fitness functions seront arbitraires |
-| Conception → Build | Build reçoit la liste complète des fitness functions et quality gates CI à implémenter | Si les FF ne sont pas spécifiées, le pipeline CI sera incomplet |
-| Build → Validation | Validation reçoit les résultats des quality gates CI + couverture test | Si les quality gates ne sont pas verts, la Validation ne peut pas commencer |
-| Validation → Release | Release reçoit le rapport go/no-go de Validation | Un no-go bloque la release sans exception |
-| Release → Run | Run reçoit les SLO définis + les fitness functions de monitoring | Sans cette donnée, Run ne peut pas alerter sur les bonnes métriques |
-| Run → Apprentissage | Apprentissage reçoit les métriques de production + incidents | Sans ces données, la rétrospective qualité est aveugle |
-| Apprentissage → Discovery | Discovery suivant reçoit les learnings qualité + la dette restante | Ferme la boucle d'amélioration continue |
+| discovery → cadrage | cadrage reçoit les dimensions ISO 25010 prioritaires + contraintes réglementaires | Si discovery ne fournit pas ces données, cadrage ne peut pas produire un quality-model-instance.md valide |
+| cadrage → conception | conception reçoit les seuils qualité et la liste des dimensions à couvrir | Si les seuils ne sont pas définis, les fitness functions seront arbitraires |
+| conception → build | build reçoit la liste complète des fitness functions et quality controls CI à implémenter | Si les FF ne sont pas spécifiées, le pipeline CI sera incomplet |
+| build → validation | validation reçoit les résultats des quality controls CI + couverture test | Si les quality controls ne sont pas verts, la validation ne peut pas commencer |
+| validation → release | release reçoit le rapport go/no-go de validation | Un no-go bloque la release sans exception |
+| release → run | run reçoit les SLO définis + les fitness functions de monitoring | Sans cette donnée, run ne peut pas alerter sur les bonnes métriques |
+| run → learning | learning reçoit les métriques de production + incidents | Sans ces données, la rétrospective qualité est aveugle |
+| learning → discovery | discovery suivant reçoit les learnings qualité + la dette restante | Ferme la boucle d'amélioration continue |
 
 ---
 
@@ -1066,7 +1084,7 @@ size-limit:
   - path: dist/vendor.js
     limit: 300 kB
 
-# Load test — k6 (CI, classe É+)
+# Load test — k6 (CI, classe H+)
 k6:
   vus: 50
   duration: 60s

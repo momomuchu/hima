@@ -1,9 +1,9 @@
 # Risk Classifier — Specification formelle
 
-> **Statut** : Conception v1  
+> **Statut** : `conception` v1  
 > **Date** : 2026-05-03  
 > **Scope** : `packages/core/src/risk-classifier/` — composant du harness Pipeline Fractale v4  
-> **Rôle** : pivot de modulation de tout le pipeline. Entrée : métadonnées d'un changeset. Sortie : classe T/F/M/É/C + chemin obligatoire.  
+> **Rôle** : pivot de modulation de tout le pipeline. Entrée : métadonnées d'un changeset. Sortie : classe T/L/M/H/C + chemin obligatoire.  
 > **Sources** : `checkpoint-implementation.md` (D2, D4, Q1, Q6), `risk-classification.md` (v1, 983 lignes), `rms-runtime-sets-v1-draft.md` (Policy Set)
 
 ---
@@ -38,7 +38,7 @@ Cinq classes ordonnées, non chevauchantes. Chaque classe a des critères d'incl
 - Changement cosmétique UI non fonctionnel (couleur de fond, espacement visuel sans impact sur l'accessibilité)
 - Renforcement de suite de tests existante sans ajout de code de production
 
-**Critères d'exclusion** (force vers F minimum) :
+**Critères d'exclusion** (force vers L minimum) :
 - Toute modification de logique, même d'une ligne
 - Dépendance avec CVE, même de sévérité Low
 - Tout fichier dans `auth/`, `security/`, `.env*`, `config/security*`, `migrations/`
@@ -50,7 +50,7 @@ Cinq classes ordonnées, non chevauchantes. Chaque classe a des critères d'incl
 
 ---
 
-### F — Faible
+### L — Low
 
 **Description** : Nouvelle fonctionnalité isolée derrière feature flag, ou correction de bug non critique, sans données personnelles, sans migration de schéma, sans impact tiers.
 
@@ -61,16 +61,16 @@ Cinq classes ordonnées, non chevauchantes. Chaque classe a des critères d'incl
 - Ajout de tests d'intégration sur périmètre fonctionnel existant
 - Changement de configuration non sécuritaire dans un service non critique
 
-**Critères d'exclusion** (force vers M ou É) :
+**Critères d'exclusion** (force vers M ou H) :
 - Absence de feature flag sur une feature modifiant un flux utilisateur existant → M minimum
-- Tout signal de forçage É présent (voir §3) → É minimum
+- Tout signal de forçage H présent (voir §3) → H minimum
 - Diff > 300 lignes nettes sur du code de production → M minimum
 
 **Exemples** : bouton "dark mode" derrière `ff_dark_mode`, correction d'une typo dans un message d'erreur non sécuritaire
 
 **Bypass conditionnel** : autorisé si ET SEULEMENT SI les cinq conditions suivantes sont toutes vraies :
 1. CI 100% verts (tous gates lint, unit, SAST, secrets scan)
-2. Aucun signal de forçage É/C détecté par l'arbre automatique
+2. Aucun signal de forçage H/C détecté par l'arbre automatique
 3. Diff net ≤ 100 lignes de code de production
 4. Aucun fichier dans : `auth/`, `migrations/`, `payments/`, `.env*`, `config/security*`
 5. Aucun nouvel endpoint exposé ni modification de contrat API
@@ -90,8 +90,8 @@ Cinq classes ordonnées, non chevauchantes. Chaque classe a des critères d'incl
 - Upgrade de dépendance minor avec changements non-breaking documentés
 - Changement de configuration avec impact sur le comportement visible
 
-**Critères d'exclusion** (force vers É) :
-- Dès qu'un signal É apparaît (auth, PII, migration DB, API publique, infra prod)
+**Critères d'exclusion** (force vers H) :
+- Dès qu'un signal H apparaît (auth, PII, migration DB, API publique, infra prod)
 
 **Exemples** : nouvelle page de résultats de recherche, refactor du service de recommandations, upgrade `react@18.2 → 18.3`
 
@@ -99,14 +99,14 @@ Cinq classes ordonnées, non chevauchantes. Chaque classe a des critères d'incl
 
 ---
 
-### É — Élevé
+### H — High
 
 **Description** : Changement touchant un système sensible. Risque de régression grave ou d'incident de sécurité si traité incorrectement. Validation humaine obligatoire avant merge.
 
-**Critères d'inclusion** : tout signal de forçage É du §3 présent (auth, paiement, PII, schéma DB, API publique, infra prod).
+**Critères d'inclusion** : tout signal de forçage H du §3 présent (auth, paiement, PII, schéma DB, API publique, infra prod).
 
 **Chemin obligatoire** :
-- Discovery complète avec validation du problème
+- `discovery` complète avec validation du problème
 - ADR documenté
 - Threat modeling STRIDE (si composante sécurité)
 - AIPD si données personnelles présentes
@@ -118,7 +118,7 @@ Cinq classes ordonnées, non chevauchantes. Chaque classe a des critères d'incl
 - Plan de rollback testé en staging
 - Validation humaine explicite et loggée avant merge
 
-**Mode de supervision** : Auto-décision + checkpoint humain obligatoire. Bypass INTERDIT.
+**Mode de supervision** : `auto` (checkpoint humain obligatoire avant merge — règle H/C). Bypass INTERDIT.
 
 **Exemples** : modification du flux d'authentification, migration de la table `users`, ajout d'un endpoint REST public, changement de politique de session
 
@@ -130,7 +130,7 @@ Cinq classes ordonnées, non chevauchantes. Chaque classe a des critères d'incl
 
 **Critères d'inclusion** : tout signal de forçage C du §3 présent (santé, biométrie, financier réglementé, multi-services, refonte d'architecture, exigence réglementaire NIS2/RGPD/EAA/DORA).
 
-**Chemin obligatoire** : tout ce qui est requis pour É, plus :
+**Chemin obligatoire** : tout ce qui est requis pour H, plus :
 - Threat modeling STRIDE + LINDDUN (si dimension privacy)
 - AIPD obligatoire sans condition
 - Revue sécurité indépendante (ou agent antagoniste avec trace complète)
@@ -140,7 +140,7 @@ Cinq classes ordonnées, non chevauchantes. Chaque classe a des critères d'incl
 - Postmortem pré-rempli si l'opération échoue (template prêt avant le déploiement)
 - Validation humaine avec signature explicite loggée
 
-**Mode de supervision** : Pairing recommandé. Auto-décision uniquement si le développeur a visibilité totale sur l'ensemble du changement. Bypass ABSOLUMENT INTERDIT.
+**Mode de supervision** : `pairing` recommandé. `auto` uniquement si le développeur a visibilité totale sur l'ensemble du changement. Bypass ABSOLUMENT INTERDIT.
 
 **Exemples** : intégration de paiements Stripe en production, modification du schéma de données santé, refonte de l'architecture de multi-tenant, mise en conformité NIS2
 
@@ -161,9 +161,9 @@ SI l'une des conditions suivantes est vraie → classe_min = C (immédiat)
   d. Type de changement = "architecture_refactor" ou label "arch-refactor"
   e. Label ou mention : RGPD art.35, NIS2, EAA, DORA-financial, PCI-DSS
 
-PASSE 2 — Signaux de forçage É (non négociables)
+PASSE 2 — Signaux de forçage H (non négociables)
 ─────────────────────────────────────────────────
-SI classe_min < É ET l'une des conditions suivantes est vraie → classe_min = É
+SI classe_min < H ET l'une des conditions suivantes est vraie → classe_min = H
 
   a. Un fichier modifié correspond à : auth/, authorization/, sessions/, oauth/, sso/
   b. Un fichier modifié correspond à : payments/, billing/, invoices/, subscriptions/
@@ -194,9 +194,9 @@ score = impact_estimé × probabilité_estimée   (1–25)
 
   Mapping score → classe_calculée :
     [1-2]  → T
-    [3-5]  → F
+    [3-5]  → L
     [6-10] → M
-    [11-17]→ É
+    [11-17]→ H
     [18-25]→ C
 
 PASSE 4 — Classe finale
@@ -209,7 +209,7 @@ PASSE 4 — Classe finale
     supervision_mode (voir §6)
     deployment_strategy (voir §7)
     mandatory_activities[] (voir §7)
-    bypass_eligible : boolean (true seulement si T ou F + conditions §1.F)
+    bypass_eligible : boolean (true seulement si T ou L + conditions §1.L)
 ```
 
 **Propriété de monotonie** : la classe finale est toujours ≥ à chaque classe intermédiaire. L'arbre ne peut jamais produire une classe inférieure à un signal de forçage actif.
@@ -222,12 +222,12 @@ PASSE 4 — Classe finale
 
 | Pattern (glob/regex) | Classe minimale forcée |
 |----------------------|------------------------|
-| `**/auth/**`, `**/authorization/**`, `**/sessions/**`, `**/oauth/**`, `**/sso/**` | É |
-| `**/payments/**`, `**/billing/**`, `**/invoices/**`, `**/subscriptions/**` | É |
-| `**/migrations/**`, `**/*.migration.ts`, `**/*.sql` | É |
-| `**/api/public/**`, `**/openapi.yaml`, `**/swagger.json`, `**/*.proto` | É |
-| `**/infra/**`, `**/terraform/**`, `**/k8s/**`, `**/docker-compose.prod*` | É |
-| `**/.env*`, `**/config/security*`, `**/secrets/**` | É |
+| `**/auth/**`, `**/authorization/**`, `**/sessions/**`, `**/oauth/**`, `**/sso/**` | H |
+| `**/payments/**`, `**/billing/**`, `**/invoices/**`, `**/subscriptions/**` | H |
+| `**/migrations/**`, `**/*.migration.ts`, `**/*.sql` | H |
+| `**/api/public/**`, `**/openapi.yaml`, `**/swagger.json`, `**/*.proto` | H |
+| `**/infra/**`, `**/terraform/**`, `**/k8s/**`, `**/docker-compose.prod*` | H |
+| `**/.env*`, `**/config/security*`, `**/secrets/**` | H |
 | `**/health/**`, `**/biometric/**`, `**/medical/**` | C |
 | Changement cross-repo (≥ 2 repos dans le diff) | C |
 
@@ -235,22 +235,22 @@ PASSE 4 — Classe finale
 
 | Signal dans le diff | Classe minimale |
 |---------------------|-----------------|
-| `CREATE TABLE`, `ALTER TABLE`, `DROP TABLE`, `ADD COLUMN`, `DROP COLUMN` | É |
-| `password`, `secret`, `api_key`, `private_key` (valeur non-vide, hors tests) | É |
-| Ajout d'un champ nommé `email`, `phone`, `ssn`, `address`, `user_id` dans un modèle | É |
-| `GRANT`, `REVOKE` dans SQL | É |
+| `CREATE TABLE`, `ALTER TABLE`, `DROP TABLE`, `ADD COLUMN`, `DROP COLUMN` | H |
+| `password`, `secret`, `api_key`, `private_key` (valeur non-vide, hors tests) | H |
+| Ajout d'un champ nommé `email`, `phone`, `ssn`, `address`, `user_id` dans un modèle | H |
+| `GRANT`, `REVOKE` dans SQL | H |
 | Import de `health_data`, `biometric`, `financial_regulated` (types détectés) | C |
 
 ### 3.3 Labels de PR / backlog item
 
 | Label | Classe minimale |
 |-------|-----------------|
-| `auth`, `authentication`, `authorization` | É |
-| `payment`, `billing`, `stripe`, `pci` | É |
-| `migration`, `schema-change` | É |
-| `api-breaking`, `breaking-change` | É |
-| `pii`, `gdpr`, `privacy` | É |
-| `infra-prod`, `infrastructure` | É |
+| `auth`, `authentication`, `authorization` | H |
+| `payment`, `billing`, `stripe`, `pci` | H |
+| `migration`, `schema-change` | H |
+| `api-breaking`, `breaking-change` | H |
+| `pii`, `gdpr`, `privacy` | H |
+| `infra-prod`, `infrastructure` | H |
 | `health-data`, `biometric`, `hipaa` | C |
 | `regulatory`, `nis2`, `eaa`, `dora-financial` | C |
 | `arch-refactor`, `architecture` | C |
@@ -260,9 +260,9 @@ PASSE 4 — Classe finale
 
 | Signal | Classe minimale |
 |--------|-----------------|
-| Diff net > 300 lignes de code de production | M (si T ou F calculé) |
-| Nouvelles dépendances ajoutées (package.json, go.mod, etc.) | F minimum |
-| CVE dans une dépendance modifiée (CVSS ≥ 1.0) | F minimum, É si CVSS ≥ 7.0 |
+| Diff net > 300 lignes de code de production | M (si T ou L calculé) |
+| Nouvelles dépendances ajoutées (package.json, go.mod, etc.) | L minimum |
+| CVE dans une dépendance modifiée (CVSS ≥ 1.0) | L minimum, H si CVSS ≥ 7.0 |
 | CVE Critical (CVSS ≥ 9.0) non corrigée > 24h | C (escalade immédiate) |
 
 ---
@@ -275,24 +275,24 @@ Un humain peut toujours promouvoir une classe vers un niveau supérieur, sans re
 
 ### 4.2 Déclassement manuel (override vers classe inférieure)
 
-**Règle absolue** : É et C ne peuvent jamais être déclassés sans approbation humaine explicite et documentée.
+**Règle absolue** : H et C ne peuvent jamais être déclassés sans approbation humaine explicite et documentée.
 
 | Déclassement | Autorisation requise |
 |--------------|----------------------|
 | T → (impossible, T est le minimum) | N/A |
-| F → T | Autorisé si aucun signal de forçage actif + justification écrite |
-| M → F | Autorisé si aucun signal de forçage actif + justification écrite |
+| L → T | Autorisé si aucun signal de forçage actif + justification écrite |
+| M → L | Autorisé si aucun signal de forçage actif + justification écrite |
 | M → T | Interdit — saut de classe non autorisé |
-| É → M | Requiert : humain, justification documentée, contresignature agent |
-| É → F ou T | Interdit |
-| C → É | Requiert : humain, justification documentée, contresignature agent, date de revue |
-| C → M, F, T | Interdit |
+| H → M | Requiert : humain, justification documentée, contresignature agent |
+| H → L ou T | Interdit |
+| C → H | Requiert : humain, justification documentée, contresignature agent, date de revue |
+| C → M, L, T | Interdit |
 
 **Format de log de déclassement** :
 ```yaml
 override:
   type: "demotion"
-  from_class: "É"
+  from_class: "H"
   to_class: "M"
   reason: "Signal migration DB concernait un environnement de staging isolé, non production"
   authorized_by: "developer"
@@ -305,8 +305,8 @@ override:
 
 Ces quatre règles ne peuvent être overridées par aucune dérogation, humaine ou agent :
 
-1. Bypass interdit sur É/C — quelle que soit la confiance dans l'agent ou l'historique du projet
-2. Aucun changement de schéma DB sans plan expand/contract documenté — classe É minimum
+1. Bypass interdit sur H/C — quelle que soit la confiance dans l'agent ou l'historique du projet
+2. Aucun changement de schéma DB sans plan expand/contract documenté — classe H minimum
 3. Aucune donnée de santé/biométrie sans AIPD et chiffrement validés — classe C minimum
 4. CVE Critical non triée en production > 24h — escalade immédiate vers C
 
@@ -314,41 +314,41 @@ Ces quatre règles ne peuvent être overridées par aucune dérogation, humaine 
 
 ## 5. Protocole de promotion de classe (Q6 résolu)
 
-Ce protocole s'applique lorsqu'un changement initialement classé F (ou M) s'avère É (ou C) en cours de cycle — typiquement lors de la phase Build quand un signal de forçage apparaît dans un commit intermédiaire.
+Ce protocole s'applique lorsqu'un changement initialement classé L (ou M) s'avère H (ou C) en cours de cycle — typiquement lors de la phase `build` quand un signal de forçage apparaît dans un commit intermédiaire.
 
-### 5.1 Machine à états de promotion
+### 5.1 Promotion state machine
 
 ```
-État CLASSIFIED(F)
+State CLASSIFIED(L)
       │
-      │ [signal de forçage É détecté dans commit]
+      │ [signal de forçage H détecté dans commit]
       │ Acteur : harness (scan automatique à chaque push)
       ▼
-État ESCALATION_DETECTED
+State ESCALATION_DETECTED
       │
       │ [notification immédiate au développeur]
       │ [PR mise en pause — aucun nouveau commit accepté]
       ▼
-État AWAITING_HUMAN_CONFIRMATION
+State AWAITING_HUMAN_CONFIRMATION
       │                    │
       │ [confirmé]         │ [contesté dans < 4h]
       ▼                    ▼
-État PROMOTED(É)      État OVERRIDE_REVIEW
+State PROMOTED(H)      State OVERRIDE_REVIEW
       │                    │
       │                    │ [human override documenté]
       │                    ▼
-      │               État DEMOTED_WITH_OVERRIDE
+      │               State DEMOTED_WITH_OVERRIDE
       │                    │
       ▼                    ▼
-État CYCLE_ADAPTED    État CLASSIFIED(F, overridden)
+State CYCLE_ADAPTED    State CLASSIFIED(L, overridden)
 ```
 
-### 5.2 Actions obligatoires lors d'une promotion F → É
+### 5.2 Actions obligatoires lors d'une promotion L → H
 
 1. **Pause immédiate** : la PR entre en état `ESCALATION_DETECTED`. Aucun merge possible.
 2. **Notification** : le développeur reçoit une notification avec le signal détecté, le fichier concerné, le commit déclencheur.
-3. **Reclassification** : la classe dans les métadonnées du PR/item est mise à jour de F vers É.
-4. **Déclenchement du chemin obligatoire É** : ADR requis, threat modeling STRIDE requis, review ≥ 2, DAST, canary, feature flag, rollback plan.
+3. **Reclassification** : la classe dans les métadonnées du PR/item est mise à jour de L vers H.
+4. **Déclenchement du chemin obligatoire H** : ADR requis, threat modeling STRIDE requis, review ≥ 2, DAST, canary, feature flag, rollback plan.
 5. **Re-planification si nécessaire** : si l'item était planifié dans un sprint, le volume de travail additionnel est estimé et communiqué.
 6. **Log dans `escalation_history`** (voir format ci-dessous).
 
@@ -357,8 +357,8 @@ Ce protocole s'applique lorsqu'un changement initialement classé F (ou M) s'av�
 ```yaml
 escalation_history:
   - timestamp: "2026-05-05T14:32:00Z"
-    from_class: "F"
-    to_class: "É"
+    from_class: "L"
+    to_class: "H"
     trigger_signal: "auth"
     trigger_file: "src/auth/session.ts"
     trigger_commit: "abc1234"
@@ -372,35 +372,34 @@ escalation_history:
       - "Review ≥2 activée"
       - "Canary 5%→100% activé"
     sprint_impact: "estimation +2 jours"
-    note: "Fichier auth/session.ts ajouté dans commit abc1234 — non prévu en Cadrage"
+    note: "Fichier auth/session.ts ajouté dans commit abc1234 — non prévu en cadrage"
 ```
 
 ### 5.4 Règles d'escalade chaînée
 
-- Une promotion ne peut sauter qu'une classe à la fois (F → É est autorisé, F → C requiert confirmation supplémentaire).
-- Si un signal C est détecté sur un item promu É (double escalade), le développeur reçoit une seconde notification et doit re-confirmer.
+- Une promotion ne peut sauter qu'une classe à la fois (L → H est autorisé, L → C requiert confirmation supplémentaire).
+- Si un signal C est détecté sur un item promu H (double escalade), le développeur reçoit une seconde notification et doit re-confirmer.
 - Chaque promotion est irréversible sans dérogation manuelle explicite (voir §4.2).
 
 ---
 
 ## 6. Matrice Risque × Mode opératoire
 
-| Classe | Bypass | Auto-décision | Auto-décision + checkpoint | Pairing |
-|--------|:------:|:-------------:|:--------------------------:|:-------:|
-| **T** | Autorisé | Autorisé | Optionnel | Optionnel |
-| **F** | Conditionnel (§1.F) | Autorisé | Optionnel | Optionnel |
-| **M** | **INTERDIT** | Autorisé (défaut) | Optionnel | Optionnel |
-| **É** | **INTERDIT** | Insuffisant seul | Obligatoire | Optionnel |
-| **C** | **INTERDIT ABSOLU** | Insuffisant seul | Autorisé si visibilité totale | Recommandé |
+| Classe | bypass | auto | pairing |
+|--------|:------:|:-------------:|:-------:|
+| **T** | Autorisé | Autorisé | Optionnel |
+| **L** | Conditionnel (§1.L) | Autorisé | Optionnel |
+| **M** | **INTERDIT** | Autorisé (défaut) | Optionnel |
+| **H** | **INTERDIT** | Autorisé (checkpoint humain obligatoire avant merge) | Optionnel |
+| **C** | **INTERDIT ABSOLU** | Autorisé si visibilité totale (checkpoint humain obligatoire avant merge) | Recommandé |
 
-**Définitions des modes** :
+**Définitions des modes** (3 modes canoniques : `bypass`, `auto`, `pairing`) :
 
-- **Bypass** : l'agent fait tout y compris le triage. Aucune validation humaine active. Le CI bloquant est le seul garde-fou.
-- **Auto-décision** : l'agent propose Discovery + solution + chemin. Le développeur valide au triage. Mode par défaut pour M.
-- **Auto-décision + checkpoint** : identique à auto-décision, mais la validation humaine est obligatoire avant merge. L'agent ne peut pas merger seul.
-- **Pairing** : le développeur est présent en continu. L'agent suit le flux de pensée du développeur.
+- **`bypass`** : l'agent fait tout y compris le triage. Aucune validation humaine active. Le CI bloquant est le seul garde-fou.
+- **`auto`** : l'agent propose discovery + solution + chemin avec visibilité complète. Le développeur valide au triage, et les checkpoints restent visibles. Mode par défaut pour M. **Règle H/C** : lorsque la classe de risque est H ou C, un checkpoint humain est obligatoire avant merge — l'agent ne peut pas merger seul. Cette contrainte est une règle interne au mode `auto`, pas un mode séparé.
+- **`pairing`** : le développeur est présent en continu. L'agent suit le flux de pensée du développeur.
 
-**Garde-fous anti-rubber-stamp** (actifs en Auto-décision et Auto-décision + checkpoint) :
+**Garde-fous anti-rubber-stamp** (actifs en `auto`) :
 - Format de proposition obligatoire : `[problème][alternatives][choix][critère de succès][classe de risque]`
 - Quota de rejets ≥ 20% des propositions sur une période glissante de 7 jours
 - Audit aléatoire hebdomadaire : une proposition acceptée la veille est relue à froid
@@ -411,23 +410,23 @@ escalation_history:
 
 Activités classées : **M** = Mandatory (bloquant si absent), **R** = Recommended (attendu sauf justification), **L** = Light (version allégée suffisante), **C_** = Conditional (obligatoire si condition précisée), **S** = Skippable, **X** = Interdit.
 
-| Activité | T | F | M | É | C |
+| Activité | T | L | M | H | C |
 |----------|---|---|---|---|---|
-| **DISCOVERY** | | | | | |
+| **discovery** | | | | | |
 | Validation du problème | S | L | R | M | M |
 | Entretiens utilisateurs / JTBD | S | S | R | M | M |
 | Spike technique timeboxé | S | S | R | R | R |
-| **CADRAGE** | | | | | |
+| **cadrage** | | | | | |
 | Classification de risque inscrite | M | M | M | M | M |
 | DoR formelle | L | R | M | M | M |
 | Impact privacy + accessibilité identifié | S | L | M | M | M |
-| **CONCEPTION** | | | | | |
+| **conception** | | | | | |
 | ADR documenté | S | L | R | M | M |
 | Threat modeling STRIDE | S | S | R | M | M |
 | AIPD / DPIA | S | S | C_(PII) | M (si PII) | M |
 | Threat modeling LINDDUN | S | S | S | C_(PII) | M (si PII) |
 | Plan expand/contract (schéma DB) | S | S | C_(schéma) | M (si schéma) | M |
-| **BUILD** | | | | | |
+| **build** | | | | | |
 | Tests unitaires | M | M | M | M | M |
 | Tests d'intégration | L | M | M | M | M |
 | Tests E2E parcours critiques | S | L | R | M | M |
@@ -436,20 +435,20 @@ Activités classées : **M** = Mandatory (bloquant si absent), **R** = Recommend
 | SBOM (CycloneDX/SPDX) | S | S | R | M | M |
 | Signature artefact (Cosign) | S | S | S | M | M |
 | Coverage critique (> 70% zones touchées) | S | L | M | M | M |
-| **VALIDATION** | | | | | |
+| **validation** | | | | | |
 | Review de code | L | M | M | M (≥2 ou solo+agent) | M (≥2) |
 | Quality gates CI | M | M | M | M | M |
 | Validation produit / acceptance | S | L | M | M | M |
 | Tests accessibilité auto (axe-core) | L | M | M | M + manuel | M + audit |
 | Mutation testing | S | S | R | M (zones critiques) | M |
 | Tests de charge | S | S | R | M | M |
-| **RELEASE** | | | | | |
+| **release** | | | | | |
 | Feature flag | S | R | R | M | M |
 | Plan de rollback | implicite | M | M | M + testé | M + répété |
-| Canary deployment | S | S | 10% | 5%→25%→50%→100% | idem É + flag |
+| Canary deployment | S | S | 10% | 5%→25%→50%→100% | idem H + flag |
 | Communication parties prenantes | S | équipe | équipe | élargie | élargie + externe |
 | Smoke tests post-déploiement | S | L | M | M | M |
-| **RUN** | | | | | |
+| **run** | | | | | |
 | Surveillance SLO active | L | L | M | M | M |
 | Postmortem si incident | léger | M | M | M + revue | M + audit indépendant |
 
@@ -462,12 +461,11 @@ Activités classées : **M** = Mandatory (bloquant si absent), **R** = Recommend
 ```typescript
 // packages/core/src/risk-classifier/types.ts
 
-export type RiskClass = 'T' | 'F' | 'M' | 'É' | 'C';
+export type RiskClass = 'T' | 'L' | 'M' | 'H' | 'C';
 
-export type SupervisionMode =
+export type OperatingMode =
   | 'bypass'
-  | 'auto-decision'
-  | 'auto-decision+checkpoint'
+  | 'auto'
   | 'pairing';
 
 export type DeploymentStrategy =
@@ -504,13 +502,13 @@ export interface ClassificationResult {
   activeSignals: ForcingSignal[];
   /** Score composite Impact×Probabilité (si applicable) */
   compositeScore?: number;
-  /** Mode de supervision requis */
-  supervisionMode: SupervisionMode;
+  /** Operating mode required by the risk policy */
+  operatingMode: OperatingMode;
   /** Stratégie de déploiement déterminée par la classe */
   deploymentStrategy: DeploymentStrategy;
   /** Liste des activités obligatoires pour cette classe */
   mandatoryActivities: string[];
-  /** Bypass éligible (true seulement pour T, ou F toutes conditions remplies) */
+  /** Bypass éligible (true seulement pour T, ou L toutes conditions remplies) */
   bypassEligible: boolean;
   /** Horodatage de la classification */
   classifiedAt: string; // ISO 8601
@@ -521,7 +519,7 @@ export interface ClassificationResult {
 export interface ForcingSignal {
   type: 'file_path' | 'diff_content' | 'label' | 'structural' | 'cross_repo';
   value: string;         // ex : "auth/session.ts", "CREATE TABLE", "pii"
-  forcedClass: 'É' | 'C';
+  forcedClass: 'H' | 'C';
 }
 
 export interface PromotionResult {
@@ -573,7 +571,7 @@ import type {
 /**
  * Classifie un changeset selon l'arbre de décision déterministe §2.
  *
- * Algorithme : 4 passes séquentielles (forçage C → forçage É → score → max).
+ * Algorithme : 4 passes séquentielles (forçage C → forçage H → score → max).
  * Déterministe : même input produit toujours même output.
  * Latence cible : < 30ms pour tout changeset de taille raisonnable.
  */
@@ -598,8 +596,8 @@ export function promoteRisk(
 /**
  * Rétrograde la classe courante vers une classe inférieure.
  *
- * - Requiert une approbation humaine pour É → M et C → É.
- * - Interdit pour É → F/T et C → M/F/T et tout saut de classe.
+ * - Requiert une approbation humaine pour H → M et C → H.
+ * - Interdit pour H → L/T et C → M/L/T et tout saut de classe.
  * - Interdit si un signal de forçage actif est incompatible avec la cible.
  *
  * @throws {RiskClassificationError} si demotion invalide ou non autorisée
@@ -613,7 +611,7 @@ export function demoteRisk(
 
 /**
  * Vérifie si une classe peut légitimement être utilisée en mode Bypass.
- * Applique les 5 conditions de §1.F pour la classe F.
+ * Applique les 5 conditions de §1.L pour la classe L.
  */
 export function isBypassEligible(
   riskClass: RiskClass,
@@ -623,7 +621,7 @@ export function isBypassEligible(
 /**
  * Retourne le mode de supervision requis pour une classe.
  */
-export function getSupervisionMode(riskClass: RiskClass): SupervisionMode;
+export function getOperatingMode(riskClass: RiskClass): OperatingMode;
 
 /**
  * Retourne la stratégie de déploiement pour une classe.
@@ -638,7 +636,8 @@ export function getMandatoryActivities(riskClass: RiskClass): string[];
 
 /**
  * Scanne un diff (ou un ensemble de commits) et retourne les signaux
- * de forçage détectés. Utilisé par le hook pre_tool_use et post_tool_use.
+ * de forçage détectés. Utilisé par les adaptateurs runtime qui déclenchent
+ * les décisions GateType `pre_tool` et `post_tool`.
  */
 export function scanForForcingSignals(
   files: string[],
@@ -648,7 +647,7 @@ export function scanForForcingSignals(
 
 /**
  * Compare l'ordre des classes. Retourne > 0 si a > b, 0 si égaux, < 0 sinon.
- * Ordre : T < F < M < É < C
+ * Ordre : T < L < M < H < C
  */
 export function compareRiskClass(a: RiskClass, b: RiskClass): number;
 
@@ -677,62 +676,64 @@ export class RiskClassificationError extends Error {
 
 La state machine du harness (`packages/core/src/state-machine/`) utilise `classifyRisk` comme guard sur les transitions de phase :
 
-- **Guard `canBypass`** : `isBypassEligible(currentRisk, changeset)` — bloque la transition si F mais conditions non remplies, ou si M/É/C
-- **Guard `requiresHumanCheckpoint`** : `getSupervisionMode(currentRisk) === 'auto-decision+checkpoint'` — injecte un état `AWAITING_HUMAN_APPROVAL` avant la transition vers `MERGE_READY`
+- **Guard `canBypass`** : `isBypassEligible(currentRisk, changeset)` — bloque la transition si L mais conditions non remplies, ou si M/H/C
+- **Guard `requiresHumanCheckpoint`** : `getOperatingMode(currentRisk) === 'auto' && riskClassIn(['H', 'C'])` — injecte un état `AWAITING_HUMAN_APPROVAL` avant la transition vers `MERGE_READY` (H/C checkpoint is a constraint within `auto`, not a separate mode)
 - **Guard `requiresPairing`** : `currentRisk === 'C'` — recommande le mode pairing dans la notification
 - **Action `activateGates`** : `getMandatoryActivities(currentRisk)` — active les quality gates CI correspondants dans le CI descriptor
 
-### 9.2 Policy Set (RMS)
+### 9.2 Policy Set (RMS projection)
 
-Le Policy Set (`registry/policies.yaml`) est dérivé directement de la matrice §7. Structure minimale :
+Le Policy Set est une projection logique dans `.planning/run-set.json`, dérivée directement de la matrice §7. Il n'est pas un fichier physique séparé. Structure minimale :
 
 ```yaml
-# registry/policies.yaml
+# .planning/run-set.json#policy_set (shown as YAML for readability)
 policies:
   bypass_conditions:
     T: { allowed: true, conditions: [] }
-    F: { allowed: true, conditions: [ci_green, no_forcing_signals, diff_lte_100, no_sensitive_paths, no_new_endpoints] }
+    L: { allowed: true, conditions: [ci_green, no_forcing_signals, diff_lte_100, no_sensitive_paths, no_new_endpoints] }
     M: { allowed: false }
-    É: { allowed: false }
+    H: { allowed: false }
     C: { allowed: false }
   
   human_checkpoint_required:
-    É: true
+    H: true
     C: true
   
   mandatory_gates_by_class:
     T: [lint, unit_tests, sast, secrets_scan]
-    F: [lint, unit_tests, integration_tests, sast, secrets_scan, code_review_1]
+    L: [lint, unit_tests, integration_tests, sast, secrets_scan, code_review_1]
     M: [lint, unit_tests, integration_tests, sast, secrets_scan, code_review_1, acceptance_validation]
-    É: [lint, unit_tests, integration_tests, e2e_critical, sast, dast, secrets_scan, sbom, artifact_sign, code_review_2, human_approval]
+    H: [lint, unit_tests, integration_tests, e2e_critical, sast, dast, secrets_scan, sbom, artifact_sign, code_review_2, human_approval]
     C: [lint, unit_tests, integration_tests, e2e_critical, sast, dast, secrets_scan, sbom, artifact_sign, code_review_2, security_audit, load_tests, human_approval_signed]
 ```
 
-### 9.3 Route Set (RMS)
+### 9.3 Route Set (RMS projection)
 
-Lors de la construction du Route Set pour un run, le classifier alimente :
+Lors de la construction du Route Set pour un run, le classifier alimente la projection `route_set` dans `.planning/run-set.json` :
 - `route_set.risk_class` — classe retenue
 - `route_set.supervision_mode` — mode résultant
 - `route_set.gates_activated[]` — gates CI à activer
 - `route_set.bypass_eligible` — flag utilisé par le dispatcher de hooks
 
-### 9.4 Evidence Set (RMS)
+### 9.4 Evidence Set (RMS projection)
 
-Pour qu'un item É ou C puisse atteindre le statut `DONE_VERIFIED`, l'Evidence Set doit contenir :
-- `human_approval_log` (É et C) — horodatage + identifiant humain
-- `threat_model_ref` (É et C) — référence au fichier ADR/threat model
-- `dast_report_ref` (É et C)
-- `rollback_test_evidence` (É et C) — résultat du test de rollback en staging
+Pour qu'un item H ou C puisse atteindre le statut `DONE_VERIFIED`, la projection `evidence_set` dans `.planning/run-set.json` doit contenir :
+- `human_approval_log` (H et C) — horodatage + identifiant humain
+- `threat_model_ref` (H et C) — référence au fichier ADR/threat model
+- `dast_report_ref` (H et C)
+- `rollback_test_evidence` (H et C) — résultat du test de rollback en staging
 - `aipd_ref` (C seulement si PII) — référence à l'AIPD produite
 - `security_audit_ref` (C seulement) — trace de la revue sécurité indépendante
 
-### 9.5 Hook pre_tool_use (scan continu)
+### 9.5 Hooks et GateType (scan continu)
 
-À chaque commit poussé, le hook `pre_tool_use` appelle `scanForForcingSignals(files, diffContent, labels)`. Si de nouveaux signaux sont détectés qui élèvent la classe au-delà de la classe courante, le protocole de promotion §5 est déclenché automatiquement.
+Les hooks sont des adaptateurs runtime qui déclenchent des décisions `GateType`; `GateType` est le point de politique interne canonique. Les valeurs canoniques sont `session_start`, `user_prompt`, `pre_tool`, `post_tool`, `stop`, `subagent_start`, `subagent_stop`.
 
-### 9.6 Cycle Apprentissage (feedback loop)
+À chaque décision `pre_tool` ou `post_tool`, l'adaptateur de hook appelle `scanForForcingSignals(files, diffContent, labels)`. Si de nouveaux signaux sont détectés qui élèvent la classe au-delà de la classe courante, le protocole de promotion §5 est déclenché automatiquement et persisté dans `.planning/current-risk.yaml`.
 
-Le module `packages/core/src/risk-classifier/calibration.ts` produit, à chaque cycle Apprentissage :
+### 9.6 Cycle learning (feedback loop)
+
+Le module `packages/core/src/risk-classifier/calibration.ts` produit, à chaque cycle `learning` :
 - Taux de promotions de classe (cible < 10%)
 - Taux de déclassements (cible < 15%)
 - Corrélation classe initiale / incidents production
@@ -746,9 +747,9 @@ Le module `packages/core/src/risk-classifier/calibration.ts` produit, à chaque 
 
 **Réponse** : Classification déterministe en 4 passes séquentielles (§2), proposée par l'agent via `classifyRisk(changeset)` en < 30ms, validée par le développeur au triage. Les passes 1 et 2 (signaux de forçage) sont non négociables et produisent une classe minimale forcée. La passe 3 (score composite) s'applique uniquement en l'absence de signal de forçage. La passe 4 prend le maximum des deux.
 
-La classification est automatiquement déclenchée à trois moments : (a) création de l'item en Cadrage, (b) création de la PR/branche, (c) à chaque push via le hook `pre_tool_use`. Le développeur ne peut influencer que la validation (confirmée / overridée), jamais l'arbre automatique lui-même.
+La classification est automatiquement déclenchée à trois moments : (a) création de l'item en `cadrage`, (b) création de la PR/branche, (c) à chaque push via les décisions GateType `pre_tool` et `post_tool`. Le développeur ne peut influencer que la validation (confirmée / overridée), jamais l'arbre automatique lui-même.
 
-L'ensemble des patterns de forçage (§3) est versionné dans le repo du harness et mis à jour via le cycle Apprentissage, créant une boucle de calibration auto-améliorante. La première version des patterns est conservatrice (meilleure sur-classification que sous-classification).
+L'ensemble des patterns de forçage (§3) est versionné dans le repo du harness et mis à jour via le cycle `learning`, créant une boucle de calibration auto-améliorante. La première version des patterns est conservatrice (meilleure sur-classification que sous-classification).
 
 **Critère de résolution atteint** : arbre déterministe, < 30 secondes, justification automatique produite avant toute interaction humaine.
 
@@ -763,7 +764,7 @@ Points clés :
 - La pause est immédiate et non contournable (harness bloque les pushes suivants)
 - La confirmation humaine est requise dans les 4 heures (passé ce délai, la promotion est confirmée automatiquement par défaut conservateur)
 - Tout l'historique de promotion est tracé dans `escalation_history` (format §5.3)
-- Un item promu F → É hérite immédiatement de tout le chemin obligatoire É, sans exception
+- Un item promu L → H hérite immédiatement de tout le chemin obligatoire H, sans exception
 
 Le protocole distingue la promotion forcée par signal (automatique, harness-initiated) de la promotion volontaire par le développeur (manuelle, developer-initiated). Les deux utilisent le même format de log mais avec `detected_by` différent.
 
@@ -771,7 +772,7 @@ Le protocole distingue la promotion forcée par signal (automatique, harness-ini
 
 ---
 
-*Spec produite en Conception — Pipeline Fractale v4*  
+*Spec produite en `conception` — Pipeline Fractale v4*  
 *Maintenu dans : `harness-architecture/docs/conception/02-risk-classifier-spec.md`*  
 *Implémentation cible : `packages/core/src/risk-classifier/`*  
 *Dépend de : `01-state-machine-spec.md` (guards), `03-policy-set-spec.md` (Policy Set)*

@@ -14,6 +14,13 @@ desktop.ini
 .scratch/
 tmp/
 
+# JavaScript / TypeScript
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.turbo/
+
 # Local agent/runtime state
 .omc/
 .omx/

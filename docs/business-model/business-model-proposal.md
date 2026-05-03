@@ -148,14 +148,16 @@ The founder decision is explicit: maximum community growth, public credibility, 
 
 ### 4.2 Why MIT for This Product
 
-| Criterion | MIT Core | AGPL Core | BSL/FSL/SSPL |
-|-----------|----------|-----------|--------------|
+| Criterion | MIT Core (chosen) | AGPL Core (rejected) | BSL/FSL/SSPL |
+|-----------|-------------------|----------------------|--------------|
 | Community growth | Maximum | Medium-high, but legal friction | Lower |
 | Enterprise legal friction | Minimal | Medium-high | High |
 | Fork/copy allowed | Yes | Yes, but copyleft applies | Restricted |
 | Cloud-provider protection | None | Stronger via network copyleft | Stronger but non-OSI or more controversial |
 | Career/brand impact | Maximum diffusion | Strong OSS signal, narrower adoption | Weaker OSS signal |
 | Fit for developer tool/harness | Strong | Strong only if managed-service protection dominates | Poor for community-first launch |
+
+**Decision**: MIT was chosen over AGPL because the harness is a developer tool where maximum adoption, zero enterprise legal friction, and community growth outweigh cloud-provider protection. AGPL's internal-use exemption also weakens its revenue-enforcement value for this product category (see verification-03). Revenue is value-pull (cloud, team governance, compliance, support), not license pressure.
 
 The closest practical comparable is OpenHands: public core under MIT, with `enterprise/` under a separate commercial/source-available license and paid cloud/self-host enterprise offerings [R02 §9, R05 §4.2, R07 §F]. Pipeline Fractale should follow that shape unless the strategic objective changes from community growth to license-based protection.
 
@@ -775,7 +777,7 @@ At $2,500/month fixed burn:
 | R04 | Marketplace Economics | 504 | Take rate matrix, MCP ecosystem, harness marketplace feasibility |
 | R05 | Competitive Landscape | 748 | TAM/SAM/SOM, gap analysis, harness engineering discipline |
 | R06 | Enterprise Features | 460 | Feature decision matrix, pricing benchmarks, procurement process |
-| R07 | Licensing | 520 | License decision tree, MIT/Apache vs AGPL trade-offs, CLA best practices |
+| R07 | Licensing | 520 | License decision tree, MIT/Apache trade-offs, CLA best practices (AGPL evaluated and rejected — see §4) |
 | R08 | Pricing Psychology | 683 | $20 consensus, tier architecture, charm pricing, annual discount |
 | R09 | AI Governance Market | 344 | $309M->$4.8B market, EU AI Act, T/F/M/E/C regulatory mapping |
 | R10 | Community & Ecosystem | 455 | Contributor funnel, platform selection, governance transition |

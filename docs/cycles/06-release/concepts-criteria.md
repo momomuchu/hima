@@ -37,7 +37,7 @@ La proposition centrale de ce cycle est la **séparation stricte entre déploiem
 Trois décisions architecturales invariantes pour ce cycle :
 
 1. **Versioning SemVer 2.0 obligatoire** avec Conventional Commits — le changelog s'écrit dans les commits, pas après coup.
-2. **Stratégie de déploiement proportionnelle au risque** : direct pour T/F, rolling pour stateless M, canary progressif pour É/C.
+2. **Stratégie de déploiement proportionnelle au risque** : direct pour T/L, rolling pour stateless M, canary progressif pour H/C.
 3. **Rollback en un clic** testé en staging avant toute promotion en production — un rollback non testé n'est pas un plan de rollback.
 
 Performance DORA 2024 de référence pour ce cycle :
@@ -55,7 +55,7 @@ Le cycle Release est mesurable, automatisable, et doit atteindre le niveau High 
 ### 2.1 Flux global Pipeline fractale v4
 
 ```
-[Discovery] → [Cadrage] → [Conception] → [Build] → [Validation] → [RELEASE] → [Run] → [Apprentissage]
+[discovery] → [cadrage] → [conception] → [build] → [validation] → [release] → [run] → [learning]
                                                                          ↑
                                                                CYCLE COURANT
 ```
@@ -73,7 +73,7 @@ Le cycle Release correspond aux phases 12–13 du cadre v3 :
 - Phase 12 — Préparation déploiement (environnements, migrations, stratégies)
 - Phase 13 — Déploiement (pipeline automatisé, smoke tests, watch SLO)
 
-La pipeline fractale v4 réorganise ces deux phases en un cycle complet traversant lui-même les 7 étapes Observer → Transmettre.
+La pipeline fractale v4 réorganise ces deux phases en un cycle complet traversant lui-même les 7 étapes Observer → Transmit.
 
 ### 2.4 Frontières strictes
 
@@ -124,7 +124,7 @@ Le cycle Release **ne peut démarrer** que si tous les critères suivants sont s
 
 ### 4.2 Critères additionnels selon la classe de risque
 
-| Critère | T/F | M | É | C |
+| Critère | T/L | M | H | C |
 |---------|:---:|:---:|:---:|:---:|
 | Plan de rollback documenté | implicite | requis | requis + testé | requis + répété |
 | Feature flag configuré OFF par défaut | — | recommandé | obligatoire | obligatoire |
@@ -158,7 +158,7 @@ Le cycle Release est **Done** quand tous les critères suivants sont vérifiable
 
 ### 5.2 Critères additionnels selon la classe de risque
 
-| Critère | T/F | M | É | C |
+| Critère | T/L | M | H | C |
 |---------|:---:|:---:|:---:|:---:|
 | Notification parties prenantes envoyée | — | équipe | équipe + PO | élargie + status page |
 | Feature flag en état nominal (ON ou OFF selon le plan) | — | ○ | obligatoire | obligatoire |
@@ -168,7 +168,7 @@ Le cycle Release est **Done** quand tous les critères suivants sont vérifiable
 | Signature artefact vérifiée en prod | — | — | obligatoire | obligatoire |
 | Post-deploy validation rapport écrit | — | ○ | obligatoire | obligatoire |
 | Cycle Run notifié avec runbooks actifs | — | ○ | obligatoire | obligatoire |
-| Enregistrement dans le release register (Planning/04-releases/) | ✅ | ✅ | ✅ | ✅ |
+| Enregistrement dans le release register (.planning/04-releases/) | ✅ | ✅ | ✅ | ✅ |
 
 ---
 
@@ -225,7 +225,7 @@ Cinq stratégies, choisies selon la classe de risque et la nature de l'applicati
 #### Déploiement direct
 - Remplace l'ancienne version par la nouvelle en une seule opération
 - Risque : temps d'indisponibilité potentiel, rollback complexe
-- Usage : T/F uniquement, jamais en production critique
+- Usage : T/L uniquement, jamais en production critique
 
 #### Rolling deployment
 - Mise à jour progressive des instances (N instances à la fois)
@@ -238,13 +238,13 @@ Cinq stratégies, choisies selon la classe de risque et la nature de l'applicati
 - Bascule du trafic instantanée via load balancer
 - Rollback en quelques secondes : rerouter vers blue
 - Coût : 2× l'infrastructure pendant la fenêtre de déploiement
-- Usage : quand le rollback instantané est non-négociable, classe É
+- Usage : quand le rollback instantané est non-négociable, classe H
 
 #### Canary deployment
 - Routage progressif : 5 % → 25 % → 50 % → 100 % du trafic
-- Chaque palier = gate SLO : pas de progression si les métriques dérivent
+- Chaque palier = checkpoint SLO : pas de progression si les métriques dérivent
 - Infrastructure : une seule pool, pas de duplication complète
-- Usage : standard pour M/É, pilote les décisions par la donnée réelle
+- Usage : standard pour M/H, pilote les décisions par la donnée réelle
 
 ```
 Canary gates (exemple) :
@@ -308,7 +308,7 @@ Déploiement 4 — CONTRACT :
 
 ### 6.6 Plan de rollback
 
-Le rollback n'est pas un plan optionnel. C'est une exigence de la DoR Release pour tout changement M/É/C.
+Le rollback n'est pas un plan optionnel. C'est une exigence de la DoR Release pour tout changement M/H/C.
 
 **Trois niveaux de rollback :**
 
@@ -320,7 +320,7 @@ Le rollback n'est pas un plan optionnel. C'est une exigence de la DoR Release po
 
 **Règle pour le rollback base de données** : si le rollback de base de données nécessite plus de 30 minutes ou est destructeur, alors la stratégie de migration expand/contract est obligatoire — le contract n'est jamais dans la même release que le code qui dépend de la nouvelle structure.
 
-**Test du rollback** : tout plan de rollback É/C doit être exécuté en staging avant la promotion en prod. La phrase "on pourra rollback si besoin" sans test préalable est un anti-pattern documenté.
+**Test du rollback** : tout plan de rollback H/C doit être exécuté en staging avant la promotion en prod. La phrase "on pourra rollback si besoin" sans test préalable est un anti-pattern documenté.
 
 ### 6.7 Smoke tests post-déploiement
 
@@ -335,7 +335,7 @@ Tests rapides (< 5 minutes) exécutés immédiatement après tout déploiement e
 
 **Ne pas confondre avec :**
 - Tests de régression complète (cycle Validation)
-- Tests de performance (phase de validation É/C)
+- Tests de performance (phase de validation H/C)
 - Tests d'acceptation produit (cycle Validation)
 
 ### 6.8 Changelog et Release Notes
@@ -383,30 +383,30 @@ Conventional Commits
 
 ### 6.10 Environnements et promotion
 
-La promotion est le flux d'un artefact à travers les environnements successifs. Chaque franchissement de frontière est une gate explicite.
+La promotion est le flux d'un artefact à travers les environnements successifs. Chaque franchissement de frontière est un checkpoint explicite.
 
 ```
 dev → CI → review/preview → staging → preprod → PROD
           ↓                   ↓           ↓
-      quality gates      smoke tests  release gate
-      (auto-bloquant)    (go/no-go)   (humain É/C)
+      quality gates      smoke tests  release checkpoint
+      (auto-bloquant)    (go/no-go)   (humain H/C)
 ```
 
 **Parité d'environnements** : la configuration doit être identique entre staging/preprod et prod, à l'exception des secrets et des endpoints externes. Toute différence documentée et justifiée. Une divergence non documentée est un risk silencieux.
 
 **Données anonymisées** : prod → staging utilise des techniques irréversibles (hash+salt sur PII, données synthétiques). L'intégrité référentielle doit être préservée.
 
-### 6.11 Gates d'approbation Release
+### 6.11 Checkpoints d'approbation Release
 
-| Classe | Type de gate | Approbateur |
+| Classe | Type de checkpoint | Approbateur |
 |--------|-------------|-------------|
 | T | Automatique (CI vert) | Aucun humain |
-| F | Automatique (CI + smoke tests) | Aucun humain |
+| L | Automatique (CI + smoke tests) | Aucun humain |
 | M | Semi-automatique | Auto si hors heures creuses, sinon validation asynchrone |
-| É | Gate humain explicite | Developer (solo) ou tech lead |
-| C | Gate humain + checklist | Developer + revue de la checklist C obligatoire |
+| H | Checkpoint humain explicite | Developer (solo) ou tech lead |
+| C | Checkpoint humain + checklist | Developer + revue de la checklist C obligatoire |
 
-En mode solo : le gate humain É/C signifie que le developer **lit la checklist complète**, signe mentalement ou dans le fichier de release, puis déclenche manuellement le déploiement. L'auto-approbation reflexe sans lecture est l'anti-pattern rubber-stamp documenté dans le rapport-discovery-cadrage.
+En mode solo : le checkpoint humain H/C signifie que le developer **lit la checklist complète**, signe mentalement ou dans le fichier de release, puis déclenche manuellement le déploiement. L'auto-approbation reflexe sans lecture est l'anti-pattern rubber-stamp documenté dans le rapport-discovery-cadrage.
 
 ---
 
@@ -419,8 +419,8 @@ Les 9 caractéristiques ISO 25010:2023 appliquées au cycle Release, avec les cr
 | Caractéristique | Critères Release | Seuil cible |
 |-----------------|-----------------|-------------|
 | **Reliability** (disponibilité, fault tolerance, recoverability) | Uptime post-déploiement, MTTR, smoke tests pass rate | Smoke tests 100% pass, MTTR < 1h (High DORA) |
-| **Security** (intégrité, authenticité, non-répudiation) | Signature artefact, SBOM complet, provenance SLSA | SLSA niveau 2 pour É/C, secrets scan vert |
-| **Maintainability** (modifiabilité, testabilité) | Changelog à jour, artefact immuable identifié, rollback documenté | Changelog auto-généré, rollback testé É/C |
+| **Security** (intégrité, authenticité, non-répudiation) | Signature artefact, SBOM complet, provenance SLSA | SLSA niveau 2 pour H/C, secrets scan vert |
+| **Maintainability** (modifiabilité, testabilité) | Changelog à jour, artefact immuable identifié, rollback documenté | Changelog auto-généré, rollback testé H/C |
 | **Flexibility** (installabilité, remplaçabilité) | Déploiement progressif, compatibilité backward, expand/contract | Zero breaking change non-annoncé en MAJOR |
 | **Performance efficiency** (time behaviour) | Temps de déploiement, temps de rollback, durée smoke tests | Déploiement < 15 min, smoke tests < 5 min |
 
@@ -431,7 +431,7 @@ Les 9 caractéristiques ISO 25010:2023 appliquées au cycle Release, avec les cr
 | **Functional suitability** | Les fonctionnalités déployées correspondent exactement à celles validées | Hash artefact identique staging → prod |
 | **Interaction capability** | Release notes lisibles par les parties prenantes non-techniques | Release notes validées par un non-dev |
 | **Compatibility** | Backward compatibility respectée ou MAJOR bump | Aucune régression de contrat non annoncée |
-| **Safety** *(nouveau ISO 25010:2023)* | Opérations à risque derrière gate humain, rollback automatique si seuil SLO atteint | Automated rollback on burn rate activé pour C |
+| **Safety** *(nouveau ISO 25010:2023)* | Opérations à risque derrière checkpoint humain, rollback automatique si seuil SLO atteint | Automated rollback on burn rate activé pour C |
 
 ### 7.3 Caractéristique non applicable à ce cycle
 
@@ -444,11 +444,11 @@ Les 9 caractéristiques ISO 25010:2023 appliquées au cycle Release, avec les cr
 
 ## 8. Modulation par classe de risque
 
-La matrice ci-dessous définit ce qui est obligatoire (✅), recommandé (○), allégé (◔), ou ignoré (—) pour chaque activité du cycle Release selon la classe de risque du changement (T/F/M/É/C).
+La matrice ci-dessous définit ce qui est obligatoire (✅), recommandé (○), allégé (◔), ou ignoré (—) pour chaque activité du cycle Release selon la classe de risque du changement (T/L/M/H/C).
 
 ### 8.1 Matrice Release par classe de risque
 
-| Activité Release | T | F | M | É | C |
+| Activité Release | T | L | M | H | C |
 |-----------------|:---:|:---:|:---:|:---:|:---:|
 | Calcul SemVer automatique | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Changelog auto (semantic-release) | ✅ | ✅ | ✅ | ✅ | ✅ |
@@ -477,9 +477,9 @@ La matrice ci-dessous définit ce qui est obligatoire (✅), recommandé (○), 
 Les critères du rapport-discovery-cadrage s'appliquent directement :
 
 - **T** : cosmétique, doc, dépendance patch sans CVE, refactor pur sans changement de comportement
-- **F** : nouvelle feature isolée derrière feature flag, pas de donnée perso, pas de migration
+- **L** : nouvelle feature isolée derrière feature flag, pas de donnée perso, pas de migration
 - **M** : feature visible utilisateur, pas de PII sensible, pas de schéma DB, pas d'impact tiers
-- **É** : touche auth, autorisation, paiement, données personnelles, schéma DB, API publique, infra prod
+- **H** : touche auth, autorisation, paiement, données personnelles, schéma DB, API publique, infra prod
 - **C** : impact transverse multi-services, données santé/biométrie/financières, refonte architecture, rupture contrat API, exigence réglementaire
 
 **Anti-pattern** : auto-classification vers le bas par commodité. Le rapport-discovery-cadrage identifie ce risque explicitement : "la classification reste subjective si elle n'est pas mécanisée". En solo, le developer doit challenger sa propre classification avant de lancer le déploiement.
@@ -488,7 +488,7 @@ Les critères du rapport-discovery-cadrage s'appliquent directement :
 
 ## 9. Sous-cycle fractal (7 étapes)
 
-Le cycle Release est lui-même un mini-cycle suivant les 7 étapes universelles : Observer → Définir → Concevoir → Exécuter → Vérifier → Capitaliser → Transmettre.
+Le cycle Release est lui-même un mini-cycle suivant les 7 étapes universelles : Observer → Define → Design → Execute → Verify → Capitalize → Transmit.
 
 La profondeur de chaque étape se module par la classe de risque.
 
@@ -503,12 +503,12 @@ La profondeur de chaque étape se module par la classe de risque.
 - Lire les smoke tests staging : verts depuis combien de temps ?
 - Vérifier les dépendances amont : migration en cours ? Déploiement d'un service dépendant attendu ?
 
-**Livrables** : tableau d'état Go/No-Go (peut être mental pour T/F, écrit pour É/C).
+**Livrables** : tableau d'état Go/No-Go (peut être mental pour T/L, écrit pour H/C).
 
-**T/F** : vérification en 2 minutes, mentale ou automatisée.
-**É/C** : checklist écrite dans le fichier `.planning/04-releases/REL-XXX/release-readiness.md`.
+**T/L** : vérification en 2 minutes, mentale ou automatisée.
+**H/C** : checklist écrite dans le fichier `.planning/04-releases/REL-XXX/release-readiness.md`.
 
-### Étape 2 — Définir
+### Étape 2 — Define
 
 **Intention** : figer ce qui va être déployé, dans quel état, avec quelles frontières.
 
@@ -523,7 +523,7 @@ La profondeur de chaque étape se module par la classe de risque.
 
 **Livrables** : release plan (`.planning/04-releases/REL-XXX/release-plan.md`).
 
-### Étape 3 — Concevoir
+### Étape 3 — Design
 
 **Intention** : préparer l'exécution pour qu'elle soit sans surprise.
 
@@ -536,16 +536,16 @@ La profondeur de chaque étape se module par la classe de risque.
 - Définir les seuils de rollback automatique (error rate, p99 latency thresholds)
 - Prévoir la fenêtre de monitoring post-deploy
 
-**T/F** : cette étape est implicite (CI/CD gère tout).
-**É/C** : plan écrit, rollback script testé en staging dans cette étape.
+**T/L** : cette étape est implicite (CI/CD gère tout).
+**H/C** : plan écrit, rollback script testé en staging dans cette étape.
 
-### Étape 4 — Exécuter
+### Étape 4 — Execute
 
 **Intention** : déployer de manière contrôlée, avec les yeux sur les métriques.
 
 **Activités** :
 - Déclencher le pipeline de déploiement (merge sur main ou tag SemVer)
-- Vérification SLSA provenance et signature artefact avant promotion (É/C)
+- Vérification SLSA provenance et signature artefact avant promotion (H/C)
 - Suivi en temps réel : SLO, error budget, logs, alertes
 - Activation progressive des paliers canary avec validation à chaque palier
 - Smoke tests post-déploiement (automatiques)
@@ -557,7 +557,7 @@ La profondeur de chaque étape se module par la classe de risque.
 - Activer tous les feature flags simultanément sans paliers
 - Fusionner le contract d'une migration dans ce déploiement
 
-### Étape 5 — Vérifier
+### Étape 5 — Verify
 
 **Intention** : confirmer objectivement que le déploiement a réussi et que la production est saine.
 
@@ -574,7 +574,7 @@ La profondeur de chaque étape se module par la classe de risque.
 - p99 latency > 2× baseline → rollback
 - SLO burn rate > 14.4× sur 1 heure → rollback (Google SRE multi-burn-rate alerting)
 
-### Étape 6 — Capitaliser
+### Étape 6 — Capitalize
 
 **Intention** : enregistrer les preuves et les apprentissages pour améliorer le prochain cycle.
 
@@ -586,9 +586,9 @@ La profondeur de chaque étape se module par la classe de risque.
 - Mettre à jour le risk register si de nouveaux patterns de risque ont été observés
 - Nettoyer les feature flags obsolètes (si rollout complet)
 
-**Indicateur de maturité** : si la phase Capitaliser dure moins de 10 minutes, le cycle est bien automatisé. Si elle dure > 1 heure, des parties du cycle Release doivent être automatisées.
+**Indicateur de maturité** : si la phase Capitalize dure moins de 10 minutes, le cycle est bien automatisé. Si elle dure > 1 heure, des parties du cycle Release doivent être automatisées.
 
-### Étape 7 — Transmettre
+### Étape 7 — Transmit
 
 **Intention** : passer la main au cycle Run avec toutes les informations nécessaires.
 
@@ -652,7 +652,7 @@ Durant toute la fenêtre de déploiement et les 2 heures qui suivent :
 |----------|-------------|--------|-------------|
 | Artefact de release signé | Registre immuable (Docker Registry, npm, GitHub Releases) | Image/package + digest | Pipeline CI/CD |
 | SBOM (Software Bill of Materials) | Attaché à la release dans le registre | CycloneDX JSON ou SPDX | Syft / cdxgen |
-| SLSA Provenance (É/C) | Attaché à la release | JSON signé | slsa-github-generator |
+| SLSA Provenance (H/C) | Attaché à la release | JSON signé | slsa-github-generator |
 | CHANGELOG.md | Root du repo | Markdown (Keep a Changelog) | semantic-release |
 | Git tag SemVer | Repository Git | `vMAJOR.MINOR.PATCH` | semantic-release / manuel |
 | Release Notes | GitHub/GitLab Releases + status page | Markdown lisible | Auto + reformulation si besoin |
@@ -666,9 +666,9 @@ Durant toute la fenêtre de déploiement et les 2 heures qui suivent :
 | Post-Deploy Validation Report | `.planning/04-releases/REL-XXX/post-deploy-validation.md` | Markdown |
 | Rollback Plan | `.planning/04-releases/REL-XXX/rollback-plan.md` | Markdown + scripts |
 | Deployment Evidence | `.planning/04-releases/REL-XXX/deployment-evidence.md` | Logs + screenshots |
-| Release Retrospective (É/C) | `.planning/04-releases/REL-XXX/release-retrospective.md` | Markdown |
+| Release Retrospective (H/C) | `.planning/04-releases/REL-XXX/release-retrospective.md` | Markdown |
 
-### 11.3 Structure du dossier release (Planning/)
+### 11.3 Structure du dossier release (.planning/)
 
 ```
 .planning/04-releases/
@@ -680,7 +680,7 @@ Durant toute la fenêtre de déploiement et les 2 heures qui suivent :
 │   ├── rollback-plan.md
 │   ├── deployment-evidence.md
 │   ├── post-deploy-validation.md
-│   └── release-retrospective.md (É/C uniquement)
+│   └── release-retrospective.md (H/C uniquement)
 └── release-history.md
 ```
 
@@ -690,7 +690,7 @@ Durant toute la fenêtre de déploiement et les 2 heures qui suivent :
 ---
 release_id: REL-XXX
 version: 1.3.0
-risk_class: É
+risk_class: H
 date: 2026-05-03
 status: pending | go | no-go | rollback
 ---
@@ -739,11 +739,11 @@ Go — approuvé le [date] par [developer]
 | Durée des smoke tests | Exécution complète de la suite smoke | < 5 minutes |
 | Temps de rollback | Du déclenchement rollback à la production stable | < 5 minutes (feature flag), < 15 min (deployment) |
 | Taux de succès des smoke tests | % des runs smoke tests ayant passé | > 99% |
-| Coverage feature flags | % des features É/C derrière un flag | 100% |
-| Taux d'artefacts signés | % des releases É/C avec signature Cosign | 100% |
+| Coverage feature flags | % des features H/C derrière un flag | 100% |
+| Taux d'artefacts signés | % des releases H/C avec signature Cosign | 100% |
 | Délai changelog | Temps entre merge et publication changelog | < 1 heure (automatisé) |
 
-### 12.3 Tableau de bord Release (Planning/07-metrics/release-metrics.md)
+### 12.3 Tableau de bord Release (.planning/07-metrics/release-metrics.md)
 
 ```
 Période : [mois courant]
@@ -761,10 +761,10 @@ Releases avec SBOM    : X%
 | Métrique | Seuil d'alerte | Action |
 |----------|---------------|--------|
 | CFR > 15% sur 3 releases consécutives | Critique | Stop les features, audit du processus de validation |
-| Recovery Time > 1 heure | Élevé | Revoir le plan de rollback, automatiser le rollback |
-| Smoke tests failure rate > 5% | Élevé | Analyser les flaky tests, revoir le scope des smoke tests |
+| Recovery Time > 1 heure | High | Revoir le plan de rollback, automatiser le rollback |
+| Smoke tests failure rate > 5% | High | Analyser les flaky tests, revoir le scope des smoke tests |
 | Pipeline duration > 30 min | Moyen | Profiler le pipeline, paralléliser les étapes lentes |
-| Rework Rate > 20% | Élevé | Renforcer le cycle Validation, revoir la DoR |
+| Rework Rate > 20% | High | Renforcer le cycle Validation, revoir la DoR |
 
 ---
 
@@ -804,15 +804,15 @@ Pour ce système (solo dev + SaaS web) : **Trunk-Based Development** est le choi
 
 Les RED CARDS sont des questions architecturales sans réponse définitive à ce stade. Elles doivent être résolues avant d'implémenter ce cycle, ou explicitement marquées comme "risque accepté" avec un responsable.
 
-### RC-01 — Automatisation complète vs gate humain solo
+### RC-01 — Automatisation complète vs checkpoint humain solo
 
-**Question** : en mode solo, le gate d'approbation humaine pour É/C doit-il être un frein dans le pipeline (le pipeline s'arrête et attend) ou un pré-requis documenté (le developer confirme manuellement puis déclenche) ?
+**Question** : en mode solo, le checkpoint d'approbation humaine pour H/C doit-il être un frein dans le pipeline (le pipeline s'arrête et attend) ou un pré-requis documenté (le developer confirme manuellement puis déclenche) ?
 
 **Tension** : un frein dans le pipeline améliore la traçabilité mais peut bloquer des déploiements urgents (incident). Un pré-requis documenté est plus souple mais peut dériver en rubber-stamp.
 
 **Piste** : pré-requis documenté + checklist obligatoire dans le fichier release-readiness.md + audit aléatoire hebdomadaire (aligné sur l'anti-rubber-stamp du rapport-discovery-cadrage §3.3).
 
-**Statut** : ouvert — à décider avant Build du cycle Release.
+**Statut** : fermé par PFV4 : `auto` reste autonome par défaut, mais H/C impose un checkpoint et une validation humaine quand la politique release l'exige.
 
 ### RC-02 — Stratégie de feature flags : in-house vs service externe
 
@@ -830,7 +830,7 @@ Les RED CARDS sont des questions architecturales sans réponse définitive à ce
 
 **Tension** : Niveau 2 est atteignable en quelques semaines avec GitHub Actions OIDC. Niveau 3 nécessite un effort significatif (build hermétique, reproductible). La valeur marginale de 3 vs 2 est faible pour un projet solo non soumis à des contraintes réglementaires strictes.
 
-**Piste** : Niveau 2 pour É/C, Niveau 1 acceptable pour M, pas de SLSA pour T/F. Réévaluer si le projet devient un composant de supply chain tiers.
+**Piste** : Niveau 2 pour H/C, Niveau 1 acceptable pour M, pas de SLSA pour T/L. Réévaluer si le projet devient un composant de supply chain tiers.
 
 **Statut** : décision recommandée Niveau 2 — à valider par projet.
 
@@ -840,9 +840,9 @@ Les RED CARDS sont des questions architecturales sans réponse définitive à ce
 
 **Tension** : un seuil trop bas génère des rollbacks intempestifs (faux positifs). Un seuil trop haut laisse un incident se développer.
 
-**Piste** : adopter les seuils Google SRE Multi-burn-rate alerting (14.4× sur 1h = rollback immédiat, 6× sur 6h = investigation urgente). Activer le rollback automatique uniquement pour C, décision humaine assistée pour É.
+**Piste** : adopter les seuils Google SRE Multi-burn-rate alerting (14.4× sur 1h = rollback immédiat, 6× sur 6h = investigation urgente). Activer le rollback automatique uniquement pour C, décision humaine assistée pour H.
 
-**Statut** : ouvert — à instrumenter en cycle Run, référencé ici pour la définition des gates.
+**Statut** : démoté : les seuils restent à calibrer en cycle Run, mais le déclenchement automatique est cadré par PFV4 via `RiskClass` et checkpoint H/C.
 
 ### RC-05 — Gestion des hotfixes en mode Trunk-Based
 
@@ -862,13 +862,13 @@ Les RED CARDS sont des questions architecturales sans réponse définitive à ce
 
 **Statut** : ouvert — à automatiser, risque élevé si manuel.
 
-### RC-07 — Release Approval pour le mode Bypass (classe T/F)
+### RC-07 — Release Approval pour le mode bypass (classe T/L)
 
-**Question** : en mode Bypass (l'agent fait tout, sans supervision humaine), quelle est la frontière acceptable pour les releases T/F ?
+**Question** : en mode bypass (l'agent fait tout, sans supervision humaine), quelle est la frontière acceptable pour les releases T/L ?
 
-**Piste** : le mode Bypass est autorisé pour T/F seulement (décision §3.4 du rapport-discovery-cadrage). Pour le cycle Release, cela signifie que l'agent peut déclencher un déploiement direct pour T/F sans intervention humaine, si et seulement si les quality gates CI sont verts et les smoke tests staging sont passés.
+**Piste** : le mode bypass est autorisé pour T/L seulement (décision §3.4 du rapport-discovery-cadrage). Pour le cycle Release, cela signifie que l'agent peut déclencher un déploiement direct pour T/L sans intervention humaine, si et seulement si les quality gates CI sont verts et les smoke tests staging sont passés.
 
-**Statut** : décision prise en Discovery — à implémenter comme règle harness.
+**Statut** : fermé par PFV4 : `bypass` est autorisé seulement pour T/L bornés, avec CI et smoke tests verts.
 
 ---
 
@@ -880,8 +880,8 @@ Les RED CARDS sont des questions architecturales sans réponse définitive à ce
 |-------|----------------------|-----------|
 | **Cycle 05 — Validation** | Build approuvé avec verdict Go, quality gates CI verts persistants, smoke tests staging verts, rapport de validation | Obligatoire — Release ne peut commencer sans |
 | **Cycle 04 — Build** | Artefact de build identifié (hash), Conventional Commits respectés, feature flags configurés | Obligatoire — l'artefact doit exister avant la release |
-| **Cycle 03 — Conception** | Stratégie de déploiement choisie (ADR), plan de migration expand/contract défini, runbooks pré-configurés | Obligatoire pour É/C |
-| **Cycle 02 — Cadrage** | Classification de risque T/F/M/É/C validée, gate d'approbation défini | Obligatoire — la modulation par risque dépend de cette classification |
+| **Cycle 03 — Conception** | Stratégie de déploiement choisie (ADR), plan de migration expand/contract défini, runbooks pré-configurés | Obligatoire pour H/C |
+| **Cycle 02 — Cadrage** | Classification de risque T/L/M/H/C validée, checkpoint d'approbation défini | Obligatoire — la modulation par risque dépend de cette classification |
 
 ### 15.2 Dépendances aval
 
@@ -919,8 +919,8 @@ Cycle Release → Validation
 ### 15.5 Matrice de responsabilité Release
 
 ```
-              Discovery Cadrage Conception Build Validation RELEASE Run  Apprentissage
-Classification T/F/M/É/C   [R]     [A]       [C]    [I]     [I]      [C]   [I]     [I]
+              discovery cadrage conception build validation release run  learning
+Classification T/L/M/H/C   [R]     [A]       [C]    [I]     [I]      [C]   [I]     [I]
 Stratégie déploiement [I]   [C]     [A+R]     [C]    [I]     [I]      [A+R] [C]     [I]
 Artefact signé        [I]   [I]     [I]       [C]    [I]     [A+R]    [C]   [I]     [I]
 Changelog/SemVer      [I]   [I]     [C]       [A+R]  [I]     [A+R]    [C]   [I]     [I]
@@ -934,10 +934,10 @@ R = Responsible | A = Accountable | C = Consulted | I = Informed
 
 ## Annexe A — Checklist déploiement à risque (usage direct)
 
-Checklist opérationnelle à utiliser pour tout déploiement M/É/C. Extraite du cadre v3 (compass_artifact §7.5) et adaptée au cycle 06.
+Checklist opérationnelle à utiliser pour tout déploiement M/H/C. Extraite du cadre v3 (compass_artifact §7.5) et adaptée au cycle 06.
 
 ```
-## Checklist Release — REL-XXX — vX.Y.Z — Classe [M/É/C]
+## Checklist Release — REL-XXX — vX.Y.Z — Classe [M/H/C]
 
 ### Pré-déploiement
 - [ ] Artefact identifié (hash immuable) et conforme à celui validé en staging
@@ -945,19 +945,19 @@ Checklist opérationnelle à utiliser pour tout déploiement M/É/C. Extraite du
 - [ ] Changelog / release notes draft prêt
 - [ ] Quality gates CI verts (dernière exécution < 24h)
 - [ ] Smoke tests staging verts (dernière exécution < 4h)
-- [ ] Feature flags configurés OFF (pour les features É/C)
+- [ ] Feature flags configurés OFF (pour les features H/C)
 - [ ] Plan de rollback documenté et testé en staging
 - [ ] Expand/contract : aucune opération CONTRACT dans ce déploiement
 - [ ] SLO et error budget vérifiés (aucune alerte active, budget > 20%)
 - [ ] Communication préparée (draft message équipe / parties prenantes)
-- [ ] SBOM généré et attaché (É/C)
-- [ ] Signature Cosign vérifiée (É/C)
-- [ ] SLSA provenance vérifiée (É/C)
-- [ ] Gate d'approbation humaine : [développeur a lu la checklist] (É/C)
+- [ ] SBOM généré et attaché (H/C)
+- [ ] Signature Cosign vérifiée (H/C)
+- [ ] SLSA provenance vérifiée (H/C)
+- [ ] Gate d'approbation humaine : [développeur a lu la checklist] (H/C)
 
 ### Déploiement
 - [ ] Pipeline déclenché sur l'artefact identifié
-- [ ] Paliers canary respectés (5% → 25% → 50% → 100% pour É/C)
+- [ ] Paliers canary respectés (5% → 25% → 50% → 100% pour H/C)
 - [ ] Smoke tests post-déploiement verts à chaque palier
 - [ ] SLO surveillé en temps réel (dashboard ouvert)
 - [ ] Error rate et p99 latency sous les seuils de rollback
@@ -968,7 +968,7 @@ Checklist opérationnelle à utiliser pour tout déploiement M/É/C. Extraite du
 - [ ] Changelog / release notes publiés
 - [ ] Communication parties prenantes envoyée
 - [ ] Feature flags activés selon le plan (si release fonctionnelle)
-- [ ] Release archivée (Planning/04-releases/REL-XXX/)
+- [ ] Release archivée (.planning/04-releases/REL-XXX/)
 - [ ] Cycle Run notifié
 - [ ] Métriques DORA mises à jour
 ```

@@ -1,0 +1,22 @@
+{
+  "name": "@harness/adapter-claude",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --sourcemap --clean --external @harness/core && tsc -p tsconfig.json --emitDeclarationOnly --declaration --outDir dist",
+    "typecheck": "tsc --noEmit",
+    "test": "corepack pnpm --filter @harness/core build && vitest run --root ../.. ../../packages/adapter-claude/test/index.test.ts"
+  },
+  "dependencies": {
+    "@harness/core": "workspace:*"
+  }
+}

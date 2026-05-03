@@ -157,7 +157,7 @@ Pas de telemetry automatique, pas de formulaires — trop lourd pour un outil so
 
 **Réponse** : **MIT**. Publication open source dès v1.0 stable.
 
-**Justification** : le harness est d'abord un outil personnel, mais sa valeur augmente avec l'adoption. MIT est la licence qui maximise l'adoption sans friction (pas de copyleft viral comme GPL, pas de conditions d'attribution lourdes comme Apache 2.0 pour les fichiers modifiés). MIT est la norme de facto de l'écosystème npm. La concession commerciale que GPL ou AGPL procureraient n'est pas pertinente ici — le harness n'est pas un service SaaS qu'on veut protéger d'une exploitation cloud tierce.
+**Justification** : le harness est d'abord un outil personnel, mais sa valeur augmente avec l'adoption. MIT est la licence qui maximise l'adoption sans friction (pas de copyleft viral comme GPL, pas de conditions d'attribution lourdes comme Apache 2.0 pour les fichiers modifiés). MIT est la norme de facto de l'écosystème npm. AGPL a ete evalue et rejete : la concession commerciale qu'il procurerait n'est pas pertinente ici — le harness n'est pas un service SaaS qu'on veut proteger d'une exploitation cloud tierce, et l'exemption d'usage interne de l'AGPL affaiblit sa valeur de protection commerciale (voir decision-2026-05-03-mit-core-cloud-enterprise.md et verification-03-risk-depth-gating.md).
 
 Position sur le compromis MIT vs Apache 2.0 : Apache 2.0 ajoute une protection de brevet explicite. Pour un outil CLI sans IP brevetable, cette protection est théorique. MIT suffit.
 

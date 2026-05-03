@@ -50,7 +50,7 @@ Paid surfaces should be additive, maintained, hosted, or organizational:
 
 ## Rejected
 
-- **AGPL core as default**: good for license-led cloud protection, but too much friction for the current goal of maximum community growth.
+- **AGPL core as default**: evaluated and rejected. Good for license-led cloud protection, but too much enterprise legal friction for the current goal of maximum community growth. AGPL's internal-use exemption also weakens its revenue-enforcement value (enterprises can deploy internally without triggering copyleft). MIT better fits a developer tool where adoption and career/brand impact are primary goals.
 - **MIT now, restrictive later**: creates bait-and-switch risk and cannot revoke rights already granted under MIT.
 - **Risk-depth paywall**: makes the core frustrating and weakens community trust.
 
