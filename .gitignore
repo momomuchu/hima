@@ -13,3 +13,9 @@ desktop.ini
 *.local.md
 .scratch/
 tmp/
+
+# Local agent/runtime state
+.omc/
+.omx/
+.planning/
+.claude/
