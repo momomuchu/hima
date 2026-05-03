@@ -233,9 +233,9 @@ Sprint 11 result:
   - Built CLI smoke generated 10 skills, dry-run wrote 0 files, apply wrote 10 files, and
     `classify-risk/SKILL.md` contained valid frontmatter plus managed marker.
 
-Sprint 12 verification lane D result:
+Sprint 12 result:
 
-- Core now has target-aware runtime artifact install coverage for
+- Core now exposes target-aware runtime artifact installation through
   `planArtifactInstall()` and `installCatalogArtifacts()`.
 - Runtime artifact installation materializes the operational catalog into the selected platform
   directory instead of treating install-artifacts as a portable generation alias:
@@ -245,21 +245,36 @@ Sprint 12 verification lane D result:
     `.claude/agents/<id>.md`;
   - Hermes installs under `.hermes/skills/<id>/SKILL.md`, `.hermes/books/<id>.md`, and
     `.hermes/agents/<id>.md`.
+- CLI now exposes `harness install-artifacts <target>` with `--root`,
+  `--kind all|skills|books|subagents`, `--apply`, and `--json`.
+- MCP now exposes target-aware `rms.install_artifacts` plus legacy
+  `harness:install_artifacts`; both default to dry-run and call the same core install service.
+- Platform adapter config writes now use the shared safe-write boundary guard instead of direct
+  `writeFile`, so project-local apply rejects symlinked or hardlinked config targets before
+  writing.
 - Focused core tests cover dry-run no-write behavior, the Codex/Claude/Hermes layout matrix,
   selected-kind apply behavior, idempotent second apply behavior, invalid target rejection, and
   symlinked platform-root refusal when the OS permits symlink creation in the test environment.
-- No core implementation patch was required by this lane; the new regression tests passed against
-  the existing shared catalog artifact writer and safe-write helper.
+- CLI and MCP tests cover target-aware dry-run/apply behavior and assert runtime platform paths,
+  not portable `artifacts/` paths.
+- Adapter tests cover hardlinked config target refusal for Codex, Claude, and Hermes, plus
+  conditional symlink target refusal when the OS permits symlink creation in the test environment.
 - Verification:
-  - `corepack pnpm exec vitest run packages/core/test/artifact-install.test.ts`
-    passed: 1 file, 6 tests.
-  - Full workspace validation was not run in this lane.
+  - `npx pnpm@10.33.2 exec vitest run packages/core/test/artifact-install.test.ts packages/core/test/artifact-generation.test.ts packages/adapter-codex/test/index.test.ts packages/adapter-claude/test/index.test.ts packages/adapter-hermes/test/index.test.ts packages/cli/test/index.test.ts packages/mcp-server/test/index.test.ts`
+    passed: 7 files, 73 tests.
+  - `npx pnpm@10.33.2 typecheck` passed.
+  - `npx pnpm@10.33.2 test` passed: 22 files, 180 tests.
+  - `npx pnpm@10.33.2 lint` passed: Biome checked 83 files.
+  - `npx pnpm@10.33.2 audit --audit-level low` passed: no known vulnerabilities.
+  - `npx pnpm@10.33.2 build` passed.
+  - Built CLI smoke confirmed `install-artifacts codex --kind skills` dry-run wrote no file,
+    apply wrote 10 skills under `.codex/skills`, and `classify-risk/SKILL.md` contained the
+    canonical catalog marker.
 
 ## Remaining Product Gaps
 
 - Documentation outside this implementation log may still need a synchronization pass against the
   executable contracts.
-- CLI and MCP install-artifact surfaces were not validated in lane D.
 - Verification is local; no remote CI or package-publish/install test has been run.
 - The workspace contains many untracked implementation files, so this log verifies the working tree,
   not committed history.
@@ -270,5 +285,5 @@ Move from runtime artifact installation to package/install smoke coverage and do
 
 1. Add package/install smoke tests that run against built artifacts in a temp workspace.
 2. Synchronize conception and implementation docs with the final Sprint 10 runtime contracts.
-3. Add CLI/MCP validation for target-aware runtime artifact installation.
-4. Add CI workflow equivalents for `typecheck`, `test`, `lint`, `audit`, and `build`.
+3. Add CI workflow equivalents for `typecheck`, `test`, `lint`, `audit`, and `build`.
+4. Add a runtime install manifest with file hashes and explicit rollback metadata.
