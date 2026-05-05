@@ -24,6 +24,10 @@ import {
   readPlanningProject,
   writePlanningProject,
 } from "../src/index.js";
+import {
+  createTrustedRuntimeProbeProof,
+  TRUSTED_BLOCKING_RUNTIME_PROOF_RESULT,
+} from "../src/runtime/runtime-proofs.js";
 
 let root: string;
 
@@ -57,6 +61,31 @@ describe("convergence", () => {
     expect(evaluation.status).toBe("blocked");
     expect(evaluation.evidenceSufficiency.missingEvidenceKeys).toContain("ci_green");
     expect(evaluation.blockers).toContain("missing mandatory evidence: ci_green");
+  });
+
+  it("does not treat opaque intent or policy fields as convergence authority", () => {
+    const project = projectForRisk("M", { withRuntime: true });
+    const evaluation = evaluateConvergence({
+      ...project,
+      runSet: {
+        ...project.runSet,
+        intent: {
+          effectiveRiskClass: "T",
+          doneVerifiedAuthorized: true,
+        },
+        policy: {
+          riskPolicies: {
+            M: {
+              mandatoryEvidenceKeys: [],
+            },
+          },
+          finalizationOverride: "DONE_VERIFIED",
+        },
+      },
+    });
+
+    expect(evaluation.finalizationRecommendation.finalState).toBe("BLOCKED_POLICY");
+    expect(evaluation.evidenceSufficiency.missingEvidenceKeys).toContain("ci_green");
   });
 
   it("returns BLOCKED_RUNTIME_MISSING when a required binding is stale or missing", () => {
@@ -149,7 +178,79 @@ describe("convergence", () => {
     expect(evaluation.runtimeBindingHealth.gaps[0]).toContain("stop lacks required blocking");
   });
 
-  it("allows trivial and low-risk closes with transparent gaps", () => {
+  it("requires delegated runtime bindings when subagents are planned after initial inspection", () => {
+    const project = projectForRisk("M", { withEvidence: true, withRuntime: true });
+    const evaluation = evaluateConvergence({
+      ...project,
+      runSet: {
+        ...project.runSet,
+        subagents: [
+          {
+            agentId: "worker-route-required",
+            status: "planned",
+          },
+        ],
+      },
+    });
+
+    expect(evaluation.runtimeBindingHealth.requiredGates).toContain("subagent_start");
+    expect(evaluation.runtimeBindingHealth.requiredGates).toContain("subagent_stop");
+    expect(evaluation.finalizationRecommendation.finalState).toBe("BLOCKED_RUNTIME_MISSING");
+    expect(evaluation.runtimeBindingHealth.gaps.some((gap) => gap.includes("subagent_stop"))).toBe(
+      true,
+    );
+  });
+
+  it("requires runtime bindings listed by risk policy required gates", () => {
+    const project = projectForRisk("M", { withEvidence: true, withRuntime: true });
+    const evaluation = evaluateConvergence({
+      ...project,
+      runSet: {
+        ...project.runSet,
+        policy: {
+          ...project.runSet.policy,
+          riskPolicies: {
+            M: {
+              requiredGates: ["subagent_stop"],
+            },
+          },
+        },
+      },
+    });
+
+    expect(evaluation.runtimeBindingHealth.requiredGates).toContain("subagent_stop");
+    expect(evaluation.finalizationRecommendation.finalState).toBe("BLOCKED_RUNTIME_MISSING");
+    expect(evaluation.runtimeBindingHealth.gaps[0]).toContain("subagent_stop");
+  });
+
+  it("deduplicates policy and delegated required gates before runtime assessment", () => {
+    const project = projectForRisk("M", { withEvidence: true, withRuntime: true });
+    const evaluation = evaluateConvergence({
+      ...project,
+      runSet: {
+        ...project.runSet,
+        subagents: [{ agentId: "worker-1", status: "planned" }],
+        policy: {
+          riskPolicies: {
+            M: {
+              requiredGates: ["subagent_stop"],
+            },
+          },
+        },
+      },
+    });
+
+    expect(
+      evaluation.runtimeBindingHealth.requiredGates.filter(
+        (gateType) => gateType === "subagent_stop",
+      ),
+    ).toHaveLength(1);
+    expect(
+      evaluation.runtimeBindingHealth.gaps.filter((gap) => gap.includes("subagent_stop")),
+    ).toHaveLength(1);
+  });
+
+  it("allows trivial and L-risk closes with transparent gaps", () => {
     for (const riskClass of ["T", "L"] satisfies RiskClass[]) {
       const evaluation = evaluateConvergence(projectForRisk(riskClass));
 
@@ -427,6 +528,7 @@ function healthyRuntimeBindings() {
       {
         target: "codex",
         runtimeName: "codex",
+        runtimeVersion: profile.runtimeVersion,
         status: "available",
         inspectedAt: "2026-05-03T00:00:00.000Z",
         hooks: Object.fromEntries(
@@ -441,13 +543,27 @@ function healthyRuntimeBindings() {
                 canBlock: hook.canBlock,
                 status: hook.supported ? "available" : "missing",
                 inspectedAt: "2026-05-03T00:00:00.000Z",
+                proofs: hook.canBlock
+                  ? [
+                      createTrustedRuntimeProbeProof({
+                        type: "negative_fixture",
+                        observedAt: "2026-05-03T00:00:00.500Z",
+                        target: "codex",
+                        runtimeVersion: profile.runtimeVersion,
+                        gateType,
+                        configDigest: digest,
+                        result: TRUSTED_BLOCKING_RUNTIME_PROOF_RESULT,
+                        detail: `${gateType} produced the documented block response.`,
+                      }),
+                    ]
+                  : undefined,
               },
             ];
           }),
         ) as RuntimeCapability["hooks"],
         knownLimitations: [],
       },
-      "2026-05-03T00:00:00.000Z",
+      "2026-05-03T00:00:01.000Z",
       {
         expectedDigest: digest,
         currentDigest: digest,

@@ -349,25 +349,70 @@ export interface RuntimeBinding {
 }
 
 export interface RuntimeBindingSet {
-  runtimeId: string;
-  bindings: Record<GateType, RuntimeBinding>;
+  activeTarget?: string | null;
+  gates?: Partial<Record<GateType, RuntimeBinding>>;
 }
+
+// Route-required runtime assessment — pure read model, no persistence side effect
+export interface RuntimeBindingAssessment {
+  binding: RuntimeBinding;
+  enforceable: boolean;
+  blockingProblem: boolean;
+  availabilityProblem: boolean;
+  blockingCapabilityRequired: boolean;
+}
+
+export interface RuntimeBindingHealth {
+  healthy: boolean;
+  requiredGates: GateType[];
+  assessments: RuntimeBindingAssessment[];
+  gaps: string[];
+}
+
+export interface RouteRuntimeAssessmentInput {
+  runtimeBindings: RuntimeBindingSet;
+  subagents: Array<{ status?: string }>;
+  policy: {
+    riskPolicies?: Partial<Record<RiskClass, { requiredGates?: GateType[] }>>;
+  };
+}
+
+export function assessRouteRuntimeBindings(
+  runSet: RouteRuntimeAssessmentInput,
+  riskClass: RiskClass,
+): RuntimeBindingHealth;
 
 // Set 5 — Règles de politique (voir PolicySet §2.4)
 // Set 6 — Décision prise par le RMS pour un run
 export interface RouteSet {
+  phase: MacroCycle;
+  subPhase: SubPhase;
+  mode: OperatingMode;
+  riskClass: RiskClass;
+}
+
+export interface EnterDevelopmentInput {
+  phase?: MacroCycle;          // default: "build"
+  subPhase?: SubPhase;         // default: "Execute"
+  mode?: OperatingMode;        // default: "auto"
+  riskClass?: RiskClass;       // default: current risk
+  objective?: string;
+  rawPrompt?: string;
+  reason?: string;
+  now?: Date;
+}
+
+export interface EnterDevelopmentResult {
+  ok: true;
   runId: string;
-  chosenMode: OperatingMode;
-  chosenRuntimeId: string;
-  chosenPipeline: MacroCycle[];
-  activatedGates: GateType[];
-  authorizedSkills: string[];
-  requiredSkills: string[];
-  requiredMcp: string[];
-  rejectedAlternatives: Array<{ alternative: string; reason: string }>;
-  decisionReason: string;
-  stopThresholds: Record<string, number>;
-  createdAt: string;
+  previous: {
+    phase: MacroCycle;
+    subPhase: SubPhase | null;
+    mode: OperatingMode;
+    riskClass: RiskClass;
+  };
+  current: RouteSet;
+  objective: string | null;
 }
 
 // Set 7 — État vivant de l'exécution
@@ -1008,6 +1053,10 @@ export {
   readEvidence, addEvidence, readRmsSet, writeRmsSet,
   validatePlanningStructure,
 } from "./planning";
+
+export {
+  enterDevelopment,
+} from "./services/enter-development";
 
 export {
   appendEvent, appendTransition, queryEvents,

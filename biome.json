@@ -7,7 +7,7 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!docs", "!node_modules", "!dist", "!coverage"]
+    "includes": ["**", "!docs", "!node_modules", "!dist", "!coverage", "!**/.tmp-*"]
   },
   "formatter": {
     "enabled": true,

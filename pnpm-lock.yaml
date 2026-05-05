@@ -77,6 +77,15 @@ importers:
 
   packages/mcp-server:
     dependencies:
+      '@harness/adapter-claude':
+        specifier: workspace:*
+        version: link:../adapter-claude
+      '@harness/adapter-codex':
+        specifier: workspace:*
+        version: link:../adapter-codex
+      '@harness/adapter-hermes':
+        specifier: workspace:*
+        version: link:../adapter-hermes
       '@harness/core':
         specifier: workspace:*
         version: link:../core

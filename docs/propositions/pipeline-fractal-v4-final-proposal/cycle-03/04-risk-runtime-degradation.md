@@ -5,7 +5,7 @@ Status: Cycle 03 executable contract proposal
 ## Purpose
 
 This document mechanizes the remaining risk and runtime degradation decisions
-from Cycle 02. It defines how T/F/M/E/C risk is classified, how bypass and
+from Cycle 02. It defines how T/L/M/H/C risk is classified, how bypass and
 supervision modes are selected, how Runtime Binding Set entries authorize or
 block fallback behavior, and which fixtures must exist before implementation
 handoff.
@@ -31,7 +31,7 @@ these defaults:
 risk classifier = forcing-signal maximum
 runtime authority = Binding Set entry, not runtime name
 fallback legality = risk policy + supervision policy + binding metadata
-M/E/C enforcement = fail closed unless fallback is native-equivalent
+M/H/C enforcement = fail closed unless fallback is native-equivalent
 final states = blocked when required runtime proof is missing
 ```
 
@@ -40,10 +40,10 @@ final states = blocked when required runtime proof is missing
 | Class | Name | Summary | Default evidence depth | Default supervision |
 |---|---|---|---|---|
 | `T` | trivial | Local, reversible, non-authoritative, no external effect. | minimal | `auto_decision` |
-| `F` | faible | Low blast radius or docs/config planning work with reviewable output. | light | `auto_decision` |
-| `M` | moyen | User-visible behavior, shared code, durable state, or governed writes. | standard | `pairing` or supervised `auto_decision` |
-| `E` | eleve | Security, privacy, data loss, production, irreversible, or cross-boundary effects. | strong | `pairing` |
-| `C` | critique | Critical safety, compliance, secrets, destructive production, legal, financial, or autonomous high-impact decisions. | maximal | `pairing` plus human checkpoint |
+| `L` | L | Limited blast radius or docs/config planning work with reviewable output. | light | `auto_decision` |
+| `M` | medium | User-visible behavior, shared code, durable state, or governed writes. | standard | `pairing` or supervised `auto_decision` |
+| `H` | H | Security, privacy, data loss, production, irreversible, or cross-boundary effects. | strong | `pairing` |
+| `C` | critical | Critical safety, compliance, secrets, destructive production, legal, financial, or autonomous high-impact decisions. | maximal | `pairing` plus human checkpoint |
 
 `UNCLASSIFIED` is not a usable risk class for execution. It may exist only
 before classification and blocks bypass, route activation, governed writes, and
@@ -77,7 +77,7 @@ Algorithm:
    human checkpoint, and previous events.
 3. Map each signal to a minimum class.
 4. Select the highest class in this order:
-   `UNCLASSIFIED < T < F < M < E < C`.
+   `UNCLASSIFIED < T < L < M < H < C`.
 5. Apply promotion if the selected class is higher than the current class.
 6. Reject downgrade unless a registered downgrade rule, fresh evidence, and
    non-stale route context allow it.
@@ -94,7 +94,7 @@ risk_classifier_output:
   forcing_signals_applied: []
   promotion:
     occurred: true
-    from: "F"
+    from: "L"
     to: "M"
   downgrade:
     occurred: false
@@ -113,7 +113,7 @@ signals but may not weaken these minima.
 | Signal | Minimum class | Rationale |
 |---|---|---|
 | `docs_only_local` | `T` | Local explanatory work only. |
-| `architecture_contract` | `F` | Durable design contract can affect implementation. |
+| `architecture_contract` | `L` | Durable design contract can affect implementation. |
 | `registry_or_policy_edit` | `M` | Changes executable guard or policy semantics. |
 | `rms_state_mutation` | `M` | Durable governed state changes require standard proof. |
 | `source_code_behavior_change` | `M` | User-visible or testable behavior may regress. |
@@ -122,10 +122,10 @@ signals but may not weaken these minima.
 | `runtime_binding_change` | `M` | Can change enforcement behavior. |
 | `degraded_runtime_route` | `M` | Runtime limitations alter guard confidence. |
 | `missing_blocking_enforcement` | `M` | Cannot claim normal execution until resolved. |
-| `production_or_deployment_action` | `E` | External service impact. |
-| `secret_or_credential_access` | `E` | Sensitive data boundary. |
-| `destructive_filesystem_or_db_action` | `E` | Irreversible or difficult recovery path. |
-| `security_privacy_auth_change` | `E` | Safety/security boundary. |
+| `production_or_deployment_action` | `H` | External service impact. |
+| `secret_or_credential_access` | `H` | Sensitive data boundary. |
+| `destructive_filesystem_or_db_action` | `H` | Irreversible or difficult recovery path. |
+| `security_privacy_auth_change` | `H` | Safety/security boundary. |
 | `external_money_legal_medical_effect` | `C` | High-impact real-world consequence. |
 | `critical_infrastructure_or_safety` | `C` | Critical safety boundary. |
 | `destructive_production_action` | `C` | Highest-risk irreversible external mutation. |
@@ -140,9 +140,9 @@ Signal conflicts are resolved by promotion. For example, `docs_only_local` plus
 |---|---|---|---|---|---|
 | `UNCLASSIFIED` | block | block for execution | allowed for classification only | not required | Must classify before route activation. |
 | `T` | allowed | allowed | allowed | not required | Bypass still records route and final evidence. |
-| `F` | conditional | allowed | allowed | required only by policy warning | Conditional bypass requires fresh low-risk signals. |
+| `L` | conditional | allowed | allowed | required only by policy warning | Conditional bypass requires fresh L-risk signals. |
 | `M` | block | conditional supervised | allowed | required when degraded enforcement affects hard gates | Audit-only fallback is not enough for hard gates. |
-| `E` | forbidden | block for governed mutation | required | required for residual risk, destructive action, or degraded hard gate | Missing blocking enforcement blocks by default. |
+| `H` | forbidden | block for governed mutation | required | required for residual risk, destructive action, or degraded hard gate | Missing blocking enforcement blocks by default. |
 | `C` | forbidden | forbidden | required | required before critical action and final decision | Human checkpoint cannot approve missing mandatory proof. |
 
 Bypass means the runtime may skip non-essential staged workflow assistance. It
@@ -162,7 +162,7 @@ Required promotion events:
 |---|---|
 | New signal raises class | `RISK_CLASS_PROMOTED` |
 | Runtime binding degrades a hard gate | `RISK_CLASS_PROMOTED` or `RUNTIME_BINDING_CHECKED` with promotion ref |
-| Evidence conflict exposes E/C signal | `RISK_CLASS_PROMOTED` |
+| Evidence conflict exposes H/C signal | `RISK_CLASS_PROMOTED` |
 | Human checkpoint rejects action | `RISK_CLASS_PROMOTED` to `C` |
 
 Promotion invalidates dependent evidence that was collected under weaker risk
@@ -177,7 +177,7 @@ Required downgrade fields:
 ```yaml
 downgrade_request:
   from: "M"
-  to: "F"
+  to: "L"
   rule_id: "risk.downgrade.scope_reduced"
   reason: "scope reduced to docs-only local file"
   evidence_refs:
@@ -192,7 +192,7 @@ Downgrade is blocked when:
 - any current forcing signal still requires the higher class;
 - evidence is stale, missing, or conflicted;
 - the route is degraded because a required hard gate is unavailable;
-- current class is `E` or `C` and the downgrade lacks human checkpoint approval;
+- current class is `H` or `C` and the downgrade lacks human checkpoint approval;
 - downgrade would make a previously forbidden bypass legal without a fresh
   route plan.
 
@@ -224,9 +224,9 @@ binding:
   fail_open_risk: false
   risk_allowed:
     T: true
-    F: true
+    L: true
     M: true
-    E: true
+    H: true
     C: true
   supervision_allowed:
     bypass: false
@@ -266,7 +266,7 @@ No field may be `null`. Unknown values use `UNKNOWN`; inapplicable values use
 
 ## Binding Status Semantics
 
-| Status | Meaning | Can satisfy enforcement? | M/E/C default |
+| Status | Meaning | Can satisfy enforcement? | M/H/C default |
 |---|---|---|---|
 | `native` | Runtime primitive directly implements the required gate. | Yes if `can_block=true`. | Allowed if fresh. |
 | `fallback` | Declared alternate strategy exists. | Only if `fallback_can_block=true` or policy allows the gap. | Block unless `fallback_class=native_equivalent` or explicit policy allows. |
@@ -284,7 +284,7 @@ Rules:
 
 - `gate_class=enforcement` with `can_block=false` is degraded unless the gate is
   optional for the current risk.
-- `M/E/C` hard enforcement requires `can_block=true` or a
+- `M/H/C` hard enforcement requires `can_block=true` or a
   `native_equivalent` fallback with `fallback_can_block=true`.
 - A runtime hook that can warn but cannot prevent execution is
   `can_block=false`.
@@ -302,7 +302,7 @@ Fallback is valid only when all are true:
 
 Fallback classes:
 
-| Fallback class | Meaning | T/F | M | E/C |
+| Fallback class | Meaning | T/L | M | H/C |
 |---|---|---|---|---|
 | `native_equivalent` | Prevents action before side effect with equivalent authority. | allow | allow | allow with checkpoint if policy requires |
 | `pre_action_check` | Manual or scripted check before action but not runtime-enforced. | warn/degrade | conditional with pairing | block by default |
@@ -321,8 +321,8 @@ the Policy Set says the gate is optional at the current risk.
 - `pre_tool_write_guard`;
 - `stop_gate` for `DONE_VERIFIED`;
 - `human_checkpoint` when required;
-- evidence collection required for `M/E/C`;
-- territory guard for governed write in `M/E/C`.
+- evidence collection required for `M/H/C`;
+- territory guard for governed write in `M/H/C`.
 
 ### `missing`
 
@@ -337,17 +337,17 @@ stale. It is stricter than `missing` because the system does not yet know what
 is safe. Required `UNKNOWN` capability blocks until `rms.inspect_runtime`
 refreshes the Capability Set.
 
-## Fail-Closed Rules For M/E/C
+## Fail-Closed Rules For M/H/C
 
 The following are hard fail-closed rules:
 
 | Condition | Required result |
 |---|---|
-| `risk_class=M/E/C` and required enforcement binding is `missing` | `BLOCKED_RUNTIME_MISSING`. |
-| `risk_class=M/E/C` and required enforcement binding is `capability_unknown` | `CAPABILITY_UNKNOWN`; inspect runtime before route. |
-| `risk_class=M/E/C` and hard gate is `noop_traced` | Block; no degraded route. |
-| `risk_class=M/E/C` and fallback is `post_action_audit` | Block for enforcement gates unless explicit policy says exhaustive audit compensates for M only. |
-| `risk_class=E/C` and fallback is not `native_equivalent` | Block by default. |
+| `risk_class=M/H/C` and required enforcement binding is `missing` | `BLOCKED_RUNTIME_MISSING`. |
+| `risk_class=M/H/C` and required enforcement binding is `capability_unknown` | `CAPABILITY_UNKNOWN`; inspect runtime before route. |
+| `risk_class=M/H/C` and hard gate is `noop_traced` | Block; no degraded route. |
+| `risk_class=M/H/C` and fallback is `post_action_audit` | Block for enforcement gates unless explicit policy says exhaustive audit compensates for M only. |
+| `risk_class=H/C` and fallback is not `native_equivalent` | Block by default. |
 | `risk_class=C` and supervision is `auto_decision` or `bypass` | Block; require pairing plus human checkpoint. |
 | Required runtime binding evidence is stale after registry/runtime change | Block until refreshed. |
 | MCP unavailable and no declared local transaction fallback | Block governed mutation and `DONE_VERIFIED`. |
@@ -355,7 +355,7 @@ The following are hard fail-closed rules:
 
 For `M`, a non-native fallback can be policy-allowed only when the fallback is
 declared, pre-action, evidence-rich, supervised, and has explicit residual-risk
-acceptance. For `E/C`, non-native fallback does not satisfy mandatory
+acceptance. For `H/C`, non-native fallback does not satisfy mandatory
 enforcement by default.
 
 ## Guard Overlay Effects
@@ -366,7 +366,7 @@ or closing blocks.
 
 Decision mapping:
 
-| Binding result | Low-risk decision | M decision | E/C decision |
+| Binding result | L-risk decision | M decision | H/C decision |
 |---|---|---|---|
 | Fresh `native`, `can_block=true` | `allow` | `allow` | `allow` unless checkpoint missing |
 | Fresh declared `native_equivalent` fallback | `degrade` with evidence | `degrade` or `allow` by policy | `escalate` or `block` unless checkpoint allows |
@@ -386,16 +386,16 @@ Runtime degradation may cap final states.
 | Runtime condition | Allowed final state ceiling |
 |---|---|
 | Required bindings native and fresh; evidence/convergence verified | `DONE_VERIFIED` |
-| T/F degraded route with accepted gap and verified final checks | `DONE_WITH_GAPS` unless policy says the fallback evidence fully satisfies the requirement |
+| T/L degraded route with accepted gap and verified final checks | `DONE_WITH_GAPS` unless policy says the fallback evidence fully satisfies the requirement |
 | M native-equivalent fallback with fresh proof and no residual gaps | `DONE_VERIFIED` if policy allows |
 | M non-native fallback accepted with residual gap | `DONE_WITH_GAPS` at most |
-| E/C residual runtime gap | blocked final state only |
+| H/C residual runtime gap | blocked final state only |
 | Required binding missing or unknown | `BLOCKED_RUNTIME_MISSING` or `BLOCKED_POLICY` |
 | MCP unavailable during required final evaluation | `BLOCKED_RUNTIME_MISSING` or remain open/suspended |
 | Event append unavailable | no final mutation; report blocked outside RMS if necessary |
 
 `DONE_VERIFIED` is forbidden when required runtime binding proof is missing,
-stale, conflicted, `noop_traced`, or audit-only for an M/E/C hard gate.
+stale, conflicted, `noop_traced`, or audit-only for an M/H/C hard gate.
 
 ## Blocked Final States
 
@@ -438,13 +438,13 @@ schema_version: "1.0"
 risk_order:
   - "UNCLASSIFIED"
   - "T"
-  - "F"
+  - "L"
   - "M"
-  - "E"
+  - "H"
   - "C"
 forcing_signals:
   architecture_contract:
-    minimum_class: "F"
+minimum_class: "L"
   runtime_binding_change:
     minimum_class: "M"
   destructive_production_action:
@@ -467,9 +467,9 @@ runtime_degradation:
 final_state_ceiling:
   residual_runtime_gap:
     T: "DONE_WITH_GAPS"
-    F: "DONE_WITH_GAPS"
+    L: "DONE_WITH_GAPS"
     M: "DONE_WITH_GAPS"
-    E: "BLOCKED_POLICY"
+    H: "BLOCKED_POLICY"
     C: "BLOCKED_POLICY"
 ```
 
@@ -486,10 +486,10 @@ become schema/guard tests.
 Input:
 
 ```yaml
-current_risk_class: "F"
+current_risk_class: "L"
 signals:
   - signal: "architecture_contract"
-    minimum_class: "F"
+minimum_class: "L"
   - signal: "runtime_binding_change"
     minimum_class: "M"
 requested_supervision_mode: "auto_decision"
@@ -501,7 +501,7 @@ Expected checks:
 
 - Risk becomes `M`.
 - `RISK_CLASS_PROMOTED` is emitted.
-- Previously collected F-only evidence is stale for M final closure.
+- Previously collected L-only evidence is stale for M final closure.
 - Bypass is blocked.
 
 ### VF-RISKRT-002 - UNCLASSIFIED Bypass Blocks
@@ -571,12 +571,12 @@ Expected checks:
 - `DONE_VERIFIED` remains possible only if evidence and convergence become
   verified and no residual runtime gap remains.
 
-### VF-RISKRT-005 - E Non-Native Fallback Blocks
+### VF-RISKRT-005 - H Non-Native Fallback Blocks
 
 Input:
 
 ```yaml
-risk_class: "E"
+risk_class: "H"
 required_gate: "pre_tool_write_guard"
 binding_status: "fallback"
 fallback_class: "pre_action_check"
@@ -662,13 +662,13 @@ Expected checks:
 Input:
 
 ```yaml
-current_risk_class: "E"
+current_risk_class: "H"
 downgrade_request:
   to: "M"
   reason: "operator says scope is smaller"
 signals:
   - signal: "secret_or_credential_access"
-    minimum_class: "E"
+minimum_class: "H"
 evidence_status: "partial"
 ```
 
@@ -676,9 +676,9 @@ Expected outcome: `BLOCK`
 
 Expected checks:
 
-- Active E forcing signal prevents downgrade.
+- Active H forcing signal prevents downgrade.
 - Partial evidence cannot justify downgrade.
-- Existing E supervision and evidence requirements remain active.
+- Existing H supervision and evidence requirements remain active.
 
 ### VF-RISKRT-010 - Missing Binding Entry Is Missing, Not Optional
 
@@ -756,7 +756,7 @@ This lane is `closed_by_contract` for Cycle 03 when:
 2. Binding Set schema requires every field listed above.
 3. Guard fixtures cover bypass, promotion, downgrade, missing, unknown,
    fallback, `noop_traced`, and stale binding evidence.
-4. M/E/C hard enforcement uses fail-closed defaults.
+4. M/H/C hard enforcement uses fail-closed defaults.
 5. Blocked final states preserve runtime degradation cause and recovery action.
 
 If any of these objects remain prose-only, implementation handoff remains

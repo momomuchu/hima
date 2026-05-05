@@ -10,7 +10,7 @@ Audited inputs:
 
 - `../06-integrated-final-proposal.md`
 - `../04-single-mcp-state-kernel.md`
-- `../03-skills-subagents-books-taxonomy.md`
+- `../03-skills-hooks-subagents-taxonomy.md`
 - `../02-edge-case-red-team.md`
 - `../05-convergence-validation-cycle.md`
 - `../07-decision-matrix.md`
@@ -23,7 +23,7 @@ Only `00-cycle-02-brief.md` was present in `cycle-02/` at audit time.
 
 The architecture direction is coherent: a hybrid event-sourced RMS kernel,
 exposed by one MCP server, with runtime adapters, procedural skills, bounded
-subagents, and non-authoritative books.
+subagents, and non-authoritative reference docs.
 
 The proposal is not implementation-ready. The main risk is premature
 convergence language: Cycle 01 says several P0 decisions are closed, while the
@@ -39,7 +39,7 @@ decisions.
 ### 1. P0 Closure Is Premature
 
 `06-integrated-final-proposal.md` says Cycle 01 closed P0 decisions for
-non-development representation, MCP role, skill/subagent/book authority, and
+non-development representation, MCP role, skill/hook/subagent authority, and
 runtime degradation. But V2 still lists blocking or near-blocking decisions for
 pipeline activation, non-development representation, risk/mode canonicalization,
 evidence semantics, territory enforcement, closing protocol, runtime
@@ -79,7 +79,7 @@ Required fix:
 - If fallback cannot mutate state, say so explicitly and restrict it to
   read-only inspection plus append-only degraded audit.
 
-### 3. Hidden Monolith Risk Remains High
+### 3. Hidden Monolith Risk Remains H-Risk
 
 The MCP/kernel surface owns Project, Intent, Policy, Route, Run, Evidence,
 Convergence, Runtime Capability, Runtime Binding, Registry, guard decisions,
@@ -137,7 +137,7 @@ Required fix:
 
 ### 6. Runtime Degradation Can Still Fail Open In Practice
 
-The final proposal says M/E/C cannot silently degrade, but older runtime binding
+The final proposal says M/H/C cannot silently degrade, but older runtime binding
 specs still contain fail-open behavior for disabled hooks, hook crashes, and
 timeouts. The final proposal has not yet translated the stricter policy into
 binding-set fields and fixtures.
@@ -146,16 +146,16 @@ Required fix:
 
 - Make `can_block`, `binding_status`, `fallback_strategy`, `fail_open_risk`, and
   `risk_allowed` mandatory in Runtime Binding Set entries.
-- Encode M/E/C missing hard-gate behavior as executable policy, not prose.
+- Encode M/H/C missing hard-gate behavior as executable policy, not prose.
 - Add fixtures for Codex hooks disabled, Hermes stop gate unblockable, MCP
   unavailable, hook timeout, and hook crash.
-- Require `BLOCKED_RUNTIME_MISSING` when required M/E/C enforcement is
+- Require `BLOCKED_RUNTIME_MISSING` when required M/H/C enforcement is
   unavailable and no declared fallback satisfies policy.
 
-### 7. Skill, Subagent, And Book Drift Are Named But Not Controlled
+### 7. Skill, Subagent, And Reference doc Drift Are Named But Not Controlled
 
 The authority model is clear: skills are procedures, subagents return evidence
-candidates, and books are references. But drift detection is not
+candidates, and reference docs are references. But drift detection is not
 implementation-shaped.
 
 Missing controls:
@@ -163,19 +163,19 @@ Missing controls:
 - installed skill version/hash;
 - source-of-truth path for bundled skills;
 - subagent output schema version;
-- book generation provenance;
-- registry-to-book consistency check;
+- reference doc generation provenance;
+- registry-to-reference doc consistency check;
 - startup/install sync rule;
-- behavior when a user edits a book or skill locally.
+- behavior when a user edits a reference doc or skill locally.
 
 Required fix:
 
 - Add `artifact_manifest.json` or registry entries for skills, subagents, and
-  books.
+  reference docs.
 - Include `name`, `version`, `source_ref`, `hash`, `schema_version`,
   `authority`, and `drift_policy`.
-- Add fixtures for drifted core skill, schema-less subagent output, book vs
-  registry contradiction, and local book edits.
+- Add fixtures for drifted core skill, schema-less subagent output, reference doc vs
+  registry contradiction, and local reference doc edits.
 
 ### 8. Storage Layout And Concurrency Are Decision Blockers
 
@@ -269,7 +269,7 @@ Implementation should wait until these artifacts exist:
 6. Evidence requirement schema and freshness invalidation rules.
 7. Convergence thresholds and loop detection fixtures.
 8. Runtime Binding Set schema with hard-gate degradation rules.
-9. Skill/subagent/book artifact manifest and drift policy.
+9. Skill/subagent/reference doc artifact manifest and drift policy.
 10. Closing protocol and late-evidence/reopen protocol.
 11. Human checkpoint schema.
 12. Acceptance fixtures for every edge case in `02-edge-case-red-team.md`.

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   EVIDENCE_KEYS,
   GATE_TYPES,
-  getBooksCatalog,
+  getHooksCatalog,
   getOperationalCatalog,
   getSkillsCatalog,
   getSubagentsCatalog,
@@ -31,30 +31,30 @@ describe("operational catalogs", () => {
     const catalog = getOperationalCatalog();
 
     expect(catalog.skills).toEqual(getSkillsCatalog());
-    expect(catalog.books).toEqual(getBooksCatalog());
+    expect(catalog.hooks).toEqual(getHooksCatalog());
     expect(catalog.subagents).toEqual(getSubagentsCatalog());
     expect(catalog.skills.length).toBeGreaterThanOrEqual(8);
-    expect(catalog.books.length).toBeGreaterThanOrEqual(8);
+    expect(catalog.hooks.length).toBeGreaterThanOrEqual(8);
     expect(catalog.subagents.length).toBeGreaterThanOrEqual(4);
   });
 
   it("keeps catalog ids unique", () => {
     expectUniqueIds(getSkillsCatalog(), "skill");
-    expectUniqueIds(getBooksCatalog(), "book");
+    expectUniqueIds(getHooksCatalog(), "hook");
     expectUniqueIds(getSubagentsCatalog(), "subagent");
   });
 
-  it("has no dangling references among skills, books, and subagents", () => {
+  it("has no dangling references among skills, hooks, and subagents", () => {
     const skills = getSkillsCatalog();
-    const books = getBooksCatalog();
+    const hooks = getHooksCatalog();
     const subagents = getSubagentsCatalog();
     const skillIds = new Set(skills.map((entry) => entry.id));
-    const bookIds = new Set(books.map((entry) => entry.id));
+    const hookIds = new Set(hooks.map((entry) => entry.id));
     const subagentIds = new Set(subagents.map((entry) => entry.id));
 
     for (const skill of skills) {
-      for (const bookRef of skill.bookRefs) {
-        expect(bookIds, `${skill.id} references book ${bookRef}`).toContain(bookRef);
+      for (const hookRef of skill.hookRefs) {
+        expect(hookIds, `${skill.id} references hook ${hookRef}`).toContain(hookRef);
       }
       for (const subagentRef of skill.subagentRefs) {
         expect(subagentIds, `${skill.id} references subagent ${subagentRef}`).toContain(
@@ -63,18 +63,18 @@ describe("operational catalogs", () => {
       }
     }
 
-    for (const book of books) {
-      for (const skillRef of book.skillRefs) {
-        expect(skillIds, `${book.id} references skill ${skillRef}`).toContain(skillRef);
+    for (const hook of hooks) {
+      for (const skillRef of hook.skillRefs) {
+        expect(skillIds, `${hook.id} references skill ${skillRef}`).toContain(skillRef);
       }
-      for (const subagentRef of book.subagentRefs) {
-        expect(subagentIds, `${book.id} references subagent ${subagentRef}`).toContain(subagentRef);
+      for (const subagentRef of hook.subagentRefs) {
+        expect(subagentIds, `${hook.id} references subagent ${subagentRef}`).toContain(subagentRef);
       }
     }
 
     for (const subagent of subagents) {
-      for (const bookRef of subagent.bookRefs) {
-        expect(bookIds, `${subagent.id} references book ${bookRef}`).toContain(bookRef);
+      for (const hookRef of subagent.hookRefs) {
+        expect(hookIds, `${subagent.id} references hook ${hookRef}`).toContain(hookRef);
       }
       for (const skillRef of subagent.skillRefs) {
         expect(skillIds, `${subagent.id} references skill ${skillRef}`).toContain(skillRef);
@@ -95,12 +95,12 @@ describe("operational catalogs", () => {
       expectEveryCanonical(skill.evidenceProduced, EVIDENCE_KEYS, `${skill.id} evidence`);
     }
 
-    for (const book of getBooksCatalog()) {
-      expectEveryCanonical(book.macroCycles, MACRO_CYCLES, `${book.id} cycles`);
-      expectEveryCanonical(book.gateTypes, GATE_TYPES, `${book.id} gates`);
-      expectEveryCanonical(book.riskClasses, RISK_CLASSES, `${book.id} risks`);
-      expectEveryCanonical(book.operatingModes, OPERATING_MODES, `${book.id} modes`);
-      expectEveryCanonical(book.evidenceKeys, EVIDENCE_KEYS, `${book.id} evidence`);
+    for (const hook of getHooksCatalog()) {
+      expectEveryCanonical(hook.macroCycles, MACRO_CYCLES, `${hook.id} cycles`);
+      expectEveryCanonical(hook.gateTypes, GATE_TYPES, `${hook.id} gates`);
+      expectEveryCanonical(hook.riskClasses, RISK_CLASSES, `${hook.id} risks`);
+      expectEveryCanonical(hook.operatingModes, OPERATING_MODES, `${hook.id} modes`);
+      expectEveryCanonical(hook.evidenceKeys, EVIDENCE_KEYS, `${hook.id} evidence`);
     }
 
     for (const subagent of getSubagentsCatalog()) {
@@ -122,10 +122,10 @@ describe("operational catalogs", () => {
   });
 
   it("includes the MVP operational concerns", () => {
-    const bookIds = getBooksCatalog().map((entry) => entry.id);
+    const hookIds = getHooksCatalog().map((entry) => entry.id);
     const skillIds = getSkillsCatalog().map((entry) => entry.id);
 
-    expect(bookIds).toEqual(
+    expect(hookIds).toEqual(
       expect.arrayContaining([
         "risk-classification",
         "state-machine",

@@ -15,9 +15,9 @@
 
 | Fichier | Format | Rôle | Fréquence de mise à jour | Auteur |
 |---|---|---|---|---|
-| `.planning/state.yaml` | YAML | État durable du workspace : phase, mode, Project Set, Policy Set, Runtime Binding Set | À l'initialisation, aux transitions de phase, aux changements explicites de politique ou binding | Harness + dev |
+| `.planning/state.yaml` | YAML | État durable du workspace : phase, mode, Project Set, Policy Set | À l'initialisation, aux transitions de phase, aux changements explicites de politique | Harness + dev |
 | `.planning/current-risk.yaml` | YAML | Classe de risque courante T/L/M/H/C, preuves de classification, promotions | À la classification initiale et à chaque reclassification | Harness ou dev |
-| `.planning/run-set.json` | JSON | État vivant du run : Intent Set, Capability Set, Route Set, Run Set, Evidence Set, journal logique | À chaque gate et événement significatif | Harness |
+| `.planning/run-set.json` | JSON | État vivant du run : Intent Set, Capability Set, Runtime Binding Set, Route Set, Run Set, Evidence Set, journal logique | À chaque gate et événement significatif | Harness |
 
 Les RMS Sets restent canoniques conceptuellement. Ils ne sont pas des fichiers : ce sont des
 sections logiques projetées dans ces trois fichiers.
@@ -113,7 +113,6 @@ transition_history:
     reason: string | null
 projectSet: object                     # RMS Project Set logique
 policySet: object                      # RMS Policy Set logique
-bindingSet: object                     # RMS Runtime Binding Set logique actif
 ```
 
 ### Valeurs d'enum — `phase`
@@ -185,14 +184,6 @@ policySet:
       mandatoryGates: [pre_tool, post_tool]
       mandatoryGatesBeforeDone: [stop]
       bypassPermitted: true
-bindingSet:
-  schemaVersion: "1.0"
-  runtime: codex
-  gates:
-    pre_tool:
-      primitive: hook
-      nativeEvent: PreToolUse
-      canBlock: true
 ```
 
 ### Contraintes
@@ -202,7 +193,8 @@ bindingSet:
 - `operating_mode.current` est `bypass`, `auto` ou `pairing`.
 - `auto` garde les checkpoints, la visibilité complète et les validations humaines requises.
 - `triggered_by` utilise les valeurs `human`, `auto` ou un `GateType` brut. Les gates ne portent jamais de préfixe.
-- `projectSet`, `policySet` et `bindingSet` sont des objets logiques dans `state.yaml`, pas des fichiers.
+- `projectSet` et `policySet` sont des objets logiques dans `state.yaml`, pas des fichiers.
+- Le Runtime Binding Set logique est stocké dans `run-set.json.runtimeBindings`.
 
 ---
 
@@ -305,12 +297,15 @@ l'état opérationnel courant et les projections logiques RMS qui varient par ru
     "availableSkills": [],
     "connectedMcpServers": []
   },
-  "routeSet": {
-    "schemaVersion": "1.0",
-    "selectedMode": "auto",
-    "selectedCycles": [],
-    "activatedGates": [],
-    "maxAttempts": 3
+  "runtimeBindings": {
+    "activeTarget": "codex",
+    "gates": {}
+  },
+  "route": {
+    "phase": "build",
+    "subPhase": "Execute",
+    "mode": "auto",
+    "riskClass": "L"
   },
   "runSet": {
     "schemaVersion": "1.0",
@@ -367,12 +362,21 @@ l'état opérationnel courant et les projections logiques RMS qui varient par ru
     "availableSkills": ["code-review", "ultraqa"],
     "connectedMcpServers": []
   },
-  "routeSet": {
-    "schemaVersion": "1.0",
-    "selectedMode": "auto",
-    "selectedCycles": ["build", "validation"],
-    "activatedGates": ["pre_tool", "post_tool", "stop"],
-    "maxAttempts": 3
+  "runtimeBindings": {
+    "activeTarget": "codex",
+    "gates": {
+      "pre_tool": {
+        "status": "native",
+        "adapterEvent": "pre_tool",
+        "canBlock": true
+      }
+    }
+  },
+  "route": {
+    "phase": "build",
+    "subPhase": "Execute",
+    "mode": "auto",
+    "riskClass": "L"
   },
   "runSet": {
     "schemaVersion": "1.0",
@@ -439,9 +443,9 @@ l'état opérationnel courant et les projections logiques RMS qui varient par ru
 ### Contraintes
 
 - `runId` est identique dans les trois fichiers.
-- `intentSet.authorizedMode` et `routeSet.selectedMode` utilisent `OperatingMode`.
-- `routeSet.activatedGates[*]`, `capabilitySet.activeHooks[*].gateType` et `eventLog[*].source`
-  utilisent `GateType` sans préfixe.
+- `intentSet.authorizedMode` et `route.mode` utilisent `OperatingMode`.
+- `capabilitySet.activeHooks[*].gateType`, `runtimeBindings.gates` et `eventLog[*].source`
+  utilisent `GateType` sans préfixe; les gates requises sont dérivées, pas stockées dans `route`.
 - `runSet.currentPhase` utilise `MacroCycle`.
 - `runSet.currentSubPhase` utilise `SubPhase`.
 - `evidenceSet.verdict.doneVerifiedAuthorized` ne peut être `true` que si les preuves requises par
@@ -525,9 +529,9 @@ L'agent écrit uniquement ce qui est nécessaire à la prochaine décision.
 | Project Set | `.planning/state.yaml.projectSet` |
 | Intent Set | `.planning/run-set.json.intentSet` |
 | Runtime Capability Set | `.planning/run-set.json.capabilitySet` |
-| Runtime Binding Set | `.planning/state.yaml.bindingSet` |
+| Runtime Binding Set | `.planning/run-set.json.runtimeBindings` |
 | Policy Set | `.planning/state.yaml.policySet` |
-| Route Set | `.planning/run-set.json.routeSet` |
+| Route Set | `.planning/run-set.json.route` |
 | Run Set | `.planning/run-set.json.runSet` |
 | Evidence Set | `.planning/run-set.json.evidenceSet` |
 

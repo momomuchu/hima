@@ -1,5 +1,6 @@
 import { evaluateGate, type GateResult } from "../gates/evaluate-gate.js";
 import { type GateEvent, GateEventSchema } from "../schemas/gate-event.schema.js";
+import { redactSecrets, redactUnknown } from "../security/redaction.js";
 import {
   appendRunEvent,
   type PlanningProject,
@@ -7,8 +8,6 @@ import {
 } from "../storage/planning-store.js";
 import type { GateType } from "../types/canonical.js";
 import { HarnessError } from "../types/errors.js";
-
-const SECRET_KEY_PATTERN = /api[_-]?key|apikey|token|password|secret/i;
 
 export interface HandleHookOptions {
   dryRun?: boolean;
@@ -71,8 +70,8 @@ export async function handleHook(
         missingEvidenceItems: result.missingEvidenceItems,
         toolName: event.toolName,
         metadata: redactUnknown(event.metadata),
-        toolInputPreview: redactSecrets(preview(event.toolInput)),
-        toolOutputPreview: redactSecrets(preview(event.toolOutput)),
+        toolInputPreview: preview(redactUnknown(event.toolInput)),
+        toolOutputPreview: preview(redactUnknown(event.toolOutput)),
       }),
     });
   }
@@ -105,46 +104,46 @@ function safeJson(value: unknown): string {
   }
 }
 
-function redactSecrets(value: string | undefined): string | undefined {
-  return value
-    ?.replace(
-      /((?:api[_-]?key|token|password|secret)\s*[:=]\s*["']?)[a-z0-9_-]{8,}/gi,
-      "$1[REDACTED]",
-    )
-    .replace(/sk-[a-z0-9]{8,}/gi, "sk-[REDACTED]")
-    .replace(/ghp_[a-z0-9]{8,}/gi, "ghp_[REDACTED]");
-}
-
-function redactUnknown(value: unknown, key?: string): unknown {
-  if (value === undefined || value === null) {
-    return value;
-  }
-
-  if (typeof value === "string") {
-    if (SECRET_KEY_PATTERN.test(key ?? "")) {
-      return "[REDACTED]";
-    }
-
-    return redactSecrets(value);
-  }
-
-  if (Array.isArray(value)) {
-    return value.map((item) => redactUnknown(item, key));
-  }
-
-  if (typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value).map(([childKey, item]) => [childKey, redactUnknown(item, childKey)]),
-    );
-  }
-
-  return value;
-}
-
 function normalizeGatePayload(gateType: GateType, payload: unknown): GateEvent {
   const base = typeof payload === "object" && payload !== null ? payload : {};
+  const record = base as Record<string, unknown>;
+  const metadata = mergeMetadata(
+    record.metadata,
+    compactPayload({
+      hookEventName: record.hookEventName ?? record.hook_event_name,
+      sessionId: record.sessionId ?? record.session_id,
+      cwd: record.cwd,
+      permissionMode: record.permissionMode ?? record.permission_mode,
+      transcriptPath: record.transcriptPath ?? record.transcript_path,
+      toolUseId: record.toolUseId ?? record.tool_use_id,
+      eventName: record.eventName ?? record.event_name,
+      matcher: record.matcher,
+    }),
+  );
+
   return GateEventSchema.parse({
-    ...(base as Record<string, unknown>),
+    ...record,
     gateType,
+    toolName: record.toolName ?? record.tool_name,
+    toolInput: record.toolInput ?? record.tool_input,
+    toolOutput:
+      record.toolOutput ?? record.tool_output ?? record.tool_response ?? record.tool_result,
+    promptContent: record.promptContent ?? record.prompt_content ?? record.prompt,
+    ...(metadata === undefined ? {} : { metadata }),
   });
+}
+
+function mergeMetadata(
+  existingMetadata: unknown,
+  addedMetadata: Record<string, unknown>,
+): Record<string, unknown> | undefined {
+  const existing =
+    typeof existingMetadata === "object" &&
+    existingMetadata !== null &&
+    !Array.isArray(existingMetadata)
+      ? (existingMetadata as Record<string, unknown>)
+      : {};
+  const merged = compactPayload({ ...existing, ...addedMetadata });
+
+  return Object.keys(merged).length === 0 ? undefined : merged;
 }

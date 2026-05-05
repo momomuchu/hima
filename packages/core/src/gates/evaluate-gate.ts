@@ -1,3 +1,4 @@
+import path from "node:path";
 import { isEvidenceSufficient } from "../evidence/evaluate-evidence.js";
 import { RISK_POLICY } from "../policy/baseline-policy.js";
 import { getAllowedWriteZones, isAllowedWriteTarget } from "../policy/write-zones.js";
@@ -147,17 +148,27 @@ function evaluateUserPrompt(context: GateEvaluationContext, event: GateEvent): G
 }
 
 function evaluatePreTool(context: GateEvaluationContext, event: GateEvent): GateResult {
+  const allowedZones = getAllowedWriteZones(context.state.sub_phase);
+
   if (containsBypassAttempt(toolInputText(event), event.metadata)) {
     return {
       decision: riskAtLeast(context.currentRisk.risk_class, "M") ? "block" : "warn",
       gateType: "pre_tool",
       reason: `tool call attempts to bypass a gate in risk class ${context.currentRisk.risk_class}`,
       violationType: "BYPASS_ATTEMPTED",
+      contextInjection: buildContextInjection(context, allowedZones),
     };
   }
 
   const targets = readTargetPaths(event);
-  const forceSignal = findForceSignal(targets, toolInputText(event));
+  const policyTargets = targets.map((target) =>
+    normalizeTargetForPolicy(target, context.projectRoot),
+  );
+  const writeEvent = isWriteEvent(event);
+  const forceSignal = findForceSignal(
+    policyTargets,
+    writeEvent ? readShellCommand(event) : toolInputText(event),
+  );
 
   if (
     forceSignal &&
@@ -168,10 +179,11 @@ function evaluatePreTool(context: GateEvaluationContext, event: GateEvent): Gate
       gateType: "pre_tool",
       reason: `force signal ${forceSignal.signal} requires risk class ${forceSignal.minimumRiskClass}; current class is ${context.currentRisk.risk_class}`,
       violationType: "CLASS_UNDERESTIMATED",
+      contextInjection: buildContextInjection(context, allowedZones),
     };
   }
 
-  if (!isWriteEvent(event)) {
+  if (!writeEvent) {
     const runtimeBinding = enforceBlockingRuntimeBinding(context, "pre_tool");
     if (runtimeBinding) {
       return runtimeBinding;
@@ -181,14 +193,9 @@ function evaluatePreTool(context: GateEvaluationContext, event: GateEvent): Gate
       decision: "allow",
       gateType: "pre_tool",
       reason: "pre_tool allowed non-write tool call",
-      contextInjection: buildContextInjection(
-        context,
-        getAllowedWriteZones(context.state.sub_phase),
-      ),
+      contextInjection: buildContextInjection(context, allowedZones),
     };
   }
-
-  const allowedZones = getAllowedWriteZones(context.state.sub_phase);
 
   if (targets.length === 0) {
     return {
@@ -196,10 +203,13 @@ function evaluatePreTool(context: GateEvaluationContext, event: GateEvent): Gate
       gateType: "pre_tool",
       reason: `write-capable tool call has no target paths for ${context.state.sub_phase}. Allowed zones: ${allowedZones.join(", ")}`,
       violationType: "FORBIDDEN_WRITE_ZONE",
+      contextInjection: buildContextInjection(context, allowedZones),
     };
   }
 
-  const forbiddenTargets = targets.filter((target) => !isAllowedWriteTarget(target, allowedZones));
+  const forbiddenTargets = policyTargets.filter(
+    (target) => !isAllowedWriteTarget(target, allowedZones),
+  );
 
   if (forbiddenTargets.length === 0) {
     const runtimeBinding = enforceBlockingRuntimeBinding(context, "pre_tool");
@@ -220,6 +230,7 @@ function evaluatePreTool(context: GateEvaluationContext, event: GateEvent): Gate
     gateType: "pre_tool",
     reason: `write target outside allowed zones for ${context.state.sub_phase}: ${forbiddenTargets.join(", ")}. Allowed zones: ${allowedZones.join(", ")}`,
     violationType: "FORBIDDEN_WRITE_ZONE",
+    contextInjection: buildContextInjection(context, allowedZones),
   };
 }
 
@@ -227,7 +238,7 @@ function evaluatePostTool(context: GateEvaluationContext, event: GateEvent): Gat
   const outputText = stringifyUnknown(event.toolOutput);
   const inputText = toolInputText(event);
   const combinedText = `${inputText}\n${outputText}`;
-  const targets = readTargetPaths(event);
+  const writeEvent = isWriteEvent(event);
 
   if (containsPlaintextSecret(combinedText)) {
     return {
@@ -240,7 +251,7 @@ function evaluatePostTool(context: GateEvaluationContext, event: GateEvent): Gat
     };
   }
 
-  if (containsBypassAttempt(combinedText, event.metadata)) {
+  if (containsBypassAttempt(inputText, event.metadata)) {
     return {
       decision: riskAtLeast(context.currentRisk.risk_class, "M") ? "block" : "warn",
       gateType: event.gateType,
@@ -262,14 +273,17 @@ function evaluatePostTool(context: GateEvaluationContext, event: GateEvent): Gat
     };
   }
 
-  if (targets.some(isMigrationTarget) && !hasAdrEvidence(context)) {
-    return {
-      decision: "block",
-      gateType: event.gateType,
-      reason: "migration output detected without ADR or expand/contract evidence",
-      violationType: "MIGRATION_WITHOUT_ADR",
-      finalState: "BLOCKED_POLICY",
-    };
+  if (writeEvent) {
+    const targets = readTargetPaths(event);
+    if (targets.some(isMigrationTarget) && !hasAdrEvidence(context)) {
+      return {
+        decision: "block",
+        gateType: event.gateType,
+        reason: "migration output detected without ADR or expand/contract evidence",
+        violationType: "MIGRATION_WITHOUT_ADR",
+        finalState: "BLOCKED_POLICY",
+      };
+    }
   }
 
   return {
@@ -387,11 +401,10 @@ function evaluateSubagentStart(context: GateEvaluationContext, event: GateEvent)
 
 function evaluateSubagentStop(context: GateEvaluationContext, event: GateEvent): GateResult {
   const agentId = readAgentId(event);
-  const evidenceIds = acceptedEvidenceIds(context);
   const hasTrace =
     agentId.length > 0 &&
     context.runSet.subagents.some((subagent) => subagent.agentId === agentId) &&
-    evidenceIds.some((id) => id.includes(agentId.toLowerCase()));
+    hasEvidenceForAgent(context, agentId);
 
   if (!hasTrace) {
     return {
@@ -426,7 +439,8 @@ function isWriteEvent(event: GateEvent): boolean {
     actionName.startsWith("write") ||
     writeTokens.includes(actionName) ||
     writeTokens.some((token) => toolName.includes(token)) ||
-    hasWriteMetadataCapability(event)
+    hasWriteMetadataCapability(event) ||
+    isShellWriteCommand(event)
   );
 }
 
@@ -457,7 +471,7 @@ function hasWriteMetadataCapability(event: GateEvent): boolean {
 
 function readTargetPaths(event: GateEvent): string[] {
   if (!event.toolInput || typeof event.toolInput !== "object") {
-    return [];
+    return extractShellWriteTargets(event);
   }
 
   const input = event.toolInput as Record<string, unknown>;
@@ -474,7 +488,139 @@ function readTargetPaths(event: GateEvent): string[] {
     .flat()
     .filter((value): value is string => typeof value === "string");
 
-  return [...new Set([...scalarPaths, ...arrayPaths].map(normalizePath).filter(Boolean))];
+  return [
+    ...new Set(
+      [...scalarPaths, ...arrayPaths, ...extractShellWriteTargets(event)]
+        .map(normalizePath)
+        .filter(Boolean),
+    ),
+  ];
+}
+
+function isShellWriteCommand(event: GateEvent): boolean {
+  const command = readShellCommand(event);
+
+  if (command.length === 0) {
+    return false;
+  }
+
+  return (
+    [
+      /(?:^|[;&|]\s*)(?:touch|mkdir|rm|mv|cp)\b/i,
+      /\b(?:Out-File|Set-Content|Add-Content|New-Item|Remove-Item|Move-Item|Copy-Item)\b/i,
+      /\bsed\s+-i\b/i,
+    ].some((pattern) => pattern.test(command)) || extractShellWriteTargets(event).length > 0
+  );
+}
+
+function extractShellWriteTargets(event: GateEvent): string[] {
+  const command = readShellCommand(event);
+  if (command.length === 0) {
+    return [];
+  }
+
+  const targets = [
+    ...matchShellTargets(command, /(?:^|[^>])>{1,2}(?!&)\s*(?:"([^"]+)"|'([^']+)'|([^\s;&|]+))/g),
+    ...matchShellTargets(command, /(?:-FilePath|-Path)\s+(?:"([^"]+)"|'([^']+)'|([^\s;&|]+))/gi),
+    ...matchShellTargets(command, /\btee\s+(?:-a\s+)?(?:"([^"]+)"|'([^']+)'|([^\s;&|]+))/gi),
+    ...extractShellArgvWriteTargets(command),
+  ];
+
+  return targets.filter((target) => !target.startsWith("&") && !isNullDeviceTarget(target));
+}
+
+function extractShellArgvWriteTargets(command: string): string[] {
+  return splitShellCommandSegments(command).flatMap((segment) => {
+    const tokens = tokenizeShellSegment(segment);
+    if (tokens.length === 0) {
+      return [];
+    }
+
+    const firstToken = tokens[0];
+    if (firstToken === undefined) {
+      return [];
+    }
+
+    const commandName = readShellCommandName(firstToken);
+    if (["touch", "mkdir", "rm"].includes(commandName)) {
+      return tokens.slice(1).filter(isShellPathOperand);
+    }
+
+    if (["mv", "cp"].includes(commandName)) {
+      return tokens.slice(1).filter(isShellPathOperand);
+    }
+
+    if (commandName === "sed" && tokens.some((token) => token === "-i" || token.startsWith("-i"))) {
+      const operands = tokens.slice(1).filter(isShellPathOperand);
+      return operands.length >= 2 ? operands.slice(-1) : [];
+    }
+
+    return [];
+  });
+}
+
+function splitShellCommandSegments(command: string): string[] {
+  return command
+    .split(/\s*(?:&&|\|\||[;|&])\s*/)
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length > 0);
+}
+
+function tokenizeShellSegment(segment: string): string[] {
+  return [...segment.matchAll(/"([^"]*)"|'([^']*)'|([^\s]+)/g)]
+    .map((match) => match[1] ?? match[2] ?? match[3] ?? "")
+    .filter((value) => value.length > 0);
+}
+
+function readShellCommandName(token: string): string {
+  return token.replace(/^.*[\\/]/, "").toLowerCase();
+}
+
+function isShellPathOperand(token: string): boolean {
+  if (token.startsWith("-")) {
+    return false;
+  }
+
+  if (/[<>]/.test(token)) {
+    return false;
+  }
+
+  if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(token)) {
+    return false;
+  }
+
+  return token.length > 0;
+}
+
+function matchShellTargets(command: string, pattern: RegExp): string[] {
+  return [...command.matchAll(pattern)]
+    .map((match) => match[1] ?? match[2] ?? match[3] ?? "")
+    .filter((value) => value.length > 0);
+}
+
+function isNullDeviceTarget(target: string): boolean {
+  const normalized = normalizePath(target);
+
+  return normalized === "/dev/null" || normalized === "dev/null" || normalized === "nul";
+}
+
+function readShellCommand(event: GateEvent): string {
+  const toolName = event.toolName?.toLowerCase() ?? "";
+  if (!["bash", "shell", "powershell", "sh", "cmd"].some((name) => toolName.includes(name))) {
+    return "";
+  }
+
+  if (typeof event.toolInput === "string") {
+    return event.toolInput;
+  }
+
+  if (!event.toolInput || typeof event.toolInput !== "object") {
+    return "";
+  }
+
+  const input = event.toolInput as Record<string, unknown>;
+  const command = input.command ?? input.cmd ?? input.script;
+  return typeof command === "string" ? command : "";
 }
 
 function readStringArrayMetadata(event: GateEvent, key: string): string[] {
@@ -497,8 +643,22 @@ function readAgentId(event: GateEvent): string {
 function normalizePath(value: string): string {
   return value
     .replaceAll("\\", "/")
+    .replace(/^\/([a-z])\//i, "$1:/")
     .replace(/^\.\/+/, "")
     .toLowerCase();
+}
+
+function normalizeTargetForPolicy(value: string, projectRoot: string): string {
+  const normalizedValue = normalizePath(value);
+  const normalizedRoot = normalizePath(path.resolve(projectRoot));
+
+  if (normalizedValue === normalizedRoot) {
+    return ".";
+  }
+
+  return normalizedValue.startsWith(`${normalizedRoot}/`)
+    ? normalizedValue.slice(normalizedRoot.length + 1)
+    : normalizedValue;
 }
 
 function toolInputText(event: GateEvent): string {
@@ -519,8 +679,8 @@ function stringifyUnknown(value: unknown): string {
   }
 }
 
-function containsBypassAttempt(text: unknown, metadata?: Record<string, unknown>): boolean {
-  const haystack = `${stringifyUnknown(text)}\n${stringifyUnknown(metadata)}`.toLowerCase();
+function containsBypassAttempt(text: unknown, _metadata?: Record<string, unknown>): boolean {
+  const haystack = stringifyUnknown(text).toLowerCase();
   return [
     "--no-verify",
     "skip gate",
@@ -530,15 +690,29 @@ function containsBypassAttempt(text: unknown, metadata?: Record<string, unknown>
     "disable hook",
     "ignore policy",
     "force override",
-  ].some((pattern) => haystack.includes(pattern));
+  ].some((pattern) =>
+    new RegExp(`\\b${pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(haystack),
+  );
 }
 
 function containsPlaintextSecret(text: string): boolean {
-  return [
-    /(?:api[_-]?key|token|password|secret)\s*[:=]\s*["']?[a-z0-9_-]{16,}/i,
-    /sk-[a-z0-9]{20,}/i,
-    /ghp_[a-z0-9]{20,}/i,
-  ].some((pattern) => pattern.test(text));
+  const providerPatterns = [/sk-[a-z0-9]{20,}/i, /ghp_[a-z0-9]{20,}/i];
+  if (providerPatterns.some((p) => p.test(text))) return true;
+
+  const genericMatch = text.match(
+    /(?:api[_-]?key|token|password|secret)\s*[:=]\s*["']?([a-z0-9_-]{20,})/i,
+  );
+  if (!genericMatch) return false;
+
+  const candidate = genericMatch[1] ?? "";
+  if (candidate.length === 0 || /^(.)\1+$/.test(candidate)) return false;
+  if (
+    /^(test_placeholder|fake_secret|mock_secret|dummy_value|example_key|sample_key)/i.test(
+      candidate,
+    )
+  )
+    return false;
+  return true;
 }
 
 function mentionsDoneVerified(text: string): boolean {
@@ -546,12 +720,7 @@ function mentionsDoneVerified(text: string): boolean {
 }
 
 function isMigrationTarget(target: string): boolean {
-  return (
-    target.includes("migrations/") ||
-    target.includes("/schema/") ||
-    target.includes(".migration.") ||
-    target.includes(".schema.")
-  );
+  return target.includes("migrations/") || target.includes(".migration.") || /\.sql$/.test(target);
 }
 
 function hasAdrEvidence(context: GateEvaluationContext): boolean {
@@ -577,13 +746,13 @@ function findForceSignal(
     {
       pattern:
         /(^|\/)(auth|authorization|sessions|payment|billing|stripe|checkout|migrations|schema|infra|terraform|k8s|api\/public)(\/|$)/,
-      signal: "restricted high-risk path",
+      signal: "restricted H-risk path",
       minimumRiskClass: "H",
     },
     {
       pattern:
         /(\.session\.|\.migration\.|\.schema\.|openapi\.ya?ml|\.env\.production|pii|personal_data|email|phone|address)/,
-      signal: "restricted high-risk field or contract",
+      signal: "restricted H-risk field or contract",
       minimumRiskClass: "H",
     },
   ];
@@ -604,18 +773,26 @@ function hasSufficientEvidence(context: GateEvaluationContext): {
 }
 
 function hasAnyAcceptedEvidence(context: GateEvaluationContext, ids: readonly string[]): boolean {
-  const present = acceptedEvidenceIds(context);
   return ids.some((id) =>
-    present.some((evidenceId) => evidenceId === id || evidenceId.includes(id)),
+    context.runSet.evidence.some(
+      (item) => item.status === "accepted" && (item.key === id || item.id === id),
+    ),
   );
 }
 
-function acceptedEvidenceIds(context: GateEvaluationContext): string[] {
-  return context.runSet.evidence
-    .filter((item) => item.status === "accepted")
-    .flatMap((item) => [item.id, item.key, item.kind, item.summary])
-    .filter((value): value is string => typeof value === "string")
-    .map((value) => value.toLowerCase());
+function hasEvidenceForAgent(context: GateEvaluationContext, agentId: string): boolean {
+  const normalizedId = agentId.toLowerCase();
+  return context.runSet.evidence.some((item) => {
+    if (item.status !== "accepted") return false;
+    const metaAgentId =
+      typeof item.metadata?.agentId === "string" ? item.metadata.agentId.toLowerCase() : "";
+    const evidenceId = item.id.toLowerCase();
+    return (
+      metaAgentId === normalizedId ||
+      evidenceId === normalizedId ||
+      evidenceId.startsWith(`${normalizedId}-`)
+    );
+  });
 }
 
 function enforceBlockingRuntimeBinding(

@@ -14,7 +14,7 @@ Hybrid Event-Sourced RMS Kernel
 + runtime adapters/hooks
 + portable skills
 + bounded subagents
-+ durable books
++ durable reference docs
 ```
 
 Le Cycle 04 a ferme les blockers de contrat noyau pour la planification
@@ -67,9 +67,9 @@ flowchart TB
   Kernel --> Evidence[(Evidence Set)]
   Kernel --> Convergence[(Convergence Set)]
 
-  Books[Durable books / manuals] -.-> Skills
-  Books -.-> Registries
-  Books -.-> Kernel
+  Reference docs[Durable reference docs / manuals] -.-> Skills
+  Reference docs -.-> Registries
+  Reference docs -.-> Kernel
 ```
 
 La pile d'autorite fermee en Cycle 04 est stricte:
@@ -82,7 +82,7 @@ flowchart TD
   D[Runtime adapters and hooks]
   E[Skills]
   F[Subagents]
-  G[Books]
+  G[Reference docs]
 
   A --> B --> C --> D --> E --> F --> G
 ```
@@ -94,7 +94,7 @@ Implication operationnelle:
 - les hooks prouvent l'enforceability runtime, pas la politique;
 - les skills demandent des actions au noyau;
 - les subagents produisent des paquets de preuve;
-- les books expliquent et transmettent, sans ecraser les registries.
+- les reference docs expliquent et transmettent, sans ecraser les registries.
 
 ## 3. Separation Des Responsabilites
 
@@ -107,10 +107,10 @@ Implication operationnelle:
 | Hooks runtime | Preuve d'enforcement pre/post/stop selon provider | Non | Bloque ou observe si le runtime le permet |
 | Skills | Procedures reutilisables et UX | Non | Demandent transitions/evidence via kernel |
 | Subagents | Lanes bornees de travail ou revue | Non | Produisent EvidencePacket candidat |
-| Books | Documentation durable et playbooks | Non | Aucune mutation d'etat |
+| Reference docs | Documentation durable et playbooks | Non | Aucune mutation d'etat |
 
 La regle centrale est que tout objet qui peut etre contredit par l'event log
-est derive. Une projection, un book, une sortie de skill ou un verdict subagent
+est derive. Une projection, un reference doc, une sortie de skill ou un verdict subagent
 ne devient utilisable qu'apres intake par le kernel.
 
 ## 4. Objets D'Etat Canonique
@@ -190,7 +190,7 @@ Regles invariantes majeures:
   entre deux cycles;
 - un vrai `macro_cycle` exige un `cycle_substate` appartenant au cycle;
 - `risk_class=UNCLASSIFIED` interdit `bypass`;
-- `risk_class=E` ou `C` interdit `bypass`;
+- `risk_class=H` ou `C` interdit `bypass`;
 - `risk_class=C` interdit `auto_decision` sans checkpoint humain obligatoire;
 - `DONE_VERIFIED` exige evidence `verified` et convergence `verified`;
 - toute transition d'etat gouvernee produit un evenement append-only.
@@ -308,7 +308,7 @@ Outils conceptuels:
 | `rms.start_run` | Cree le run et l'enveloppe initiale. |
 | `rms.inspect_runtime` | Produit un CapabilitySet frais. |
 | `rms.bind_runtime` | Lie les gates abstraites a des primitives runtime. |
-| `rms.classify_risk` | Assigne ou promeut T/F/M/E/C. |
+| `rms.classify_risk` | Assigne ou promeut T/L/M/H/C. |
 | `rms.plan_route` | Produit la Route Set candidate. |
 | `rms.transition` | Demande une transition semantique. |
 | `rms.evaluate_guard` | Calcule allow/warn/block/escalate/degrade/reroute. |
@@ -339,7 +339,7 @@ Une decision de guard est une composition deterministe d'overlays.
 ```mermaid
 flowchart TD
   Req[Action or transition request] --> Base[base_guard cycle/substate/transition]
-  Base --> Risk[risk_overlay T/F/M/E/C]
+  Base --> Risk[risk_overlay T/L/M/H/C]
   Risk --> Supervision[supervision_overlay pairing/auto/bypass]
   Supervision --> Runtime[runtime_overlay capability/binding]
   Runtime --> Territory[territory_overlay path/tool/action]
@@ -375,9 +375,9 @@ La granularite de risque change les obligations:
 | Risque | Bypass | Checkpoint humain | Evidence |
 |---|---|---|---|
 | T | possible | non par defaut | minimale |
-| F | conditionnel | non sauf warning | legere |
+| L | conditionnel | non sauf warning | legere |
 | M | bloque par defaut | ambiguite ou gate critique | standard |
-| E | interdit | requis aux gates critiques | renforcee |
+| H | interdit | requis aux gates critiques | renforcee |
 | C | interdit | requis | maximale + revue independante |
 
 ## 9. Territory Enforcement
@@ -408,7 +408,7 @@ Defaults importants:
   classe de risque M;
 - `.rms/runs/**` est kernel-owned et s'ecrit seulement via MCP ou transaction
   locale autorisee;
-- l'audit-only runtime fallback ne suffit jamais pour des writes M/E/C.
+- l'audit-only runtime fallback ne suffit jamais pour des writes M/H/C.
 
 ## 10. Convergence
 
@@ -587,7 +587,7 @@ Layout conceptuel:
 
 ## 14. Registries, Configuration Et Observability
 
-Les registries sont la configuration executable. Les books peuvent expliquer un
+Les registries sont la configuration executable. Les reference docs peuvent expliquer un
 contrat, mais le kernel lit les registries et leurs digests.
 
 ```mermaid
@@ -709,7 +709,7 @@ Regle de verification:
 
 ```text
 No fresh hook capability proof
-= no governed M/E/C mutation
+= no governed M/H/C mutation
 = no DONE_VERIFIED
 ```
 
@@ -729,7 +729,7 @@ precise:
 ```mermaid
 flowchart TD
   Claim[Runtime route wants DONE_VERIFIED] --> Proof{Fresh hook proof?}
-  Proof -->|no| Cap[Cap final state or block M/E/C mutation]
+  Proof -->|no| Cap[Cap final state or block M/H/C mutation]
   Proof -->|yes| Binding{Binding can synchronously block required gate?}
   Binding -->|no| Degrade[Degrade only if risk policy allows]
   Binding -->|yes| Governed[Governed execution may proceed]
@@ -740,7 +740,7 @@ flowchart TD
 Runtime implementation reste bloquee tant que les specs hooks-first, schemas et
 fixtures ne sont pas acceptes.
 
-## 17. Skills, Subagents Et Books
+## 17. Skills, Subagents Et Reference docs
 
 Ces trois surfaces sont utiles mais volontairement subordonnees.
 
@@ -751,9 +751,9 @@ flowchart TB
   Subagent[Subagent lane] --> Packet[EvidencePacket candidate]
   Packet --> Intake[Parent/kernel intake]
   Intake --> Kernel
-  Book[Book/manual] -.-> Skill
-  Book -.-> Subagent
-  Book -.-> Kernel
+  Reference doc[Reference doc/manual] -.-> Skill
+  Reference doc -.-> Subagent
+  Reference doc -.-> Kernel
 ```
 
 MVP skills proposes:
@@ -761,7 +761,7 @@ MVP skills proposes:
 | Skill | Role |
 |---|---|
 | `pfv4-intake` | Capturer l'intention et recommander inactive/candidate/armed. |
-| `pfv4-risk-classify` | Classer ou promouvoir T/F/M/E/C. |
+| `pfv4-risk-classify` | Classer ou promouvoir T/L/M/H/C. |
 | `pfv4-runtime-probe` | Detecter capabilities, bindings et degradation. |
 | `pfv4-route` | Construire une Route Set candidate. |
 | `pfv4-transition` | Demander une transition semantique. |
@@ -780,24 +780,24 @@ MVP subagents proposes:
 | `runtime-binding-inspector` | Verifier gates runtime, MCP et hook capabilities. |
 | `state-invariant-reviewer` | Verifier no-null, substates et invariants de transition. |
 
-Books MVP:
+Reference docs MVP:
 
-| Book | Role |
+| Reference doc | Role |
 |---|---|
-| State Kernel Book | Etat canonique, no-null, activation, final states. |
-| Cycle Playbooks Book | Macro-cycles, substates, handoffs et rework. |
-| Risk And Policy Book | Risque T/F/M/E/C, bypass, checkpoints. |
-| Evidence And Convergence Book | Preuves, fraicheur, convergence, loop recovery. |
-| Runtime Bindings Book | Semantique Claude/Codex/Hermes. |
-| MCP And Tools Book | Frontieres MCP/tools, secrets, fallback. |
+| State Kernel Reference doc | Etat canonique, no-null, activation, final states. |
+| Cycle Playbooks Reference doc | Macro-cycles, substates, handoffs et rework. |
+| Risk And Policy Reference doc | Risque T/L/M/H/C, bypass, checkpoints. |
+| Evidence And Convergence Reference doc | Preuves, fraicheur, convergence, loop recovery. |
+| Runtime Bindings Reference doc | Semantique Claude/Codex/Hermes. |
+| MCP And Tools Reference doc | Frontieres MCP/tools, secrets, fallback. |
 
 ## 18. Failure Modes Principaux
 
 | Situation | Traitement attendu |
 |---|---|
 | Capability runtime inconnue | Bloquer jusqu'a `rms.inspect_runtime`. |
-| Hook requis absent sans fallback | Bloquer; pour M/E/C pas de downgrade silencieux. |
-| Hook audit-only pour write gouverne M/E/C | Bloquer ou reroute. |
+| Hook requis absent sans fallback | Bloquer; pour M/H/C pas de downgrade silencieux. |
+| Hook audit-only pour write gouverne M/H/C | Bloquer ou reroute. |
 | Evidence stale apres route change | Recalculer; pas d'autorisation final-state. |
 | Evidence conflictuelle | Cap convergence ou block selon policy. |
 | Scope grossit sans owner | Cap convergence, reroute ou recadrage. |
@@ -821,7 +821,7 @@ docs/propositions/pipeline-fractal-v4-implementation-plan/
   03-kernel-module-boundaries.md
   04-mcp-tool-slice-plan.md
   05-runtime-adapter-slice-plan.md
-  06-skill-subagent-book-bootstrap.md
+  06-skill-hook-subagent-bootstrap.md
   07-implementation-risk-register.md
 ```
 
@@ -838,7 +838,7 @@ Inventaire minimal d'objets:
 | Storage | Event, transaction, replay result, integrity state |
 | Closing | CloseRunRequest, CloseRunResult, final record, correction overlay |
 | MCP | Tool envelopes, resource envelopes, error envelopes |
-| Artifacts | Skill manifest, subagent evidence packet, book manifest |
+| Artifacts | Skill manifest, subagent evidence packet, reference doc manifest |
 
 ## 20. Lecture Des Sources Locales
 
@@ -846,7 +846,7 @@ Sources directes de cette synthese:
 
 | Source | Role |
 |---|---|
-| `06-integrated-final-proposal.md` | Candidate C, separation RMS/MCP/runtime/skills/subagents/books. |
+| `06-integrated-final-proposal.md` | Candidate C, separation RMS/MCP/runtime/skills/hooks/subagents. |
 | `cycle-04/06-cycle-04-integration.md` | Statut PASS, autorite finale, handoff schema-first, obligations restantes. |
 | `../pipeline-fractal-v4-state-machine/01-state-model.md` | RunState, activation, cycles, lenses, final states, invariants. |
 | `../pipeline-fractal-v4-state-machine/04-guard-matrix.md` | GuardDecision et overlays. |
@@ -864,7 +864,7 @@ Cette synthese a ete structuree en quatre passes:
 
 1. Source inventory: alignement sur Cycle 04, state-machine V2, specs
    hooks-first et mapping provider.
-2. Macro synthesis: bloc RMS/MCP/runtime/skills/subagents/books et pile
+2. Macro synthesis: bloc RMS/MCP/runtime/skills/hooks/subagents et pile
    d'autorite.
 3. Micro synthesis: objets, transitions, guards, territory, convergence,
    evidence, close transaction et recovery.

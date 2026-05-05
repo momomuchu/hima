@@ -3,7 +3,11 @@ import os from "node:os";
 import path from "node:path";
 import { GATE_TYPES, toHookCommand } from "@harness/core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { applyClaudeSettings, buildClaudeSettingsPreview } from "../src/index.js";
+import {
+  applyClaudeSettings,
+  buildClaudeSettingsPreview,
+  removeClaudeSettings,
+} from "../src/index.js";
 
 let tempRoot: string;
 
@@ -28,7 +32,7 @@ describe("buildClaudeSettingsPreview", () => {
         gateType: "user_prompt",
         event: "UserPromptSubmit",
         matcher: "",
-        hooks: [{ type: "command", command: toHookCommand("user_prompt") }],
+        hooks: [{ type: "command", command: toHookCommand("user_prompt", "claude") }],
       },
     });
   });
@@ -69,11 +73,11 @@ describe("buildClaudeSettingsPreview", () => {
     });
     expect(settings.hooks.PreToolUse).toContainEqual({
       matcher: "",
-      hooks: [{ type: "command", command: toHookCommand("pre_tool") }],
+      hooks: [{ type: "command", command: toHookCommand("pre_tool", "claude") }],
     });
   });
 
-  it("is idempotent and keeps canonical hook command aliases", async () => {
+  it("is idempotent and keeps Claude hook output format aliases", async () => {
     const settingsFile = path.join(tempRoot, "settings.json");
 
     await applyClaudeSettings({ root: tempRoot });
@@ -82,7 +86,58 @@ describe("buildClaudeSettingsPreview", () => {
 
     expect(secondResult.hooksAdded).toBe(0);
     expect(settings.hooks.PreToolUse).toHaveLength(1);
-    expect(settings.hooks.PreToolUse[0].hooks[0].command).toBe(toHookCommand("pre_tool"));
+    expect(settings.hooks.PreToolUse[0].hooks[0].command).toBe(toHookCommand("pre_tool", "claude"));
+  });
+
+  it("can install and remove hooks with an explicit harness command prefix", async () => {
+    const settingsFile = path.join(tempRoot, "settings.json");
+    const hookCommandPrefix = 'node "C:/repo/packages/cli/dist/index.js"';
+    const expectedPreToolCommand = `${hookCommandPrefix} hook pre-tool-use --format claude`;
+
+    await applyClaudeSettings({ root: tempRoot, hookCommandPrefix });
+    const settings = JSON.parse(await readFile(settingsFile, "utf8"));
+
+    expect(settings.hooks.PreToolUse).toContainEqual({
+      matcher: "",
+      hooks: [{ type: "command", command: expectedPreToolCommand }],
+    });
+    expect(JSON.stringify(settings)).not.toContain(toHookCommand("pre_tool", "claude"));
+
+    const result = await removeClaudeSettings({ root: tempRoot, hookCommandPrefix });
+    const removedSettings = JSON.parse(await readFile(settingsFile, "utf8"));
+
+    expect(result.hooksRemoved).toBe(GATE_TYPES.length);
+    expect(JSON.stringify(removedSettings)).not.toContain(expectedPreToolCommand);
+  });
+
+  it("removes only managed HIMA hooks while preserving user settings and hooks", async () => {
+    const settingsFile = path.join(tempRoot, "settings.json");
+
+    await writeFile(
+      settingsFile,
+      `${JSON.stringify(
+        {
+          theme: "dark",
+          hooks: {
+            PreToolUse: [{ matcher: "Write", hooks: [{ type: "command", command: "echo keep" }] }],
+          },
+        },
+        null,
+        2,
+      )}\n`,
+      "utf8",
+    );
+    await applyClaudeSettings({ root: tempRoot });
+
+    const result = await removeClaudeSettings({ root: tempRoot });
+    const settings = JSON.parse(await readFile(settingsFile, "utf8"));
+
+    expect(result.hooksRemoved).toBe(GATE_TYPES.length);
+    expect(settings.theme).toBe("dark");
+    expect(settings.hooks.PreToolUse).toEqual([
+      { matcher: "Write", hooks: [{ type: "command", command: "echo keep" }] },
+    ]);
+    expect(JSON.stringify(settings)).not.toContain(toHookCommand("pre_tool", "claude"));
   });
 
   it("rejects hardlinked settings targets without mutating the external file", async () => {

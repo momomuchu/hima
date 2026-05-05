@@ -55,7 +55,7 @@ append failure during close = no final mutation
 ```
 
 `rms.close_run` is the only tool that may commit `final_state`. Skills,
-subagents, books, runtime adapters, evidence evaluators and convergence
+subagents, runtime adapters, evidence evaluators and convergence
 evaluators may recommend or block closure, but they do not write protected final
 fields.
 
@@ -232,7 +232,7 @@ Policy validation rules:
 - Every required status value must exist in the evidence, convergence, runtime,
   territory, storage or human checkpoint registry.
 - `DONE_VERIFIED` cannot allow accepted gaps.
-- `DONE_WITH_GAPS` cannot allow E/C hard residual gaps or any forbidden gap
+- `DONE_WITH_GAPS` cannot allow H/C hard residual gaps or any forbidden gap
   class.
 - Blocked final states require enough blocker evidence to explain the stop, not
   enough evidence to prove success.
@@ -417,14 +417,14 @@ language.
   "gap_id": "gap_ci_unavailable_001",
   "requirement_id": "req_evid_optional_ci",
   "gap_class": "optional_verification",
-  "risk_class": "F",
+  "risk_class": "L",
   "owner": {
     "actor_type": "agent",
     "actor_id": "codex-main"
   },
   "reason": "CI unavailable for docs-only change; local markdown checks passed",
   "evidence_refs": ["ev_local_check_001"],
-  "policy_refs": ["closing.DONE_WITH_GAPS.F.optional_verification"],
+  "policy_refs": ["closing.DONE_WITH_GAPS.L.optional_verification"],
   "follow_up": {
     "action": "run_ci_when_available",
     "due": "NEXT_TOUCH",
@@ -444,7 +444,7 @@ Handling rules:
   marks that requirement waivable for the current risk and final state.
 - Gaps with class `security`, `rollback`, `human_checkpoint`,
   `runtime_hard_gate` or `territory_violation` block success final states.
-- E/C gaps require a current, scoped human checkpoint when policy allows them at
+- H/C gaps require a current, scoped human checkpoint when policy allows them at
   all. C critical residual gaps block `DONE_WITH_GAPS`.
 - Accepted gaps remain visible in the final record and learning outputs; they
   are not erased by closure.
@@ -636,7 +636,7 @@ Correction rules:
 - A correction can supersede report claims, not event history.
 - A correction cannot change `final_state`, `closed=true`, registry digest,
   event sequence or protected closed snapshot hash.
-- Material corrections require review evidence. E/C corrections require a
+- Material corrections require review evidence. H/C corrections require a
   scoped human checkpoint when policy requires it.
 - If the correction means the work is no longer acceptable, the recovery action
   is a new follow-up run, not in-place downgrade.
@@ -805,20 +805,20 @@ Expected checks:
 - Required action is either satisfy the gap or request `DONE_WITH_GAPS`.
 - No `RUN_CLOSED` success event is appended.
 
-### VF-CLOSE-003 - DONE_WITH_GAPS Allows Owned F Gap
+### VF-CLOSE-003 - DONE_WITH_GAPS Allows Owned L Gap
 
 Input:
 
 ```yaml
 final_candidate: DONE_WITH_GAPS
-risk_class: F
+risk_class: L
 evidence_status: with_gaps
 convergence_status: verified
 accepted_gaps:
   - requirement_id: req_optional_ci
     gap_class: optional_verification
     owner: codex-main
-    policy_refs: [closing.DONE_WITH_GAPS.F.optional_verification]
+    policy_refs: [closing.DONE_WITH_GAPS.L.optional_verification]
     follow_up: run_ci_when_available
 ```
 
@@ -830,13 +830,13 @@ Expected checks:
 - Gap is present in the final record.
 - Final state is `DONE_WITH_GAPS`, not `DONE_VERIFIED`.
 
-### VF-CLOSE-004 - E Rollback Gap Cannot Close With Gaps
+### VF-CLOSE-004 - H Rollback Gap Cannot Close With Gaps
 
 Input:
 
 ```yaml
 final_candidate: DONE_WITH_GAPS
-risk_class: E
+risk_class: H
 accepted_gaps:
   - gap_class: rollback
     requirement_id: req_e_rollback

@@ -3,12 +3,15 @@ import type {
   CatalogArtifactDescriptor,
   CatalogArtifactKind,
   CatalogArtifactSelection,
+  CatalogArtifactWriteMetadata,
 } from "../catalogs/artifact-generation.js";
 import {
   CATALOG_ARTIFACT_SELECTIONS,
   planCatalogArtifacts,
   writeCatalogArtifactDescriptors,
 } from "../catalogs/artifact-generation.js";
+import { safeAtomicWriteFile } from "../storage/safe-write.js";
+import { getPlatformArtifactRelativePath, resolvePlatformArtifactPath } from "./artifact-paths.js";
 import type { InstallTarget } from "./platform-install.js";
 import { getPlatformExpectedPaths, INSTALL_TARGETS, isInstallTarget } from "./platform-install.js";
 
@@ -47,12 +50,36 @@ export interface InstallCatalogArtifactsOptions {
   readonly kind?: ArtifactInstallSelection;
   readonly dryRun?: boolean;
   readonly force?: boolean;
+  readonly writeManifest?: boolean;
+  readonly captureRestoreSnapshots?: boolean;
+  readonly now?: Date;
+  readonly manifestFile?: string;
 }
 
 export interface InstallCatalogArtifactsResult extends ArtifactInstallPlan {
   readonly writtenPaths: readonly string[];
   readonly unchangedPaths: readonly string[];
+  readonly manifest: ArtifactInstallManifest;
+  readonly manifestFile?: string;
 }
+
+export interface ArtifactInstallManifest {
+  readonly schemaVersion: 1;
+  readonly target: ArtifactInstallTarget;
+  readonly projectRoot: string;
+  readonly platformDirectory: string;
+  readonly dryRun: boolean;
+  readonly createdAt: string;
+  readonly selection: ArtifactInstallSelection;
+  readonly kind: ArtifactInstallSelection;
+  readonly entries: readonly ArtifactInstallManifestEntry[];
+  readonly writtenCount: number;
+  readonly unchangedCount: number;
+}
+
+export interface ArtifactInstallManifestEntry extends CatalogArtifactWriteMetadata {}
+
+export const DEFAULT_ARTIFACT_INSTALL_MANIFEST_FILE = ".planning/artifact-install-manifest.json";
 
 export function planArtifactInstall(options: InstallCatalogArtifactsOptions): ArtifactInstallPlan {
   const target = parseArtifactInstallTarget(options.target);
@@ -86,12 +113,26 @@ export async function installCatalogArtifacts(
   options: InstallCatalogArtifactsOptions,
 ): Promise<InstallCatalogArtifactsResult> {
   const plan = planArtifactInstall(options);
+  const createdAt = (options.now ?? new Date()).toISOString();
 
   if (plan.dryRun) {
+    if (options.writeManifest === true) {
+      throw new Error("Cannot write artifact install manifest during dry-run.");
+    }
+
+    const writePlan = await writeCatalogArtifactDescriptors({
+      outputRoot: plan.platformDirectory,
+      dryRun: true,
+      artifacts: plan.artifacts,
+      force: options.force,
+    });
+    const manifest = buildArtifactInstallManifest(plan, writePlan.writeMetadata, createdAt);
+
     return {
       ...plan,
       writtenPaths: [],
       unchangedPaths: [],
+      manifest,
     };
   }
 
@@ -100,9 +141,15 @@ export async function installCatalogArtifacts(
     dryRun: false,
     artifacts: plan.artifacts,
     force: options.force,
+    captureRestoreSnapshots: options.captureRestoreSnapshots,
   });
   const written = new Set(writeResult.writtenPaths);
   const unchanged = new Set(writeResult.unchangedPaths);
+  const manifest = buildArtifactInstallManifest(plan, writeResult.writeMetadata, createdAt);
+  const manifestFile =
+    options.writeManifest === true
+      ? await writeArtifactInstallManifest(plan.projectRoot, manifest, options.manifestFile)
+      : undefined;
 
   return {
     ...plan,
@@ -127,25 +174,16 @@ export async function installCatalogArtifacts(
     }),
     writtenPaths: writeResult.writtenPaths,
     unchangedPaths: writeResult.unchangedPaths,
+    manifest,
+    ...(manifestFile ? { manifestFile } : {}),
   };
 }
 
 function buildInstallArtifacts(selection: ArtifactInstallSelection): CatalogArtifactDescriptor[] {
   return planCatalogArtifacts({ kind: selection }).artifacts.map((artifact) => ({
     ...artifact,
-    relativePath: toPlatformArtifactPath(artifact),
+    relativePath: getPlatformArtifactRelativePath(artifact.kind, artifact.id),
   }));
-}
-
-function toPlatformArtifactPath(artifact: CatalogArtifactDescriptor): string {
-  switch (artifact.kind) {
-    case "skill":
-      return `skills/${artifact.id}/SKILL.md`;
-    case "book":
-      return `books/${artifact.id}.md`;
-    case "subagent":
-      return `agents/${artifact.id}.md`;
-  }
 }
 
 function buildArtifactInstallAction(
@@ -155,7 +193,7 @@ function buildArtifactInstallAction(
   dryRun: boolean,
   status: ArtifactInstallAction["status"],
 ): ArtifactInstallAction {
-  const targetPath = path.resolve(platformDirectory, ...artifact.relativePath.split("/"));
+  const targetPath = resolvePlatformArtifactPath(platformDirectory, artifact.kind, artifact.id);
 
   return {
     kind: "write_artifact",
@@ -169,6 +207,43 @@ function buildArtifactInstallAction(
     description: `Install ${target} ${artifact.kind} catalog artifact ${artifact.id}.`,
     status,
   };
+}
+
+function buildArtifactInstallManifest(
+  plan: ArtifactInstallPlan,
+  entries: readonly CatalogArtifactWriteMetadata[],
+  createdAt: string,
+): ArtifactInstallManifest {
+  return {
+    schemaVersion: 1,
+    target: plan.target,
+    projectRoot: plan.projectRoot,
+    platformDirectory: plan.platformDirectory,
+    dryRun: plan.dryRun,
+    createdAt,
+    selection: plan.selection,
+    kind: plan.selection,
+    entries,
+    writtenCount: entries.filter((entry) => entry.status === "written").length,
+    unchangedCount: entries.filter((entry) => entry.status === "unchanged").length,
+  };
+}
+
+async function writeArtifactInstallManifest(
+  projectRoot: string,
+  manifest: ArtifactInstallManifest,
+  manifestFile: string | undefined,
+): Promise<string> {
+  const targetPath = resolveManifestFile(projectRoot, manifestFile);
+  await safeAtomicWriteFile(projectRoot, targetPath, `${JSON.stringify(manifest, null, 2)}\n`);
+  return targetPath;
+}
+
+function resolveManifestFile(projectRoot: string, manifestFile: string | undefined): string {
+  const selectedFile = manifestFile ?? DEFAULT_ARTIFACT_INSTALL_MANIFEST_FILE;
+  return path.isAbsolute(selectedFile)
+    ? path.resolve(selectedFile)
+    : path.resolve(projectRoot, ...selectedFile.split(/[\\/]/));
 }
 
 function parseArtifactInstallTarget(target: ArtifactInstallTarget | string): ArtifactInstallTarget {

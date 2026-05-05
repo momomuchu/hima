@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import {
+  applyHookCommandPrefix,
   buildRuntimeBindings,
   computeRuntimeProfileDigest,
   DEFAULT_RUNTIME_CAPABILITY_STATUS,
@@ -13,6 +14,7 @@ import {
   type RuntimeHookCapability,
   type RuntimeProfile,
   safeAtomicWriteFile,
+  toHookCommand,
 } from "@harness/core";
 
 export const CODEX_CONFIG_FILE = "config.toml";
@@ -54,6 +56,8 @@ export interface CodexPreviewMarker {
 
 export interface ApplyCodexHookConfigOptions {
   root: string;
+  hookCommands?: Partial<Record<GateType, string>>;
+  hookCommandPrefix?: string;
 }
 
 export interface ApplyCodexHookConfigResult {
@@ -63,7 +67,15 @@ export interface ApplyCodexHookConfigResult {
   featureFlagAdded: boolean;
 }
 
-export function buildCodexHookConfigPreview(): CodexHookConfigPreview {
+export interface RemoveCodexHookConfigResult {
+  target: "codex";
+  configFile: string;
+  hooksRemoved: number;
+}
+
+export function buildCodexHookConfigPreview(
+  options: Pick<ApplyCodexHookConfigOptions, "hookCommands" | "hookCommandPrefix"> = {},
+): CodexHookConfigPreview {
   const profile = getRuntimeProfile("codex");
   const digest = computeRuntimeProfileDigest("codex");
   const bindings = buildRuntimeBindings("codex", buildCodexRuntimeCapability(profile), "preview", {
@@ -71,18 +83,17 @@ export function buildCodexHookConfigPreview(): CodexHookConfigPreview {
     currentDigest: digest,
   });
   const hookCommands = GATE_TYPES.flatMap((gateType) => {
-    const binding = bindings[gateType];
     const hook = profile.hooks[gateType];
 
-    return binding.status === "native" && binding.nativeEvent
+    return hook.supported && hook.nativeEvent
       ? [
           {
             kind: "append" as const,
             path: "config.toml.hooks" as const,
             value: {
               gateType,
-              event: binding.nativeEvent,
-              command: hook.command,
+              event: hook.nativeEvent,
+              command: resolveHookCommand(hook.command, gateType, options),
             },
           },
         ]
@@ -118,7 +129,7 @@ export async function applyCodexHookConfig(
   options: ApplyCodexHookConfigOptions,
 ): Promise<ApplyCodexHookConfigResult> {
   const configFile = path.join(options.root, CODEX_CONFIG_FILE);
-  const preview = buildCodexHookConfigPreview();
+  const preview = buildCodexHookConfigPreview(options);
   const existingConfig = await readTextFile(configFile);
   const appendOperations = preview.operations.filter(
     (operation): operation is Extract<CodexPreviewOperation, { kind: "append" }> =>
@@ -130,6 +141,8 @@ export async function applyCodexHookConfig(
   let hooksAdded = 0;
 
   for (const operation of appendOperations) {
+    nextConfig = removeStaleCodexHookBlocks(nextConfig, operation.value).config;
+
     if (!hasCodexHook(nextConfig, operation.value)) {
       nextConfig = appendCodexHook(nextConfig, operation.value);
       hooksAdded += 1;
@@ -143,6 +156,36 @@ export async function applyCodexHookConfig(
     configFile,
     hooksAdded,
     featureFlagAdded,
+  };
+}
+
+export async function removeCodexHookConfig(
+  options: ApplyCodexHookConfigOptions,
+): Promise<RemoveCodexHookConfigResult> {
+  const configFile = path.join(options.root, CODEX_CONFIG_FILE);
+  const existingConfig = await readTextFile(configFile);
+
+  if (existingConfig.length === 0) {
+    return {
+      target: "codex",
+      configFile,
+      hooksRemoved: 0,
+    };
+  }
+
+  const expectedHooks = buildCodexHookConfigPreview(options).operations.flatMap((operation) =>
+    operation.kind === "append" ? [operation.value] : [],
+  );
+  const removal = removeCodexHookBlocks(existingConfig, expectedHooks);
+
+  if (removal.hooksRemoved > 0) {
+    await safeAtomicWriteFile(options.root, configFile, ensureTrailingNewline(removal.config));
+  }
+
+  return {
+    target: "codex",
+    configFile,
+    hooksRemoved: removal.hooksRemoved,
   };
 }
 
@@ -208,7 +251,12 @@ function ensureCodexHooksFeature(config: string): string {
     }
 
     if (/^\s*codex_hooks\s*=/.test(lines[index] ?? "")) {
-      return config;
+      if (/^\s*codex_hooks\s*=\s*true\s*(?:#.*)?$/.test(lines[index] ?? "")) {
+        return config;
+      }
+
+      lines[index] = "codex_hooks = true";
+      return lines.join("\n");
     }
   }
 
@@ -217,23 +265,115 @@ function ensureCodexHooksFeature(config: string): string {
 }
 
 function hasCodexHook(config: string, hook: CodexHookCommandPreview): boolean {
-  const hookBlocks = config.match(/\[\[hooks\]\][\s\S]*?(?=\n\s*\[\[?|\s*$)/g) ?? [];
+  const legacyHookBlocks = legacyCodexHookBlocks(config);
+  const officialHookBlocks = officialCodexHookBlocks(config, hook.event);
 
-  return hookBlocks.some((block) => {
-    const event = matchTomlStringValue(block, "event");
-    const command = matchTomlStringValue(block, "command");
+  return (
+    legacyHookBlocks.some((block) => {
+      const event = matchTomlStringValue(block, "event");
+      const command = matchTomlStringValue(block, "command");
 
-    return event === hook.event && command === hook.command;
-  });
+      return event === hook.event && command === hook.command;
+    }) ||
+    officialHookBlocks.some((block) => officialCodexHookCommands(block).includes(hook.command))
+  );
 }
 
 function appendCodexHook(config: string, hook: CodexHookCommandPreview): string {
   return appendBlock(config, [
-    "[[hooks]]",
-    `gate_type = ${toTomlString(hook.gateType)}`,
-    `event = ${toTomlString(hook.event)}`,
+    `[[hooks.${hook.event}]]`,
+    `# hima_gate_type = ${toTomlString(hook.gateType)}`,
+    "",
+    `[[hooks.${hook.event}.hooks]]`,
+    'type = "command"',
     `command = ${toTomlString(hook.command)}`,
   ]);
+}
+
+function removeCodexHookBlocks(
+  config: string,
+  expectedHooks: CodexHookCommandPreview[],
+): { config: string; hooksRemoved: number } {
+  const hookBlocks = [
+    ...legacyCodexHookBlocks(config),
+    ...expectedHooks.flatMap((hook) => officialCodexHookBlocks(config, hook.event)),
+  ];
+  let nextConfig = config;
+  let hooksRemoved = 0;
+
+  for (const block of hookBlocks) {
+    if (!isManagedCodexHookBlock(block, expectedHooks)) {
+      continue;
+    }
+
+    nextConfig = nextConfig.replace(block, "").replace(/\n{3,}/g, "\n\n");
+    hooksRemoved += 1;
+  }
+
+  return {
+    config: nextConfig.trim().length === 0 ? "" : nextConfig.trimEnd(),
+    hooksRemoved,
+  };
+}
+
+function isManagedCodexHookBlock(block: string, expectedHooks: CodexHookCommandPreview[]): boolean {
+  const gateType = matchTomlStringValue(block, "gate_type");
+  const event = matchTomlStringValue(block, "event");
+  const command = matchTomlStringValue(block, "command");
+
+  return expectedHooks.some(
+    (hook) =>
+      (hook.gateType === gateType && hook.event === event && hook.command === command) ||
+      (officialCodexHookEvent(block) === hook.event &&
+        officialCodexHookCommands(block).includes(hook.command)),
+  );
+}
+
+function removeStaleCodexHookBlocks(
+  config: string,
+  hook: CodexHookCommandPreview,
+): { config: string; hooksRemoved: number } {
+  const hookBlocks = [
+    ...legacyCodexHookBlocks(config),
+    ...officialCodexHookBlocks(config, hook.event),
+  ];
+  let nextConfig = config;
+  let hooksRemoved = 0;
+
+  for (const block of hookBlocks) {
+    if (!isStaleManagedCodexHookBlock(block, hook)) {
+      continue;
+    }
+
+    nextConfig = nextConfig.replace(block, "").replace(/\n{3,}/g, "\n\n");
+    hooksRemoved += 1;
+  }
+
+  return {
+    config: nextConfig.trim().length === 0 ? "" : nextConfig.trimEnd(),
+    hooksRemoved,
+  };
+}
+
+function isStaleManagedCodexHookBlock(block: string, hook: CodexHookCommandPreview): boolean {
+  const gateType = matchTomlStringValue(block, "gate_type");
+  const event = matchTomlStringValue(block, "event");
+  const command = matchTomlStringValue(block, "command");
+
+  const legacyStale =
+    gateType === hook.gateType &&
+    event === hook.event &&
+    command !== undefined &&
+    isHookCommandForGate(command, hook.gateType) &&
+    command !== hook.command;
+  const officialStale =
+    officialCodexHookEvent(block) === hook.event &&
+    officialCodexHookCommands(block).some(
+      (blockCommand) =>
+        isHookCommandForGate(blockCommand, hook.gateType) && blockCommand !== hook.command,
+    );
+
+  return legacyStale || officialStale;
 }
 
 function appendBlock(config: string, lines: string[]): string {
@@ -248,8 +388,52 @@ function matchTomlStringValue(block: string, key: string): string | undefined {
   return match ? match[1]?.replace(/\\"/g, '"').replace(/\\\\/g, "\\") : undefined;
 }
 
+function officialCodexHookBlocks(config: string, event: string): string[] {
+  const escapedEvent = escapeRegExp(event);
+  const blockPattern = new RegExp(
+    `(?:^|\\n)\\s*\\[\\[hooks\\.${escapedEvent}\\]\\][\\s\\S]*?(?=\\n\\s*\\[\\[hooks\\.[^.\\]\\r\\n]+\\]\\]|\\n\\s*\\[[^\\[]|(?![\\s\\S]))`,
+    "g",
+  );
+
+  return config.match(blockPattern) ?? [];
+}
+
+function officialCodexHookEvent(block: string): string | undefined {
+  return /^\s*\[\[hooks\.([^\].\r\n]+)\]\]/m.exec(block)?.[1];
+}
+
+function officialCodexHookCommands(block: string): string[] {
+  return [...block.matchAll(/^\s*command\s*=\s*"((?:[^"\\]|\\.)*)"\s*$/gm)].map((match) =>
+    (match[1] ?? "").replace(/\\"/g, '"').replace(/\\\\/g, "\\"),
+  );
+}
+
+function isHookCommandForGate(command: string, gateType: GateType): boolean {
+  const commandAlias = toHookCommand(gateType).replace("harness ", "");
+
+  return command.includes(toHookCommand(gateType)) || command.includes(commandAlias);
+}
+
+function legacyCodexHookBlocks(config: string): string[] {
+  return config.match(/\[\[hooks\]\][\s\S]*?(?=\n\s*\[\[?|\s*$)/g) ?? [];
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function toTomlString(value: string): string {
   return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
+function resolveHookCommand(
+  command: string,
+  gateType: GateType,
+  options: Pick<ApplyCodexHookConfigOptions, "hookCommands" | "hookCommandPrefix">,
+): string {
+  return (
+    options.hookCommands?.[gateType] ?? applyHookCommandPrefix(command, options.hookCommandPrefix)
+  );
 }
 
 function ensureTrailingNewline(value: string): string {

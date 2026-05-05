@@ -267,7 +267,7 @@ export function promoteRisk(
     escalationEntry,
     newMandatoryActivities: getMandatoryActivities(target),
     sprintImpact:
-      target === "H" || target === "C" ? "additional mandatory high-risk controls activated" : null,
+      target === "H" || target === "C" ? "additional mandatory H-risk controls activated" : null,
   };
 }
 

@@ -1,799 +1,275 @@
-# CLI Commands Specification — `@harness/cli`
+# CLI Commands Specification - @harness/cli
 
-> **Statut** : conception v1
-> **Package** : `@harness/cli` (single package, D16)
-> **Entrée binaire unique** : `harness <command> [args] [flags]`
-> **Date** : 2026-05-03
-
----
-
-## Résumé
-
-Le CLI est l'interface principale du harness Pipeline Fractale v4. Il sert deux usages distincts :
-
-1. **Usage humain** — installation, init projet, inspection de l'état, transitions, diagnostic.
-2. **Usage machine** — `harness hook <event>` appelé par les hooks natifs de la plateforme à chaque événement de cycle de vie.
-
-Architecture de dispatch : les hooks natifs des plateformes (Claude Code, Codex, Hermes) appellent
-`harness hook <event-name>`. Une seule entrée binaire, dispatch interne (D14). Pas de daemon.
+> Status: implementation-aligned executable contract
+> Package: `@harness/cli`
+> Source of truth: `packages/cli/src/index.ts` exports `getCliCommandSurface()`
+> Verification: `packages/cli/test/index.test.ts` checks this file against the executable command tree
+> Date: 2026-05-03
 
 ---
 
-## Flags globaux
+## 1. Contract
 
-Appliqués à toutes les commandes.
+The CLI exposes one binary: `harness`.
 
-| Flag | Type | Description |
-|------|------|-------------|
-| `--verbose` | boolean | Active les logs détaillés sur stderr |
-| `--json` | boolean | Sortie machine-readable JSON sur stdout |
-| `--no-color` | boolean | Désactive les codes ANSI couleur |
-| `--config <path>` | string | Chemin alternatif vers le fichier de config harness (défaut : `~/.harness/config.yaml`) |
+The executable command tree is the source of truth. This document is the human-facing contract for that tree, and tests fail when a command exists in code but is missing here.
 
-**Priorité de configuration** : flag CLI > variable d'environnement `HARNESS_CONFIG` > `~/.harness/config.yaml`.
+Runtime artifacts are always the triad `skills`, `hooks`, and `subagents`. There is no fourth runtime artifact family.
 
----
+State storage is always `.planning/` with the three canonical files:
 
-## Codes de sortie
+| File | Purpose |
+|------|---------|
+| `.planning/state.yaml` | Current macro-cycle, subphase, operating mode, and run identifiers |
+| `.planning/current-risk.yaml` | Current T/L/M/H/C risk state and risk evidence summary |
+| `.planning/run-set.json` | Current run events, evidence, convergence, runtime bindings, and install manifests |
 
-| Code | Signification |
-|------|---------------|
-| `0` | Succès |
-| `1` | Erreur générique (argument invalide, fichier manquant, erreur I/O) |
-| `2` | Gate bloquée — action refusée par une politique ou un guard de transition |
-| `3` | État invalide — `state.yaml` corrompu, incohérent ou absent |
+All platform and artifact write paths are dry-run by default unless the command has an explicit `--apply` or write flag.
 
 ---
 
-## 1. `harness install`
+## 2. Command Surface
 
-### Synopsis
+| Command | Purpose | Write behavior |
+|---------|---------|----------------|
+| `harness` | Root binary and command namespace. | None |
+| `harness init` | Create the three canonical `.planning/` files. | Writes project state files |
+| `harness status` | Show current harness state. | None |
+| `harness convergence` | Evaluate convergence from `.planning/` state. | None |
+| `harness close` | Close the current run from convergence evaluation. | Writes run closure data |
+| `harness hook` | Evaluate a runtime hook event from JSON stdin. | Writes gate event unless `--dryRun` is set |
+| `harness transition` | Transition to another macro-cycle and optional subphase. | Writes state transition |
+| `harness enter` | Enter governed development mode with phase, subphase, mode, risk, and intent. | Writes state, current risk, route, intent, active gates, and entry event |
+| `harness evidence` | Evidence command namespace. | None |
+| `harness evidence add` | Append an evidence item to `.planning/run-set.json`. | Writes evidence |
+| `harness risk` | Risk command namespace. | None |
+| `harness risk classify` | Classify a changeset risk level from pragmatic CLI flags. | None |
+| `harness doctor` | Validate local harness installation and `.planning/` state files. | None today; `--fix` is reserved |
+| `harness validate` | Machine-friendly read-only validation for project state. | None |
+| `harness install` | Plan or write a safe platform install manifest. | Dry-run by default; `--writeManifest` and `--apply` write |
+| `harness catalog` | Inspect the operational catalog. | None |
+| `harness artifacts` | Plan or write catalog-driven operational artifacts. | Dry-run by default; `--apply` writes |
+| `harness install-artifacts` | Plan or write target platform catalog artifacts. | Dry-run by default; `--apply` writes, `--writeManifest` persists rollback metadata, and `--captureRestoreSnapshots` opt-in stores previous managed artifact content |
+| `harness rollback-artifacts` | Plan or apply rollback of target platform catalog artifacts. | Dry-run by default; `--apply` deletes rollbackable files and restores files that carry valid restore snapshots |
+| `harness uninstall-platform` | Plan or remove managed platform hook registrations from an install manifest. | Dry-run by default; `--apply` removes managed hooks |
+| `harness repair-platform` | Plan or re-apply managed platform hook registrations from an install manifest. | Dry-run by default; `--apply` writes managed hooks |
+| `harness lifecycle` | Lifecycle command namespace for hooks plus catalog artifacts. | None |
+| `harness lifecycle apply` | Plan or apply the full platform hooks plus catalog artifacts lifecycle. | Dry-run by default; `--apply` writes |
+| `harness lifecycle uninstall` | Plan or uninstall platform hooks plus rollback catalog artifacts. | Dry-run by default; `--apply` removes managed files |
+| `harness lifecycle repair` | Plan or repair platform hooks plus catalog artifacts from manifests. | Dry-run by default; `--apply` writes |
+| `harness runtime` | Runtime metadata command namespace. | None |
+| `harness runtime digest` | Print the runtime profile version and digest for a target. | None |
+| `harness runtime inspect` | Inspect and persist runtime capabilities for a target, including optional hook proof overrides. | Writes runtime capability observation |
+| `harness runtime bind` | Bind inspected runtime capabilities to required gates. | Writes runtime binding state |
+| `harness runtime probe` | Read target runtime config and persist core-minted runtime proofs. | Writes trusted runtime capability observation and optionally bindings |
+| `harness runtime assess-route` | Assess route-required runtime bindings from current `.planning/` state. | None |
 
-```
-harness install --target <platform> [--dry-run] [--force]
-```
+---
 
-### Description
+## 3. Common Arguments
 
-Installe le harness comme plugin natif sur une plateforme cible. Crée les fichiers de
-configuration, enregistre les hooks, configure les MCP servers si nécessaire. L'opération
-est **idempotente** : safe à ré-exécuter sans effet de bord.
+Most project-scoped commands accept `--root <path>`. When omitted, the command uses the current working directory.
 
-Plateforme cible : `claude` | `codex` | `hermes`.
+Most inspection commands accept `--json` to print a machine-readable JSON payload.
 
-### Arguments
+Canonical platform targets are `claude`, `codex`, and `hermes`.
 
-Aucun argument positionnel.
+Canonical artifact selections are `all`, `skills`, `hooks`, and `subagents`.
 
-### Flags
+---
 
-| Flag | Type | Requis | Description |
-|------|------|--------|-------------|
-| `--target <platform>` | string | oui | Plateforme cible : `claude`, `codex`, `hermes` |
-| `--dry-run` | boolean | non | Affiche les actions sans les exécuter |
-| `--force` | boolean | non | Réinstalle même si déjà installé (écrase) |
+## 4. Development Entry
 
-### Comportement
-
-1. Détecte la version de la plateforme installée (`claude --version`, `codex --version`, `hermes --version`).
-2. Valide les prérequis : Node ≥ 20, plateforme présente sur PATH, répertoire de config accessible.
-3. Copie les artefacts portables (skills, subagents, instructions) dans le répertoire de config de la plateforme.
-4. Enregistre les hooks natifs via le format attendu par la plateforme (JSON pour Claude Code, TOML/YAML selon Codex/Hermes).
-5. Configure les MCP servers si la plateforme les supporte.
-6. Écrit un fichier `~/.harness/platforms/<platform>.installed.yaml` avec la version installée et le timestamp.
-7. Vérifie l'installation avec `harness doctor --target <platform>` en mode silencieux.
-
-Si `--dry-run` : affiche chaque action avec le préfixe `[DRY-RUN]`, ne modifie rien.
-
-Si `--force` : supprime d'abord les artefacts existants avant de réinstaller.
-
-### Format de sortie
-
-Mode humain :
-```
-Installing harness on claude...
-  ✓ Detected claude 1.2.3
-  ✓ Prerequisites OK
-  ✓ Skills installed (12 files)
-  ✓ Hooks registered (7 events)
-  ✓ MCP servers configured
-  ✓ Doctor check passed
-
-Installation complete. Run `harness doctor` to verify.
-```
-
-Mode `--json` :
-```json
-{
-  "platform": "claude",
-  "version_detected": "1.2.3",
-  "actions": ["skills_installed", "hooks_registered", "mcp_configured"],
-  "status": "success"
-}
-```
-
-### Codes de sortie
-
-| Code | Cas |
-|------|-----|
-| `0` | Installation réussie |
-| `1` | Plateforme non trouvée, prérequis manquants, erreur I/O |
-
-### Exemples
+`harness enter` is the executable entrypoint for the `hima-enter` skill. It binds the first
+development route through the kernel instead of relying on manual `.planning/` edits.
 
 ```bash
-harness install --target claude
-harness install --target codex --dry-run
-harness install --target hermes --force --verbose
+harness enter [--root <path>] [--phase build] [--subPhase Execute] [--mode auto] [--riskClass T] [--objective "..."] [--prompt "..."] [--json]
 ```
+
+Defaults are intentionally conservative for a development POC:
+
+| Field | Default | Source of truth |
+|-------|---------|-----------------|
+| `phase` | `build` | Canonical `MacroCycle` |
+| `subPhase` | `Execute` | Canonical `SubPhase` |
+| `mode` | `auto` | Canonical `OperatingMode` |
+| `riskClass` | `T` | Canonical `RiskClass` |
+
+The command validates the selected mode against the risk policy. For example, `--mode bypass`
+with `--riskClass H` is rejected because bypass is allowed only for T/L routes.
+
+Writes:
+
+- `.planning/state.yaml`: active phase, subphase, mode, active gates, status, timestamp.
+- `.planning/current-risk.yaml`: effective risk class, rank, bypass flag, human checkpoint flag.
+- `.planning/run-set.json`: intent, route, `DEVELOPMENT_MODE_ENTERED` event, active finalization.
+
+The command does not classify by itself. The caller should use `harness risk classify` first when
+the risk is not already known, then pass the selected class into `harness enter`.
 
 ---
 
-## 2. `harness uninstall`
+## 5. Hook Invocation
 
-### Synopsis
-
-```
-harness uninstall --target <platform> [--dry-run]
-```
-
-### Description
-
-Suppression propre du harness d'une plateforme. Retire les hooks, skills, subagents,
-instructions et MCP servers injectés par `harness install`. Ne touche pas au projet
-courant (`.planning/` non affecté).
-
-### Flags
-
-| Flag | Type | Requis | Description |
-|------|------|--------|-------------|
-| `--target <platform>` | string | oui | Plateforme cible : `claude`, `codex`, `hermes` |
-| `--dry-run` | boolean | non | Affiche les suppressions sans les exécuter |
-
-### Comportement
-
-1. Lit le manifeste `~/.harness/platforms/<platform>.installed.yaml` pour identifier les fichiers gérés.
-2. Supprime uniquement les fichiers listés dans le manifeste — ne supprime jamais les fichiers non-harness.
-3. Retire les entrées de hooks du fichier de settings de la plateforme.
-4. Retire les MCP servers enregistrés par harness.
-5. Supprime le fichier manifeste.
-
-Protège contre la suppression de fichiers non-harness : si un fichier listé dans le manifeste
-a été modifié par l'utilisateur, affiche un avertissement et ne le supprime pas (exit 1 avec liste
-des fichiers protégés).
-
-### Format de sortie
-
-```
-Uninstalling harness from claude...
-  ✓ Hooks removed
-  ✓ Skills removed (12 files)
-  ✓ MCP entries removed
-  ⚠ Skipped: ~/.claude/skills/custom-skill.md (user-modified, not managed by harness)
-
-Uninstall complete.
-```
-
-### Codes de sortie
-
-| Code | Cas |
-|------|-----|
-| `0` | Désinstallation complète |
-| `1` | Manifeste absent, erreur I/O, fichiers non-harness détectés et ignorés |
-
-### Exemples
+`harness hook` is the executable bridge between platform-native hooks and the harness policy engine.
 
 ```bash
-harness uninstall --target claude
-harness uninstall --target codex --dry-run
+harness hook <event> [--root <path>] [--dryRun]
 ```
 
----
+The event argument may be either a canonical `GateType` or a runtime-native event alias that maps to one.
 
-## 3. `harness init`
+Canonical gate types are:
 
-### Synopsis
-
-```
-harness init [--name <project-name>] [--description <text>] [--force]
-```
-
-### Description
-
-Initialise un projet dans le répertoire courant. Crée les trois fichiers canoniques
-dans `.planning/` et le squelette `docs/`, initialise `state.yaml` en phase discovery.
-Détecte si le projet
-est déjà initialisé.
-
-### Flags
-
-| Flag | Type | Requis | Description |
-|------|------|--------|-------------|
-| `--name <name>` | string | non | Nom du projet (défaut : basename du cwd) |
-| `--description <text>` | string | non | Description courte du projet |
-| `--force` | boolean | non | Réinitialise même si déjà initialisé (préserve les sections logiques existantes si possible) |
-
-### Comportement
-
-1. Vérifie si `.planning/state.yaml` existe — si oui et sans `--force`, affiche l'état
-   courant et sort avec code 0.
-2. Crée les répertoires :
-   - `.planning/`
-   - `docs/`
-3. Écrit `.planning/state.yaml` avec `phase: discovery`, `sub_phase: Observer`,
-   `risk_class: null`, `mode: auto`, `run_id: <uuid>`.
-4. Écrit `.planning/current-risk.yaml` avec `risk_class: null`, `mode: auto`,
-   `justification: "unclassified"`.
-5. Écrit `.planning/run-set.json` avec les sections logiques Run Set, Evidence Set,
-   événements et transitions.
-
-### Format de sortie
-
-```
-Initializing project 'mon-projet'...
-  ✓ .planning/ structure created
-  ✓ docs/ skeleton created
-  ✓ state.yaml initialized (phase: discovery)
-  ✓ run-set.json initialized
-
-Project initialized. Current phase: discovery / Observer
-Run `harness status` to inspect state.
-```
-
-### Codes de sortie
-
-| Code | Cas |
-|------|-----|
-| `0` | Initialisation réussie, ou déjà initialisé (sans `--force`) |
-| `1` | Erreur I/O, permissions insuffisantes |
-
-### Exemples
-
-```bash
-harness init
-harness init --name "api-gateway" --description "NestJS API avec auth JWT"
-harness init --force
-```
-
----
-
-## 4. `harness status`
-
-### Synopsis
-
-```
-harness status [--json]
-```
-
-### Description
-
-Affiche l'état courant du projet : phase, sous-phase, classe de risque, mode opératoire,
-run ID, gaps d'evidence, blockers actifs. Lecture seule, ne modifie rien.
-
-### Comportement
-
-1. Lit `.planning/state.yaml` depuis le cwd (remonte jusqu'à trouver `.planning/`).
-2. Lit `.planning/run-set.json` si présent.
-3. Calcule les evidence gaps depuis la section Evidence Set logique du run courant vs les exigences de
-   la Policy Set pour la phase et la classe de risque courantes.
-4. Identifie les blockers depuis la section Run Set.
-
-Si le projet n'est pas initialisé : message d'erreur explicite, suggestion de `harness init`.
-
-### Format de sortie
-
-Mode humain (tableau) :
-```
-┌─────────────────┬──────────────────────────────┐
-│ MacroCycle      │ build                        │
-│ SubPhase        │ Execute                      │
-│ Risk class      │ L (Low)                      │
-│ Mode            │ auto                         │
-│ Run ID          │ run-2026-05-03-a7f2          │
-│ Evidence gaps   │ tests (missing), lint (ok)   │
-│ Blockers        │ none                         │
-└─────────────────┴──────────────────────────────┘
-```
-
-Mode `--json` :
-```json
-{
-  "phase": "build",
-  "sub_phase": "Execute",
-  "risk_class": "L",
-  "mode": "auto",
-  "run_id": "run-2026-05-03-a7f2",
-  "evidence_gaps": ["tests"],
-  "blockers": [],
-  "final_state": null
-}
-```
-
-### Codes de sortie
-
-| Code | Cas |
-|------|-----|
-| `0` | Succès |
-| `1` | Projet non initialisé, erreur de lecture |
-| `3` | `state.yaml` corrompu ou incohérent |
-
-### Exemples
-
-```bash
-harness status
-harness status --json | jq '.phase'
-```
-
----
-
-## 5. `harness hook`
-
-### Synopsis
-
-```
-harness hook <event-name>
-```
-
-Event JSON lu sur **stdin**. Décision JSON écrite sur **stdout**. Logs sur stderr uniquement.
-
-### Description
-
-Dispatcher d'événements de cycle de vie. Appelé par les hooks natifs de la plateforme.
-Lit l'event payload depuis stdin, évalue les gates, retourne une décision allow/block
-sur stdout. **Target : < 100 ms** (appelé à chaque outil utilisé par l'agent).
-
-### Arguments
-
-| Argument | Requis | Valeurs |
-|----------|--------|---------|
-| `<event-name>` | oui | Label d'adapter runtime, ex. `pre_tool_use`, `post_tool_use`, `user_prompt_submit`, `session_start`, `stop`, `subagent_start`, `subagent_stop` |
-
-### Comportement
-
-1. Lit le JSON d'événement depuis stdin (timeout 50 ms — si absent, allow immédiat).
-2. Charge `state.yaml` depuis le projet courant (cwd, résolution par remontée d'arbre).
-3. Évalue les gates applicables à l'événement selon la phase et la classe de risque courantes.
-4. Écrit la décision JSON sur stdout.
-5. Appende un enregistrement dans la section `events` de `.planning/run-set.json` (async, ne bloque pas la décision).
-
-**Chemin critique (doit tenir <100 ms)** :
-- Lecture `state.yaml` : YAML synchrone, fichier ≤ 2 KB.
-- Évaluation gates : logique pure, pas de I/O réseau.
-- Écriture de l'événement logique : fire-and-forget async.
-
-Si `.planning/` est absent : allow immédiat, log sur stderr, pas de bloc.
-
-### Format d'entrée (stdin)
-
-```json
-{
-  "event": "pre_tool_use",
-  "tool_name": "Write",
-  "tool_input": { "file_path": "src/auth.ts" },
-  "session_id": "sess-abc123",
-  "timestamp": "2026-05-03T14:32:00Z"
-}
-```
-
-### Format de sortie (stdout)
-
-Allow :
-```json
-{ "decision": "allow" }
-```
-
-Block :
-```json
-{
-  "decision": "block",
-  "reason": "MacroCycle discovery: écriture de code source interdite avant transition vers build.",
-  "gate": "pre_tool",
-  "hint": "Run `harness transition build` when ready."
-}
-```
-
-### Événements supportés
-
-| Événement | Sémantique | Gate évaluée |
-|-----------|-----------|--------------|
-| `pre_tool_use` | Avant exécution d'un outil | `pre_tool` |
-| `post_tool_use` | Après exécution d'un outil | `post_tool` |
-| `user_prompt_submit` | Avant traitement d'un prompt utilisateur | `user_prompt` |
-| `session_start` | Démarrage de session agent | `session_start` |
-| `stop` | Demande d'arrêt de session | `stop` |
-| `subagent_start` | Démarrage d'un sous-agent | `subagent_start` |
-| `subagent_stop` | Arrêt d'un sous-agent | `subagent_stop` |
-
-Les noms de gauche sont des labels d'adapter externes. Seules les valeurs de droite
-sont des `GateType` canoniques PFV4.
-
-### Codes de sortie
-
-| Code | Cas |
-|------|-----|
-| `0` | Décision émise (allow ou block — les deux sont des succès du dispatcher) |
-| `1` | Stdin illisible, event-name inconnu, erreur fatale |
-
-### Exemples
-
-```bash
-# Appelé par le hook Claude Code
-echo '{"event":"pre_tool_use","tool_name":"Write","tool_input":{"file_path":"src/x.ts"}}' \
-  | harness hook pre_tool_use
-
-# Test manuel
-echo '{"event":"stop"}' | harness hook stop
-```
-
----
-
-## 6. `harness transition`
-
-### Synopsis
-
-```
-harness transition <target-phase> [--reason <text>] [--force]
-```
-
-### Description
-
-Demande une transition de phase. Vérifie les guards, valide l'Evidence Set logique, met à jour
-`state.yaml`. Affiche ce qui manque si la transition est bloquée.
-
-### Arguments
-
-| Argument | Requis | Valeurs |
-|----------|--------|---------|
-| `<target-phase>` | oui | `discovery`, `cadrage`, `conception`, `build`, `validation`, `release`, `run`, `learning` |
-
-### Flags
-
-| Flag | Type | Requis | Description |
-|------|------|--------|-------------|
-| `--reason <text>` | string | non | Raison de la transition (ajoutée à la section `transitions` de `.planning/run-set.json`) |
-| `--force` | boolean | non | Bypass des guards — autorisé uniquement sur classe T/L |
-
-### Comportement
-
-1. Lit l'état courant depuis `state.yaml`.
-2. Vérifie que la transition est valide dans la state machine (ex : `build → validation` est valide,
-   `discovery → release` ne l'est pas).
-3. Évalue les guards de la transition pour la classe de risque courante :
-   - Evidence Set suffisant ?
-   - Critères DoR/DoD respectés ?
-4. Si guards OK : met à jour `state.yaml`, appende à la section `transitions`, affiche confirmation.
-5. Si guards KO sans `--force` : affiche la liste des gaps, sort avec code `2`.
-6. Si `--force` sur classe H/C : erreur hard, code `1` (bypass interdit, D4).
-
-### Format de sortie
-
-Succès :
-```
-Transitioning build → validation...
-  ✓ Evidence: tests (12 passing)
-  ✓ Evidence: lint (clean)
-  ✓ Evidence: typecheck (clean)
-  ✓ Guard: risk class L allows auto-transition
-
-Transition complete. MacroCycle: validation / Observer
-```
-
-Bloqué :
-```
-Transition build → validation blocked.
-
-Missing evidence:
-  ✗ tests — no test results found in run-set.json evidence section
-  ✗ typecheck — no typecheck output recorded
-
-Add evidence with `harness evidence add` or run your test suite.
-Exit code: 2
-```
-
-Mode `--json` :
-```json
-{
-  "from": "build",
-  "to": "validation",
-  "status": "blocked",
-  "missing": ["tests", "typecheck"],
-  "allowed_with_force": true
-}
-```
-
-### Codes de sortie
-
-| Code | Cas |
-|------|-----|
-| `0` | Transition effectuée |
-| `1` | Transition invalide dans la state machine, `--force` sur H/C |
-| `2` | Guards non satisfaits (evidence manquante) |
-| `3` | `state.yaml` corrompu |
-
-### Exemples
-
-```bash
-harness transition build
-harness transition validation --reason "feature complete, all tests green"
-harness transition build --force   # bypass T/L uniquement
-```
-
----
-
-## 7. `harness classify`
-
-### Synopsis
-
-```
-harness classify [--auto | --manual <class>] [--reason <text>]
-```
-
-### Description
-
-Classifie ou reclassifie la classe de risque du changement courant selon la matrice T/L/M/H/C.
-Mode auto : arbre de décision déterministe basé sur les fichiers modifiés et les labels.
-Mode manuel : classification explicite avec raison obligatoire.
-
-### Flags
-
-| Flag | Type | Requis | Description |
-|------|------|--------|-------------|
-| `--auto` | boolean | exclusif | Classification automatique par arbre de décision |
-| `--manual <class>` | string | exclusif | Classification manuelle : `T`, `L`, `M`, `H`, `C` |
-| `--reason <text>` | string | requis si `--manual` | Justification de la classification manuelle |
-
-Un seul de `--auto` ou `--manual` est accepté. Sans flag : mode interactif (affiche
-l'arbre de décision et pose les questions).
-
-### Comportement (mode `--auto`)
-
-L'arbre de décision évalue dans l'ordre :
-
-1. Fichiers touchés contiennent-ils des chemins d'auth, paiement, PII, schéma DB, API publique ? → H
-2. Fichiers touchés sont-ils des données santé/biométrie/financières, refonte d'architecture ? → C
-3. Changement visible utilisateur sans PII sensible ? → M
-4. Nouvelle fonctionnalité isolée derrière feature flag, pas de PII ? → L
-5. Cosmétique, doc, refactor sans changement de comportement ? → T
-
-Sources utilisées : `git diff --name-only`, labels PR si disponibles, patterns configurables
-dans la section `policy_set` de `.planning/state.yaml`.
-
-### Format de sortie
-
-```
-Classifying current change...
-  Analyzing: git diff --name-only (14 files)
-  ✓ No auth/payment/PII paths detected
-  ✓ No schema migrations detected
-  ✓ Feature flag detected: FEATURE_NEW_DASHBOARD
-  → Classification: L (Low)
-
-Risk class set to L. State updated.
-```
-
-Mode `--json` :
-```json
-{
-  "class": "L",
-  "method": "auto",
-  "signals": ["feature_flag_detected", "no_pii_paths"],
-  "previous_class": null
-}
-```
-
-### Codes de sortie
-
-| Code | Cas |
-|------|-----|
-| `0` | Classification effectuée |
-| `1` | Classe invalide, raison manquante pour `--manual`, erreur git |
-| `2` | Reclassification vers H/C en mode bypass — avertissement (mode dégradé vers auto) |
-
-### Exemples
-
-```bash
-harness classify --auto
-harness classify --manual H --reason "Touches JWT secret rotation logic"
-harness classify --manual T --reason "Typo fix in README"
-```
-
----
-
-## 8. `harness doctor`
-
-### Synopsis
-
-```
-harness doctor [--target <platform>] [--fix]
-```
-
-### Description
-
-Diagnostic complet : santé de l'installation, validité de la configuration, câblage des hooks,
-cohérence de l'état, fichiers manquants. Rapport structuré par catégorie.
-
-### Flags
-
-| Flag | Type | Requis | Description |
-|------|------|--------|-------------|
-| `--target <platform>` | string | non | Restreint le diagnostic à une plateforme (`claude`, `codex`, `hermes`) |
-| `--fix` | boolean | non | Tente de corriger automatiquement les problèmes simples |
-
-### Catégories de diagnostic
-
-| Catégorie | Checks |
-|-----------|--------|
-| **Installation** | `~/.harness/config.yaml` présent, manifestes par plateforme valides |
-| **Plateforme** | Binaire détectable, version compatible, chemins de config accessibles |
-| **Hooks** | Chaque hook enregistré correspond à un event-name valide, commande `harness hook` résolvable |
-| **Projet** | `.planning/state.yaml`, `.planning/current-risk.yaml` et `.planning/run-set.json` présents et valides |
-| **State** | MacroCycle valide, classe de risque cohérente, run_id non-null si macroCycle > discovery |
-| **Fichiers requis** | sections `policy_set` et `runtime_binding_set`, templates skills présents |
-
-### Format de sortie
-
-```
-harness doctor
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Installation
-  ✓ ~/.harness/config.yaml
-  ✓ claude.installed.yaml (v1.2.3, 2026-05-01)
-  ✗ codex.installed.yaml — not installed
-
-Platform: claude
-  ✓ Binary found: /usr/local/bin/claude (1.2.3)
-  ✓ Config dir: ~/.claude/ (writable)
-  ✓ Hooks registered: 7/7
-  ✗ MCP server harness-mcp: not responding
-
-Project
-  ✓ .planning/state.yaml (phase: build, class: L)
-  ✓ .planning/run-set.json events section (847 entries)
-  ✗ policy_set section — missing, run `harness doctor --fix`
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-2 errors, 1 warning. Run `harness doctor --fix` to attempt auto-repair.
-```
-
-Avec `--fix` : réinstalle les fichiers manquants depuis les templates embarqués. Ne modifie
-jamais les fichiers édités par l'utilisateur.
-
-### Codes de sortie
-
-| Code | Cas |
-|------|-----|
-| `0` | Tout OK (ou tout corrigé avec `--fix`) |
-| `1` | Erreurs détectées, non corrigeables automatiquement |
-
-### Exemples
-
-```bash
-harness doctor
-harness doctor --target claude
-harness doctor --fix
-harness doctor --json
-```
-
----
-
-## 9. `harness evidence`
-
-### Synopsis
-
-```
-harness evidence show [--run <run-id>]
-harness evidence add <type> <data>
-```
-
-### Description
-
-Consulte ou enrichit la section Evidence Set logique du run courant. Elle est la source
-de vérité pour `DONE_VERIFIED` — aucune transition vers `DONE_VERIFIED` sans evidence
-suffisante (cf. rms-runtime-sets-v1-draft.md §Evidence Set).
-
-### Sous-commandes
-
-#### `harness evidence show`
-
-Affiche la section Evidence Set du run courant (ou d'un run spécifique avec `--run`).
-
-**Flags** :
-
-| Flag | Type | Description |
-|------|------|-------------|
-| `--run <run-id>` | string | Run spécifique (défaut : run courant) |
-
-**Format de sortie** :
-```
-Evidence Set — run-2026-05-03-a7f2
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  ✓ tests        12 passing, 0 failing (vitest, 2026-05-03T14:20:00Z)
-  ✓ lint         ESLint clean (2026-05-03T14:21:00Z)
-  ✗ typecheck    not recorded
-  ✗ review       not recorded
-  - build        not required (class L)
-
-Confidence: MEDIUM (2/4 required evidence items)
-```
-
-#### `harness evidence add <type> <data>`
-
-Ajoute une entrée à la section Evidence Set du run courant.
-
-**Arguments** :
-
-| Argument | Requis | Description |
-|----------|--------|-------------|
-| `<type>` | oui | Type d'évidence : `tests`, `lint`, `typecheck`, `build`, `review`, `screenshot`, `custom` |
-| `<data>` | oui | Données texte ou chemin vers un fichier de résultats |
-
-**Comportement** :
-1. Valide le type d'évidence contre les types connus.
-2. Appende l'entrée dans la section `evidence` de `.planning/run-set.json`.
-3. Appende un événement logique dans la section `events`.
-4. Recalcule le niveau de confiance (`NONE` / `LOW` / `MEDIUM` / `HIGH` / `DONE_VERIFIED`).
-
-### Codes de sortie
-
-| Code | Cas |
-|------|-----|
-| `0` | Succès |
-| `1` | Run inexistant, type invalide, erreur I/O |
-| `3` | Evidence Set corrompu |
-
-### Exemples
-
-```bash
-harness evidence show
-harness evidence show --run run-2026-05-02-b3c1
-harness evidence add tests "12 passing, 0 failing"
-harness evidence add typecheck "$(npx tsc --noEmit 2>&1 | tail -1)"
-harness evidence add review "LGTM — code-reviewer agent pass"
-harness evidence add build ".dist/bundle.js 142KB"
-```
-
----
-
-## 10. Exigences de performance
-
-### `harness hook` — chemin critique
-
-| Métrique | Cible | Seuil d'alerte |
-|----------|-------|----------------|
-| Latence p50 | < 30 ms | > 50 ms |
-| Latence p99 | < 100 ms | > 150 ms |
-| Mémoire RSS | < 50 MB | > 100 MB |
-
-**Stratégies pour tenir < 100 ms** :
-- Pré-compilation TypeScript vers JS (pas de `ts-node` en production).
-- Lecture `state.yaml` synchrone unique, pas de parsing JSON profond.
-- Évaluation gates : logique pure, zéro I/O réseau.
-- Écriture de l'événement logique : `setImmediate` ou `process.nextTick` après la décision.
-- Pas de require dynamique dans le chemin chaud.
-
-### Autres commandes
-
-| Commande | Cible acceptable |
+| GateType | Runtime purpose |
 |----------|-----------------|
-| `harness status` | < 500 ms |
-| `harness transition` | < 1 s |
-| `harness classify --auto` | < 2 s (inclut git diff) |
-| `harness install` | < 30 s |
-| `harness doctor` | < 5 s |
-| `harness evidence` | < 500 ms |
+| `session_start` | Inject startup context and inspect active state |
+| `user_prompt` | Evaluate user intent and operating-mode constraints |
+| `pre_tool` | Block, allow, or inject context before tool execution |
+| `post_tool` | Collect evidence and detect post-tool policy violations |
+| `stop` | Evaluate completion and convergence before the agent stops |
+| `subagent_start` | Track delegated execution start |
+| `subagent_stop` | Collect delegated execution result evidence |
+
+Hook input is JSON on stdin. Hook output is JSON on stdout. A missing `.planning/` directory must fail open for hook invocations so legacy projects do not become unusable.
 
 ---
 
-## Annexe — Récapitulatif des commandes
+## 6. Runtime Inspection And Binding
 
-| Commande | Usage | Fréquence |
-|----------|-------|-----------|
-| `harness install --target <p>` | Setup plateforme | Une fois par machine |
-| `harness uninstall --target <p>` | Retrait propre | Rare |
-| `harness init` | Démarrage projet | Une fois par projet |
-| `harness status` | Inspection état | À la demande |
-| `harness hook <event>` | Dispatcher hooks | À chaque outil agent |
-| `harness transition <phase>` | Avancement cycle | À chaque jalon |
-| `harness classify` | Classification risque | À chaque nouveau run |
-| `harness doctor` | Diagnostic santé | Debug, post-install |
-| `harness evidence [show\|add]` | Gestion preuves | Pendant et fin de run |
+`harness runtime inspect` persists observed runtime capability data for a target platform.
+
+```bash
+harness runtime inspect <target> [--root <path>] [--configDigest <digest>] [--runtimeVersion <version>] [--status <status>] [--hooksJson <json>] [--json]
+```
+
+`--hooksJson` accepts a JSON object keyed by canonical `GateType`. Each value follows the runtime hook capability input schema:
+
+```json
+{
+  "pre_tool": {
+    "proofs": [
+      {
+        "type": "negative_fixture",
+        "status": "accepted",
+        "observedAt": "2026-05-03T00:00:00.000Z",
+        "detail": "fixture blocked the documented operation"
+      }
+    ]
+  }
+}
+```
+
+Caller-submitted proofs are stored as candidate evidence, even when the payload says `status: "accepted"`. They cannot promote a blocking hook to native-enforceable status. Proof `detail`, hook `notes`, and runtime limitations are redacted before persistence.
+
+`--runtimeVersion` records the observed runtime profile version on the capability and every derived binding. When omitted, known targets use the canonical profile version from `@harness/core`.
+
+`harness runtime probe` is the trusted acquisition path. It reads target runtime config, checks managed hook registrations, emits core-minted `config_read` and `manifest_digest` proofs, and may bind immediately with `--bind`. Trusted proof `configDigest` is bound to the observed runtime config content plus canonical `runtimeVersion`, runtime profile digest, and install manifest digest, so config, manifest, or profile-version drift requires a fresh probe.
+
+By default, config registration alone never mints a blocking `negative_fixture` proof. Add `--verifyBlockingFixtures` to execute managed blocking fixtures; only fixtures that return the documented block result are persisted as accepted `negative_fixture` proofs.
+
+```bash
+harness runtime probe <target> [--root <path>] [--bind] [--verifyBlockingFixtures] [--json]
+```
+
+Blocking hooks are native-enforceable only when the runtime profile supports blocking and the inspected hook includes a core-minted accepted `negative_fixture` or accepted `event_fire` proof with `observedAt`, `verifier`, `target`, `runtimeVersion`, `gateType`, `configDigest`, `result`, and `proofDigest`. The proof must be observed no earlier than the stored capability inspection, no later than the binding inspection, and no older than 15 minutes at binding time. `manual_attestation` is useful evidence but never upgrades a blocking hook to native-enforceable status by itself.
+
+`harness runtime bind` converts the last inspection into gate-level runtime bindings.
+
+```bash
+harness runtime bind <target> [--root <path>] [--expectedDigest <digest>] [--currentDigest <digest>] [--json]
+```
+
+Digest-only inspection, stale trusted proofs, future-dated trusted proofs, and caller-submitted proof inspection are intentionally insufficient for blocking hooks. A supported blocking hook remains `stale` until the trusted executable proof contract above is satisfied.
+
+`harness runtime assess-route` is a read-only diagnostic over the current route, risk state,
+planned subagents, policy overrides, and `run-set.json.runtimeBindings`.
+
+```bash
+harness runtime assess-route [--root <path>] [--json]
+```
+
+The command returns the convergence `RuntimeBindingHealth` read model with route context:
+`riskClass`, `activeTarget`, `healthy`, `requiredGates`, `assessments`, and `gaps`. It never writes
+bindings or route-specific gate rows.
+
+---
+
+## 7. Risk Classification
+
+`harness risk classify` returns a canonical T/L/M/H/C risk class from CLI flags and changeset metadata.
+
+```bash
+harness risk classify --files "packages/core/src/index.ts" --linesChanged 80 --json
+```
+
+Important flags:
+
+| Flag | Purpose |
+|------|---------|
+| `--files <paths>` | Changed files as comma, newline, or semicolon separated paths |
+| `--dependency` | Dependency update signal |
+| `--schema` | Schema or database shape change signal |
+| `--auth` | Authentication or authorization signal |
+| `--infra` | Infrastructure or production configuration signal |
+| `--destructive` | Destructive or breaking change signal |
+| `--publicApi` | Public API contract signal |
+| `--migration` | Runtime or data migration signal |
+| `--securitySensitive` | Security or privacy sensitive signal |
+| `--externalIntegration` | External service integration signal |
+| `--linesChanged <n>` | Approximate net changed lines |
+| `--testCoverage <n>` | Approximate coverage percentage |
+| `--confidence <level>` | Implementation confidence |
+
+The command is read-only. Persisted risk state is updated by runtime policy paths, not by this classifier preview command.
+
+---
+
+## 8. Platform Installation
+
+The platform lifecycle is intentionally split:
+
+| Need | Command |
+|------|---------|
+| Plan/write only the platform install manifest | `harness install` |
+| Generate repo-local catalog artifacts | `harness artifacts` |
+| Install catalog artifacts into a target platform directory | `harness install-artifacts` |
+| Apply platform hooks and catalog artifacts together | `harness lifecycle apply` |
+| Remove managed platform hooks only | `harness uninstall-platform` |
+| Repair managed platform hooks only | `harness repair-platform` |
+| Remove hooks and rollback artifacts together | `harness lifecycle uninstall` |
+| Repair hooks and artifacts together | `harness lifecycle repair` |
+
+This split keeps platform hook writes, artifact writes, lifecycle manifests, and rollback behavior separately testable.
+
+`harness lifecycle uninstall --json` reports rollback effects separately as `artifactsDeleted` and
+`artifactsRestored`. Human output mirrors both counts so mixed rollback plans are visible before
+platform hook removal.
+
+Artifact rollback uses `.planning/artifact-install-manifest.json` by default. Manifest persistence is
+explicit: `harness install-artifacts <target> --apply --writeManifest`.
+
+Previous-content restore snapshots are also explicit:
+
+```bash
+harness install-artifacts <target> --apply --writeManifest --captureRestoreSnapshots
+```
+
+The snapshot option is rejected without `--apply` and `--writeManifest`. Even when enabled, the CLI
+stores only previous content that is already marked as the expected managed HIMA catalog artifact
+with the same kind and id and does not match known plaintext-secret patterns. Unmanaged or
+secret-like overwritten content remains hash-only and requires manual restore.
+
+---
+
+## 8. Exit Contract
+
+| Code | Meaning |
+|------|---------|
+| `0` | Command completed successfully |
+| `1` | Command failed, validation failed, or a plan has blockers |
+| `2` | Reserved for policy block decisions |
+| `3` | Reserved for invalid planning state |
+
+Commands that produce an `ok: false` plan set a non-zero exit code when the plan is directly actionable by automation.

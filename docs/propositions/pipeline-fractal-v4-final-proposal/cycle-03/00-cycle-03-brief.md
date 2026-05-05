@@ -39,7 +39,7 @@ enough for schema-first implementation planning?
 | Guard merge lattice | `02-guard-merge-lattice.md` | Guard output merge is deterministic and fixture-ready. |
 | Evidence requirements and freshness | `03-evidence-requirements-freshness.md` | Evidence status can be derived without prose judgement. |
 | Risk/runtime degradation | `04-risk-runtime-degradation.md` | Risk class, bypass and fallback behavior are mechanized. |
-| Artifact, human and candidate evidence contracts | `05-artifact-human-candidate-evidence.md` | Skills/books/subagents, human checkpoints and inactive artifacts have import/control schemas. |
+| Artifact, human and candidate evidence contracts | `05-artifact-human-candidate-evidence.md` | Skills/reference docs/subagents, human checkpoints and inactive artifacts have import/control schemas. |
 | Cycle audit | `06-cycle-03-audit.md` | Independent red-team verdict on implementation handoff. |
 | Integration | `07-cycle-03-integration.md` | Decision on whether schema-first implementation planning can start. |
 

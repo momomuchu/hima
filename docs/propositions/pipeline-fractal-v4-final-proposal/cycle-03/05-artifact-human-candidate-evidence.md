@@ -6,7 +6,7 @@ Status: Cycle 03 contract proposal
 
 This document closes the Cycle 02 P0 blockers for:
 
-- artifact manifests and drift policy for skills, subagents, and books;
+- artifact manifests and drift policy for skills, hooks, and subagents;
 - subagent evidence packet intake;
 - `HumanCheckpoint` schema and legality rules;
 - `CandidateEvidence` import protocol for inactive or non-development
@@ -17,8 +17,9 @@ These contracts preserve the Cycle 02 authority model:
 ```text
 registries and RMS kernel = executable authority
 skills = procedures that request kernel actions
+hooks = runtime enforcement and context-injection adapters
 subagents = bounded evidence producers
-books = durable explanatory references
+reference docs = durable explanatory references
 inactive artifacts = candidate evidence until imported
 ```
 
@@ -27,7 +28,7 @@ fields, final state, derived evidence status, or derived convergence status.
 
 ## Sources Used
 
-- `../03-skills-subagents-books-taxonomy.md`
+- `../03-skills-hooks-subagents-taxonomy.md`
 - `cycle-02/03-mcp-tool-contracts.md`
 - `cycle-02/04-registry-storage-layout.md`
 - `cycle-02/05-verification-fixtures.md`
@@ -39,7 +40,7 @@ fields, final state, derived evidence status, or derived convergence status.
    names.
 2. A drifted core skill or schema-less subagent output is not executable
    authority.
-3. Book prose never weakens registry, policy, guard, evidence, or closing
+3. Reference doc prose never weakens registry, policy, guard, evidence, or closing
    rules.
 4. Human approval is scoped, expiring, auditable evidence; it is not blanket
    permission.
@@ -85,13 +86,15 @@ artifact locations:
 ```
 
 The manifest and policies are committed source artifacts. Run-local decisions
-and payloads are append-only runtime artifacts. Generated book views may be
-committed only when their provenance points back to a registry digest.
+and payloads are append-only runtime artifacts. Generated reference doc views
+may be committed only when their provenance points back to a registry digest,
+but they are not installable runtime artifacts and do not appear in
+`artifact-manifest.yaml`.
 
 ## Artifact Manifest Contract
 
-`artifact-manifest.yaml` is the source of truth for governed skills, subagents,
-and books. It is validated by `rms.validate_registry` before executable use.
+`artifact-manifest.yaml` is the source of truth for governed skills, hooks, and
+subagents. It is validated by `rms.validate_registry` before executable use.
 
 Required top-level fields:
 
@@ -126,36 +129,34 @@ artifacts:
       - "direct_final_state_write"
     drift_policy_ref: "core_skill_fail_closed"
     evidence_output_schema_ref: "NOT_APPLICABLE"
-    book_provenance_ref: "NOT_APPLICABLE"
 ```
 
 Artifact entry fields:
 
 | Field | Required | Meaning |
 |---|---:|---|
-| `artifact_id` | Yes | Stable ASCII id, namespaced as `skill.*`, `subagent.*`, or `book.*`. |
-| `artifact_kind` | Yes | `skill`, `subagent`, or `book`. |
+| `artifact_id` | Yes | Stable ASCII id, namespaced as `skill.*`, `hook.*`, or `subagent.*`. |
+| `artifact_kind` | Yes | `skill`, `hook`, or `subagent`. |
 | `name` | Yes | Invocation or display name. |
 | `lifecycle` | Yes | `mvp_core`, `mvp_optional`, `later`, `deprecated`, or `historical`. |
 | `version` | Yes | Artifact semantic version or registry-controlled version. |
-| `source_ref` | Yes | Repository source path or `GENERATED_FROM_REGISTRY`. |
-| `installed_refs` | Yes | Runtime-specific installed locations; empty only for generated books. |
+| `source_ref` | Yes | Repository source path or generated runtime artifact source. |
+| `installed_refs` | Yes | Runtime-specific installed locations for managed runtime artifacts. |
 | `content_hash` | Yes | Hash of canonical source content or generated output. |
 | `schema_version` | Yes | Contract schema expected for artifact metadata/output. |
-| `authority` | Yes | `procedure`, `evidence_producer`, or `reference`. |
+| `authority` | Yes | `procedure`, `runtime_hook`, or `evidence_producer`. |
 | `allowed_kernel_tools` | Yes | MCP tools the artifact may call or request through parent. |
 | `forbidden_actions` | Yes | Explicit denied actions used by territory and runtime guards. |
 | `drift_policy_ref` | Yes | Policy id in `artifact-drift-policy.yaml`. |
 | `evidence_output_schema_ref` | Yes | Required for subagents; `NOT_APPLICABLE` otherwise. |
-| `book_provenance_ref` | Yes | Required for generated books; `NOT_APPLICABLE` otherwise. |
 
 Authority values:
 
 | Artifact kind | `authority` | May request transition? | May append evidence directly? | May decide final state? |
 |---|---|---:|---:|---:|
 | `skill` | `procedure` | Yes, through kernel tools | Only through `rms.record_evidence` | No |
+| `hook` | `runtime_hook` | No; may block, inject context, or request evaluation | Only through kernel-mediated hook events | No |
 | `subagent` | `evidence_producer` | No | No; parent/kernel intake only | No |
-| `book` | `reference` | No | No | No |
 
 ### Artifact Drift Policy
 
@@ -191,22 +192,23 @@ Drift decisions:
 |---|---|---|
 | `allow` | Installed artifact matches manifest fields. | Artifact may be invoked within route policy. |
 | `warn` | Non-authoritative display or doc drift only. | Continue with drift evidence. |
-| `degrade` | Low-risk optional artifact has declared fallback. | Continue only with `DEGRADED_ROUTE_ACCEPTED`. |
+| `degrade` | L-risk optional artifact has declared fallback. | Continue only with `DEGRADED_ROUTE_ACCEPTED`. |
 | `block` | Core artifact, schema, authority, or policy drift. | Do not invoke or rely on artifact. |
 
 Core drift blocks:
 
-- missing core skill or subagent;
-- content hash mismatch for core skill;
+- missing core skill, hook, or subagent;
+- content hash mismatch for core skill or hook;
+- hook binding mismatch against the runtime adapter declaration;
 - subagent output schema mismatch;
-- book contradiction with executable policy or guard registry;
+- reference doc contradiction with executable policy or guard registry;
 - artifact declares broader authority than its manifest;
-- installed artifact permits a forbidden action;
-- generated book lacks matching registry digest.
+- installed artifact permits a forbidden action.
 
-Book drift that affects only display aliases or examples may warn for `T/F`
-runs. Book drift that contradicts risk, evidence, closing, runtime, territory,
-or human checkpoint policy blocks executable reliance until reconciled.
+Reference doc drift that affects only display aliases or examples may warn for `T/L`
+runs. Reference doc drift that contradicts risk, evidence, closing, runtime, territory,
+or human checkpoint policy blocks executable reliance until reconciled. This is
+documentation or registry drift, not runtime artifact drift.
 
 ## Subagent Evidence Packet Intake
 
@@ -306,7 +308,7 @@ Acceptance semantics:
   names that subagent type as acceptable for the current risk and transition.
 - `result=block` is accepted evidence and blocks the related transition or final
   candidate until resolved.
-- `confidence=low` cannot satisfy M/E/C independent review requirements.
+- `confidence=low` cannot satisfy M/H/C independent review requirements.
 - A stale packet may be stored as rejected intake evidence, but cannot satisfy
   current evidence requirements.
 
@@ -338,7 +340,7 @@ Required shape:
     "identity_basis": "runtime_authenticated_user"
   },
   "scope": {
-    "risk_class": "E",
+    "risk_class": "H",
     "supervision_mode": "pairing",
     "allowed_next_action": "apply_migration_to_declared_files",
     "allowed_transition_id": "build_to_validation",
@@ -353,7 +355,7 @@ Required shape:
     "rejected_alternatives": ["autonomous production deploy"]
   },
   "evidence_refs": ["ev_review_001", "gd_risk_001"],
-  "policy_refs": ["risk_policy.E.requires_checkpoint"],
+  "policy_refs": ["risk_policy.H.requires_checkpoint"],
   "integrity": {
     "checkpoint_hash": "sha256:...",
     "redaction_status": "redacted"
@@ -368,7 +370,7 @@ Required fields:
 | `checkpoint_id` | Yes | Stable append-only checkpoint id. |
 | `checkpoint_type` | Yes | `risk_acceptance`, `destructive_action`, `external_production`, `policy_exception`, `final_gap_acceptance`, or `ambiguity_resolution`. |
 | `status` | Yes | `requested`, `approved`, `rejected`, `expired`, `superseded`, or `invalid`. |
-| `expires_at` | Yes | Expiry timestamp or `END_OF_RUN` for allowed low-risk checkpoints. |
+| `expires_at` | Yes | Expiry timestamp or `END_OF_RUN` for allowed L-risk checkpoints. |
 | `decider` | Yes for approval/rejection | Human actor and identity basis. |
 | `scope` | Yes | Risk, mode, allowed action, transition, paths, and non-scope. |
 | `decision` | Yes for approval/rejection | Plain decision, gaps, conditions, and rejected alternatives. |
@@ -377,7 +379,7 @@ Required fields:
 
 Legality rules:
 
-1. Vague approvals such as "looks good" are invalid for M/E/C, destructive,
+1. Vague approvals such as "looks good" are invalid for M/H/C, destructive,
    external-production, or final-gap decisions.
 2. A checkpoint cannot authorize actions outside `allowed_next_action`,
    `allowed_transition_id`, `target_refs`, and `target_paths`.
@@ -385,7 +387,7 @@ Legality rules:
 4. A rejected checkpoint blocks the requested action until a materially changed
    request is submitted with new evidence.
 5. A checkpoint cannot override missing required evidence for `DONE_VERIFIED`.
-6. A checkpoint cannot permit bypass for `E/C` unless the risk policy explicitly
+6. A checkpoint cannot permit bypass for `H/C` unless the risk policy explicitly
    defines that exception, and `C` still requires human-visible final review.
 7. A checkpoint accepting residual gaps may allow `DONE_WITH_GAPS` only when the
    risk and closing policy allow those exact gaps.
@@ -408,7 +410,7 @@ Failure modes:
 ## CandidateEvidence Import Protocol
 
 Inactive or non-development artifacts include architecture docs, research notes,
-planning drafts, books, screenshots, external reports, or conversations produced
+planning drafts, reference docs, screenshots, external reports, or conversations produced
 while `pipeline_activation=inactive` or outside a governed development route.
 They are not authoritative Evidence Set items until imported.
 
@@ -588,13 +590,13 @@ Expected checks:
 - `pfv4-stop-gate` is not invoked.
 - Required action is sync or reconcile the installed artifact.
 
-### VF-ARTIFACT-002 - Book Policy Contradiction Blocks Executable Reliance
+### VF-ARTIFACT-002 - Reference doc Policy Contradiction Blocks Executable Reliance
 
 Input:
 
 ```yaml
-book_claim:
-  artifact_id: book.risk-and-policy
+reference_doc_claim:
+  doc_ref: docs/risk-and-policy.md
   claim: M risk may use bypass after self-review
 registry_rule:
   policy_ref: risk_policy.M.bypass_forbidden
@@ -606,21 +608,21 @@ Expected outcome: `BLOCK`
 
 Expected checks:
 
-- Registry wins over book prose.
+- Registry wins over reference doc prose.
 - Drift evidence is recorded.
 - Bypass remains blocked.
 
-### VF-ARTIFACT-003 - Display-Only Book Drift Warns For F Work
+### VF-ARTIFACT-003 - Display-Only Reference Doc Drift Warns For L Work
 
 Input:
 
 ```yaml
-book_claim:
-  artifact_id: book.cycle-playbooks
+reference_doc_claim:
+  doc_ref: docs/cycle-playbooks.md
   issue: display_alias_typo
 affected_guard: none
 run:
-  risk_class: F
+  risk_class: L
 ```
 
 Expected outcome: `PASS`
@@ -676,7 +678,7 @@ Expected checks:
 - M independent review remains unsatisfied.
 - Required action is rerun subagent against `state_v12`.
 
-### VF-HUMAN-001 - Vague Approval Is Invalid For E Risk
+### VF-HUMAN-001 - Vague Approval Is Invalid For H risk
 
 Input:
 
@@ -684,7 +686,7 @@ Input:
 checkpoint:
   checkpoint_type: risk_acceptance
   status: approved
-  risk_class: E
+  risk_class: H
   decision_text: looks good
   allowed_next_action: UNKNOWN
 ```
@@ -694,7 +696,7 @@ Expected outcome: `BLOCK`
 Expected checks:
 
 - Checkpoint returns `HUMAN_CHECKPOINT_AMBIGUOUS`.
-- E-risk action remains blocked.
+- H-risk action remains blocked.
 - A precise allowed action and evidence refs are required.
 
 ### VF-HUMAN-002 - Expired Approval Cannot Authorize Action
@@ -804,9 +806,9 @@ Input:
 
 ```yaml
 candidate_claim:
-  claim: E risk may use bypass
+  claim: H risk may use bypass
 registry_rule:
-  policy_ref: risk_policy.E.bypass_forbidden
+  policy_ref: risk_policy.H.bypass_forbidden
 import_request:
   conflict_policy: block_on_policy_conflict
 ```
@@ -831,7 +833,7 @@ events:
   latest_route_event: evt_route_v2
 import_request:
   freshness_against_event: evt_route_v2
-risk_class: F
+risk_class: L
 ```
 
 Expected outcome: `PASS`
@@ -845,7 +847,7 @@ Expected checks:
 
 | P0 blocker | Status | Closing contract |
 |---|---|---|
-| Skill/subagent/book manifest and drift policy | `closed_by_contract` | Artifact manifest, drift policy, event types, and fixtures. |
+| Skill/hook/subagent manifest and drift policy | `closed_by_contract` | Artifact manifest, drift policy, event types, and fixtures. |
 | Subagent output intake | `closed_by_contract` | Evidence packet schema, intake checks, acceptance semantics, fixtures. |
 | Human checkpoint schema | `closed_by_contract` | `HumanCheckpoint` fields, legality rules, invalidation, fixtures. |
 | Inactive/non-development artifact import | `closed_by_contract` | `CandidateEvidence` and import protocol with authority limits and fixtures. |

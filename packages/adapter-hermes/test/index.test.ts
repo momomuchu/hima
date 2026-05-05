@@ -3,7 +3,12 @@ import os from "node:os";
 import path from "node:path";
 import { GATE_TYPES, toHookCommand } from "@harness/core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { applyHermesHookConfig, buildHermesHookPreview, HERMES_CONFIG_FILE } from "../src/index.js";
+import {
+  applyHermesHookConfig,
+  buildHermesHookPreview,
+  HERMES_CONFIG_FILE,
+  removeHermesHookConfig,
+} from "../src/index.js";
 
 let tempRoot: string;
 
@@ -115,6 +120,60 @@ describe("buildHermesHookPreview", () => {
         (hook: { command: string }) => hook.command === toHookCommand("pre_tool"),
       ),
     ).toHaveLength(1);
+  });
+
+  it("removes managed HIMA hooks and preserves unrelated plugins", async () => {
+    const configFile = path.join(tempRoot, HERMES_CONFIG_FILE);
+    await writeFile(
+      configFile,
+      `${JSON.stringify(
+        {
+          gateway: {
+            plugins: [{ plugin: "audit", enabled: true }],
+          },
+        },
+        null,
+        2,
+      )}\n`,
+      "utf8",
+    );
+    await applyHermesHookConfig({ root: tempRoot });
+
+    const result = await removeHermesHookConfig({ root: tempRoot });
+    const config = JSON.parse(await readFile(configFile, "utf8"));
+
+    expect(result.hooksRemoved).toBe(GATE_TYPES.length - 1);
+    expect(result.pluginRemoved).toBe(true);
+    expect(config.gateway.plugins).toEqual([{ plugin: "audit", enabled: true }]);
+    expect(JSON.stringify(config)).not.toContain(toHookCommand("pre_tool"));
+  });
+
+  it("keeps custom harness plugin fields while removing managed hooks", async () => {
+    const configFile = path.join(tempRoot, HERMES_CONFIG_FILE);
+    await writeFile(
+      configFile,
+      `${JSON.stringify(
+        {
+          gateway: {
+            plugins: [{ plugin: "harness", mode: "custom", enabled: true, hooks: [] }],
+          },
+        },
+        null,
+        2,
+      )}\n`,
+      "utf8",
+    );
+    await applyHermesHookConfig({ root: tempRoot });
+
+    const result = await removeHermesHookConfig({ root: tempRoot });
+    const config = JSON.parse(await readFile(configFile, "utf8"));
+    const harnessPlugin = config.gateway.plugins.find(
+      (plugin: { plugin: string }) => plugin.plugin === "harness",
+    );
+
+    expect(result.pluginRemoved).toBe(false);
+    expect(harnessPlugin).toMatchObject({ plugin: "harness", mode: "custom", enabled: true });
+    expect(harnessPlugin.hooks).toEqual([]);
   });
 
   it("rejects hardlinked config targets without mutating the external file", async () => {

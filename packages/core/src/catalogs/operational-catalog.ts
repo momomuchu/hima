@@ -23,14 +23,15 @@ export interface SkillCatalogEntry {
   readonly title: string;
   readonly purpose: string;
   readonly activation: CatalogActivation;
+  readonly procedure?: readonly string[];
   readonly owns: readonly string[];
   readonly outOfScope: readonly string[];
   readonly evidenceProduced: readonly EvidenceKey[];
-  readonly bookRefs: readonly string[];
+  readonly hookRefs: readonly string[];
   readonly subagentRefs: readonly string[];
 }
 
-export interface BookCatalogEntry {
+export interface HookCatalogEntry {
   readonly id: string;
   readonly title: string;
   readonly purpose: string;
@@ -55,14 +56,14 @@ export interface SubagentCatalogEntry {
     readonly operatingModes?: readonly OperatingMode[];
   };
   readonly evidenceProduced: readonly EvidenceKey[];
-  readonly bookRefs: readonly string[];
+  readonly hookRefs: readonly string[];
   readonly skillRefs: readonly string[];
   readonly maxParallelSafe: number;
 }
 
 export interface OperationalCatalog {
   readonly skills: readonly SkillCatalogEntry[];
-  readonly books: readonly BookCatalogEntry[];
+  readonly hooks: readonly HookCatalogEntry[];
   readonly subagents: readonly SubagentCatalogEntry[];
 }
 
@@ -75,6 +76,53 @@ const GOVERNED_MODES = ["auto", "pairing"] as const satisfies readonly Operating
 
 const OPERATIONAL_CATALOG = {
   skills: [
+    {
+      id: "hima-enter",
+      title: "HIMA Enter",
+      purpose:
+        "Start a governed HIMA development session from an idea, select the operating mode, and bind the route before implementation.",
+      activation: {
+        macroCycles: ALL_CYCLES,
+        gateTypes: ["session_start", "user_prompt"],
+        riskClasses: ALL_RISKS,
+        operatingModes: ALL_MODES,
+        keywords: [
+          "hima",
+          "enter",
+          "start development",
+          "development mode",
+          "mode developpement",
+          "governed development",
+        ],
+        auto: true,
+      },
+      procedure: [
+        "Use this skill as the first explicit step before governed implementation work. Do not depend on OMX, external workflow skills, or manual edits to `.planning/`.",
+        "",
+        "1. Decide whether the user is asking for development. If the request is only chat, research, explanation, or status, do not enter `build/Execute`; report status instead.",
+        "2. Choose one operating mode: `bypass` for T/L low-friction work only, `auto` as the default autonomous development mode, or `pairing` when the user wants checkpoints or the risk is H/C.",
+        '3. Classify risk with the kernel command. Prefer higher risk when uncertain. Example: `harness risk classify --files "src/foo.ts" --linesChanged 120 --confidence medium --json`.',
+        '4. Enter the route through the kernel, not by editing files: `harness enter --root . --phase build --subPhase Execute --mode auto --riskClass M --objective "short objective" --json`.',
+        "5. If `harness` is not on PATH inside this repository, use `node packages/cli/dist/index.js` with the same arguments.",
+        "6. Verify before writing: `harness status --root . --json` and `harness runtime assess-route --root . --json`.",
+        "7. Start implementation only after the route, risk class, operating mode, and runtime bindings are visible. Keep writes inside allowed zones from hook context.",
+      ],
+      owns: [
+        "development session entry",
+        "operating mode selection",
+        "risk-to-route binding",
+        "initial verification commands",
+      ],
+      outOfScope: [
+        "manual .planning edits",
+        "OMX workflow dependency",
+        "implementation before route activation",
+        "silent risk downgrades",
+      ],
+      evidenceProduced: ["hook_decision", "confidence_level", "risk_remaining"],
+      hookRefs: ["state-machine", "risk-classification", "runtime-bindings", "gate-policy"],
+      subagentRefs: [],
+    },
     {
       id: "classify-risk",
       title: "Classify Risk",
@@ -90,7 +138,7 @@ const OPERATIONAL_CATALOG = {
       owns: ["risk classification", "forcing signal scan", "operating mode selection"],
       outOfScope: ["cycle transition", "implementation", "evidence sufficiency evaluation"],
       evidenceProduced: ["confidence_level", "risk_remaining"],
-      bookRefs: ["risk-classification"],
+      hookRefs: ["risk-classification"],
       subagentRefs: [],
     },
     {
@@ -108,7 +156,7 @@ const OPERATIONAL_CATALOG = {
       owns: ["intent set", "scope in/out", "definition of done", "cycle routing"],
       outOfScope: ["code changes", "deployment", "subagent execution"],
       evidenceProduced: ["files_modified", "known_gap"],
-      bookRefs: ["state-machine", "gate-policy"],
+      hookRefs: ["state-machine", "gate-policy"],
       subagentRefs: [],
     },
     {
@@ -126,7 +174,7 @@ const OPERATIONAL_CATALOG = {
       owns: ["state transition", "exit condition check", "missing evidence report"],
       outOfScope: ["artifact creation", "risk demotion", "runtime installation"],
       evidenceProduced: ["hook_decision", "known_gap"],
-      bookRefs: ["state-machine", "convergence", "close-finalization"],
+      hookRefs: ["state-machine", "convergence", "close-finalization"],
       subagentRefs: ["evidence-collector"],
     },
     {
@@ -144,7 +192,7 @@ const OPERATIONAL_CATALOG = {
       owns: ["state snapshot", "route summary", "next action hint"],
       outOfScope: ["state mutation", "evidence mutation", "cycle transition"],
       evidenceProduced: [],
-      bookRefs: ["state-machine"],
+      hookRefs: ["state-machine"],
       subagentRefs: [],
     },
     {
@@ -162,7 +210,7 @@ const OPERATIONAL_CATALOG = {
       owns: ["gate decisions", "policy violations", "context injection"],
       outOfScope: ["risk scoring", "subagent implementation", "adapter-specific hook install"],
       evidenceProduced: ["hook_decision", "known_gap"],
-      bookRefs: ["gate-policy", "runtime-bindings", "platform-adapters"],
+      hookRefs: ["gate-policy", "runtime-bindings", "platform-adapters"],
       subagentRefs: ["evidence-collector"],
     },
     {
@@ -180,7 +228,7 @@ const OPERATIONAL_CATALOG = {
       owns: ["runtime capability inspection", "gate binding status", "blocking capability report"],
       outOfScope: ["adapter file generation", "platform process management", "policy override"],
       evidenceProduced: ["hook_decision", "known_gap"],
-      bookRefs: ["runtime-bindings", "platform-adapters"],
+      hookRefs: ["runtime-bindings", "platform-adapters"],
       subagentRefs: [],
     },
     {
@@ -198,7 +246,7 @@ const OPERATIONAL_CATALOG = {
       owns: ["test-first workflow", "minimum implementation", "focused verification"],
       outOfScope: ["release decision", "production monitoring", "human approval"],
       evidenceProduced: ["integration_tests", "command_output", "files_modified"],
-      bookRefs: ["convergence", "evidence-management"],
+      hookRefs: ["convergence", "evidence-management"],
       subagentRefs: ["test-writer", "reviewer"],
     },
     {
@@ -216,7 +264,7 @@ const OPERATIONAL_CATALOG = {
       owns: ["evidence sufficiency", "gap list", "final-state recommendation"],
       outOfScope: ["running tests", "writing artifacts", "approving human checkpoints"],
       evidenceProduced: ["confidence_level", "known_gap", "risk_remaining"],
-      bookRefs: ["evidence-management", "close-finalization"],
+      hookRefs: ["evidence-management", "close-finalization"],
       subagentRefs: ["evidence-collector", "reviewer", "security-auditor"],
     },
     {
@@ -234,7 +282,7 @@ const OPERATIONAL_CATALOG = {
       owns: ["operational health summary", "SLO gap detection", "run-cycle recommendation"],
       outOfScope: ["infrastructure provisioning", "incident implementation", "deployment"],
       evidenceProduced: ["command_output", "risk_remaining", "known_gap"],
-      bookRefs: ["convergence", "evidence-management"],
+      hookRefs: ["convergence", "evidence-management"],
       subagentRefs: ["perf-profiler", "evidence-collector"],
     },
     {
@@ -252,11 +300,11 @@ const OPERATIONAL_CATALOG = {
       owns: ["final state selection", "residual risk summary", "known gap disclosure"],
       outOfScope: ["additional implementation", "silent evidence fabrication", "risk downgrade"],
       evidenceProduced: ["confidence_level", "known_gap", "risk_remaining"],
-      bookRefs: ["close-finalization", "evidence-management", "gate-policy"],
+      hookRefs: ["close-finalization", "evidence-management", "gate-policy"],
       subagentRefs: ["evidence-collector"],
     },
   ],
-  books: [
+  hooks: [
     {
       id: "risk-classification",
       title: "Risk Classification",
@@ -267,7 +315,7 @@ const OPERATIONAL_CATALOG = {
       riskClasses: ALL_RISKS,
       operatingModes: ALL_MODES,
       evidenceKeys: ["confidence_level", "risk_remaining"],
-      skillRefs: ["classify-risk"],
+      skillRefs: ["hima-enter", "classify-risk"],
       subagentRefs: [],
     },
     {
@@ -279,7 +327,7 @@ const OPERATIONAL_CATALOG = {
       riskClasses: ALL_RISKS,
       operatingModes: ALL_MODES,
       evidenceKeys: ["hook_decision", "known_gap"],
-      skillRefs: ["propose-change", "transition-phase", "status"],
+      skillRefs: ["hima-enter", "propose-change", "transition-phase", "status"],
       subagentRefs: ["evidence-collector"],
     },
     {
@@ -291,7 +339,7 @@ const OPERATIONAL_CATALOG = {
       riskClasses: ALL_RISKS,
       operatingModes: ALL_MODES,
       evidenceKeys: ["hook_decision", "human_validation", "explicit_human_signature"],
-      skillRefs: ["propose-change", "gate-policy", "close-run"],
+      skillRefs: ["hima-enter", "propose-change", "gate-policy", "close-run"],
       subagentRefs: ["evidence-collector", "reviewer"],
     },
     {
@@ -304,7 +352,7 @@ const OPERATIONAL_CATALOG = {
       riskClasses: ALL_RISKS,
       operatingModes: ALL_MODES,
       evidenceKeys: ["hook_decision", "known_gap"],
-      skillRefs: ["gate-policy", "bind-runtime"],
+      skillRefs: ["hima-enter", "gate-policy", "bind-runtime"],
       subagentRefs: [],
     },
     {
@@ -397,7 +445,7 @@ const OPERATIONAL_CATALOG = {
         operatingModes: GOVERNED_MODES,
       },
       evidenceProduced: ["review_1", "review_2_or_antagonist", "subagent_output"],
-      bookRefs: ["gate-policy", "convergence", "evidence-management"],
+      hookRefs: ["gate-policy", "convergence", "evidence-management"],
       skillRefs: ["build-inner-loop", "validate-evidence"],
       maxParallelSafe: 3,
     },
@@ -419,7 +467,7 @@ const OPERATIONAL_CATALOG = {
         operatingModes: GOVERNED_MODES,
       },
       evidenceProduced: ["threat_model_stride", "subagent_output", "risk_remaining"],
-      bookRefs: ["evidence-management"],
+      hookRefs: ["evidence-management"],
       skillRefs: ["validate-evidence"],
       maxParallelSafe: 3,
     },
@@ -441,7 +489,7 @@ const OPERATIONAL_CATALOG = {
         operatingModes: ALL_MODES,
       },
       evidenceProduced: ["integration_tests", "subagent_output", "command_output"],
-      bookRefs: ["platform-adapters", "convergence", "evidence-management"],
+      hookRefs: ["platform-adapters", "convergence", "evidence-management"],
       skillRefs: ["build-inner-loop"],
       maxParallelSafe: 1,
     },
@@ -463,7 +511,7 @@ const OPERATIONAL_CATALOG = {
         operatingModes: ALL_MODES,
       },
       evidenceProduced: ["subagent_output", "known_gap", "confidence_level", "risk_remaining"],
-      bookRefs: [
+      hookRefs: [
         "state-machine",
         "gate-policy",
         "platform-adapters",
@@ -476,7 +524,7 @@ const OPERATIONAL_CATALOG = {
     {
       id: "security-auditor",
       title: "Security Auditor",
-      purpose: "Run extended security review for high-risk increments.",
+      purpose: "Run extended security review for H-risk increments.",
       spawn: {
         macroCycles: ["validation"],
         gateTypes: ["subagent_start", "subagent_stop"],
@@ -491,7 +539,7 @@ const OPERATIONAL_CATALOG = {
         operatingModes: GOVERNED_MODES,
       },
       evidenceProduced: ["dast_report", "independent_security_audit", "subagent_output"],
-      bookRefs: ["evidence-management"],
+      hookRefs: ["evidence-management"],
       skillRefs: ["validate-evidence"],
       maxParallelSafe: 3,
     },
@@ -513,7 +561,7 @@ const OPERATIONAL_CATALOG = {
         operatingModes: GOVERNED_MODES,
       },
       evidenceProduced: ["product_validation", "subagent_output", "known_gap"],
-      bookRefs: ["evidence-management"],
+      hookRefs: ["evidence-management"],
       skillRefs: ["validate-evidence"],
       maxParallelSafe: 3,
     },
@@ -535,7 +583,7 @@ const OPERATIONAL_CATALOG = {
         operatingModes: GOVERNED_MODES,
       },
       evidenceProduced: ["load_tests", "command_output", "subagent_output"],
-      bookRefs: ["convergence", "evidence-management"],
+      hookRefs: ["convergence", "evidence-management"],
       skillRefs: ["run-monitor"],
       maxParallelSafe: 3,
     },
@@ -557,7 +605,7 @@ const OPERATIONAL_CATALOG = {
         operatingModes: ALL_MODES,
       },
       evidenceProduced: ["files_modified", "subagent_output"],
-      bookRefs: ["evidence-management"],
+      hookRefs: ["evidence-management"],
       skillRefs: ["validate-evidence"],
       maxParallelSafe: 3,
     },
@@ -579,7 +627,7 @@ const OPERATIONAL_CATALOG = {
         operatingModes: GOVERNED_MODES,
       },
       evidenceProduced: ["product_validation", "subagent_output", "known_gap"],
-      bookRefs: ["convergence", "close-finalization", "evidence-management"],
+      hookRefs: ["convergence", "close-finalization", "evidence-management"],
       skillRefs: ["validate-evidence"],
       maxParallelSafe: 1,
     },
@@ -590,8 +638,8 @@ export function getSkillsCatalog(): SkillCatalogEntry[] {
   return [...OPERATIONAL_CATALOG.skills];
 }
 
-export function getBooksCatalog(): BookCatalogEntry[] {
-  return [...OPERATIONAL_CATALOG.books];
+export function getHooksCatalog(): HookCatalogEntry[] {
+  return [...OPERATIONAL_CATALOG.hooks];
 }
 
 export function getSubagentsCatalog(): SubagentCatalogEntry[] {
@@ -601,7 +649,7 @@ export function getSubagentsCatalog(): SubagentCatalogEntry[] {
 export function getOperationalCatalog(): OperationalCatalog {
   return {
     skills: getSkillsCatalog(),
-    books: getBooksCatalog(),
+    hooks: getHooksCatalog(),
     subagents: getSubagentsCatalog(),
   };
 }

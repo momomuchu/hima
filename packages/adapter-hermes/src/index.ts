@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import {
+  applyHookCommandPrefix,
   buildRuntimeBindings,
   computeRuntimeProfileDigest,
   DEFAULT_RUNTIME_CAPABILITY_STATUS,
@@ -69,6 +70,8 @@ export interface HermesGatewayPlugin {
 
 export interface ApplyHermesHookConfigOptions {
   root: string;
+  hookCommands?: Partial<Record<GateType, string>>;
+  hookCommandPrefix?: string;
 }
 
 export interface ApplyHermesHookConfigResult {
@@ -78,7 +81,16 @@ export interface ApplyHermesHookConfigResult {
   pluginAdded: boolean;
 }
 
-export function buildHermesHookPreview(): HermesHookPreview {
+export interface RemoveHermesHookConfigResult {
+  target: "hermes";
+  configFile: string;
+  hooksRemoved: number;
+  pluginRemoved: boolean;
+}
+
+export function buildHermesHookPreview(
+  options: Pick<ApplyHermesHookConfigOptions, "hookCommands" | "hookCommandPrefix"> = {},
+): HermesHookPreview {
   const profile = getRuntimeProfile("hermes");
   const digest = computeRuntimeProfileDigest("hermes");
   const bindings = buildRuntimeBindings(
@@ -104,19 +116,18 @@ export function buildHermesHookPreview(): HermesHookPreview {
         },
       },
       ...GATE_TYPES.flatMap((gateType) => {
-        const binding = bindings[gateType];
         const hook = profile.hooks[gateType];
 
-        return binding.status === "native" && binding.nativeEvent
+        return hook.supported && hook.nativeEvent
           ? [
               {
                 kind: "append" as const,
                 path: "gateway.plugins.harness.hooks" as const,
                 value: {
                   gateType,
-                  event: binding.nativeEvent,
-                  command: hook.command,
-                  blocking: binding.canBlock,
+                  event: hook.nativeEvent,
+                  command: resolveHookCommand(hook.command, gateType, options),
+                  blocking: hook.canBlock,
                 },
               },
             ]
@@ -164,7 +175,7 @@ export async function applyHermesHookConfig(
   const hooks = Array.isArray(harnessPlugin.hooks) ? harnessPlugin.hooks : [];
   let hooksAdded = 0;
 
-  for (const operation of buildHermesHookPreview().operations) {
+  for (const operation of buildHermesHookPreview(options).operations) {
     if (operation.kind !== "append") {
       continue;
     }
@@ -186,6 +197,62 @@ export async function applyHermesHookConfig(
     configFile,
     hooksAdded,
     pluginAdded,
+  };
+}
+
+export async function removeHermesHookConfig(
+  options: ApplyHermesHookConfigOptions,
+): Promise<RemoveHermesHookConfigResult> {
+  const configFile = path.join(options.root, HERMES_CONFIG_FILE);
+  const config = await readJsonFile<HermesConfigFile | undefined>(configFile, undefined);
+
+  if (config === undefined || !isRecord(config.gateway) || !Array.isArray(config.gateway.plugins)) {
+    return {
+      target: "hermes",
+      configFile,
+      hooksRemoved: 0,
+      pluginRemoved: false,
+    };
+  }
+
+  const plugins = config.gateway.plugins;
+  const harnessPluginIndex = plugins.findIndex((plugin) => plugin.plugin === "harness");
+  const harnessPlugin = plugins[harnessPluginIndex];
+
+  if (harnessPlugin === undefined || !Array.isArray(harnessPlugin.hooks)) {
+    return {
+      target: "hermes",
+      configFile,
+      hooksRemoved: 0,
+      pluginRemoved: false,
+    };
+  }
+
+  const expectedHooks = buildHermesHookPreview(options).operations.flatMap((operation) =>
+    operation.kind === "append" ? [operation.value] : [],
+  );
+  const nextHooks = harnessPlugin.hooks.filter(
+    (hook) => !expectedHooks.some((expectedHook) => isSameHermesHook(hook, expectedHook)),
+  );
+  const hooksRemoved = harnessPlugin.hooks.length - nextHooks.length;
+  let pluginRemoved = false;
+
+  if (hooksRemoved > 0) {
+    if (nextHooks.length > 0 || hasCustomHarnessPluginFields(harnessPlugin)) {
+      harnessPlugin.hooks = nextHooks;
+    } else {
+      plugins.splice(harnessPluginIndex, 1);
+      pluginRemoved = true;
+    }
+
+    await safeAtomicWriteFile(options.root, configFile, `${JSON.stringify(config, null, 2)}\n`);
+  }
+
+  return {
+    target: "hermes",
+    configFile,
+    hooksRemoved,
+    pluginRemoved,
   };
 }
 
@@ -243,6 +310,25 @@ function isSameHermesHook(
   hook: HermesHookEntryPreview,
 ): boolean {
   return existingHook.event === hook.event && existingHook.command === hook.command;
+}
+
+function hasCustomHarnessPluginFields(plugin: HermesGatewayPlugin): boolean {
+  const managedFields = new Set(["plugin", "mode", "hooks"]);
+
+  return (
+    (plugin.mode !== undefined && plugin.mode !== "preview") ||
+    Object.keys(plugin).some((field) => !managedFields.has(field))
+  );
+}
+
+function resolveHookCommand(
+  command: string,
+  gateType: GateType,
+  options: Pick<ApplyHermesHookConfigOptions, "hookCommands" | "hookCommandPrefix">,
+): string {
+  return (
+    options.hookCommands?.[gateType] ?? applyHookCommandPrefix(command, options.hookCommandPrefix)
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

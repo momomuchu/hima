@@ -15,18 +15,19 @@ describing a reusable workflow invocable by the runtime agent or user. Skills ma
 
 | # | Skill name | Cycle(s) | Trigger keyword(s) | Risk classes | Portable |
 |---|-----------|----------|--------------------|--------------|---------|
-| 1 | `classify-risk` | All | `classify`, `risk`, any new intent | T L M H C | Yes |
-| 2 | `propose-change` | All | `propose`, `change`, `feature`, `fix` | T L M H C | Yes |
-| 3 | `transition-phase` | All | `advance`, `next cycle`, `promote` | T L M H C | Yes |
-| 4 | `status` | All | `status`, `where are we`, `état` | T L M H C | Yes |
-| 5 | `discovery-validate` | 01-Discovery | `discovery`, `problem`, `validate idea` | M H C | Yes |
-| 6 | `cadrage-dor` | 02-Cadrage | `cadrage`, `dor`, `scope`, `definition of ready` | M H C | Yes |
-| 7 | `conception-adr` | 03-Conception | `conception`, `adr`, `architecture`, `design` | M H C | Yes |
-| 8 | `build-inner-loop` | 04-Build | `build`, `tdd`, `implement`, `code` | L M H C | Yes |
-| 9 | `validation-report` | 05-Validation | `validation`, `test report`, `go/no-go` | M H C | Yes |
-| 10 | `release-plan` | 06-Release | `release`, `deploy`, `rollout` | M H C | Yes |
-| 11 | `run-monitor` | 07-Run | `run`, `monitor`, `slo`, `alert` | T L M H C | Yes |
-| 12 | `learning-retro` | 08-learning | `retro`, `retrospective`, `learning` | T L M H C | Yes |
+| 1 | `hima-enter` | All | `hima`, `enter`, `development mode`, `governed development` | T L M H C | Yes |
+| 2 | `classify-risk` | All | `classify`, `risk`, any new intent | T L M H C | Yes |
+| 3 | `propose-change` | All | `propose`, `change`, `feature`, `fix` | T L M H C | Yes |
+| 4 | `transition-phase` | All | `advance`, `next cycle`, `promote` | T L M H C | Yes |
+| 5 | `status` | All | `status`, `where are we`, `état` | T L M H C | Yes |
+| 6 | `discovery-validate` | 01-Discovery | `discovery`, `problem`, `validate idea` | M H C | Yes |
+| 7 | `cadrage-dor` | 02-Cadrage | `cadrage`, `dor`, `scope`, `definition of ready` | M H C | Yes |
+| 8 | `conception-adr` | 03-Conception | `conception`, `adr`, `architecture`, `design` | M H C | Yes |
+| 9 | `build-inner-loop` | 04-Build | `build`, `tdd`, `implement`, `code` | L M H C | Yes |
+| 10 | `validation-report` | 05-Validation | `validation`, `test report`, `go/no-go` | M H C | Yes |
+| 11 | `release-plan` | 06-Release | `release`, `deploy`, `rollout` | M H C | Yes |
+| 12 | `run-monitor` | 07-Run | `run`, `monitor`, `slo`, `alert` | T L M H C | Yes |
+| 13 | `learning-retro` | 08-learning | `retro`, `retrospective`, `learning` | T L M H C | Yes |
 
 **Portability tier**: All skills are Tier 1 — same SKILL.md format across all runtimes.
 Install paths differ per platform adapter (see §5).
@@ -35,12 +36,107 @@ Install paths differ per platform adapter (see §5).
 
 ## 2. Core Skills (MVP Mandatory)
 
-These four skills are always active regardless of cycle or risk class. They form the minimum
+These five skills are always active regardless of cycle or risk class. They form the minimum
 harness operating surface.
 
 ---
 
-### 2.1 `classify-risk`
+### 2.1 `hima-enter`
+
+**Purpose**: Start a governed development session from a raw idea. This is the POC entrypoint:
+it decides whether the request is development work, selects the operating mode, and calls the
+kernel to bind phase, subphase, risk class, route, intent, and active gates before implementation.
+
+**Input**
+```yaml
+intent_raw: string
+risk_class: T | L | M | H | C       # from classify-risk or user-approved route
+operating_mode: bypass | auto | pairing
+objective: string
+```
+
+**Output**
+```yaml
+development_entry:
+  phase: build
+  sub_phase: Execute
+  mode: bypass | auto | pairing
+  risk_class: T | L | M | H | C
+  objective: string
+  active_gates: string[]
+```
+
+**Execution contract**
+
+`hima-enter` never edits `.planning/` directly. It must use the kernel surface:
+
+```bash
+harness enter --root . --phase build --subPhase Execute --mode auto --riskClass M --objective "short objective" --json
+```
+
+When `harness` is not on PATH inside the repo, the skill uses:
+
+```bash
+node packages/cli/dist/index.js enter --root . --phase build --subPhase Execute --mode auto --riskClass M --objective "short objective" --json
+```
+
+**Operating mode policy**
+
+| Mode | Use |
+|------|-----|
+| `bypass` | T/L only, low-friction local changes. |
+| `auto` | Default autonomous development mode with full harness visibility. |
+| `pairing` | User checkpoints or H/C risk requiring closer supervision. |
+
+The kernel rejects disallowed combinations such as `bypass` with H/C.
+
+**SKILL.md draft**
+
+```markdown
+# hima-enter
+
+## Description
+Start governed HIMA development from an idea by binding route, risk, mode, and intent through
+the kernel before implementation.
+AUTO-INVOKE: on development-mode requests, governed implementation requests, or explicit HIMA entry.
+
+OWNS: development session entry, operating mode selection, risk-to-route binding, initial verification
+NE GERE PAS: manual .planning edits, OMX dependency, implementation before route activation
+
+## Trigger
+Keywords: hima, enter, development mode, governed development
+Auto: yes - on session_start or user_prompt when the request is development work
+Cycle: All
+
+## Steps
+1. Decide whether the request is development work; if not, report status instead.
+2. Classify risk with `harness risk classify` when risk is unknown.
+3. Choose `bypass`, `auto`, or `pairing` from the risk policy.
+4. Call `harness enter` with phase, subphase, mode, risk, and objective.
+5. Verify with `harness status --json`.
+6. Verify runtime readiness with `harness runtime assess-route --json`.
+7. Start implementation only after route, risk, mode, and runtime bindings are visible.
+
+## Input
+- intent_raw: string
+- risk_class: T|L|M|H|C
+- operating_mode: bypass|auto|pairing
+- objective: string
+
+## Output
+- development_entry: route, mode, risk class, active gates
+- Evidence: `.planning/run-set.json#events[]` contains DEVELOPMENT_MODE_ENTERED
+
+## Evidence produced
+- `.planning/state.yaml` updated
+- `.planning/current-risk.yaml` updated
+- `.planning/run-set.json#route`
+- `.planning/run-set.json#events[]`
+```
+
+---
+
+### 2.2 `classify-risk`
 
 **Purpose**: Assign a T/L/M/H/C risk class to any incoming intent. This is the harness pivot —
 every other workflow branches from the risk class assigned here.
@@ -115,7 +211,7 @@ Auto: yes — fires before propose-change on every new task
 
 ---
 
-### 2.2 `propose-change`
+### 2.3 `propose-change`
 
 **Purpose**: Transform a classified intent into a formal Intent Set — the harness contract
 before any action is taken. Depth scales with risk class.
@@ -186,7 +282,7 @@ Auto: yes — fires after classify-risk
 
 ---
 
-### 2.3 `transition-phase`
+### 2.4 `transition-phase`
 
 **Purpose**: Validate exit conditions (DoD) for the current cycle and advance the harness
 state machine to the next cycle. Guards against premature advancement.
@@ -255,7 +351,7 @@ Auto: post_tool hook after last cycle artifact written
 
 ---
 
-### 2.4 `status`
+### 2.5 `status`
 
 **Purpose**: Snapshot the harness state — current cycle, risk class, open tasks, last
 evidence written, next required action.
@@ -719,7 +815,7 @@ Cycle: <cycle name(s) or "All">
 
 ## 5. Skill Portability Notes
 
-All 12 skills are Tier 1 portable: same SKILL.md content, different install paths.
+All 13 skills are Tier 1 portable: same SKILL.md content, different install paths.
 Platform adapters handle path resolution — the skill author writes once.
 
 ### 5.1 Claude Code (`adapter-claude/`)
@@ -758,6 +854,7 @@ Platform adapters handle path resolution — the skill author writes once.
 
 ```
 packages/artifacts/skills/
+├── hima-enter/SKILL.md
 ├── classify-risk/SKILL.md
 ├── propose-change/SKILL.md
 ├── transition-phase/SKILL.md
@@ -783,6 +880,7 @@ Legend: **M** = Mandatory (required, blocks cycle exit if absent) | **O** = Opti
 
 | Skill | T | L | M | H | C |
 |-------|---|---|---|---|---|
+| `hima-enter` | M | M | M | M | M |
 | `classify-risk` | M | M | M | M | M |
 | `propose-change` | M | M | M | M | M |
 | `transition-phase` | – | – | M | M | M |
@@ -808,8 +906,8 @@ Legend: **M** = Mandatory (required, blocks cycle exit if absent) | **O** = Opti
 
 | Risk | Active skills |
 |------|--------------|
-| T | classify-risk → propose-change → status (+ run-monitor optional) |
-| L | classify-risk → propose-change → build-inner-loop → status (+ run-monitor, retro optional) |
-| M | Full 12-skill pipeline. release-plan optional. |
-| H | Full 12-skill pipeline. Pairing mode on classify-risk, propose-change, discovery-validate, conception-adr, validation-report, release-plan. |
-| C | Full 12-skill pipeline. Pairing mode everywhere. Stakeholder sign-off tokens required at conception-adr and release-plan. |
+| T | hima-enter → classify-risk → propose-change → status (+ run-monitor optional) |
+| L | hima-enter → classify-risk → propose-change → build-inner-loop → status (+ run-monitor, retro optional) |
+| M | hima-enter → full 12-skill execution pipeline. release-plan optional. |
+| H | hima-enter → full 12-skill execution pipeline. Pairing mode on classify-risk, propose-change, discovery-validate, conception-adr, validation-report, release-plan. |
+| C | hima-enter → full 12-skill execution pipeline. Pairing mode everywhere. Stakeholder sign-off tokens required at conception-adr and release-plan. |

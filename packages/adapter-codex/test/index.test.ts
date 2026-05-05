@@ -3,7 +3,11 @@ import os from "node:os";
 import path from "node:path";
 import { GATE_TYPES, toHookCommand } from "@harness/core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { applyCodexHookConfig, buildCodexHookConfigPreview } from "../src/index.js";
+import {
+  applyCodexHookConfig,
+  buildCodexHookConfigPreview,
+  removeCodexHookConfig,
+} from "../src/index.js";
 
 let tempRoot: string;
 
@@ -40,7 +44,7 @@ describe("buildCodexHookConfigPreview", () => {
       value: {
         gateType: "pre_tool",
         event: "PreToolUse",
-        command: toHookCommand("pre_tool"),
+        command: toHookCommand("pre_tool", "codex"),
       },
     });
     expect(preview.markers).toContainEqual({
@@ -62,8 +66,27 @@ describe("buildCodexHookConfigPreview", () => {
     expect(config).toContain('model = "gpt-5.5"');
     expect(config).toContain("existing = true");
     expect(config).toContain("codex_hooks = true");
-    expect(config).toContain(`event = "PreToolUse"`);
-    expect(config).toContain(`command = "${toHookCommand("pre_tool")}"`);
+    expect(config).toContain("[[hooks.PreToolUse]]");
+    expect(config).toContain("[[hooks.PreToolUse.hooks]]");
+    expect(config).toContain(`command = "${toHookCommand("pre_tool", "codex")}"`);
+  });
+
+  it("repairs an existing disabled codex_hooks feature flag", async () => {
+    const configFile = path.join(tempRoot, "config.toml");
+    await writeFile(
+      configFile,
+      'model = "gpt-5.5"\n\n[features]\ncodex_hooks = false\nexisting = true\n',
+      "utf8",
+    );
+
+    const result = await applyCodexHookConfig({ root: tempRoot });
+    const config = await readFile(configFile, "utf8");
+
+    expect(result.featureFlagAdded).toBe(true);
+    expect(config).toContain("codex_hooks = true");
+    expect(config).not.toContain("codex_hooks = false");
+    expect(config).toContain("existing = true");
+    expect(config).toContain("[[hooks.PreToolUse]]");
   });
 
   it("is idempotent and keeps canonical hook command aliases", async () => {
@@ -75,8 +98,83 @@ describe("buildCodexHookConfigPreview", () => {
 
     expect(secondResult.hooksAdded).toBe(0);
     expect(secondResult.featureFlagAdded).toBe(false);
-    expect(config.match(/\[\[hooks\]\]/g)).toHaveLength(GATE_TYPES.length - 2);
-    expect(config.match(new RegExp(toHookCommand("pre_tool"), "g"))).toHaveLength(1);
+    expect(config.match(/\[\[hooks\.[^.\]]+\]\]/g)).toHaveLength(GATE_TYPES.length - 2);
+    expect(config.match(new RegExp(toHookCommand("pre_tool", "codex"), "g"))).toHaveLength(1);
+  });
+
+  it("replaces stale managed HIMA hook blocks without duplicating Codex events", async () => {
+    const configFile = path.join(tempRoot, "config.toml");
+    await writeFile(
+      configFile,
+      [
+        "[features]",
+        "codex_hooks = true",
+        "",
+        "[[hooks]]",
+        'gate_type = "pre_tool"',
+        'event = "PreToolUse"',
+        'command = "node \\"C:/repo/packages/cli/dist/index.js\\" hook pre-tool-use"',
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+
+    const result = await applyCodexHookConfig({ root: tempRoot });
+    const config = await readFile(configFile, "utf8");
+
+    expect(result.hooksAdded).toBe(GATE_TYPES.length - 2);
+    expect(config.match(/\[\[hooks\.PreToolUse\]\]/g)).toHaveLength(1);
+    expect(config).toContain(`command = "${toHookCommand("pre_tool", "codex")}"`);
+    expect(config).not.toMatch(/^command = "harness hook pre-tool-use"$/m);
+  });
+
+  it("repairs stale official Codex hook tables", async () => {
+    const configFile = path.join(tempRoot, "config.toml");
+    await writeFile(
+      configFile,
+      [
+        "[features]",
+        "codex_hooks = true",
+        "",
+        "[[hooks.PreToolUse]]",
+        "",
+        "[[hooks.PreToolUse.hooks]]",
+        'type = "command"',
+        `command = "${toHookCommand("pre_tool")}"`,
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+
+    await applyCodexHookConfig({ root: tempRoot });
+    const config = await readFile(configFile, "utf8");
+
+    expect(config.match(/\[\[hooks\.PreToolUse\]\]/g)).toHaveLength(1);
+    expect(config).toContain(`command = "${toHookCommand("pre_tool", "codex")}"`);
+    expect(config).not.toMatch(/^command = "harness hook pre-tool-use"$/m);
+  });
+
+  it("removes only managed HIMA hook blocks while preserving user config", async () => {
+    const configFile = path.join(tempRoot, "config.toml");
+    await applyCodexHookConfig({ root: tempRoot });
+    await writeFile(
+      configFile,
+      `${await readFile(configFile, "utf8")}
+
+[[hooks]]
+event = "PreToolUse"
+command = "echo keep-user-hook"
+`,
+      "utf8",
+    );
+
+    const result = await removeCodexHookConfig({ root: tempRoot });
+    const config = await readFile(configFile, "utf8");
+
+    expect(result.hooksRemoved).toBe(GATE_TYPES.length - 2);
+    expect(config).toContain("codex_hooks = true");
+    expect(config).toContain("echo keep-user-hook");
+    expect(config).not.toContain(toHookCommand("pre_tool", "codex"));
   });
 
   it("rejects hardlinked config targets without mutating the external file", async () => {

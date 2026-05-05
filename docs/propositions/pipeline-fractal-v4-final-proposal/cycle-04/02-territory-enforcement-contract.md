@@ -57,7 +57,7 @@ PFV4-OD-012 is closed by this contract when these defaults are adopted:
    or the local transaction library.
 6. Generated files are writable only through their declared generator or a
    registry-authorized regeneration flow.
-7. Runtime audit-only fallback is never sufficient for M/E/C governed writes.
+7. Runtime audit-only fallback is never sufficient for M/H/C governed writes.
 
 ## Registry Placement
 
@@ -234,8 +234,8 @@ Minimum target classes:
 | `source` | `src/**`, `packages/**`, implementation files | Route-owned build scope | M minimum; tests and review evidence required. |
 | `registry` | `.rms/registry/**` | Registry admin/kernel | M minimum; requires registry lock and validation. |
 | `rms_runtime_state` | `.rms/runs/**`, `.rms/state/**`, `.rms/locks/**` | RMS kernel | Direct actor writes forbidden except local transaction library. |
-| `generated` | `*.generated.*`, generated guard cache, generated books/types | Declared generator | Manual writes block unless regeneration flow owns target. |
-| `external` | Path outside project root or external service target | External authority | E minimum for mutation; often block without checkpoint. |
+| `generated` | `*.generated.*`, generated guard cache, generated reference docs/types | Declared generator | Manual writes block unless regeneration flow owns target. |
+| `external` | Path outside project root or external service target | External authority | H minimum for mutation; often block without checkpoint. |
 | `unknown` | No registry match or ambiguous expansion | No owner | Block for governed action. |
 
 ## Ownership And Allowed Scopes
@@ -263,7 +263,7 @@ Allowed-scope rules:
 
 - Writes must be inside the active route-owned scope.
 - Reads may be broader when the macro-cycle needs context, but read auditing may
-  be required for E/C or sensitive targets.
+  be required for H/C or sensitive targets.
 - Delete and move are stronger than write; they require explicit action entries.
 - A directory allow does not imply generated, registry or `.rms/` write allow.
 - A route may own one file, directory or generated artifact set, but ownership
@@ -280,9 +280,9 @@ mode and runtime binding facts.
 |---|---|---|---|---|---|---|
 | `UNCLASSIFIED` | Block except classification | Block | Block | Block | Block | Block |
 | `T` | Allow | Allow if reversible | Block or reroute | Block unless explicit admin route | Kernel only | Generator only or warn/degrade |
-| `F` | Allow | Allow with route scope | Block | M promotion required | Kernel only | Generator only or degrade if policy allows |
+| `L` | Allow | Allow with route scope | Block | M promotion required | Kernel only | Generator only or degrade if policy allows |
 | `M` | Allow with evidence | Allow with blocking territory gate | Block | Allow only with registry lock, validation and pairing/supervised mode | Kernel/local transaction only | Generator/regeneration only |
-| `E` | Conditional audit | Escalate or block unless checkpointed | Block | Escalate plus checkpoint; native blocking required | Kernel/local transaction only with checkpoint | Block unless safety policy allows |
+| `H` | Conditional audit | Escalate or block unless checkpointed | Block | Escalate plus checkpoint; native blocking required | Kernel/local transaction only with checkpoint | Block unless safety policy allows |
 | `C` | Checkpointed audit | Block by default | Block | Block unless critical admin protocol exists | Kernel only; no autonomous write | Block by default |
 
 Risk forcing effects:
@@ -290,8 +290,8 @@ Risk forcing effects:
 - `registry_or_policy_edit` promotes to at least `M`.
 - `rms_state_mutation` promotes to at least `M`.
 - `generated_schema_or_type_change` promotes to at least `M`.
-- `destructive_filesystem_or_db_action` promotes to at least `E`.
-- `secret_or_credential_access` promotes to at least `E`.
+- `destructive_filesystem_or_db_action` promotes to at least `H`.
+- `secret_or_credential_access` promotes to at least `H`.
 
 ## Runtime Binding Interplay
 
@@ -310,11 +310,11 @@ Rules:
   territory decision before the action.
 - If territory says `block`, runtime fallback cannot weaken it.
 - If territory says `allow` but the required runtime binding is missing for an
-  M/E/C governed write, the merged guard still blocks through runtime overlay.
+  M/H/C governed write, the merged guard still blocks through runtime overlay.
 - If runtime can only audit after action, the territory overlay may return
-  `degrade` for T/F only when policy allows the target class and action.
+  `degrade` for T/L only when policy allows the target class and action.
 - `noop_traced` is valid only for optional observation; it never satisfies
-  territory enforcement for M/E/C writes.
+  territory enforcement for M/H/C writes.
 - MCP outage does not authorize direct `.rms/` writes. Only the same local
   transaction library may mutate `.rms/` when registered and locked.
 
@@ -334,7 +334,7 @@ territory rule allows degraded route
 
 Fallback legality:
 
-| Fallback class | T/F | M | E/C |
+| Fallback class | T/L | M | H/C |
 |---|---|---|---|
 | `native_equivalent` | Allow or degrade | Allow or degrade with evidence | Escalate or allow only with required checkpoint |
 | `pre_action_check` | Warn or degrade | Conditional; pairing and explicit residual risk required | Block by default |
@@ -347,10 +347,10 @@ Degraded territory final-state ceiling:
 
 | Condition | Ceiling |
 |---|---|
-| T/F degraded docs write with accepted audit gap | `DONE_WITH_GAPS` unless later proof resolves the gap. |
+| T/L degraded docs write with accepted audit gap | `DONE_WITH_GAPS` unless later proof resolves the gap. |
 | M native-equivalent territory fallback with fresh proof | `DONE_VERIFIED` remains possible. |
 | M non-native fallback with residual enforcement gap | `DONE_WITH_GAPS` at most. |
-| E/C residual territory enforcement gap | Blocked final state only. |
+| H/C residual territory enforcement gap | Blocked final state only. |
 | Unknown target or outside-scope write | No success final state from that action. |
 
 ## Guard Output
@@ -480,7 +480,7 @@ These fixtures are the minimum implementation tests for PFV4-OD-012.
 Input:
 
 ```yaml
-risk_class: "F"
+risk_class: "L"
 macro_cycle: "BUILD"
 cycle_substate: "build.implementation_slice"
 owned_scope:
@@ -511,7 +511,7 @@ Expected checks:
 Input:
 
 ```yaml
-risk_class: "F"
+risk_class: "L"
 request:
   tool_class: "shell_command"
   action_type: "write"
@@ -766,9 +766,9 @@ forward these requirements:
 3. Route-owned scopes are explicit and evidence-invalidating when changed.
 4. Registry files, generated files and `.rms/` runtime files have special
    ownership rules.
-5. M/E/C governed writes require native or native-equivalent pre-action
+5. M/H/C governed writes require native or native-equivalent pre-action
    enforcement.
-6. T/F audit-only fallback is visible, evidence-bound and final-state-capped.
+6. T/L audit-only fallback is visible, evidence-bound and final-state-capped.
 7. Fixture families `VF-TERR-001` through `VF-TERR-010` are included in the
    schema-first test plan.
 
@@ -779,7 +779,7 @@ forward these requirements:
 | Territory overlay registry absent. | `closed_by_contract`: registry file, schema fields and rule ownership are defined. |
 | Path/tool/action schema absent. | `closed_by_contract`: `TerritoryRequest` and required dimensions are defined. |
 | Ownership and scope rules absent. | `closed_by_contract`: route-owned scopes, special target classes and invalidation rules are defined. |
-| Risk legality absent. | `closed_by_contract`: risk-specific matrix and fail-closed M/E/C defaults are defined. |
+| Risk legality absent. | `closed_by_contract`: risk-specific matrix and fail-closed M/H/C defaults are defined. |
 | Degraded fallback fixtures absent. | `closed_by_fixture`: VF-TERR fixtures cover outside scope, unknown target, generated files, registry files, `.rms` writes and cross-runtime paths. |
 
 ## Summary

@@ -6,23 +6,24 @@ import {
   type RuntimeCapability,
   type RuntimeCapabilityStatus,
   type RuntimeHookCapability,
+  type RuntimeHookCapabilityInput,
+  type RuntimeProbeEvidence,
 } from "../schemas/run-set.schema.js";
+import { redactSecrets } from "../security/redaction.js";
 import { writeJsonFile } from "../storage/json.js";
 import { getPlanningPaths } from "../storage/planning-paths.js";
 import { readPlanningProject } from "../storage/planning-store.js";
 import { GATE_TYPES, type GateType } from "../types/canonical.js";
 import { getRuntimeProfile, isRuntimeTarget } from "./runtime-profiles.js";
-
-export interface RuntimeHookCapabilityInput {
-  nativeEvent?: string | null;
-  canBlock?: boolean;
-  status?: RuntimeCapabilityStatus;
-  configDigest?: string;
-  notes?: string[];
-}
+import {
+  DEFAULT_TRUSTED_RUNTIME_PROOF_MAX_AGE_MS,
+  isTrustedRuntimeProof,
+  normalizeRuntimeProofTrust,
+} from "./runtime-proofs.js";
 
 export interface InspectRuntimeInput {
   runtimeName?: string;
+  runtimeVersion?: string;
   status?: RuntimeCapabilityStatus;
   inspectedAt?: string;
   configDigest?: string;
@@ -58,15 +59,33 @@ const BLOCKING_STATUSES = new Set<RuntimeBindingStatus>([
 ]);
 
 const DIGEST_ALGORITHM = "sha256";
+const BLOCKING_RUNTIME_PROOF_TYPES = new Set(["negative_fixture", "event_fire"]);
 
 export async function inspectRuntime(
   projectRoot: string,
   target: string,
   input: InspectRuntimeInput = {},
 ): Promise<RuntimeCapability> {
+  return inspectRuntimeInternal(projectRoot, target, input, false);
+}
+
+export async function inspectRuntimeWithTrustedProofs(
+  projectRoot: string,
+  target: string,
+  input: InspectRuntimeInput = {},
+): Promise<RuntimeCapability> {
+  return inspectRuntimeInternal(projectRoot, target, input, true);
+}
+
+async function inspectRuntimeInternal(
+  projectRoot: string,
+  target: string,
+  input: InspectRuntimeInput,
+  trustedProofInput: boolean,
+): Promise<RuntimeCapability> {
   const project = await readPlanningProject(projectRoot);
   const paths = getPlanningPaths(projectRoot);
-  const capability = buildRuntimeCapability(target, input);
+  const capability = buildRuntimeCapability(target, input, trustedProofInput);
   const runSet = {
     ...project.runSet,
     runtimeCapabilities: {
@@ -96,6 +115,7 @@ export async function bindRuntime(
   const runSet = {
     ...project.runSet,
     runtimeBindings: {
+      ...project.runSet.runtimeBindings,
       activeTarget: target,
       gates: bindings,
     },
@@ -154,6 +174,7 @@ export function computeRuntimeProfileDigest(target: string): string {
   const profile = getRuntimeProfile(normalizedTarget);
   return computeDigest({
     target: profile.target,
+    runtimeVersion: profile.runtimeVersion,
     hooks: Object.fromEntries(
       GATE_TYPES.map((gateType) => {
         const hook = profile.hooks[gateType];
@@ -190,10 +211,15 @@ export function computeRuntimeHookDigest(target: string, gateType: GateType): st
   });
 }
 
-function buildRuntimeCapability(target: string, input: InspectRuntimeInput): RuntimeCapability {
+function buildRuntimeCapability(
+  target: string,
+  input: InspectRuntimeInput,
+  trustedProofInput: boolean,
+): RuntimeCapability {
   const inspectedAt = input.inspectedAt ?? new Date().toISOString();
   const runtimeName = input.runtimeName ?? target;
-  const hookInputs = getRuntimeHookCapabilityInputs(target, input.hooks);
+  const runtimeVersion = input.runtimeVersion ?? getDefaultRuntimeVersion(target);
+  const hookInputs = getRuntimeHookCapabilityInputs(target, input.hooks, trustedProofInput);
   const defaultDigest = getDefaultRuntimeDigest(target);
   const hooks = Object.fromEntries(
     GATE_TYPES.map((gateType) => [
@@ -205,11 +231,12 @@ function buildRuntimeCapability(target: string, input: InspectRuntimeInput): Run
   return {
     target,
     runtimeName,
+    ...(runtimeVersion ? { runtimeVersion } : {}),
     status: input.status ?? "available",
     inspectedAt,
     configDigest: input.configDigest ?? defaultDigest,
     hooks,
-    knownLimitations: input.knownLimitations ?? [],
+    knownLimitations: redactStringArray(input.knownLimitations ?? []),
   };
 }
 
@@ -217,6 +244,13 @@ function getDefaultRuntimeDigest(target: string): string | undefined {
   const normalizedTarget = target.toLowerCase();
   return isRuntimeTarget(normalizedTarget)
     ? computeRuntimeProfileDigest(normalizedTarget)
+    : undefined;
+}
+
+function getDefaultRuntimeVersion(target: string): string | undefined {
+  const normalizedTarget = target.toLowerCase();
+  return isRuntimeTarget(normalizedTarget)
+    ? getRuntimeProfile(normalizedTarget).runtimeVersion
     : undefined;
 }
 
@@ -248,6 +282,7 @@ function getDefaultRuntimeHooks(
 function getRuntimeHookCapabilityInputs(
   target: string,
   hookInputs: Partial<Record<GateType, RuntimeHookCapabilityInput>> | undefined,
+  trustedInput: boolean,
 ): Partial<Record<GateType, RuntimeHookCapabilityInput>> {
   const defaults = getDefaultRuntimeHooks(target);
   const normalizedTarget = target.toLowerCase();
@@ -256,7 +291,7 @@ function getRuntimeHookCapabilityInputs(
     return Object.fromEntries(
       GATE_TYPES.map((gateType) => [
         gateType,
-        sanitizeCustomHookCapabilityInput(hookInputs?.[gateType]),
+        sanitizeCustomHookCapabilityInput(hookInputs?.[gateType], trustedInput),
       ]),
     ) as Partial<Record<GateType, RuntimeHookCapabilityInput>>;
   }
@@ -275,7 +310,11 @@ function getRuntimeHookCapabilityInputs(
         {
           ...defaultHook,
           status: getConservativeKnownHookStatus(defaultHook?.status, hookInput.status),
-          configDigest: defaultHook?.configDigest,
+          configDigest:
+            trustedInput && hookInput.configDigest
+              ? hookInput.configDigest
+              : defaultHook?.configDigest,
+          proofs: normalizeRuntimeProofs(hookInput.proofs, trustedInput),
           notes: hookInput.notes,
         },
       ];
@@ -285,13 +324,15 @@ function getRuntimeHookCapabilityInputs(
 
 function sanitizeCustomHookCapabilityInput(
   input: RuntimeHookCapabilityInput | undefined,
+  trustedInput: boolean,
 ): RuntimeHookCapabilityInput {
   return {
     status: input?.status === "missing" ? "missing" : "unknown",
     nativeEvent: null,
     canBlock: false,
     ...(input?.configDigest ? { configDigest: input.configDigest } : {}),
-    ...(input?.notes ? { notes: input.notes } : {}),
+    ...(input?.proofs ? { proofs: normalizeRuntimeProofs(input.proofs, trustedInput) } : {}),
+    ...(input?.notes ? { notes: redactStringArray(input.notes) } : {}),
   };
 }
 
@@ -325,7 +366,8 @@ function buildHookCapability(
     status,
     inspectedAt,
     ...(input?.configDigest ? { configDigest: input.configDigest } : {}),
-    ...(input?.notes ? { notes: input.notes } : {}),
+    ...(input?.proofs ? { proofs: redactRuntimeProofs(input.proofs) } : {}),
+    ...(input?.notes ? { notes: redactStringArray(input.notes) } : {}),
   };
 }
 
@@ -359,6 +401,9 @@ function buildRuntimeBinding(
       nativeEvent: capability.nativeEvent,
       canBlock: false,
       inspectedAt: capability.inspectedAt,
+      ...(runtimeCapability?.runtimeVersion
+        ? { runtimeVersion: runtimeCapability.runtimeVersion }
+        : {}),
       ...(capability.configDigest ? { configDigest: capability.configDigest } : {}),
       reason: `runtime capability is ${capability.status}`,
     };
@@ -372,6 +417,9 @@ function buildRuntimeBinding(
       nativeEvent: capability.nativeEvent,
       canBlock: false,
       inspectedAt: capability.inspectedAt,
+      ...(runtimeCapability?.runtimeVersion
+        ? { runtimeVersion: runtimeCapability.runtimeVersion }
+        : {}),
       ...(digestMismatch.currentDigest ? { configDigest: digestMismatch.currentDigest } : {}),
       reason: `runtime capability digest mismatch: expected ${digestMismatch.expectedDigest}, current ${digestMismatch.currentDigest}`,
     };
@@ -387,6 +435,9 @@ function buildRuntimeBinding(
       nativeEvent: null,
       canBlock: false,
       inspectedAt: capability.inspectedAt,
+      ...(runtimeCapability?.runtimeVersion
+        ? { runtimeVersion: runtimeCapability.runtimeVersion }
+        : {}),
       ...(bindingDigest ? { configDigest: bindingDigest } : {}),
       reason: "runtime capability is unknown",
     };
@@ -400,6 +451,9 @@ function buildRuntimeBinding(
       nativeEvent: null,
       canBlock: false,
       inspectedAt: capability.inspectedAt,
+      ...(runtimeCapability?.runtimeVersion
+        ? { runtimeVersion: runtimeCapability.runtimeVersion }
+        : {}),
       ...(bindingDigest ? { configDigest: bindingDigest } : {}),
       reason: "runtime does not expose a native event for this gate",
     };
@@ -416,6 +470,9 @@ function buildRuntimeBinding(
           nativeEvent: null,
           canBlock: false,
           inspectedAt: capability.inspectedAt,
+          ...(runtimeCapability?.runtimeVersion
+            ? { runtimeVersion: runtimeCapability.runtimeVersion }
+            : {}),
           ...(bindingDigest ? { configDigest: bindingDigest } : {}),
           reason: trustedHookProblem.reason,
         }
@@ -426,6 +483,9 @@ function buildRuntimeBinding(
           nativeEvent: null,
           canBlock: false,
           inspectedAt: capability.inspectedAt,
+          ...(runtimeCapability?.runtimeVersion
+            ? { runtimeVersion: runtimeCapability.runtimeVersion }
+            : {}),
           ...(bindingDigest ? { configDigest: bindingDigest } : {}),
           reason: trustedHookProblem.reason,
         };
@@ -441,8 +501,38 @@ function buildRuntimeBinding(
       nativeEvent: capability.nativeEvent,
       canBlock: false,
       inspectedAt: capability.inspectedAt,
+      ...(runtimeCapability?.runtimeVersion
+        ? { runtimeVersion: runtimeCapability.runtimeVersion }
+        : {}),
       ...(bindingDigest ? { configDigest: bindingDigest } : {}),
       reason: `runtime capability digest proof is missing: ${missingDigestProof}`,
+    };
+  }
+
+  if (
+    capability.canBlock &&
+    !hasAcceptedBlockingProof(
+      capability,
+      target,
+      runtimeCapability?.runtimeVersion,
+      gateType,
+      bindingDigest,
+      inspectedAt,
+    )
+  ) {
+    return {
+      gateType,
+      target,
+      status: "stale",
+      nativeEvent: capability.nativeEvent,
+      canBlock: false,
+      inspectedAt: capability.inspectedAt,
+      ...(runtimeCapability?.runtimeVersion
+        ? { runtimeVersion: runtimeCapability.runtimeVersion }
+        : {}),
+      ...(bindingDigest ? { configDigest: bindingDigest } : {}),
+      reason:
+        "runtime blocking proof is missing or stale: trusted core-runtime-probe accepted negative_fixture or event_fire with observedAt required, observed no earlier than capability inspection, no later than binding inspection, and within the trusted proof freshness window",
     };
   }
 
@@ -453,9 +543,66 @@ function buildRuntimeBinding(
     nativeEvent: capability.nativeEvent,
     canBlock: capability.canBlock,
     inspectedAt: capability.inspectedAt ?? inspectedAt,
+    ...(runtimeCapability?.runtimeVersion
+      ? { runtimeVersion: runtimeCapability.runtimeVersion }
+      : {}),
     ...(bindingDigest ? { configDigest: bindingDigest } : {}),
     reason: "runtime capability inspected and bound to native event",
   };
+}
+
+function hasAcceptedBlockingProof(
+  capability: RuntimeHookCapability,
+  target: string,
+  runtimeVersion: string | undefined,
+  gateType: GateType,
+  configDigest: string | undefined,
+  inspectedAt: string,
+): boolean {
+  if (!runtimeVersion || !configDigest) {
+    return false;
+  }
+
+  return (
+    capability.proofs?.some(
+      (proof) =>
+        BLOCKING_RUNTIME_PROOF_TYPES.has(proof.type) &&
+        isTrustedRuntimeProof(proof, {
+          target,
+          runtimeVersion,
+          gateType,
+          configDigest,
+          result: "blocked_expected_fixture",
+          validAfter: capability.inspectedAt,
+          validAt: inspectedAt,
+          maxAgeMs: DEFAULT_TRUSTED_RUNTIME_PROOF_MAX_AGE_MS,
+        }),
+    ) ?? false
+  );
+}
+
+function normalizeRuntimeProofs(
+  proofs: RuntimeProbeEvidence[] | undefined,
+  trustedInput: boolean,
+): RuntimeProbeEvidence[] | undefined {
+  return proofs?.map((proof) =>
+    redactRuntimeProof(normalizeRuntimeProofTrust(proof, trustedInput)),
+  );
+}
+
+function redactRuntimeProofs(proofs: RuntimeProbeEvidence[]): RuntimeProbeEvidence[] {
+  return proofs.map(redactRuntimeProof);
+}
+
+function redactRuntimeProof(proof: RuntimeProbeEvidence): RuntimeProbeEvidence {
+  return {
+    ...proof,
+    ...(proof.detail ? { detail: redactSecrets(proof.detail) ?? proof.detail } : {}),
+  };
+}
+
+function redactStringArray(values: string[]): string[] {
+  return values.map((value) => redactSecrets(value) ?? value);
 }
 
 function getTrustedHookProblem(

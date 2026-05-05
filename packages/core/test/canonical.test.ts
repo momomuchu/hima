@@ -20,6 +20,7 @@ import {
   RISK_CLASSES,
   RUNTIME_BINDING_STATUSES,
   RUNTIME_CAPABILITY_STATUSES,
+  RUNTIME_PROOF_TYPES,
   riskAtLeast,
   STATE_STATUSES,
   SUB_PHASES,
@@ -41,6 +42,7 @@ import {
 import {
   RuntimeBindingStatusSchema,
   RuntimeCapabilityStatusSchema,
+  RuntimeProofTypeSchema,
 } from "../src/schemas/run-set.schema.js";
 
 describe("canonical vocabulary", () => {
@@ -88,6 +90,14 @@ describe("canonical vocabulary", () => {
   it("exports canonical user-facing vocabularies for adapters", () => {
     expect(GATE_DECISIONS).toEqual(["allow", "warn", "block"]);
     expect(EVIDENCE_STATUSES).toEqual(["candidate", "accepted", "rejected"]);
+    expect(RUNTIME_PROOF_TYPES).toEqual([
+      "config_read",
+      "manifest_digest",
+      "dry_run",
+      "negative_fixture",
+      "event_fire",
+      "manual_attestation",
+    ]);
     expect(CONFIDENCE_LEVELS).toEqual(["low", "medium", "high"]);
     expect(CHANGE_TYPES).toEqual([
       "feature",
@@ -116,6 +126,13 @@ describe("canonical vocabulary", () => {
     expect(ChangeTypeSchema.options).toEqual(CHANGE_TYPES);
     expect(RuntimeCapabilityStatusSchema.options).toEqual(RUNTIME_CAPABILITY_STATUSES);
     expect(RuntimeBindingStatusSchema.options).toEqual(RUNTIME_BINDING_STATUSES);
+    expect(RuntimeProofTypeSchema.options).toEqual(RUNTIME_PROOF_TYPES);
+  });
+
+  it("rejects legacy French risk aliases at the schema boundary", () => {
+    expect(RiskClassSchema.safeParse("F").success).toBe(false);
+    expect(RiskClassSchema.safeParse("E").success).toBe(false);
+    expect(RiskClassSchema.safeParse("É").success).toBe(false);
   });
 
   it("exports canonical defaults for command and runtime surfaces", () => {

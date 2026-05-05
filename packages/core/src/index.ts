@@ -3,7 +3,9 @@ export * from "./convergence/evaluate-convergence.js";
 export * from "./evidence/evaluate-evidence.js";
 export * from "./gates/evaluate-gate.js";
 export * from "./install/artifact-install.js";
+export * from "./install/artifact-rollback.js";
 export * from "./install/platform-install.js";
+export * from "./install/runtime-lifecycle.js";
 export * from "./policy/baseline-policy.js";
 export * from "./policy/write-zones.js";
 export type {
@@ -25,14 +27,30 @@ export {
   scanForForcingSignals,
 } from "./risk-classifier/index.js";
 export { maxRiskClass } from "./risk-classifier/risk-rank.js";
-export * from "./runtime/runtime-bindings.js";
+export type {
+  BindRuntimeInput,
+  InspectRuntimeInput,
+  RuntimeBindingAssessment,
+  RuntimeBindingAssessmentOptions,
+} from "./runtime/runtime-bindings.js";
+export {
+  assessRuntimeBinding,
+  bindRuntime,
+  buildRuntimeBindings,
+  computeRuntimeHookDigest,
+  computeRuntimeProfileDigest,
+  inspectRuntime,
+} from "./runtime/runtime-bindings.js";
+export * from "./runtime/runtime-probe.js";
 export * from "./runtime/runtime-profiles.js";
 export * from "./schemas/current-risk.schema.js";
 export * from "./schemas/gate-event.schema.js";
 export * from "./schemas/run-set.schema.js";
 export * from "./schemas/state.schema.js";
+export * from "./security/redaction.js";
 export * from "./services/add-evidence.js";
 export * from "./services/close-run.js";
+export * from "./services/enter-development.js";
 export * from "./services/get-status.js";
 export * from "./services/handle-hook.js";
 export * from "./services/init-project.js";

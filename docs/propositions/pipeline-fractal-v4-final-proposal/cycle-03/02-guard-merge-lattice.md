@@ -296,9 +296,9 @@ Hard blocks are required for:
 - `null` values;
 - unknown required capability;
 - missing required runtime binding with no policy-allowed fallback;
-- M/E/C enforcement requested through audit-only or `noop_traced` binding;
+- M/H/C enforcement requested through audit-only or `noop_traced` binding;
 - unclassified risk using bypass;
-- E/C autonomous final decision without required checkpoint;
+- H/C autonomous final decision without required checkpoint;
 - stale or conflicted evidence for `DONE_VERIFIED`;
 - convergence not verified for `DONE_VERIFIED`;
 - event append unavailable for mutation.
@@ -340,7 +340,7 @@ registry reason and does not evaluate policy overlays by inference.
 | Order | Overlay kind | Purpose |
 |---:|---|---|
 | 100 | `base_guard` | Registered transition/action existence and generic invariants. |
-| 200 | `risk_overlay` | T/F/M/E/C minima, promotion effects, bypass legality. |
+| 200 | `risk_overlay` | T/L/M/H/C minima, promotion effects, bypass legality. |
 | 300 | `supervision_overlay` | Pairing, auto-decision, bypass and human-mode constraints. |
 | 400 | `runtime_overlay` | Capability and Binding Set enforceability. |
 | 500 | `territory_overlay` | Tool, path, action, scope and state territory. |
@@ -457,7 +457,7 @@ Example shape:
   "to_verdict": "degrade",
   "from_overlay_kind": "runtime_overlay",
   "allowed_later_overlay_kind": "risk_overlay",
-  "risk_classes": ["T", "F"],
+  "risk_classes": ["T", "L"],
   "supervision_modes": ["auto_decision", "pairing"],
   "required_conditions": [
     "binding_status=fallback",
@@ -479,10 +479,10 @@ These conditions cannot be weakened to `allow`, `warn`, or `degrade`:
 - `null` input;
 - event append unavailable for a requested mutation;
 - unknown capability required for enforcement;
-- missing required binding for M/E/C enforcement without native-equivalent
+- missing required binding for M/H/C enforcement without native-equivalent
   fallback;
-- `noop_traced` used as blocking enforcement for M/E/C;
-- E/C bypass without human checkpoint;
+- `noop_traced` used as blocking enforcement for M/H/C;
+- H/C bypass without human checkpoint;
 - C autonomous final decision;
 - `DONE_VERIFIED` with evidence status below `verified`;
 - `DONE_VERIFIED` with convergence status below `verified`;
@@ -543,7 +543,7 @@ decision or attempts to act on it.
 | `warn` | Persist `GUARD_EVALUATED`; record warning evidence requirement. | Transition/action may proceed. | `DONE_VERIFIED` allowed only if warning evidence is satisfied before close. |
 | `degrade` | Persist `GUARD_EVALUATED`; require `DEGRADED_ROUTE_ACCEPTED` before progress. | Transition/action may proceed only through declared fallback. | Cap at `DONE_WITH_GAPS` until degradation is resolved. |
 | `reroute` | Persist `GUARD_EVALUATED` plus route blocker evidence. | Current transition/action does not proceed; route planner may select registered alternative. | No final verified claim until new route evidence is fresh. |
-| `escalate` | Persist `GUARD_EVALUATED`; require HumanCheckpoint or accepted independent arbitration evidence. | No progress until checkpoint/arbitration is valid. | E/C final states require checkpoint evidence. |
+| `escalate` | Persist `GUARD_EVALUATED`; require HumanCheckpoint or accepted independent arbitration evidence. | No progress until checkpoint/arbitration is valid. | H/C final states require checkpoint evidence. |
 | `block` | Persist `GUARD_EVALUATED` and `STATE_TRANSITION_BLOCKED` or domain-specific block event when applicable. | No protected mutation or governed action. | May close only as explicit blocked final state when closing policy allows. |
 
 If event append fails, no mutation may claim success regardless of guard verdict.
@@ -579,14 +579,14 @@ engine. They extend the Cycle 02 fixtures without replacing them.
 | Fixture id | Input overlay verdicts | Context | Expected merged verdict | Required checks |
 |---|---|---|---|---|
 | GM-001 | base `allow`, risk `warn`, runtime `block`, territory `allow`, evidence `warn`, convergence `allow` | M risk, missing pre-tool write gate | `block` | Runtime block dominates; warnings retained; required evidence includes `RUNTIME_BINDING_CHECKED`; no mutation. |
-| GM-002 | base `allow`, risk `allow`, runtime `degrade`, territory `block`, evidence `warn` | F risk, path outside declared scope | `block` | Territory block dominates runtime degradation; degradation is not accepted; evidence warning retained. |
-| GM-003 | base `allow`, risk `block`, runtime `degrade`, evidence `warn` | E risk with post-run audit fallback only | `block` | E risk block cannot weaken to degrade; `DEGRADED_ROUTE_FORBIDDEN` or risk block reason returned. |
+| GM-002 | base `allow`, risk `allow`, runtime `degrade`, territory `block`, evidence `warn` | L risk, path outside declared scope | `block` | Territory block dominates runtime degradation; degradation is not accepted; evidence warning retained. |
+| GM-003 | base `allow`, risk `block`, runtime `degrade`, evidence `warn` | H risk with post-run audit fallback only | `block` | H risk block cannot weaken to degrade; `DEGRADED_ROUTE_FORBIDDEN` or risk block reason returned. |
 | GM-004 | base `allow`, risk `warn`, runtime `degrade`, territory `allow` | T risk with declared audit fallback | `degrade` | Degraded route requires `DEGRADED_ROUTE_ACCEPTED`; final-state ceiling is `DONE_WITH_GAPS` until resolved. |
 | GM-005 | base `allow`, risk `allow`, supervision `escalate`, runtime `allow`, territory `allow` | C final decision without valid human checkpoint | `escalate` | Escalation blocks progress; required action names HumanCheckpoint; no route-local weakening. |
 | GM-006 | base `allow`, convergence `reroute`, closing `block` | Stop gate requests `DONE_VERIFIED`, convergence flat | `block` | Closing block for unverified convergence dominates reroute; no final commit. |
 | GM-007 | base `allow`, evidence `block`, convergence `allow`, closing `allow` | `DONE_VERIFIED` with stale evidence | `block` | Evidence stale blocks closing even if closing policy overlay would otherwise allow. |
 | GM-008 | base `allow`, risk `block`, supervision `allow` | `UNCLASSIFIED` risk with bypass | `block` | Later supervision allow cannot weaken unclassified bypass block. |
-| GM-009 | base `allow`, runtime `block`, risk weakening rule to `degrade` | F risk, declared fallback, policy allows audit-only fallback | `degrade` | Accepted weakening is recorded with rule id and degradation evidence. |
+| GM-009 | base `allow`, runtime `block`, risk weakening rule to `degrade` | L risk, declared fallback, policy allows audit-only fallback | `degrade` | Accepted weakening is recorded with rule id and degradation evidence. |
 | GM-010 | base `allow`, runtime `block`, risk weakening rule to `degrade` | M risk, declared audit-only fallback | `block` | Weakening rejected because M enforcement cannot use audit-only fallback. |
 | GM-011 | base `allow`, evidence `warn`, convergence `warn` | Build local quality transition, evidence required before validation | `warn` | Same-rank tie keeps deterministic dominant overlay and unions evidence requirements. |
 | GM-012 | base `block`, risk `allow`, runtime `allow` | Transition id not registered | `block` | Base hard block cannot be weakened by later allows. |
@@ -594,7 +594,7 @@ engine. They extend the Cycle 02 fixtures without replacing them.
 | GM-014 | registry precheck `block` | Registry digest mismatch | `block` | Executable guard use fails closed; no merged cache inference. |
 | GM-015 | base `allow`, convergence `reroute`, evidence `warn` | Validation loop repeats without new evidence | `reroute` | Current route blocked; route planner may choose alternative; warning evidence retained. |
 | GM-016 | base `allow`, evidence `block`, evidence `warn` | Conflicting review evidence plus missing optional artifact | `block` | Same overlay kind conflict uses rank first; block dominates warn; both refs retained. |
-| GM-017 | base `allow`, risk `warn`, runtime `warn`, territory `allow` | Low-risk optional hook missing with noop traced | `warn` | No silent allow; required evidence records missing primitive and residual gap. |
+| GM-017 | base `allow`, risk `warn`, runtime `warn`, territory `allow` | L-risk optional hook missing with noop traced | `warn` | No silent allow; required evidence records missing primitive and residual gap. |
 | GM-018 | base `allow`, risk `escalate`, runtime `block` | Human checkpoint required and required gate missing | `block` | Runtime hard block dominates escalation; final report may mention both obligations. |
 | GM-019 | base `allow`, closing `block` | Event append unavailable for final commit | `block` | Guard/tool cannot claim closure; snapshot cannot advance. |
 | GM-020 | base `allow`, risk `allow`, runtime `allow`, territory `allow`, evidence `allow`, convergence `allow`, closing `allow` | `DONE_VERIFIED` with verified evidence and convergence | `allow` | Final state may commit if event append succeeds. |
@@ -610,7 +610,7 @@ The guard merge contract is implementation-ready when tests prove:
 4. Stronger overlays dominate weaker overlays.
 5. Same-rank tie-breakers are deterministic.
 6. Weakening is rejected unless an explicit policy rule matches.
-7. M/E/C audit-only enforcement cannot weaken hard runtime blocks.
+7. M/H/C audit-only enforcement cannot weaken hard runtime blocks.
 8. `degrade` records residual risk and final-state ceiling.
 9. Warnings below a dominant block remain visible as evidence obligations.
 10. `DONE_VERIFIED` cannot pass with stale, partial, conflicted or missing

@@ -1,6 +1,6 @@
 # Pipeline Fractale V4 - Specs Workbench
 
-Status: hooks-first specification phase, no runtime implementation yet.
+Status: hooks-first specification workbench, partially implemented in `packages/*`.
 
 ## Purpose
 
@@ -18,7 +18,7 @@ freshly inspected, bound, and proven enforceable for the active risk class.
 | File | Why |
 |---|---|
 | `0001-hooks-first-runtime-binding-layer.spec.md` | Main spec. Defines gates, runtime bindings, failure rules, acceptance criteria and fixture matrix. |
-| `0002-runtime-probe-and-freshness.spec.md` | Defines how `rms.inspect_runtime` proves hook capability instead of trusting runtime names. |
+| `0002-runtime-probe-and-freshness.spec.md` | Defines how `rms.probe_runtime` acquires trusted hook capability proof instead of trusting runtime names or caller attestations. |
 | `0003-pre-action-target-expansion.spec.md` | Defines how hooks identify write targets before side effects. |
 | `0004-hook-adapter-matrix.spec.md` | Concrete Claude, Codex and Hermes adapter binding matrix. |
 
@@ -28,9 +28,9 @@ If you read only one file, read `0001-hooks-first-runtime-binding-layer.spec.md`
 
 ```text
 Cycle 04 kernel architecture: PASS
-Hook enforcement verification: NOT YET
-Schema-first specs: START
-Runtime implementation: BLOCKED until hook specs and fixtures are accepted
+Hook enforcement verification: PARTIAL
+Schema-first specs: ACTIVE
+Runtime implementation: IN PROGRESS, gated by fresh trusted runtime proof
 ```
 
 ## Authority Model
@@ -44,14 +44,14 @@ RMS event log and pinned registries
 > runtime adapters/hooks
 > skills
 > subagents
-> books
+> reference docs
 ```
 
 But enforcement readiness is hook-gated:
 
 ```text
 No fresh hook capability proof
-= no governed M/E/C mutation
+= no governed M/H/C mutation
 = no DONE_VERIFIED
 ```
 
@@ -79,9 +79,9 @@ Out of scope:
 
 ## Implementation Gate
 
-Runtime implementation may start only after:
+Runtime implementation remains governed by:
 
-1. hook specs are accepted;
-2. JSON Schemas and YAML registry stubs are planned;
-3. fixture IDs in `0001` are converted into executable tests;
-4. per-runtime adapter specs for Claude, Codex and Hermes are closed.
+1. hook specs stay accepted and synchronized with executable tests;
+2. JSON Schemas and registry-derived catalogs remain the source of truth;
+3. fixture IDs in `0001` are converted into executable tests before a gate is considered native-enforceable;
+4. per-runtime adapter specs for Claude, Codex and Hermes stay aligned with runtime profiles and probes.

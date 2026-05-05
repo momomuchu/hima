@@ -10,6 +10,7 @@ import {
   MACRO_CYCLES,
   OPERATING_MODES,
   RISK_CLASSES,
+  RUNTIME_PROOF_TYPES,
   STATE_STATUSES,
   SUB_PHASES,
 } from "../types/canonical.js";
@@ -26,5 +27,6 @@ export const GateDecisionSchema = z.enum(GATE_DECISIONS);
 export const EvidenceStatusSchema = z.enum(EVIDENCE_STATUSES);
 export const ConfidenceLevelSchema = z.enum(CONFIDENCE_LEVELS);
 export const ChangeTypeSchema = z.enum(CHANGE_TYPES);
+export const RuntimeProofTypeSchema = z.enum(RUNTIME_PROOF_TYPES);
 
 export const JsonObjectSchema = z.record(z.string(), z.unknown());

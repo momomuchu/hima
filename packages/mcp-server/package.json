@@ -2,7 +2,22 @@
   "name": "@harness/mcp-server",
   "version": "0.0.0",
   "private": true,
+  "description": "MCP server exposing HIMA planning, gates, runtime, and artifact tools.",
+  "license": "UNLICENSED",
   "type": "module",
+  "keywords": [
+    "hima",
+    "harness",
+    "coding-agents",
+    "mcp",
+    "planning"
+  ],
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "bin": {
     "harness-mcp-server": "./dist/index.js"
   },
@@ -15,11 +30,14 @@
     }
   },
   "scripts": {
-    "build": "tsup src/index.ts --format esm --sourcemap --clean --external @harness/core && tsc -p tsconfig.json --emitDeclarationOnly --declaration --outDir dist",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run --root ../.. ../../packages/mcp-server/test/index.test.ts"
+    "build": "node ../../scripts/with-build-lock.mjs --shell \"tsup src/index.ts --format esm --sourcemap --clean --external @harness/core && tsc -p tsconfig.json --emitDeclarationOnly --declaration --outDir dist\"",
+    "typecheck": "node ../../scripts/with-build-lock.mjs -- tsc --noEmit",
+    "test": "node ../../scripts/with-build-lock.mjs -- vitest run --root ../.. ../../packages/mcp-server/test/index.test.ts"
   },
   "dependencies": {
+    "@harness/adapter-claude": "workspace:*",
+    "@harness/adapter-codex": "workspace:*",
+    "@harness/adapter-hermes": "workspace:*",
     "@harness/core": "workspace:*"
   }
 }

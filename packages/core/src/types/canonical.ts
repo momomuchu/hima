@@ -123,6 +123,16 @@ export type EvidenceStatus = (typeof EVIDENCE_STATUSES)[number];
 export const DEFAULT_EVIDENCE_STATUS = "candidate" satisfies EvidenceStatus;
 export const DEFAULT_EVIDENCE_KEY = "command_output" satisfies EvidenceKey;
 
+export const RUNTIME_PROOF_TYPES = [
+  "config_read",
+  "manifest_digest",
+  "dry_run",
+  "negative_fixture",
+  "event_fire",
+  "manual_attestation",
+] as const;
+export type RuntimeProofType = (typeof RUNTIME_PROOF_TYPES)[number];
+
 export const CONFIDENCE_LEVELS = ["low", "medium", "high"] as const;
 export type ConfidenceLevel = (typeof CONFIDENCE_LEVELS)[number];
 export const DEFAULT_CONFIDENCE_LEVEL = "medium" satisfies ConfidenceLevel;

@@ -25,7 +25,7 @@ Each cycle has seven stages:
 | 1. Load context | Source docs and previous cycle findings. |
 | 2. Generate options | Three viable proposals, not one default answer. |
 | 3. Red-team options | Edge cases, contradictions, runtime failure modes. |
-| 4. Map runtime surfaces | MCP, skills, subagents, books, hooks, logs, evidence. |
+| 4. Map runtime surfaces | MCP, skills, hooks, subagents, logs, evidence. |
 | 5. Score convergence | Evidence, decision power, risk coverage, implementation clarity. |
 | 6. Integrate | One recommendation plus two rejected alternatives with reasons. |
 | 7. Emit next-cycle backlog | Remaining P0/P1 decisions, fixtures and docs to update. |
@@ -36,7 +36,7 @@ Use subagents when lanes are independent and materially improve throughput:
 
 - architecture option generation;
 - edge-case red team;
-- skills/subagents/books taxonomy;
+- skills/hooks/subagents taxonomy;
 - MCP state-kernel design;
 - verifier/convergence pass.
 
@@ -52,7 +52,7 @@ A cycle is considered convergent when all conditions are true:
 - edge cases have deterministic handling or explicit non-goals;
 - the MVP surface gets smaller or more stable, not larger;
 - every runtime dependency has a Binding Set strategy;
-- the final proposal can name what lives in MCP, skills, subagents and books
+- the final proposal can name what lives in MCP, skills, hooks, and subagents
   without overlap.
 
 ## Stop Conditions
@@ -78,8 +78,8 @@ Three convergent proposals:
 
 1. MCP-first RMS kernel.
 2. Skill-first portable workflow layer.
-3. Book-first governance and knowledge layer with MCP enforcement.
+3. Documentation-first governance and knowledge layer with MCP enforcement.
 
 The expected likely winner is a hybrid: MCP owns state/control; skills expose
-workflow; subagents execute bounded lanes; books hold durable operating
-knowledge.
+workflow; hooks enforce runtime policy; subagents execute bounded lanes;
+reference docs hold durable operating knowledge.

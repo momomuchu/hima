@@ -10,7 +10,7 @@ Pipeline Fractale V4 should converge on a hybrid RMS design: a local
 event-sourced state kernel owns truth, runtime adapters bind it to
 Claude/Codex/Hermes, and one MCP server exposes the same kernel as portable
 tools/resources. Skills and subagents remain execution surfaces, not state
-owners. Books are durable knowledge artifacts that shape policy, evidence and
+owners. Reference docs are durable knowledge artifacts that shape policy, evidence and
 operating practice, but they do not mutate kernel state directly.
 
 ## Candidate A - MCP-Centric RMS Server
@@ -29,7 +29,7 @@ registries and run state.
 | MCP/server | Main authority. Exposes tools for transitions/guards, resources for current run/evidence/capabilities, and prompts for cycle-specific guidance. |
 | Skills | Thin client procedures. They explain how to use the RMS server for Discovery, Cadrage, Build, Validation, Release, Run and Learning. |
 | Subagents | Isolated review, research, testing or critique. Their output must be submitted back as Evidence Set entries before affecting final state. |
-| Books | Served as MCP resources: risk book, policy book, gate book, runtime binding book, cycle book, evidence book, runbook book and learning book. |
+| Reference docs | Served as MCP resources: risk reference doc, policy reference doc, gate reference doc, runtime binding reference doc, cycle reference doc, evidence reference doc, runbook reference doc and learning reference doc. |
 
 ### State Ownership
 
@@ -50,7 +50,7 @@ registry, transition graph, convergence samples and final-state commit.
 
 ### Failure Modes
 
-- MCP unavailable: runtime must fall back to read-only guidance or file-only audit, not silently allow M/E/C transitions.
+- MCP unavailable: runtime must fall back to read-only guidance or file-only audit, not silently allow M/H/C transitions.
 - MCP state and local files diverge: final state must block until reconciliation.
 - Runtime cannot synchronously block: MCP can decide block, but adapter may only audit after the fact.
 - Server becomes too broad: if it owns orchestration, policy, docs and execution, it risks becoming a monolith.
@@ -70,7 +70,7 @@ shared harness commands.
 | MCP/server | Optional. Used for external integrations and state inspection, but not the primary path. |
 | Skills | Main user-facing surface: `classify-risk`, `route-run`, `execute-build`, `validate-evidence`, `close-run`, `review-learning`. |
 | Subagents | Native runtime workers: explorer, planner, executor, verifier, security reviewer, critic and researcher. |
-| Books | Local Markdown/reference packs loaded by skills: cycle, policy, risk, evidence, runtime, runbooks and postmortems. |
+| Reference docs | Local Markdown/reference packs loaded by skills: cycle, policy, risk, evidence, runtime, runbooks and postmortems. |
 
 ### State Ownership
 
@@ -91,7 +91,7 @@ Set, while skills guide the agent through allowed transitions.
 
 ### Failure Modes
 
-- Hooks disabled: gates become advisory; M/E/C must block or close with runtime-missing/gaps.
+- Hooks disabled: gates become advisory; M/H/C must block or close with runtime-missing/gaps.
 - Skill bypasses kernel: state changes without append-only events become invalid.
 - Subagent output stays in chat only: final state cannot rely on it.
 - Runtime-specific permissions are mistaken for RMS policy.
@@ -109,23 +109,23 @@ kernel.
 | Surface | Role |
 |---|---|
 | MCP/server | First-class adapter exposing the kernel as tools/resources. If MCP is unavailable, adapters can still use the same local kernel through file/CLI bindings when risk allows. |
-| Skills | Procedural UX. They select workflows, load books and instruct agents how to operate. Every state-changing action goes through kernel transitions and evidence intake. |
+| Skills | Procedural UX. They select workflows, load reference docs and instruct agents how to operate. Every state-changing action goes through kernel transitions and evidence intake. |
 | Subagents | Bounded workers. They never own final state. Outputs enter the Evidence Set through evidence intake. |
-| Books | Durable knowledge sources, versioned separately from run state. |
+| Reference docs | Durable knowledge sources, versioned separately from run state. |
 
-### Books
+### Reference docs
 
-| Book | Purpose |
+| Reference doc | Purpose |
 |---|---|
-| Risk Book | T/F/M/E/C classification and forcing signals. |
-| Policy Book | Mandatory gates, bypass rules and human checkpoints. |
-| Cycle Book | Macro-cycles, semantic substates and transition graph. |
-| Evidence Book | Proof requirements by cycle, risk and final candidate. |
-| Runtime Book | Capability and binding semantics for Claude/Codex/Hermes. |
-| Operations Book | Runbooks, incident response, rollback and SLO/SLA practice. |
-| Learning Book | Postmortems, calibration notes and reusable patterns. |
+| Risk Reference doc | T/L/M/H/C classification and forcing signals. |
+| Policy Reference doc | Mandatory gates, bypass rules and human checkpoints. |
+| Cycle Reference doc | Macro-cycles, semantic substates and transition graph. |
+| Evidence Reference doc | Proof requirements by cycle, risk and final candidate. |
+| Runtime Reference doc | Capability and binding semantics for Claude/Codex/Hermes. |
+| Operations Reference doc | Runbooks, incident response, rollback and SLO/SLA practice. |
+| Learning Reference doc | Postmortems, calibration notes and reusable patterns. |
 
-Books inform registries and skills. They are not mutable runtime state.
+Reference docs inform registries and skills. They are not mutable runtime state.
 
 ### State Ownership
 
@@ -159,7 +159,7 @@ fractal lens is never writable state.
 ### Failure Modes
 
 - Adapter writes state directly: invalid unless an append-only event exists.
-- Binding claims `can_block=true` incorrectly: M/E/C enforcement becomes unsafe.
+- Binding claims `can_block=true` incorrectly: M/H/C enforcement becomes unsafe.
 - DerivedView cache drifts from Evidence/Convergence Sets: snapshot validation must fail.
 - MCP unavailable: continue only if local kernel and risk policy allow file-only fallback.
 - Evidence stale/conflicted: final `DONE_VERIFIED` must block.
@@ -175,7 +175,7 @@ adapters:
 2. MCP exposes portable tools/resources for inspection, integration and cross-runtime use.
 3. Skills provide human-facing procedures and reusable workflow guidance.
 4. Subagents provide isolated labor and review, but results count only after evidence intake.
-5. Books provide stable knowledge and policy context, not mutable run state.
+5. Reference docs provide stable knowledge and policy context, not mutable run state.
 
 This design preserves the V2 correction: macro-cycle, cycle-specific substate
 and fractal lens stay separate. It also resolves the core open risk: the RMS has
@@ -189,15 +189,15 @@ weaknesses are handled through Capability and Binding Sets.
 | RMS kernel | State transitions, guards, evidence intake, convergence, final commit. | Runtime UX, model prompting. |
 | MCP server | Portable access to kernel tools/resources. | Independent state truth. |
 | Hooks/adapters | Runtime binding and enforcement. | Guard semantics. |
-| Skills | Procedure, UX, book loading. | Final-state authority. |
+| Skills | Procedure, UX, reference doc loading. | Final-state authority. |
 | Subagents | Bounded investigation/execution outputs. | State transitions. |
-| Books | Durable policy and operational knowledge. | Mutable run state. |
+| Reference docs | Durable policy and operational knowledge. | Mutable run state. |
 
 ## Design-Level Failure Policy
 
 - If state authority conflicts, the append-only event log wins over snapshots.
 - If runtime capability is unknown, block until capability discovery.
-- If a required gate cannot block, M/E/C cannot silently degrade.
+- If a required gate cannot block, M/H/C cannot silently degrade.
 - If evidence is missing, stale or conflicted, `DONE_VERIFIED` is unavailable.
 - If convergence is flat, oscillating or diverging, close only as blocked/gapped when policy allows.
 - If subagent output is not recorded in Evidence Set or events, it is non-authoritative.

@@ -100,8 +100,8 @@ describe("risk classifier", () => {
     ).toBe("M");
   });
 
-  it("requires all modeled low-risk bypass conditions", () => {
-    const lowRisk: Changeset = {
+  it("requires all modeled L-risk bypass conditions", () => {
+    const lRisk: Changeset = {
       files: ["src/widget.ts"],
       labels: [],
       changeType: "fix",
@@ -112,11 +112,11 @@ describe("risk classifier", () => {
       newEndpointExposed: false,
     };
 
-    expect(classifyRisk(lowRisk).riskClass).toBe("L");
-    expect(isBypassEligible("L", lowRisk)).toBe(true);
-    expect(isBypassEligible("L", { ...lowRisk, ciGreen: false })).toBe(false);
-    expect(isBypassEligible("L", { ...lowRisk, diffLinesNet: 101 })).toBe(false);
-    expect(isBypassEligible("L", { ...lowRisk, newEndpointExposed: true })).toBe(false);
+    expect(classifyRisk(lRisk).riskClass).toBe("L");
+    expect(isBypassEligible("L", lRisk)).toBe(true);
+    expect(isBypassEligible("L", { ...lRisk, ciGreen: false })).toBe(false);
+    expect(isBypassEligible("L", { ...lRisk, diffLinesNet: 101 })).toBe(false);
+    expect(isBypassEligible("L", { ...lRisk, newEndpointExposed: true })).toBe(false);
   });
 
   it("promotes safely and blocks invalid demotions", () => {

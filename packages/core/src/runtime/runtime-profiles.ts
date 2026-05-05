@@ -14,8 +14,18 @@ export interface RuntimeHookProfile {
 
 export interface RuntimeProfile {
   target: RuntimeTarget;
+  runtimeVersion: string;
   hooks: Record<GateType, RuntimeHookProfile>;
   featureFlags: Record<string, boolean>;
+}
+
+export interface RuntimeProfileSurfaceEntry {
+  target: RuntimeTarget;
+  gateType: GateType;
+  nativeEvent: string | null;
+  canBlock: boolean;
+  supported: boolean;
+  command: `harness hook ${string}`;
 }
 
 const RUNTIME_NATIVE_EVENTS: Record<
@@ -61,6 +71,12 @@ const HOOK_COMMAND_EVENTS = {
   subagent_stop: "subagent-stop",
 } as const satisfies Record<GateType, string>;
 
+const RUNTIME_PROFILE_VERSIONS = {
+  claude: "claude-profile-v2",
+  codex: "codex-profile-v1",
+  hermes: "hermes-profile-v1",
+} as const satisfies Record<RuntimeTarget, string>;
+
 export function isRuntimeTarget(value: string): value is RuntimeTarget {
   return RUNTIME_TARGETS.includes(value as RuntimeTarget);
 }
@@ -68,6 +84,7 @@ export function isRuntimeTarget(value: string): value is RuntimeTarget {
 export function getRuntimeProfile(target: RuntimeTarget): RuntimeProfile {
   return {
     target,
+    runtimeVersion: RUNTIME_PROFILE_VERSIONS[target],
     hooks: buildRuntimeHooks(target),
     featureFlags: target === "codex" ? { codex_hooks: true } : {},
   };
@@ -78,8 +95,33 @@ export function getRuntimeHookProfiles(target: RuntimeTarget): RuntimeHookProfil
   return GATE_TYPES.map((gateType) => profile.hooks[gateType]);
 }
 
-export function toHookCommand(gateType: GateType): RuntimeHookProfile["command"] {
-  return `harness hook ${HOOK_COMMAND_EVENTS[gateType]}`;
+export function getRuntimeProfileSurface(): RuntimeProfileSurfaceEntry[] {
+  return RUNTIME_TARGETS.flatMap((target) =>
+    getRuntimeHookProfiles(target).map((hook) => ({
+      target,
+      gateType: hook.gateType,
+      nativeEvent: hook.nativeEvent,
+      canBlock: hook.canBlock,
+      supported: hook.supported,
+      command: hook.command,
+    })),
+  );
+}
+
+export function toHookCommand(
+  gateType: GateType,
+  target?: RuntimeTarget,
+): RuntimeHookProfile["command"] {
+  const command = `harness hook ${HOOK_COMMAND_EVENTS[gateType]}` as const;
+  if (target === "claude") {
+    return `${command} --format claude` as const;
+  }
+
+  if (target === "codex") {
+    return `${command} --format codex` as const;
+  }
+
+  return command;
 }
 
 function buildRuntimeHooks(target: RuntimeTarget): Record<GateType, RuntimeHookProfile> {
@@ -89,7 +131,7 @@ function buildRuntimeHooks(target: RuntimeTarget): Record<GateType, RuntimeHookP
       {
         gateType,
         ...RUNTIME_NATIVE_EVENTS[target][gateType],
-        command: toHookCommand(gateType),
+        command: toHookCommand(gateType, target),
       },
     ]),
   ) as Record<GateType, RuntimeHookProfile>;

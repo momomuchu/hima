@@ -7,13 +7,13 @@ required before runtime implementation.
 
 This folder is the convergence surface for the final Pipeline Fractale V4
 proposal. It takes the state-machine V2 folder as input and now evaluates the
-system architecture around five runtime surfaces:
+system architecture around runtime surfaces plus durable documentation:
 
 - one RMS/MCP state kernel;
 - runtime adapters and hooks;
 - skills as reusable procedures;
 - subagents as isolated work lanes;
-- books as durable knowledge and operating manuals.
+- reference docs as durable knowledge and operating manuals.
 
 The goal is not to create one more monolithic document. The goal is to cycle
 three competing proposals until the differences become decision-grade.
@@ -25,7 +25,7 @@ Cycle 01 asked:
 ```text
 If the RMS owns state, guards, evidence, convergence and runtime bindings,
 what should live in the single MCP server, what should live in skills, what
-should live in subagents, and what should live in books?
+should live in subagents, and what should live in reference docs?
 ```
 
 Cycle 02 tested that architecture against implementation-shaped contracts:
@@ -64,7 +64,7 @@ schemas and fixtures are accepted.
 | `00-cycle-protocol.md` | Repeatable autonomous design loop and stop criteria. |
 | `01-three-convergent-architectures.md` | Three candidate architectures with arguments against each. |
 | `02-edge-case-red-team.md` | Edge cases and failure modes that can break the proposal. |
-| `03-skills-subagents-books-taxonomy.md` | Proposed skills, subagents and books. |
+| `03-skills-hooks-subagents-taxonomy.md` | Proposed skills, hooks, and subagents. |
 | `04-single-mcp-state-kernel.md` | One-MCP-server state kernel proposal. |
 | `05-convergence-validation-cycle.md` | Validation and convergence model for repeated cycles. |
 | `06-integrated-final-proposal.md` | Integrated recommendation after a cycle. |
@@ -84,14 +84,14 @@ MCP server = canonical state/control kernel
 hooks      = runtime enforcement and capability proof surface
 skills     = portable procedures and workflow entrypoints
 subagents  = bounded analysis/execution lanes
-books      = durable manuals, contracts and operating knowledge
+reference docs = durable manuals, contracts and operating knowledge
 ```
 
 The alternatives remain useful because they expose different risks:
 
 - MCP-first can become a central bottleneck.
 - Skill-first can drift because procedures own too much implicit state.
-- Book-first can become documentation-heavy and weak at runtime enforcement.
+- Documentation-first can become documentation-heavy and weak at runtime enforcement.
 
 ## Readiness Rule
 
@@ -101,7 +101,7 @@ This folder becomes ready for implementation planning only when:
 - edge cases have expected handling, not just warnings;
 - the single MCP server boundary is clear;
 - hook enforcement boundaries are mapped and tested;
-- the MVP list of skills, subagents and books is closed;
+- the MVP list of skills, hooks, and subagents is closed;
 - the old P0 decisions from the state-machine V2 folder are mapped to concrete
   implementation objects.
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BASE_GATES, getRequiredGates, RISK_POLICY } from "../src/index.js";
+import { BASE_GATES, getRequiredGates, mergeRequiredGates, RISK_POLICY } from "../src/index.js";
 
 describe("baseline policy", () => {
   it("keeps required gates in one policy source", () => {
@@ -22,5 +22,16 @@ describe("baseline policy", () => {
     expect(RISK_POLICY.C.allowedModes).toEqual(["auto", "pairing"]);
     expect(RISK_POLICY.C.requiresHumanCheckpoint).toBe(true);
     expect(RISK_POLICY.C.mandatoryEvidenceKeys).toContain("independent_security_audit");
+  });
+
+  it("merges required gates without duplicating policy, route, or state gates", () => {
+    expect(
+      mergeRequiredGates(
+        ["session_start", "pre_tool", "stop"],
+        ["pre_tool", "subagent_stop"],
+        undefined,
+        ["stop", "subagent_start"],
+      ),
+    ).toEqual(["session_start", "pre_tool", "stop", "subagent_stop", "subagent_start"]);
   });
 });

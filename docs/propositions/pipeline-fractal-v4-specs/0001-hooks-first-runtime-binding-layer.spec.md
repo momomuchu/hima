@@ -21,7 +21,7 @@ Runtime name is not enforcement proof.
 
 A route may claim governed enforcement only from a fresh Binding Set entry
 backed by capability evidence. A missing, stale, unknown, `noop_traced`, or
-audit-only hard gate cannot produce `DONE_VERIFIED` for M/E/C work.
+audit-only hard gate cannot produce `DONE_VERIFIED` for M/H/C work.
 
 ## Authority Rule
 
@@ -32,7 +32,7 @@ RMS event log and pinned registries
 > runtime adapters/hooks
 > skills
 > subagents
-> books
+> reference docs
 ```
 
 Hooks do not override the event log or registries. Hooks provide enforceability
@@ -46,8 +46,8 @@ Only these gates are portable in the MVP:
 | Canonical gate | Purpose | Blocking requirement |
 |---|---|---|
 | `session_start` | Load project, runtime, capability and active-run context. | Not required to block. |
-| `user_prompt` | Detect bypass/mode violations and inject risk/policy context. | Required when native hook supports it; missing binding caps or blocks M/E/C. |
-| `pre_tool` | Prevent governed writes before side effects. | Required for M/E/C hard enforcement. |
+| `user_prompt` | Detect bypass/mode violations and inject risk/policy context. | Required when native hook supports it; missing binding caps or blocks M/H/C. |
+| `pre_tool` | Prevent governed writes before side effects. | Required for M/H/C hard enforcement. |
 | `post_tool` | Capture evidence and detect forbidden output patterns after action. | Evidence gate only; not equivalent to pre-side-effect enforcement. |
 | `stop` | Prevent or cap final closure when evidence/runtime proof is incomplete. | Required for `DONE_VERIFIED` where native stop blocking exists. |
 | `subagent_stop` | Require subagent evidence packets and parent intake. | Required where available; absent bindings cap or block by policy. |
@@ -104,9 +104,9 @@ fallback_can_block: false
 fail_open_risk: false
 risk_allowed:
   T: true
-  F: true
+  L: true
   M: true
-  E: true
+  H: true
   C: true
 supervision_allowed:
   bypass: false
@@ -207,15 +207,15 @@ that continuation as verified governance.
 
 ```text
 Platform may fail open to preserve the user session.
-RMS must fail closed for governed M/E/C claims.
+RMS must fail closed for governed M/H/C claims.
 ```
 
 Examples:
 
 | Runtime condition | Route/final effect |
 |---|---|
-| Hook command crashes during non-governed T/F work. | `warn` or `degrade`; evidence required. |
-| Hook command crashes during M/E/C hard enforcement. | Block route activation or cap final state. |
+| Hook command crashes during non-governed T/L work. | `warn` or `degrade`; evidence required. |
+| Hook command crashes during M/H/C hard enforcement. | Block route activation or cap final state. |
 | `pre_tool` cannot see target path before side effect. | Block governed write unless target expansion fallback is native-equivalent. |
 | `post_tool` detects violation after action. | Record violation, invalidate evidence, block final verified closure. |
 | `stop` cannot hard-block on Hermes. | Do not claim hard stop enforcement; cap final state according to policy. |
@@ -225,10 +225,10 @@ Examples:
 | Runtime binding condition | Max final state |
 |---|---|
 | Fresh required native blocking bindings and sufficient evidence. | `DONE_VERIFIED` |
-| T/F degraded accepted route. | `DONE_WITH_GAPS` unless optional policy allows verified closure. |
+| T/L degraded accepted route. | `DONE_WITH_GAPS` unless optional policy allows verified closure. |
 | M native-equivalent fallback with fresh proof and no residual gap. | `DONE_VERIFIED` by explicit policy only. |
 | M non-native fallback accepted with residual gap. | `DONE_WITH_GAPS` |
-| E/C residual runtime gap. | `BLOCKED_POLICY` |
+| H/C residual runtime gap. | `BLOCKED_POLICY` |
 | Required binding missing, unknown, stale, noop, or audit-only. | `BLOCKED_RUNTIME_MISSING` or route-specific blocked final state. |
 | Event append unavailable during block/degrade/final mutation. | No final mutation committed. |
 
@@ -253,17 +253,17 @@ The installer must:
 2. MUST set Codex `[features] codex_hooks = true` during Codex install.
 3. MUST represent Codex `subagent_stop` as `missing` or `noop_traced`, never
    `native`.
-4. MUST classify any required M/E/C enforcement binding with `can_block=false`
+4. MUST classify any required M/H/C enforcement binding with `can_block=false`
    as degraded or blocked.
-5. MUST block M/E/C route activation when a required enforcement binding is
+5. MUST block M/H/C route activation when a required enforcement binding is
    `missing`, `capability_unknown`, `stale`, or `noop_traced`.
-6. MUST block E/C governed mutation when fallback is not `native_equivalent`,
+6. MUST block H/C governed mutation when fallback is not `native_equivalent`,
    even with human approval.
 7. MUST allow M `native_equivalent` fallback only when
    `fallback_can_block=true` and fresh `RUNTIME_BINDING_CHECKED` evidence
    exists.
 8. MUST forbid `DONE_VERIFIED` when required runtime binding evidence is
-   missing, stale, conflicted, noop, or audit-only for an M/E/C hard gate.
+   missing, stale, conflicted, noop, or audit-only for an M/H/C hard gate.
 9. MUST append a runtime event for every hook decision with gate, verdict, run
    id, risk class, binding status, capability status and reason.
 10. MUST synthesize `binding_status=missing` when a Route Set requires a gate
@@ -299,13 +299,13 @@ The installer must:
 | `PFV4-HOOK-003` | Claude native pre-tool blocks | Claude `PreToolUse`, risk M, forbidden write | `block`; event appended before response. |
 | `PFV4-HOOK-004` | Hermes pre-tool blocks | Hermes `pre_tool_call`, risk M, forbidden write | `block` if Binding Set proves pre-action blocking. |
 | `PFV4-HOOK-005` | Hermes stop cannot hard block | Hermes finalization, missing evidence | No `DONE_VERIFIED`; capped or blocked final record. |
-| `PFV4-HOOK-006` | Codex subagent stop unavailable | Required `subagent_stop`, runtime Codex | `missing`/`noop_traced`; M/E/C hard requirement blocks or caps final. |
+| `PFV4-HOOK-006` | Codex subagent stop unavailable | Required `subagent_stop`, runtime Codex | `missing`/`noop_traced`; M/H/C hard requirement blocks or caps final. |
 | `PFV4-HOOK-007` | Missing binding is not optional | Route requires `pre_tool_write_guard`, binding list empty | `BLOCKED_RUNTIME_MISSING`. |
 | `PFV4-HOOK-008` | Capability unknown blocks | Required gate has `capability_status=UNKNOWN` | `CAPABILITY_UNKNOWN`; runtime inspection required. |
 | `PFV4-HOOK-009` | Stale probe blocks final | Registry changed after last inspected event | `DONE_VERIFIED` blocked until re-probe. |
 | `PFV4-HOOK-010` | M audit-only fallback blocks write | `fallback_class=post_action_audit`, `fallback_can_block=false` | Governed write blocked. |
 | `PFV4-HOOK-011` | M native-equivalent fallback continues | Native-equivalent fallback, fresh evidence | `degrade` or policy `allow`; never silent allow. |
-| `PFV4-HOOK-012` | E non-native fallback blocks | Risk E, fallback `pre_action_check`, human approved | Block; human approval is not sufficient. |
+| `PFV4-HOOK-012` | H non-native fallback blocks | Risk H, fallback `pre_action_check`, human approved | Block; human approval is not sufficient. |
 | `PFV4-HOOK-013` | C auto-decision blocks | Risk C, native binding, `auto_decision` | Block; pairing plus checkpoint required. |
 | `PFV4-HOOK-014` | Hook error caps final | Hook handler throws before decision | Log `HOOK_ERROR`; no `DONE_VERIFIED` until inspected. |
 | `PFV4-HOOK-015` | Event append failure prevents final | Block/degrade/final event cannot append | No final mutation committed. |

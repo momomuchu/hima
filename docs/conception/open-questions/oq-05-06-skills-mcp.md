@@ -159,47 +159,47 @@ Post-MVP (Étape 3 et au-delà) :
 
 ---
 
-## Section 6 — MCP Servers
+## Section 6 - MCP Servers
 
 ---
 
 ### Q6.1 — Le harness expose-t-il lui-même un MCP server ?
 
-**Réponse** : Oui. Le harness expose un MCP server nommé `harness-state` via la commande `harness mcp-server`. Ce server expose les outils permettant à l'agent de lire et écrire l'état harness sans passer par des scripts de hooks — alternative propre aux lectures de `.rms/state/` depuis le contexte LLM. Les outils exposés incluent au minimum : `harness:get_state`, `harness:get_risk_class`, `harness:get_evidence_set`, `harness:log_event`.
+**Réponse** : Oui. Le harness expose un MCP server via le binaire `harness-mcp-server`. Les plateformes peuvent l'enregistrer sous le nom local `harness-state`, mais le binaire executable et le `serverInfo.name` MCP sont `harness-mcp-server`. Le contrat outil canonique est documente dans `11-mcp-tools-spec.md`.
 
-**Justification** : `04-runtime-bindings-spec.md` §4.1–§4.3 montrent les trois configs MCP (`.mcp.json`, `config.toml`, `config.yaml`) qui enregistrent toutes `harness-state` avec `command: harness, args: [mcp-server]`. L'installateur écrit ces entrées systématiquement (§5.1 step 7, §5.2 step 7, §5.3 step 5).
+**Justification** : `packages/mcp-server/package.json` declare le bin `harness-mcp-server`. `packages/mcp-server/src/index.ts` expose le MCP JSON-RPC surface `initialize`, `tools/list`, `tools/call`, et les outils `rms.*` plus les alias de compatibilite `harness:*`.
 
-**Référence spec** : `04-runtime-bindings-spec.md` §4 (config formats — entrée `harness-state` MCP dans les 3 formats), §5.1–§5.3 (installer steps — écriture `.mcp.json` / `config.toml` / `config.yaml`).
+**Référence spec** : `04-runtime-bindings-spec.md` §4, `11-mcp-tools-spec.md`.
 
 ---
 
 ### Q6.2 — Quel transport pour le MCP server harness ? Quelle authentification ?
 
-**Réponse** : Transport **stdio** uniquement pour le MVP. Le harness MCP server s'exécute comme sous-processus local lancé par la plateforme via `harness mcp-server` — pas d'exposition réseau, pas de port. L'authentification est implicite par le fait que le processus est lancé localement par l'utilisateur courant (même niveau de confiance que les hooks). Pas de token/OAuth au MVP — le MCP server n'accepte que des connexions stdio (pas HTTP, pas SSE).
+**Réponse** : Transport **stdio** uniquement pour le MVP. Le harness MCP server s'execute comme sous-processus local lance par la plateforme via `harness-mcp-server` - pas d'exposition reseau, pas de port. L'authentification est implicite par le fait que le processus est lance localement par l'utilisateur courant.
 
-**Justification** : stdio est le transport supporté sur les 3 plateformes (Claude Code : stdio/HTTP, Codex : stdio/Streamable HTTP, Hermes : stdio/HTTP/StreamableHTTP — `04-runtime-bindings-spec.md` §1, colonne `external_tool`). Stdio ne requiert aucune configuration réseau, est disponible partout, et correspond au modèle de confiance local. HTTP serait over-engineering pour un outil de développement mono-utilisateur.
+**Justification** : stdio ne requiert aucune configuration reseau, est disponible partout, et correspond au modele de confiance local pour un outil de developpement mono-utilisateur.
 
-**Référence spec** : `04-runtime-bindings-spec.md` §1 (external_tool binding — "MCP server (stdio / HTTP / SSE deprecated)" pour Claude, stdio/HTTP pour les autres), §4.1–§4.3 (configs MCP — `command: harness, args: [mcp-server]`, pas d'URL ni de port configuré).
+**Référence spec** : `04-runtime-bindings-spec.md` §1 et §4, `11-mcp-tools-spec.md`.
 
 ---
 
 ### Q6.3 — Les outils MCP exposés sont-ils accessibles sur les 3 plateformes de la même manière ?
 
-**Réponse** : Oui, avec une nuance de configuration. Le MCP server `harness-state` est enregistré dans trois formats de config différents (JSON pour Claude, TOML pour Codex, YAML pour Hermes) mais avec les mêmes `command` et `args`. Côté runtime, les outils MCP sont invoqués par l'agent de façon identique sur les 3 plateformes — le protocole MCP est le même. La seule différence est la config d'enregistrement (Tier 1 — reformatage seul, pas de transformation sémantique).
+**Réponse** : Oui, avec une nuance de configuration. Le MCP server peut etre enregistre sous une cle locale differente selon la plateforme, mais le `command` reste `harness-mcp-server`, les `args` restent vides, et les outils exposes sont les memes.
 
-**Justification** : `04-runtime-bindings-spec.md` §7 (Portability Tiers) — les configs MCP sont classées Tier 1 : "Same command/args; reformatted as JSON (Claude .mcp.json), TOML (Codex config.toml), YAML (Hermes config.yaml)". La sémantique MCP elle-même est cross-plateforme par construction (standard Anthropic).
+**Justification** : La semantique MCP elle-meme est cross-plateforme par construction. La divergence acceptable est uniquement le format de fichier de configuration.
 
-**Référence spec** : `04-runtime-bindings-spec.md` §7 (Tier 1 — MCP server configs), §4.1–§4.3 (les 3 formats de config MCP, même command/args).
+**Référence spec** : `04-runtime-bindings-spec.md` §4 et §7.
 
 ---
 
 ### Q6.4 — Comment configurer les MCP servers tiers (GitHub, Slack, etc.) de manière portable entre les 3 plateformes ?
 
-**Réponse** : Le harness fournit une commande `harness mcp add <name> --command <cmd> --args <args>` qui écrit l'entrée dans les 3 formats de config simultanément (ou pour la plateforme cible si `--target` est précisé). La source de vérité est un `mcp-registry.yaml` dans `.rms/config/` qui liste tous les MCP servers configurés pour le projet. L'installateur régénère les configs plateformes depuis ce fichier à chaque `harness install`. Les MCP servers tiers ne nécessitent pas de transformation — leur `command`/`args`/`env` sont identiques sur les 3 plateformes.
+**Réponse** : Differe pour le MVP. Le CLI actuel ne fournit pas de namespace `harness mcp`. La v0.1 configure uniquement le MCP server harness lui-meme via les installateurs plateforme. Les MCP servers tiers restent geres par les plateformes ou par une future extension explicite.
 
-**Justification** : `04-runtime-bindings-spec.md` §8 (`PlatformAdapter` interface) — méthode `registerMcpServer(name, config: McpServerConfig)` est définie sur tous les adapters. `McpServerConfig` contient `command`, `args`, `env`, `transport` — champs identiques sur les 3 plateformes. Le reformatage Tier 1 gère la syntaxe.
+**Justification** : Ajouter `harness mcp add/sync/test` maintenant creerait un contrat CLI non implemente. Le contrat executable actuel ne liste aucun sous-commande `harness mcp`.
 
-**Référence spec** : `04-runtime-bindings-spec.md` §8 (`PlatformAdapter` interface — `registerMcpServer`/`unregisterMcpServer`), §7 Tier 1 (MCP configs — reformatage seul).
+**Référence spec** : `09-cli-commands-spec.md`, `11-mcp-tools-spec.md`.
 
 ---
 
@@ -225,21 +225,21 @@ Post-MVP (Étape 3 et au-delà) :
 
 ### Q6.7 — Comment versionner la configuration MCP (changer un endpoint) sans casser les sessions actives ?
 
-**Réponse** : Via le `mcp-registry.yaml` versionné dans Git sous `.rms/config/`. Un changement d'endpoint est un commit dans ce fichier, suivi de `harness mcp sync` qui régénère les configs plateformes. Les sessions actives au moment du changement continuent avec l'ancienne config jusqu'à leur fin — la config MCP est chargée au démarrage de session, pas rechargée dynamiquement. Le changement prend effet à la prochaine session. Pour les endpoints critiques (prod → staging), le harness supporte des profils nommés dans `mcp-registry.yaml` (`env: production|staging`).
+**Réponse** : Pour le MVP, seule la configuration du MCP server harness est geree. Le changement de version passe par la mise a jour du package et la reinstallation/reparation plateforme via les commandes de lifecycle. Il n'existe pas encore de `mcp-registry.yaml` canonique ni de commande `harness mcp sync`.
 
-**Justification** : `04-runtime-bindings-spec.md` §8 (`PlatformAdapter` interface) — `registerMcpServer` est une opération d'installation, pas de hot-reload. Les configs MCP sont des fichiers statiques lus au démarrage de la plateforme. Aucune des 3 plateformes ne documente un rechargement dynamique de config MCP mid-session.
+**Justification** : Les configs MCP sont des fichiers statiques lus au demarrage de la plateforme. Le lifecycle existant couvre deja l'application, la reparation et la desinstallation du serveur MCP harness.
 
-**Référence spec** : `04-runtime-bindings-spec.md` §8 (interface `registerMcpServer` — opération install-time), §5.1–§5.3 (installer steps — écriture des configs MCP à l'install).
+**Référence spec** : `09-cli-commands-spec.md` §6, `11-mcp-tools-spec.md`.
 
 ---
 
 ### Q6.8 — Le harness fournit-il une CLI `harness mcp test` pour vérifier qu'un MCP server est bien configuré ?
 
-**Réponse** : Oui. `harness mcp test [<name>]` est une commande incluse dans le harness CLI. Sans argument, elle teste tous les MCP servers enregistrés dans `mcp-registry.yaml`. Elle vérifie : (1) que le processus `command` est exécutable, (2) qu'une connexion stdio s'établit, (3) que le server répond à un ping MCP (`initialize` request), (4) que la liste des outils retournée correspond aux outils attendus. Le résultat est un rapport PASS/FAIL par server avec détail de la failure le cas échéant. Cette commande est également invoquée automatiquement par `harness install` en fin d'installation pour valider que les MCP servers configurés sont opérationnels.
+**Réponse** : Non pour la v0.1 executable actuelle. La verification MCP est couverte par les tests package et par le contrat `tools/list`/`tools/call` du serveur. Une future commande `harness mcp test` peut etre ajoutee uniquement apres extension explicite du CLI et mise a jour de `09-cli-commands-spec.md`.
 
-**Justification** : la testabilité des intégrations MCP est une condition de DX acceptable. Sans `harness mcp test`, un MCP server mal configuré produit des erreurs silencieuses difficiles à diagnostiquer. La cohérence avec `harness check` (Q9.8 dans le document source) et `harness audit` impose une commande de vérification explicite.
+**Justification** : Documenter une commande absente recree la derive que le Sprint 25 corrige. Le contrat executable impose que toute commande documentee dans la surface CLI existe dans `packages/cli/src/index.ts`.
 
-**Référence spec** : `04-runtime-bindings-spec.md` §9.2 (decision tree — "Is this event registered on this platform?" → même logique de vérifiabilité appliquée aux MCP), §5 (installer behavior — la commande de test prolonge la validation post-install).
+**Référence spec** : `09-cli-commands-spec.md`, `11-mcp-tools-spec.md`, `packages/mcp-server/test/index.test.ts`.
 
 ---
 

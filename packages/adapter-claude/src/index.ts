@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import {
+  applyHookCommandPrefix,
   buildRuntimeBindings,
   computeRuntimeProfileDigest,
   DEFAULT_RUNTIME_CAPABILITY_STATUS,
@@ -65,6 +66,8 @@ export interface ClaudeSettingsHookEntry {
 
 export interface ApplyClaudeSettingsOptions {
   root: string;
+  hookCommands?: Partial<Record<GateType, string>>;
+  hookCommandPrefix?: string;
 }
 
 export interface ApplyClaudeSettingsResult {
@@ -73,7 +76,15 @@ export interface ApplyClaudeSettingsResult {
   hooksAdded: number;
 }
 
-export function buildClaudeSettingsPreview(): ClaudeSettingsPreview {
+export interface RemoveClaudeSettingsResult {
+  target: "claude";
+  settingsFile: string;
+  hooksRemoved: number;
+}
+
+export function buildClaudeSettingsPreview(
+  options: Pick<ApplyClaudeSettingsOptions, "hookCommands" | "hookCommandPrefix"> = {},
+): ClaudeSettingsPreview {
   const profile = getRuntimeProfile("claude");
   const digest = computeRuntimeProfileDigest("claude");
   const bindings = buildRuntimeBindings(
@@ -90,22 +101,21 @@ export function buildClaudeSettingsPreview(): ClaudeSettingsPreview {
     target: "claude",
     bindings,
     operations: GATE_TYPES.flatMap((gateType) => {
-      const binding = bindings[gateType];
       const hook = profile.hooks[gateType];
 
-      return binding.status === "native" && binding.nativeEvent
+      return hook.supported && hook.nativeEvent
         ? [
             {
               kind: "append" as const,
               path: "settings.json.hooks" as const,
               value: {
                 gateType,
-                event: binding.nativeEvent,
+                event: hook.nativeEvent,
                 matcher: "",
                 hooks: [
                   {
                     type: "command" as const,
-                    command: hook.command,
+                    command: resolveHookCommand(hook.command, gateType, options),
                   },
                 ],
               },
@@ -131,7 +141,7 @@ export async function applyClaudeSettings(
   const hooks = isHookRecord(settings.hooks) ? settings.hooks : {};
   let hooksAdded = 0;
 
-  for (const operation of buildClaudeSettingsPreview().operations) {
+  for (const operation of buildClaudeSettingsPreview(options).operations) {
     const existingEventHooks = hooks[operation.value.event];
     const eventHooks: ClaudeSettingsHookEntry[] = Array.isArray(existingEventHooks)
       ? existingEventHooks
@@ -153,6 +163,59 @@ export async function applyClaudeSettings(
     target: "claude",
     settingsFile,
     hooksAdded,
+  };
+}
+
+export async function removeClaudeSettings(
+  options: ApplyClaudeSettingsOptions,
+): Promise<RemoveClaudeSettingsResult> {
+  const settingsFile = path.join(options.root, CLAUDE_SETTINGS_FILE);
+  const settings = await readJsonFile<ClaudeSettingsFile | undefined>(settingsFile, undefined);
+
+  if (settings === undefined || !isHookRecord(settings.hooks)) {
+    return {
+      target: "claude",
+      settingsFile,
+      hooksRemoved: 0,
+    };
+  }
+
+  const hooks = settings.hooks;
+  let hooksRemoved = 0;
+
+  for (const operation of buildClaudeSettingsPreview(options).operations) {
+    const existingEventHooks = hooks[operation.value.event];
+    if (!Array.isArray(existingEventHooks)) {
+      continue;
+    }
+
+    const hookEntry = toClaudeSettingsHookEntry(operation.value);
+    const nextEventHooks = existingEventHooks.filter(
+      (existingHook) => !isSameClaudeHook(existingHook, hookEntry),
+    );
+    hooksRemoved += existingEventHooks.length - nextEventHooks.length;
+
+    if (nextEventHooks.length > 0) {
+      hooks[operation.value.event] = nextEventHooks;
+    } else {
+      delete hooks[operation.value.event];
+    }
+  }
+
+  if (hooksRemoved > 0) {
+    if (Object.keys(hooks).length > 0) {
+      settings.hooks = hooks;
+    } else {
+      delete settings.hooks;
+    }
+
+    await safeAtomicWriteFile(options.root, settingsFile, `${JSON.stringify(settings, null, 2)}\n`);
+  }
+
+  return {
+    target: "claude",
+    settingsFile,
+    hooksRemoved,
   };
 }
 
@@ -195,6 +258,16 @@ function toClaudeSettingsHookEntry(preview: ClaudeHookEntryPreview): ClaudeSetti
     matcher: preview.matcher,
     hooks: preview.hooks,
   };
+}
+
+function resolveHookCommand(
+  command: string,
+  gateType: GateType,
+  options: Pick<ApplyClaudeSettingsOptions, "hookCommands" | "hookCommandPrefix">,
+): string {
+  return (
+    options.hookCommands?.[gateType] ?? applyHookCommandPrefix(command, options.hookCommandPrefix)
+  );
 }
 
 function isSameClaudeHook(

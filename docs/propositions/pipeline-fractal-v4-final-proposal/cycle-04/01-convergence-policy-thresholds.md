@@ -326,7 +326,7 @@ produce `oscillating` or `diverging`, or trigger `reroute`/`block`.
 | `route_oscillation` | Route alternates between same states or strategies. | Status may become `oscillating`. |
 | `same_failure_repeated` | Same pattern token repeats without new signal. | Cap `repeated_pattern_without_new_signal`. |
 | `fixture_gap_persists` | Claimed implementation boundary lacks fixture. | Cap `fixture_gap_for_claimed_boundary`. |
-| `runtime_hard_gate_missing` | M/E/C required binding is missing or audit-only. | Cap `runtime_hard_gate_missing`; may block. |
+| `runtime_hard_gate_missing` | M/H/C required binding is missing or audit-only. | Cap `runtime_hard_gate_missing`; may block. |
 | `registry_policy_stale` | Evaluation predates registry or policy digest change. | Cap `registry_or_policy_stale`; block final success. |
 
 Divergence signals are never hidden by a high weighted score. Caps apply after
@@ -380,7 +380,7 @@ Caps are applied after `raw_score`. Multiple caps use the lowest cap.
 | `repeated_pattern_without_new_signal` | Same pattern repeats without distinct hypothesis or expected signal. | `0.49` | Forces loop/reroute evaluation. |
 | `scope_growth_without_owner` | Scope grows without owner, route or checkpoint. | `0.64` | Blocks `DONE_VERIFIED`; may require split. |
 | `defects_increasing` | Comparable defect count increases for two samples. | `0.59` | Forces reroute or blocked stop. |
-| `runtime_hard_gate_missing` | M/E/C required runtime gate missing without legal fallback. | `0.59` | Blocks governed progress and `DONE_VERIFIED`. |
+| `runtime_hard_gate_missing` | M/H/C required runtime gate missing without legal fallback. | `0.59` | Blocks governed progress and `DONE_VERIFIED`. |
 | `fixture_gap_for_claimed_boundary` | Claimed boundary lacks fixture family. | `0.69` | Blocks implementation handoff. |
 | `registry_or_policy_stale` | Evaluation predates registry/policy digest change. | `0.59` | Blocks final success until recomputed. |
 
@@ -572,7 +572,7 @@ Convergence status feeds the guard merge `convergence_overlay`.
 | `oscillating` at repeat threshold | `reroute` | Select a new registered route or human checkpoint. |
 | `oscillating` with no legal route | `block` | Close blocked or escalate according to risk. |
 | `diverging` | `reroute` | Stop current route; replan, split or checkpoint. |
-| `diverging` with M/E/C hard gate missing | `block` | Resolve gate or close as blocked. |
+| `diverging` with M/H/C hard gate missing | `block` | Resolve gate or close as blocked. |
 | `verified` | `allow` | Continue to closing policy and append transaction. |
 
 Default counters:
@@ -583,7 +583,7 @@ Default counters:
 | `loop_stalled_samples` | `3` | Same pattern becomes `LOOP_DETECTED`. |
 | `block_stalled_samples` | `4` | Same pattern with no legal reroute becomes `block`. |
 
-Risk overlays may strengthen these results. They may not weaken an M/E/C hard
+Risk overlays may strengthen these results. They may not weaken an M/H/C hard
 gate block into continued autonomous progress.
 
 ## Final-State Effects
@@ -862,7 +862,7 @@ evidence_status: with_gaps
 accepted_gaps:
   - gap_id: gap_optional_ci
     owner: agent
-    risk_class: F
+    risk_class: L
     follow_up: NOT_APPLICABLE
 divergence_signals: []
 ```

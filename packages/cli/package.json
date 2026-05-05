@@ -2,7 +2,22 @@
   "name": "@harness/cli",
   "version": "0.0.0",
   "private": true,
+  "description": "Command-line interface for HIMA planning state, hooks, artifacts, and runtime checks.",
+  "license": "UNLICENSED",
   "type": "module",
+  "keywords": [
+    "hima",
+    "harness",
+    "coding-agents",
+    "cli",
+    "planning"
+  ],
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "bin": {
     "harness": "./dist/index.js"
   },
@@ -15,9 +30,9 @@
     }
   },
   "scripts": {
-    "build": "tsup src/index.ts --format esm --sourcemap --clean && tsc -p tsconfig.json --emitDeclarationOnly --declaration --outDir dist",
-    "typecheck": "tsc --noEmit",
-    "test": "corepack pnpm --filter @harness/core build && corepack pnpm --filter @harness/adapter-codex build && corepack pnpm --filter @harness/adapter-claude build && corepack pnpm --filter @harness/adapter-hermes build && vitest run --root ../.. ../../packages/cli/test/index.test.ts"
+    "build": "node ../../scripts/with-build-lock.mjs --shell \"tsup src/index.ts --format esm --sourcemap --clean && tsc -p tsconfig.json --emitDeclarationOnly --declaration --outDir dist\"",
+    "typecheck": "node ../../scripts/with-build-lock.mjs -- tsc --noEmit",
+    "test": "node ../../scripts/with-build-lock.mjs --shell \"corepack pnpm --filter @harness/core build && corepack pnpm --filter @harness/adapter-codex build && corepack pnpm --filter @harness/adapter-claude build && corepack pnpm --filter @harness/adapter-hermes build && vitest run --root ../.. ../../packages/cli/test/index.test.ts\""
   },
   "dependencies": {
     "@harness/adapter-claude": "workspace:*",

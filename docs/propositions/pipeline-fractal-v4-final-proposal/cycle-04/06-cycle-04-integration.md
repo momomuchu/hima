@@ -67,7 +67,7 @@ RMS event log and pinned registries
 > runtime adapters/hooks
 > skills
 > subagents
-> books
+> reference docs
 ```
 
 Operational implications:
@@ -78,13 +78,13 @@ Operational implications:
 - runtime hooks prove only enforceability facts;
 - skills request kernel actions;
 - subagents produce evidence packets;
-- books explain contracts and never override registries.
+- reference docs explain contracts and never override registries.
 
 Hook-specific amendment:
 
 - hooks are not state authority;
 - hooks are the primary runtime enforcement proof surface;
-- no M/E/C governed route can claim verified execution from runtime name alone;
+- no M/H/C governed route can claim verified execution from runtime name alone;
 - missing, stale, unknown, noop, or audit-only hard gates block or cap final
   state according to the hooks-first specs.
 
@@ -112,7 +112,7 @@ docs/propositions/pipeline-fractal-v4-implementation-plan/
   03-kernel-module-boundaries.md
   04-mcp-tool-slice-plan.md
   05-runtime-adapter-slice-plan.md
-  06-skill-subagent-book-bootstrap.md
+  06-skill-hook-subagent-bootstrap.md
   07-implementation-risk-register.md
 ```
 
@@ -171,7 +171,7 @@ Hybrid Event-Sourced RMS Kernel
 + runtime adapters/hooks
 + portable skills
 + bounded subagents
-+ durable books
++ durable reference docs
 ```
 
 Cycle 04 changes the project status:

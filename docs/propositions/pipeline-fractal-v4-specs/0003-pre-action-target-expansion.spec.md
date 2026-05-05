@@ -92,14 +92,14 @@ binding can block action
 = governed write blocked
 ```
 
-For T/F read-only work, unknown target may degrade to `warn` if Policy Set says
-the gate is advisory. For M/E/C governed writes, unknown target blocks.
+For T/L read-only work, unknown target may degrade to `warn` if Policy Set says
+the gate is advisory. For M/H/C governed writes, unknown target blocks.
 
 ## Acceptance Criteria
 
 1. MUST classify each pre-tool action as read, write, delete, move, execute,
    network, or unknown.
-2. MUST block M/E/C governed writes when target expansion is `unknown`,
+2. MUST block M/H/C governed writes when target expansion is `unknown`,
    `partial`, or `failed`, unless a native-equivalent fallback produces exact
    pre-action targets.
 3. MUST parse `apply_patch` path headers before applying territory policy.

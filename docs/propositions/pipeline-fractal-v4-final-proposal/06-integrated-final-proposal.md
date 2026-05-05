@@ -12,7 +12,7 @@ Hybrid Event-Sourced RMS Kernel
 + runtime adapters/hooks
 + portable skills
 + bounded subagents
-+ durable books
++ durable reference docs
 ```
 
 This is not a compromise by vagueness. It is a separation of authority:
@@ -22,7 +22,7 @@ This is not a compromise by vagueness. It is a separation of authority:
 - runtime adapters enforce where each platform can actually enforce;
 - skills guide procedures;
 - subagents produce bounded evidence;
-- books preserve durable knowledge.
+- reference docs preserve durable knowledge.
 
 ## Why Candidate C Wins
 
@@ -41,7 +41,7 @@ single MCP server          = portable state/control interface
 runtime bindings          = enforcement translation
 skills                    = procedural UX
 subagents                 = isolated work
-books                     = durable knowledge
+reference docs            = durable knowledge
 ```
 
 ## Final Shape
@@ -110,14 +110,34 @@ They own runtime-specific mechanics:
 They do not own policy semantics. They report capability and binding facts to
 the kernel.
 
-### 4. Skills
+### 4. Runtime Hooks
+
+Runtime hooks are the executable policy boundary inside each coding runtime.
+They may block, inject context, record observations, or request kernel
+evaluation. They do not own policy semantics and do not mutate protected state
+directly.
+
+MVP hooks:
+
+| Hook | Purpose |
+|---|---|
+| `risk-classification` | Classify or promote T/L/M/H/C risk before routing. |
+| `state-machine` | Validate transitions against the canonical machine. |
+| `gate-policy` | Enforce `session_start`, `user_prompt`, `pre_tool`, `post_tool`, `stop`, `subagent_start`, and `subagent_stop`. |
+| `runtime-bindings` | Report runtime capability, degradation, and hard-gate support. |
+| `platform-adapters` | Translate Codex, Claude, Hermes, and later runtime hook events. |
+| `convergence` | Detect stagnation, oscillation, divergence, and insufficient evidence. |
+| `close-finalization` | Guard final-state commits. |
+| `evidence-management` | Normalize hook observations into kernel-mediated evidence events. |
+
+### 5. Skills
 
 Skills are reusable procedures. MVP skills:
 
 | Skill | Purpose |
 |---|---|
 | `pfv4-intake` | Capture user intent and decide inactive/candidate/armed recommendation. |
-| `pfv4-risk-classify` | Assign or promote T/F/M/E/C risk. |
+| `pfv4-risk-classify` | Assign or promote T/L/M/H/C risk. |
 | `pfv4-runtime-probe` | Detect runtime capabilities, bindings and degradation. |
 | `pfv4-route` | Build Route Set candidate. |
 | `pfv4-transition` | Request semantic state transitions. |
@@ -128,7 +148,7 @@ Skills are reusable procedures. MVP skills:
 Skills may request transitions and append evidence through the kernel. They
 never write state directly and never decide final state alone.
 
-### 5. Subagents
+### 6. Subagents
 
 Subagents are bounded evidence or review lanes. MVP subagents:
 
@@ -144,20 +164,20 @@ Subagents are bounded evidence or review lanes. MVP subagents:
 Subagents do not mutate `.rms/`. Their outputs become evidence only after parent
 or kernel intake.
 
-### 6. Books
+### 7. Reference Docs
 
-Books are durable knowledge surfaces. MVP books:
+Reference docs are durable knowledge surfaces. MVP reference docs:
 
-| Book | Purpose |
+| Reference | Purpose |
 |---|---|
-| State Kernel Book | Canonical state object, no-null rule, activation and final states. |
-| Cycle Playbooks Book | Macro-cycles, semantic substates, handoffs and rework. |
-| Risk And Policy Book | T/F/M/E/C, bypass, supervision and checkpoints. |
-| Evidence And Convergence Book | Required proof, evidence quality and convergence rules. |
-| Runtime Bindings Book | Claude/Codex/Hermes capability and binding semantics. |
-| MCP And Tools Book | Approved MCP/tool boundaries, secrets handling and fallback. |
+| State Kernel Reference | Canonical state object, no-null rule, activation and final states. |
+| Cycle Playbooks Reference | Macro-cycles, semantic substates, handoffs and rework. |
+| Risk And Policy Reference | T/L/M/H/C, bypass, supervision and checkpoints. |
+| Evidence And Convergence Reference | Required proof, evidence quality and convergence rules. |
+| Runtime Bindings Reference | Claude/Codex/Hermes capability and binding semantics. |
+| MCP And Tools Reference | Approved MCP/tool boundaries, secrets handling and fallback. |
 
-Books do not override registries. They explain and teach executable contracts.
+Reference docs do not override registries. They explain and teach executable contracts.
 
 ## Edge-Case Policy
 
@@ -169,16 +189,16 @@ The final proposal must fail closed for:
 - missing runtime hard gates;
 - stale or conflicted evidence;
 - subagent disagreement;
-- skill/book drift;
+- skill/hook drift;
 - MCP outage during governed transitions;
 - repeated loops without a new hypothesis;
-- ambiguous human checkpoint for E/C;
+- ambiguous human checkpoint for H/C;
 - late evidence after closure.
 
-For T/F work, degraded operation may continue only if traced and never claimed as
+For T/L work, degraded operation may continue only if traced and never claimed as
 `DONE_VERIFIED` without the required evidence.
 
-For M/E/C work, missing enforceability blocks unless an explicit declared
+For M/H/C work, missing enforceability blocks unless an explicit declared
 fallback is policy-allowed and evidence-backed. For C, autonomous auto-decision
 is not allowed.
 
@@ -190,8 +210,8 @@ is not allowed.
 | MCP role | One MCP server exposes the RMS kernel; internally modular, externally one authority. |
 | Skills role | Skills are procedures and UX; no direct state writes or final-state authority. |
 | Subagents role | Subagents are bounded workers; outputs become evidence only after intake. |
-| Books role | Books are durable reference/teaching surfaces; registries and kernel remain authoritative. |
-| Runtime degradation | Missing capability blocks until discovery; degraded route must be traced and risk-allowed; M/E/C cannot silently fail open. |
+| Reference docs role | Reference docs are durable reference/teaching surfaces; registries and kernel remain authoritative. |
+| Runtime degradation | Missing capability blocks until discovery; degraded route must be traced and risk-allowed; M/H/C cannot silently fail open. |
 
 ## P0 Decisions Still Open
 
@@ -210,7 +230,7 @@ These remain real blockers before implementation:
 
 ## Implementation MVP
 
-The first implementation should not start with every skill/subagent/book.
+The first implementation should not start with every skill/hook/subagent.
 
 Start with:
 
@@ -218,11 +238,12 @@ Start with:
 2. registry validation;
 3. one local MCP server with read/write tools;
 4. Codex runtime binding first, Claude/Hermes binding stubs next;
-5. `pfv4-intake`, `pfv4-risk-classify`, `pfv4-runtime-probe`,
+5. `risk-classification`, `state-machine`, `gate-policy`, `runtime-bindings`;
+6. `pfv4-intake`, `pfv4-risk-classify`, `pfv4-runtime-probe`,
    `pfv4-route`, `pfv4-transition`, `pfv4-evidence`, `pfv4-stop-gate`;
-6. `risk-policy-reviewer`, `evidence-auditor`,
+7. `risk-policy-reviewer`, `evidence-auditor`,
    `runtime-binding-inspector`, `state-invariant-reviewer`;
-7. State Kernel, Risk/Policy, Evidence/Convergence and Runtime Binding books.
+8. State Kernel, Risk/Policy, Evidence/Convergence and Runtime Binding reference docs.
 
 Add release/ops/learning expansion only after state transitions, guard
 evaluation, evidence capture and degraded runtime handling are executable.

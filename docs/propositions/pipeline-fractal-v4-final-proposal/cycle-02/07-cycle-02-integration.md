@@ -18,8 +18,8 @@ The important result is not that Candidate C is perfect. The important result
 is that every independent lane converges on the same authority rule:
 
 ```text
-event-sourced RMS kernel > transport adapters > runtime hooks > skills >
-subagents > books
+event-sourced RMS kernel > MCP facade > runtime adapters/hooks > skills >
+subagents > reference docs
 ```
 
 The single MCP server remains the right external state/control surface, but it
@@ -53,7 +53,7 @@ still blocked because they need schemas, algorithms or fixtures.
 | PFV4-OD-002 transition topology | Explicit directed graph wins; free transitions are forbidden. | `state/transitions.yaml`, transition guard fixtures. | Direction closed, graph pending. |
 | PFV4-OD-003 non-development representation | Non-development runs use `NOT_ACTIVE`; artifacts are `candidate_evidence` until imported. | `candidate_evidence` schema and import event. | Partly closed, import contract pending. |
 | PFV4-OD-004 activation gate | `candidate -> armed -> active` requires Intent, Policy, Capability, Binding, Route and Risk readiness. | activation transition registry, `rms.start_run`, `rms.plan_route`, `rms.transition`. | Partly closed, readiness formula pending. |
-| PFV4-OD-005 risk/supervision matrix | T/F/M/E/C defaults are accepted; C forbids autonomous final decisions. | `risk-policy.yaml`, supervision overlays, HumanCheckpoint policy. | Direction closed, policy fixtures pending. |
+| PFV4-OD-005 risk/supervision matrix | T/L/M/H/C defaults are accepted; C forbids autonomous final decisions. | `risk-policy.yaml`, supervision overlays, HumanCheckpoint policy. | Direction closed, policy fixtures pending. |
 | PFV4-OD-006 risk classifier mechanics | Forcing signals set minima; downgrade needs evidence. | risk classifier contract and forcing-signal registry. | Blocked. |
 | PFV4-OD-007 convergence thresholds | Max iteration is only a fuse; convergence uses score, samples and divergence signals. | `convergence-policy.yaml`, convergence fixtures, score caps. | Blocked. |
 | PFV4-OD-008 evidence status semantics | Evidence is derived from Evidence Set, freshness, conflicts and accepted gaps. | evidence requirement schema and freshness invalidation rules. | Blocked. |
@@ -75,9 +75,9 @@ broken or ambiguous implementation if coding started now.
 | Guard merge is still prose. | `block/escalate/reroute/degrade/warn/allow` needs total order, conflict handling and fixture examples. | Guard merge lattice and algorithm. |
 | Evidence freshness is still abstract. | Freshness must know what invalidates evidence: route change, file change, registry change, runtime binding change or scope change. | EvidenceRequirement and freshness graph contract. |
 | Risk classifier is not mechanized. | The model needs forcing signals, minima, promotions, downgrade legality and human override rules. | Risk classifier policy contract. |
-| Runtime degradation can still fail open if implemented naively. | `can_block=false` plus `fallback=post_run_audit` must block M/E/C enforcement by default. | Runtime degradation matrix and Binding Set schema. |
-| Artifact drift control is not executable. | Skills, books and subagents need registered versions, hashes and authority levels. | Artifact manifest and drift policy. |
-| Human checkpoint is not hard enough. | E/C acceptance cannot be free prose. It needs signer, scope, residual risk, expiration and allowed effect. | HumanCheckpoint schema. |
+| Runtime degradation can still fail open if implemented naively. | `can_block=false` plus `fallback=post_run_audit` must block M/H/C enforcement by default. | Runtime degradation matrix and Binding Set schema. |
+| Artifact drift control is not executable. | Skills, hooks and subagents need registered versions, hashes and authority levels. | Artifact manifest and drift policy. |
+| Human checkpoint is not hard enough. | H/C acceptance cannot be free prose. It needs signer, scope, residual risk, expiration and allowed effect. | HumanCheckpoint schema. |
 | Non-development import is underdefined. | Architecture/research artifacts must not silently become pipeline evidence. | CandidateEvidence import protocol. |
 | Storage recovery is not fully testable. | Pending transaction, stale lock, corrupt snapshot and append failure need deterministic recovery outcomes. | Storage recovery fixture pack. |
 
@@ -150,9 +150,9 @@ Required outputs:
    - risk forcing signals;
    - bypass matrix;
    - Binding Set degradation rules;
-   - M/E/C fail-closed guarantees.
+   - M/H/C fail-closed guarantees.
 5. `05-artifact-human-candidate-evidence.md`
-   - skill/book/subagent artifact manifest;
+   - skill/hook/subagent artifact manifest;
    - HumanCheckpoint schema;
    - CandidateEvidence import protocol.
 6. `06-cycle-03-audit.md`
@@ -169,7 +169,7 @@ Hybrid Event-Sourced RMS Kernel
 + runtime adapters/hooks
 + portable skills
 + bounded subagents
-+ durable books
++ durable reference docs
 ```
 
 But refine the authority language:
@@ -178,7 +178,8 @@ But refine the authority language:
 The kernel is the authority.
 The MCP server is the default transport and control facade.
 The local transaction library is the only allowed fallback mutation path.
-Skills, subagents and books never mutate protected RMS state directly.
+Skills, hooks and subagents never mutate protected RMS state directly.
+Reference docs never override executable registries or kernel decisions.
 ```
 
 Cycle 03 should now decide the remaining P0 contracts. If Cycle 03 passes audit,

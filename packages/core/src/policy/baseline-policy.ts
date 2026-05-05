@@ -164,3 +164,19 @@ export function getRequiredGates(
 
   return [...BASE_GATES];
 }
+
+export function mergeRequiredGates(
+  ...gateGroups: readonly (readonly GateType[] | undefined)[]
+): GateType[] {
+  const merged: GateType[] = [];
+
+  for (const gates of gateGroups) {
+    for (const gateType of gates ?? []) {
+      if (!merged.includes(gateType)) {
+        merged.push(gateType);
+      }
+    }
+  }
+
+  return merged;
+}

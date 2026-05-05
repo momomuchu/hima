@@ -35,8 +35,8 @@ flowchart TD
     IS[Intent Set\nrun-set.json.intentSet]
     CS[Runtime Capability Set\nrun-set.json.capabilitySet]
     PL[Policy Set\nstate.yaml.policySet]
-    BS[Runtime Binding Set\nstate.yaml.bindingSet]
-    RS[Route Set\nrun-set.json.routeSet]
+    BS[Runtime Binding Set\nrun-set.json.runtimeBindings]
+    RS[Route Set\nrun-set.json.route]
     RN[Run Set\nrun-set.json]
     EV[Evidence Set\nrun-set.json.evidenceSet]
     FS[Final State]
@@ -714,8 +714,11 @@ export interface McpServerCapability {
 - If `canBlock` is false for `pre_tool`, the Route Set must not plan any hard-blocking gates
 - If `canSpawnIsolatedSubagents` is false, Route Set must not plan parallel worktree agents
 - `knownLimitations` must be non-empty if any wired hook has `canBlock: false`
-- Cross-reference: every gate listed in `Route.requiredGates` must exist in `activeHooks` with
-  `wired: true`
+- Cross-reference: every derived route-required gate must be assessed against the runtime binding
+  table and, when native wiring is required, must exist in `activeHooks` with `wired: true`.
+  Executable v1 derives route-required gates from baseline risk policy, planned delegation, and
+  explicit per-risk policy overrides; it does not persist a second route-local required-gate binding
+  table.
 
 ### Storage Projection
 
@@ -955,10 +958,11 @@ export interface InstructionBinding {
 
 ### Storage Projection
 
-- **Physical file**: `.planning/state.yaml`
-- **Logical key**: `bindingSet`
-- **Format**: YAML document section, validated against this JSON-compatible object shape
-- **Versioning**: committed with `state.yaml`; one active binding set per workspace state
+- **Physical file**: `.planning/run-set.json`
+- **Logical key**: `runtimeBindings`
+- **Format**: JSON object nested in the canonical run file
+- **Versioning**: updated by runtime inspect/bind/probe lifecycle; no separate
+  `state.yaml` binding section exists
 
 ---
 
@@ -1208,85 +1212,32 @@ export type EvidenceType =
 
 ### Purpose
 
-The Route Set is the decision record the RMS produces for a specific run. It combines Project Set
-constraints, Intent Set scope, Capability Set availability, and Policy Set requirements to decide
-exactly which pipeline, runtime, gates, skills, and agents to use — and why. It is the executable
-plan: not a wish list, but a committed decision with alternatives rejected and reasoning recorded.
-Every route decision must be traceable back to the four input sets. The Route Set is produced once
-per run and is immutable once execution begins (to prevent retroactive justification of choices).
+The Route Set is the current executable route snapshot for a run. In executable v1 it stores only
+the fields needed by gate and convergence policy: macro-cycle, sub-phase, operating mode, and
+effective risk class. Runtime target, runtime binding legality, skills, MCP permissions, subagents,
+and evidence remain in their own logical sets. Required gates are derived from policy and runtime
+context; they are not persisted as a route-local gate list.
 
 ### Lifecycle
 
-- **Created**: after Intent Set capture and Capability probe, before any tool execution
-- **Updated**: never once execution starts (immutable after `pre_tool` first fires)
+- **Created**: with the run set at planning-store initialization
+- **Updated**: when the state machine changes macro-cycle or sub-phase
 - **Who updates**: RMS router (harness core)
-- **Frequency**: once per run
+- **Frequency**: at route-affecting state transitions
 
 ### TypeScript Interface
 
 ```typescript
-/** Executable routing decision for a run. Immutable once execution begins. */
+/** Current executable route snapshot for a run. */
 export interface RouteSet {
-  schemaVersion: "1.0";
-
-  /** Run this route belongs to. */
-  runId: string;
-
-  /** ISO 8601 timestamp when the route was decided. */
-  decidedAt: string;
-
-  /** Execution mode selected. */
-  selectedMode: OperatingMode;
-
-  /** Runtime the execution will run on. Must exist in CapabilitySet. */
-  selectedRuntime: "claude" | "codex" | "hermes";
-
-  /** Pipeline cycles that will be executed (ordered). */
-  selectedCycles: MacroCycle[];
-
-  /** Gates that will be active for this run. */
-  activatedGates: GateType[];
-
-  /** Skills the agent is permitted to invoke. */
-  permittedSkills: string[];
-
-  /** Skills that must be invoked at specified pipeline steps. */
-  requiredSkills: RequiredSkill[];
-
-  /** Whether isolated subagent spawning is permitted for this run. */
-  subagentsPermitted: boolean;
-
-  /** Specific subagent roles that may be spawned. */
-  permittedSubagentRoles: string[];
-
-  /** MCP servers that may be called during this run. */
-  permittedMcpServers: string[];
-
-  /** Routes considered and rejected, with reasons. */
-  rejectedAlternatives: RejectedAlternative[];
-
-  /** Plain-language rationale for the selected route. */
-  rationale: string;
-
-  /** Conditions under which the run must stop and escalate. */
-  stopConditions: string[];
-
-  /** Maximum attempts before final state MAX_ATTEMPTS_REACHED. */
-  maxAttempts: number;
-}
-
-export interface RequiredSkill {
-  /** Skill name. */
-  skill: string;
-  /** Pipeline step at which this skill must be invoked. */
-  atStep: string;
-}
-
-export interface RejectedAlternative {
-  /** Description of the rejected option. */
-  description: string;
-  /** Why it was rejected. */
-  reason: string;
+  /** Current macro-cycle. */
+  phase: MacroCycle;
+  /** Current seven-step sub-phase. */
+  subPhase: SubPhase;
+  /** Current operating mode. */
+  mode: OperatingMode;
+  /** Effective risk class used by gates and convergence. */
+  riskClass: RiskClass;
 }
 ```
 
@@ -1298,50 +1249,13 @@ export interface RejectedAlternative {
   "$id": "https://harness.dev/schemas/rms/route-set",
   "title": "RouteSet",
   "type": "object",
-  "required": ["schemaVersion", "runId", "decidedAt", "selectedMode", "selectedRuntime",
-               "selectedCycles", "activatedGates", "permittedSkills", "requiredSkills",
-               "subagentsPermitted", "permittedSubagentRoles", "permittedMcpServers",
-               "rejectedAlternatives", "rationale", "stopConditions", "maxAttempts"],
+  "required": ["phase", "subPhase", "mode", "riskClass"],
   "additionalProperties": false,
   "properties": {
-    "schemaVersion":          { "type": "string", "const": "1.0" },
-    "runId":                  { "type": "string", "format": "uuid" },
-    "decidedAt":              { "type": "string", "format": "date-time" },
-    "selectedMode":           { "type": "string", "enum": ["pairing","auto","bypass"] },
-    "selectedRuntime":        { "type": "string", "enum": ["claude","codex","hermes"] },
-    "selectedCycles":         { "type": "array", "items": { "type": "string" }, "minItems": 1 },
-    "activatedGates":         { "type": "array", "items": { "type": "string" } },
-    "permittedSkills":        { "type": "array", "items": { "type": "string" } },
-    "requiredSkills": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["skill", "atStep"],
-        "properties": {
-          "skill":  { "type": "string" },
-          "atStep": { "type": "string" }
-        },
-        "additionalProperties": false
-      }
-    },
-    "subagentsPermitted":       { "type": "boolean" },
-    "permittedSubagentRoles":   { "type": "array", "items": { "type": "string" } },
-    "permittedMcpServers":      { "type": "array", "items": { "type": "string" } },
-    "rejectedAlternatives": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["description", "reason"],
-        "properties": {
-          "description": { "type": "string" },
-          "reason":      { "type": "string" }
-        },
-        "additionalProperties": false
-      }
-    },
-    "rationale":        { "type": "string", "minLength": 20 },
-    "stopConditions":   { "type": "array", "items": { "type": "string" } },
-    "maxAttempts":      { "type": "integer", "minimum": 1, "maximum": 10 }
+    "phase":    { "type": "string" },
+    "subPhase": { "type": "string" },
+    "mode":     { "type": "string", "enum": ["bypass","auto","pairing"] },
+    "riskClass": { "type": "string", "enum": ["T","L","M","H","C"] }
   }
 }
 ```
@@ -1350,53 +1264,27 @@ export interface RejectedAlternative {
 
 ```json
 {
-  "schemaVersion": "1.0",
-  "runId": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
-  "decidedAt": "2026-05-03T14:32:10Z",
-  "selectedMode": "auto",
-  "selectedRuntime": "claude",
-  "selectedCycles": ["build", "validation"],
-  "activatedGates": ["pre_tool", "post_tool", "stop"],
-  "permittedSkills": ["feature-delivery", "testing"],
-  "requiredSkills": [
-    { "skill": "feature-delivery", "atStep": "build.execute" }
-  ],
-  "subagentsPermitted": true,
-  "permittedSubagentRoles": ["code-reviewer"],
-  "permittedMcpServers": ["context7", "playwright"],
-  "rejectedAlternatives": [
-    {
-      "description": "Bypass mode",
-      "reason": "Risk class L with --watch flag touches process lifecycle; auto mode keeps checkpoint visibility and validation constraints active"
-    }
-  ],
-  "rationale": "M-class feature addition scoped to a single CLI command. Build + validation cycles sufficient. Auto mode is appropriate because checkpoint visibility and human validation constraints remain active.",
-  "stopConditions": [
-    "TypeScript compilation fails after 3 attempts",
-    "Test suite regression detected"
-  ],
-  "maxAttempts": 3
+  "phase": "build",
+  "subPhase": "Execute",
+  "mode": "auto",
+  "riskClass": "M"
 }
 ```
 
 ### Constraints
 
-- `selectedRuntime` must appear in `RuntimeCapabilitySet.runtime` for the same `runId`
-- Every gate in `activatedGates` must appear in `RuntimeCapabilitySet.activeHooks` with `wired: true`
-- Every skill in `requiredSkills[*].skill` must appear in `RuntimeCapabilitySet.availableSkills`
-- Every MCP in `permittedMcpServers` must appear in `RuntimeCapabilitySet.connectedMcpServers` with
-  `healthy: true`
-- `selectedMode` must comply with `PolicySet.riskPolicies[effectiveRiskClass].bypassPermitted`
-- `selectedMode: "auto"` must preserve checkpointing, full visibility, and human validation
+- `mode` must comply with `PolicySet.riskPolicies[riskClass].bypassPermitted`
+- `mode: "auto"` must preserve checkpointing, full visibility, and human validation
   constraints; there are no separate automatic-mode variants
-- `rejectedAlternatives` must be non-empty for any run where multiple modes were viable
+- Derived required gates must be assessed against `RuntimeBindingSet.gates`; the route object itself
+  does not store a route-local gate list
 
 ### Storage Projection
 
 - **Physical file**: `.planning/run-set.json`
-- **Logical key**: `routeSet`
+- **Logical key**: `route`
 - **Format**: JSON object nested in the canonical run file
-- **Versioning**: immutable once execution starts; `routeSet.decidedAt` serves as the lock point
+- **Versioning**: synchronized from state transitions; gate evaluations read a stable snapshot
 
 ---
 
@@ -1609,8 +1497,8 @@ export type FinalState =
 
 ### Constraints
 
-- `attempts` must not exceed `RouteSet.maxAttempts`; if exceeded, the harness must transition to
-  `MAX_ATTEMPTS_REACHED`
+- `attempts` must not exceed the state-machine attempt limit; executable v1 defaults this limit to
+  3 and transitions to `MAX_ATTEMPTS_REACHED` when exceeded
 - `loopEvidence` must be non-empty when `loopDetected` is true
 - `candidateFinalStates` must be empty until all mandatory gates in
   `PolicySet.riskPolicies[class].mandatoryGatesBeforeDone` have fired
@@ -1912,30 +1800,32 @@ handlers before any Final State transition.
 ### R1 — Runtime consistency
 
 ```
-RouteSet.selectedRuntime  ∈  RuntimeCapabilitySet.runtime  (for same runId)
-RuntimeBindingSet.runtime == RuntimeCapabilitySet.runtime   (for same runId)
+RuntimeBindingSet.activeTarget == null
+  OR RuntimeBindingSet.activeTarget ∈ keys(RuntimeCapabilitySet)
 ```
 
 ### R2 — Gate availability
 
 ```
-∀ gate ∈ RouteSet.activatedGates :
-  RuntimeCapabilitySet.activeHooks.find(h => h.gateType == gate && h.wired == true)
+∀ gate ∈ derivedRouteRequiredGates(RouteSet, PolicySet, RunSet) :
+  RuntimeBindingSet.gates[gate] is assessable
 ```
 
-A route must not activate a gate that is not wired in the runtime.
+A route must not rely on a required gate that cannot be assessed against the runtime binding table.
+The executable implementation assesses the derived required gates against the canonical runtime
+binding table instead of writing route-specific binding rows.
 
 ### R3 — Skill availability
 
 ```
-∀ skill ∈ RouteSet.requiredSkills[*].skill :
+∀ skill ∈ PolicySet.requiredSkills[*].skill :
   skill ∈ RuntimeCapabilitySet.availableSkills
 ```
 
 ### R4 — MCP health
 
 ```
-∀ mcp ∈ RouteSet.permittedMcpServers :
+∀ mcp ∈ PolicySet.permittedMcpServers :
   RuntimeCapabilitySet.connectedMcpServers.find(s => s.name == mcp && s.healthy == true)
 ```
 
@@ -1943,7 +1833,7 @@ A route must not activate a gate that is not wired in the runtime.
 
 ```
 IntentSet.effectiveRiskClass ∈ {H, C}  ⟹  IntentSet.authorizedAutonomy ≠ "bypass"
-PolicySet.riskPolicies[class].bypassPermitted == false  ⟹  RouteSet.selectedMode ≠ "bypass"
+PolicySet.riskPolicies[class].bypassPermitted == false  ⟹  RouteSet.mode ≠ "bypass"
 ```
 
 ### R6 — Evidence completeness before DONE_VERIFIED
@@ -1958,11 +1848,11 @@ EvidenceSet.verdict.doneVerifiedAuthorized == true
 ### R7 — Attempt limit
 
 ```
-RunSet.attempts ≤ RouteSet.maxAttempts
+PlanningState.attempt_count ≤ state-machine attempt limit
 ```
 
-If `RunSet.attempts > RouteSet.maxAttempts`, the harness must emit `MAX_ATTEMPTS_REACHED` before
-any further tool calls.
+If `PlanningState.attempt_count` exceeds the state-machine attempt limit, the harness must emit
+`MAX_ATTEMPTS_REACHED` before any further tool calls.
 
 ### R8 — Project Set immutability
 
@@ -1970,7 +1860,7 @@ any further tool calls.
 No agent tool call may write to:
   - ProjectSet logical section in .planning/state.yaml
   - PolicySet logical section in .planning/state.yaml
-  - RuntimeBindingSet logical section in .planning/state.yaml
+  - RuntimeBindingSet logical section in .planning/run-set.json#/runtimeBindings
 ```
 
 Enforced by `pre_tool` checking the target path against the locked list.
@@ -2043,16 +1933,17 @@ handler at `stop` must re-validate before accepting the final state.
 
 ```
 .planning/
-  state.yaml                    # ProjectSet, PolicySet, RuntimeBindingSet, phase/mode state
+  state.yaml                    # ProjectSet, PolicySet, phase/mode state
   current-risk.yaml             # RiskClass classification and promotion history
-  run-set.json                  # IntentSet, CapabilitySet, RouteSet, RunSet, EvidenceSet, eventLog
+  run-set.json                  # IntentSet, CapabilitySet, RuntimeBindingSet, RouteSet, RunSet, EvidenceSet, eventLog
 ```
 
 **Versioning strategy**:
 
-- `.planning/state.yaml` is committed when project, policy, binding, or mode defaults change.
+- `.planning/state.yaml` is committed when project, policy, or mode defaults change.
 - `.planning/current-risk.yaml` and `.planning/run-set.json` are active-run state and may be
-  committed only when a workflow explicitly captures planning state for review.
+  committed only when a workflow explicitly captures planning, runtime binding, or evidence state
+  for review.
 - No other RMS storage path is canonical.
 
 **Format rules** (from checkpoint D15):

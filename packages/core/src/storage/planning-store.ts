@@ -1,9 +1,11 @@
 import { mkdir } from "node:fs/promises";
+import path from "node:path";
 import { BASE_GATES, RISK_POLICY } from "../policy/baseline-policy.js";
 import { type CurrentRiskFile, CurrentRiskFileSchema } from "../schemas/current-risk.schema.js";
 import { type RunEvent, type RunSetFile, RunSetFileSchema } from "../schemas/run-set.schema.js";
 import { type PlanningStateFile, PlanningStateFileSchema } from "../schemas/state.schema.js";
 import { RISK_CLASS_RANK } from "../types/canonical.js";
+import { withFileLock } from "./file-lock.js";
 import { readJsonFile, writeJsonFile } from "./json.js";
 import { getPlanningPaths } from "./planning-paths.js";
 import { readYamlFile, writeYamlFile } from "./yaml.js";
@@ -110,13 +112,17 @@ export async function writePlanningProject(
 }
 
 export async function appendRunEvent(projectRoot: string, event: RunEvent): Promise<RunSetFile> {
-  const project = await readPlanningProject(projectRoot);
   const paths = getPlanningPaths(projectRoot);
-  const runSet = {
-    ...project.runSet,
-    events: [...project.runSet.events, event],
-  };
+  const lockDir = path.join(paths.planningDir, ".run-set.lock");
 
-  await writeJsonFile(paths.runSetFile, runSet, RunSetFileSchema);
-  return runSet;
+  return withFileLock(lockDir, async () => {
+    const project = await readPlanningProject(projectRoot);
+    const runSet = {
+      ...project.runSet,
+      events: [...project.runSet.events, event],
+    };
+
+    await writeJsonFile(paths.runSetFile, runSet, RunSetFileSchema);
+    return runSet;
+  });
 }

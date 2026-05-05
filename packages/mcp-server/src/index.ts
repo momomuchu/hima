@@ -3,15 +3,18 @@ import { realpath } from "node:fs/promises";
 import path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { pathToFileURL } from "node:url";
+import { applyClaudeSettings, removeClaudeSettings } from "@harness/adapter-claude";
+import { applyCodexHookConfig, removeCodexHookConfig } from "@harness/adapter-codex";
+import { applyHermesHookConfig, removeHermesHookConfig } from "@harness/adapter-hermes";
 import {
-  ARTIFACT_INSTALL_SELECTIONS,
   ARTIFACT_INSTALL_TARGETS,
   type ArtifactInstallSelection,
   type ArtifactInstallTarget,
   addEvidence,
   appendRunEvent,
+  applyRuntimeLifecycle,
+  assessRouteRuntimeBindings,
   bindRuntime,
-  CATALOG_ARTIFACT_SELECTIONS,
   type CatalogArtifactDescriptor,
   type CatalogArtifactSelection,
   CHANGE_TYPES,
@@ -26,6 +29,8 @@ import {
   EVIDENCE_KEYS,
   EVIDENCE_STATUSES,
   type EvidenceKey,
+  type EvidenceStatus,
+  enterDevelopment,
   evaluateConvergence,
   GATE_DECISIONS,
   GATE_TYPES,
@@ -34,17 +39,33 @@ import {
   getOperationalCatalog,
   getStatus,
   handleHook,
+  INSTALL_TARGETS,
+  type InstallManifest,
+  type InstallTarget,
   inspectRuntime,
   installCatalogArtifacts,
+  installPlatform,
   MACRO_CYCLES,
+  OPERATING_MODES,
   planArtifactInstall,
   planCatalogArtifacts,
+  probeRuntime,
+  RISK_CLASSES,
   RUNTIME_CAPABILITY_STATUSES,
+  RUNTIME_PROOF_TYPES,
   type RuntimeCapabilityStatus,
   type RuntimeHookCapabilityInput,
+  type RuntimeProbeEvidence,
+  type RuntimeProofType,
+  readInstallManifest,
   readPlanningProject,
+  redactRecord,
+  redactSecrets,
+  repairRuntimeLifecycle,
   requestTransition,
+  rollbackCatalogArtifacts,
   SUB_PHASES,
+  uninstallRuntimeLifecycle,
   writeCatalogArtifacts,
 } from "@harness/core";
 
@@ -65,24 +86,35 @@ type ToolDefinition = {
   inputSchema: JsonObject;
 };
 
+export interface McpToolSurfaceEntry {
+  name: string;
+  description: string;
+}
+
+const MCP_ARTIFACT_SELECTIONS = ["all", "skills", "hooks", "subagents"] as const;
+type McpArtifactSelection = (typeof MCP_ARTIFACT_SELECTIONS)[number];
+
 const SERVER_INFO = {
   name: "harness-mcp-server",
   version: "0.0.0",
 };
-const SECRET_KEY_PATTERN = /api[_-]?key|apikey|token|password|secret/i;
 const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: "rms.get_state",
     description: "Read the current RMS planning state from the project .planning files.",
     inputSchema: objectSchema({
-      root: stringProperty("Project root. Defaults to the MCP server working directory."),
+      root: stringProperty(
+        "Project root. Defaults to the MCP server working directory and must stay under it.",
+      ),
     }),
   },
   {
     name: "rms.transition",
     description: "Request an RMS planning transition through @harness/core requestTransition().",
     inputSchema: objectSchema({
-      root: stringProperty("Project root. Defaults to the MCP server working directory."),
+      root: stringProperty(
+        "Project root. Defaults to the MCP server working directory and must stay under it.",
+      ),
       targetPhase: {
         type: "string",
         enum: [...MACRO_CYCLES],
@@ -96,6 +128,12 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
       },
       reason: stringProperty("Optional transition reason."),
     }),
+  },
+  {
+    name: "rms.enter_development",
+    description:
+      "Enter governed development mode by binding phase, subphase, operating mode, risk class, and intent in .planning.",
+    inputSchema: enterDevelopmentInputSchema(),
   },
   {
     name: "rms.classify_risk",
@@ -147,11 +185,13 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
     description: "Bind inspected RMS runtime capabilities to canonical gates in run-set.json.",
     inputSchema: objectSchema(
       {
-        root: stringProperty("Project root. Defaults to the MCP server working directory."),
+        root: stringProperty(
+          "Project root. Defaults to the MCP server working directory and must stay under it.",
+        ),
         target: stringProperty("Runtime target, for example codex, claude, or hermes."),
         inspectedAt: stringProperty("Optional binding timestamp."),
-        expectedDigest: stringProperty("Optional expected runtime profile digest."),
-        currentDigest: stringProperty("Optional current runtime profile digest."),
+        expectedDigest: stringProperty("Optional expected runtime config/capability digest."),
+        currentDigest: stringProperty("Optional current runtime config/capability digest."),
         expectedHookDigests: hookDigestRecordProperty(
           "Optional expected per-gate runtime digests.",
         ),
@@ -161,6 +201,21 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
     ),
   },
   {
+    name: "rms.probe_runtime",
+    description:
+      "Probe target runtime config and store core-minted trusted runtime proofs in .planning/run-set.json.",
+    inputSchema: runtimeProbeInputSchema(),
+  },
+  {
+    name: "rms.assess_route_runtime_bindings",
+    description: "Assess route-required runtime bindings without mutating state.",
+    inputSchema: objectSchema({
+      root: stringProperty(
+        "Project root. Defaults to the MCP server working directory and must stay under it.",
+      ),
+    }),
+  },
+  {
     name: "rms.get_catalog",
     description: "Read the operational catalog exposed by @harness/core.",
     inputSchema: objectSchema({}),
@@ -168,14 +223,56 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: "rms.generate_artifacts",
     description:
-      "Generate catalog-driven skill, book, and subagent artifacts. Defaults to dry-run; set apply:true to write.",
+      "Generate catalog-driven skill, hook, and subagent artifacts. Defaults to dry-run; set apply:true to write.",
     inputSchema: generateArtifactsInputSchema(),
   },
   {
     name: "rms.install_artifacts",
     description:
-      "Install catalog-driven skill, book, and subagent artifacts. Defaults to dry-run; set apply:true to write.",
+      "Install catalog-driven skill, hook, and subagent artifacts. Defaults to dry-run; set apply:true to write.",
     inputSchema: installArtifactsInputSchema(),
+  },
+  {
+    name: "rms.install_platform",
+    description:
+      "Plan/write a platform install manifest and optionally apply target hook config. Defaults to dry-run.",
+    inputSchema: platformInstallInputSchema(),
+  },
+  {
+    name: "rms.uninstall_platform",
+    description:
+      "Remove managed platform hook registrations from a validated install manifest. Defaults to dry-run.",
+    inputSchema: platformLifecycleInputSchema(),
+  },
+  {
+    name: "rms.repair_platform",
+    description:
+      "Re-apply managed platform hook registrations from a validated install manifest. Defaults to dry-run.",
+    inputSchema: platformLifecycleInputSchema(),
+  },
+  {
+    name: "rms.apply_lifecycle",
+    description:
+      "Orchestrate platform hook install and catalog artifact install together. Defaults to dry-run.",
+    inputSchema: lifecycleApplyInputSchema(),
+  },
+  {
+    name: "rms.uninstall_lifecycle",
+    description:
+      "Orchestrate catalog artifact rollback and managed platform hook removal together. Defaults to dry-run.",
+    inputSchema: lifecycleUninstallInputSchema(),
+  },
+  {
+    name: "rms.repair_lifecycle",
+    description:
+      "Orchestrate platform hook repair and catalog artifact repair together. Defaults to dry-run.",
+    inputSchema: lifecycleRepairInputSchema(),
+  },
+  {
+    name: "rms.rollback_artifacts",
+    description:
+      "Rollback installed catalog-driven artifacts from an install manifest. Defaults to dry-run; set apply:true to delete.",
+    inputSchema: rollbackArtifactsInputSchema(),
   },
   {
     name: "rms.runtime_digest",
@@ -186,7 +283,9 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
     name: "rms.evaluate_convergence",
     description: "Evaluate run convergence from the current planning project.",
     inputSchema: objectSchema({
-      root: stringProperty("Project root. Defaults to the MCP server working directory."),
+      root: stringProperty(
+        "Project root. Defaults to the MCP server working directory and must stay under it.",
+      ),
     }),
   },
   {
@@ -199,14 +298,18 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
     name: "harness:get_state",
     description: "Read the current PFV4 harness state from the project .planning files.",
     inputSchema: objectSchema({
-      root: stringProperty("Project root. Defaults to the MCP server working directory."),
+      root: stringProperty(
+        "Project root. Defaults to the MCP server working directory and must stay under it.",
+      ),
     }),
   },
   {
     name: "harness:get_risk_class",
     description: "Read the current harness risk class from .planning/current-risk.yaml.",
     inputSchema: objectSchema({
-      root: stringProperty("Project root. Defaults to the MCP server working directory."),
+      root: stringProperty(
+        "Project root. Defaults to the MCP server working directory and must stay under it.",
+      ),
     }),
   },
   {
@@ -224,7 +327,9 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
     description: "Append a harness run event to .planning/run-set.json through @harness/core.",
     inputSchema: objectSchema(
       {
-        root: stringProperty("Project root. Defaults to the MCP server working directory."),
+        root: stringProperty(
+          "Project root. Defaults to the MCP server working directory and must stay under it.",
+        ),
         type: stringProperty("Run event type."),
         gateType: {
           type: "string",
@@ -247,6 +352,11 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
     ),
   },
   {
+    name: "harness:enter_development",
+    description: "Compatibility alias for rms.enter_development.",
+    inputSchema: enterDevelopmentInputSchema(),
+  },
+  {
     name: "harness:get_catalog",
     description: "Legacy alias for rms.get_catalog.",
     inputSchema: objectSchema({}),
@@ -262,15 +372,57 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
     inputSchema: installArtifactsInputSchema(),
   },
   {
+    name: "harness:install_platform",
+    description: "Compatibility alias for rms.install_platform.",
+    inputSchema: platformInstallInputSchema(),
+  },
+  {
+    name: "harness:uninstall_platform",
+    description: "Compatibility alias for rms.uninstall_platform.",
+    inputSchema: platformLifecycleInputSchema(),
+  },
+  {
+    name: "harness:repair_platform",
+    description: "Compatibility alias for rms.repair_platform.",
+    inputSchema: platformLifecycleInputSchema(),
+  },
+  {
+    name: "harness:apply_lifecycle",
+    description: "Compatibility alias for rms.apply_lifecycle.",
+    inputSchema: lifecycleApplyInputSchema(),
+  },
+  {
+    name: "harness:uninstall_lifecycle",
+    description: "Compatibility alias for rms.uninstall_lifecycle.",
+    inputSchema: lifecycleUninstallInputSchema(),
+  },
+  {
+    name: "harness:repair_lifecycle",
+    description: "Compatibility alias for rms.repair_lifecycle.",
+    inputSchema: lifecycleRepairInputSchema(),
+  },
+  {
+    name: "harness:rollback_artifacts",
+    description: "Compatibility alias for rms.rollback_artifacts.",
+    inputSchema: rollbackArtifactsInputSchema(),
+  },
+  {
     name: "harness:runtime_digest",
     description: "Legacy alias for rms.runtime_digest.",
     inputSchema: runtimeDigestInputSchema(),
   },
   {
+    name: "harness:probe_runtime",
+    description: "Legacy alias for rms.probe_runtime.",
+    inputSchema: runtimeProbeInputSchema(),
+  },
+  {
     name: "harness:evaluate_convergence",
     description: "Legacy alias for rms.evaluate_convergence.",
     inputSchema: objectSchema({
-      root: stringProperty("Project root. Defaults to the MCP server working directory."),
+      root: stringProperty(
+        "Project root. Defaults to the MCP server working directory and must stay under it.",
+      ),
     }),
   },
   {
@@ -377,6 +529,13 @@ export async function dispatchRequest(method: string, params: unknown): Promise<
   }
 }
 
+export function getMcpToolSurface(): McpToolSurfaceEntry[] {
+  return TOOL_DEFINITIONS.map((tool) => ({
+    name: tool.name,
+    description: tool.description,
+  }));
+}
+
 async function callTool(params: unknown): Promise<JsonObject> {
   const request = readToolCall(params);
 
@@ -392,11 +551,14 @@ async function executeTool(name: string, args: JsonObject): Promise<JsonValue> {
   switch (name) {
     case "rms.get_state":
     case "harness:get_state":
-      return toJsonValue(await getStatus(readRoot(args)));
+      return toJsonValue(await getStatus(await readMcpProjectRoot(args, "MCP project root")));
     case "harness:get_risk_class":
-      return getRiskClass(readRoot(args));
+      return getRiskClass(await readMcpProjectRoot(args, "MCP project root"));
     case "rms.transition":
       return transitionTool(args);
+    case "rms.enter_development":
+    case "harness:enter_development":
+      return enterDevelopmentTool(args);
     case "rms.classify_risk":
       return toJsonValue(classifyRisk(readChangeset(args)));
     case "rms.evaluate_gate":
@@ -409,15 +571,41 @@ async function executeTool(name: string, args: JsonObject): Promise<JsonValue> {
       return inspectRuntimeTool(args);
     case "rms.bind_runtime":
       return bindRuntimeTool(args);
+    case "rms.probe_runtime":
+    case "harness:probe_runtime":
+      return probeRuntimeTool(args);
+    case "rms.assess_route_runtime_bindings":
+      return assessRouteRuntimeBindingsTool(args);
     case "rms.get_catalog":
     case "harness:get_catalog":
-      return toJsonValue(getOperationalCatalog());
+      return toJsonValue(getOperationalCatalog()) as JsonObject;
     case "rms.generate_artifacts":
     case "harness:generate_artifacts":
       return generateArtifactsTool(args);
     case "rms.install_artifacts":
     case "harness:install_artifacts":
       return installArtifactsTool(args);
+    case "rms.install_platform":
+    case "harness:install_platform":
+      return installPlatformTool(args);
+    case "rms.uninstall_platform":
+    case "harness:uninstall_platform":
+      return uninstallPlatformTool(args);
+    case "rms.repair_platform":
+    case "harness:repair_platform":
+      return repairPlatformTool(args);
+    case "rms.apply_lifecycle":
+    case "harness:apply_lifecycle":
+      return applyLifecycleTool(args);
+    case "rms.uninstall_lifecycle":
+    case "harness:uninstall_lifecycle":
+      return uninstallLifecycleTool(args);
+    case "rms.repair_lifecycle":
+    case "harness:repair_lifecycle":
+      return repairLifecycleTool(args);
+    case "rms.rollback_artifacts":
+    case "harness:rollback_artifacts":
+      return rollbackArtifactsTool(args);
     case "rms.runtime_digest":
     case "harness:runtime_digest":
       return runtimeDigestTool(args);
@@ -453,7 +641,23 @@ async function transitionTool(args: JsonObject): Promise<JsonObject> {
     request.reason = readRequiredString(args.reason, "reason");
   }
 
-  return toJsonValue(await requestTransition(readRoot(args), request)) as JsonObject;
+  return toJsonValue(
+    await requestTransition(await readMcpProjectRoot(args, "MCP project root"), request),
+  ) as JsonObject;
+}
+
+async function enterDevelopmentTool(args: JsonObject): Promise<JsonObject> {
+  return toJsonValue(
+    await enterDevelopment(await readMcpProjectRoot(args, "MCP project root"), {
+      phase: args.phase === undefined ? undefined : readMacroCycle(args.phase),
+      subPhase: args.subPhase === undefined ? undefined : readSubPhase(args.subPhase),
+      mode: args.mode === undefined ? undefined : readOperatingMode(args.mode),
+      riskClass: args.riskClass === undefined ? undefined : readRiskClass(args.riskClass),
+      objective: readOptionalString(args.objective, "objective"),
+      rawPrompt: readOptionalString(args.rawPrompt, "rawPrompt"),
+      reason: readOptionalString(args.reason, "reason"),
+    }),
+  ) as JsonObject;
 }
 
 async function getRiskClass(projectRoot: string): Promise<JsonObject> {
@@ -485,14 +689,15 @@ function readChangeset(args: JsonObject): Changeset {
 
 async function evaluateGateTool(args: JsonObject): Promise<JsonObject> {
   const gateType = readGateType(args.gateType);
-  const payload = isJsonObject(args.payload) ? args.payload : {};
+  const payload = readOptionalJsonObject(args.payload, "payload");
   const dryRun = typeof args.dryRun === "boolean" ? args.dryRun : false;
+  const root = await readMcpProjectRoot(args, "MCP project root");
 
-  return toJsonValue(await handleHook(readRoot(args), gateType, payload, { dryRun })) as JsonObject;
+  return toJsonValue(await handleHook(root, gateType, payload, { dryRun })) as JsonObject;
 }
 
 async function recordEvidence(args: JsonObject): Promise<JsonObject> {
-  const projectRoot = readRoot(args);
+  const projectRoot = await readMcpProjectRoot(args, "MCP project root");
   const project = await readPlanningProject(projectRoot);
   const key = readEvidenceKey(args.key);
   const item = await addEvidence(projectRoot, {
@@ -512,11 +717,12 @@ async function recordEvidence(args: JsonObject): Promise<JsonObject> {
 
 async function inspectRuntimeTool(args: JsonObject): Promise<JsonObject> {
   const capability = await inspectRuntime(
-    readRoot(args),
+    await readMcpProjectRoot(args, "MCP project root"),
     readRequiredString(args.target, "target"),
     {
       inspectedAt: readOptionalString(args.inspectedAt, "inspectedAt"),
       runtimeName: readOptionalString(args.runtimeName, "runtimeName"),
+      runtimeVersion: readOptionalString(args.runtimeVersion, "runtimeVersion"),
       status: readOptionalRuntimeCapabilityStatus(args.status, "status"),
       configDigest: readOptionalString(args.configDigest, "configDigest"),
       hooks: readOptionalRuntimeHooks(args.hooks, "hooks"),
@@ -528,18 +734,42 @@ async function inspectRuntimeTool(args: JsonObject): Promise<JsonObject> {
 }
 
 async function bindRuntimeTool(args: JsonObject): Promise<JsonObject> {
-  const bindings = await bindRuntime(readRoot(args), readRequiredString(args.target, "target"), {
-    inspectedAt: readOptionalString(args.inspectedAt, "inspectedAt"),
-    expectedDigest: readOptionalString(args.expectedDigest, "expectedDigest"),
-    currentDigest: readOptionalString(args.currentDigest, "currentDigest"),
-    expectedHookDigests: readOptionalHookDigestRecord(
-      args.expectedHookDigests,
-      "expectedHookDigests",
-    ),
-    currentHookDigests: readOptionalHookDigestRecord(args.currentHookDigests, "currentHookDigests"),
-  });
+  const bindings = await bindRuntime(
+    await readMcpProjectRoot(args, "MCP project root"),
+    readRequiredString(args.target, "target"),
+    {
+      inspectedAt: readOptionalString(args.inspectedAt, "inspectedAt"),
+      expectedDigest: readOptionalString(args.expectedDigest, "expectedDigest"),
+      currentDigest: readOptionalString(args.currentDigest, "currentDigest"),
+      expectedHookDigests: readOptionalHookDigestRecord(
+        args.expectedHookDigests,
+        "expectedHookDigests",
+      ),
+      currentHookDigests: readOptionalHookDigestRecord(
+        args.currentHookDigests,
+        "currentHookDigests",
+      ),
+    },
+  );
 
   return toJsonValue(bindings) as JsonObject;
+}
+
+async function probeRuntimeTool(args: JsonObject): Promise<JsonObject> {
+  const inspectedAt = new Date().toISOString();
+
+  return toJsonValue(
+    await probeRuntime(
+      await readMcpProjectRoot(args, "MCP project root"),
+      readRequiredString(args.target, "target"),
+      {
+        inspectedAt,
+        bind: readOptionalBoolean(args.bind, "bind") ?? false,
+        verifyBlockingFixtures:
+          readOptionalBoolean(args.verifyBlockingFixtures, "verifyBlockingFixtures") ?? false,
+      },
+    ),
+  ) as JsonObject;
 }
 
 function runtimeDigestTool(args: JsonObject): JsonObject {
@@ -562,14 +792,25 @@ function runtimeDigestTool(args: JsonObject): JsonObject {
 }
 
 async function evaluateConvergenceTool(args: JsonObject): Promise<JsonObject> {
-  const project = await readPlanningProject(readRoot(args));
+  const project = await readPlanningProject(await readMcpProjectRoot(args, "MCP project root"));
 
   return toJsonValue(evaluateConvergence(project)) as JsonObject;
 }
 
+async function assessRouteRuntimeBindingsTool(args: JsonObject): Promise<JsonObject> {
+  const project = await readPlanningProject(await readMcpProjectRoot(args, "MCP project root"));
+  const assessment = assessRouteRuntimeBindings(project.runSet, project.currentRisk.risk_class);
+
+  return toJsonValue({
+    riskClass: project.currentRisk.risk_class,
+    activeTarget: project.runSet.runtimeBindings.activeTarget ?? null,
+    ...assessment,
+  }) as JsonObject;
+}
+
 async function closeRunTool(args: JsonObject): Promise<JsonObject> {
   return toJsonValue(
-    await closeRun(readRoot(args), {
+    await closeRun(await readMcpProjectRoot(args, "MCP project root"), {
       closedAt: readOptionalString(args.closedAt, "closedAt"),
       eventId: readOptionalString(args.eventId, "eventId"),
     }),
@@ -603,10 +844,29 @@ async function generateArtifactsTool(args: JsonObject): Promise<JsonObject> {
 async function installArtifactsTool(args: JsonObject): Promise<JsonObject> {
   const kind = readArtifactInstallKind(args.kind);
   const target = readArtifactInstallTarget(args.target);
-  const root = await ensureRealDirectory(path.resolve(readRoot(args)));
+  const root = await readMcpInstallRoot(args);
   const apply = readApply(args);
+  const writeManifest = readWriteManifest(args);
+  const captureRestoreSnapshots = readCaptureRestoreSnapshots(args);
+  if (writeManifest && !apply) {
+    throw new Error("writeManifest requires apply:true for install_artifacts.");
+  }
+  if (captureRestoreSnapshots && !apply) {
+    throw new Error("captureRestoreSnapshots requires apply:true for install_artifacts.");
+  }
+  if (captureRestoreSnapshots && !writeManifest) {
+    throw new Error("captureRestoreSnapshots requires writeManifest:true for install_artifacts.");
+  }
+
   const installResult = apply
-    ? await installCatalogArtifacts({ projectRoot: root, target, kind, dryRun: false })
+    ? await installCatalogArtifacts({
+        projectRoot: root,
+        target,
+        kind,
+        dryRun: false,
+        writeManifest,
+        captureRestoreSnapshots,
+      })
     : undefined;
   const result =
     installResult ?? planArtifactInstall({ projectRoot: root, target, kind, dryRun: true });
@@ -616,6 +876,8 @@ async function installArtifactsTool(args: JsonObject): Promise<JsonObject> {
   return {
     apply,
     dryRun: !apply,
+    writeManifest,
+    captureRestoreSnapshots,
     target: result.target,
     kind: result.selection,
     selection: result.selection,
@@ -627,6 +889,219 @@ async function installArtifactsTool(args: JsonObject): Promise<JsonObject> {
     artifactsPlanned: result.artifacts.length,
     artifactsWritten: [...writtenPaths],
     artifactsUnchanged: [...unchangedPaths],
+    ...(installResult?.manifest ? { manifest: toJsonValue(installResult.manifest) } : {}),
+    ...(installResult?.manifestFile ? { manifestFile: installResult.manifestFile } : {}),
+  };
+}
+
+async function installPlatformTool(args: JsonObject): Promise<JsonObject> {
+  const target = readInstallTarget(args.target);
+  const root = await readMcpPlatformRoot(args);
+  const apply = readApply(args);
+  const writeManifest = readWriteManifest(args);
+  const result = await installPlatform({
+    projectRoot: root,
+    target,
+    dryRun: !apply,
+    writeManifest,
+  });
+  const applied = apply
+    ? await applyPlatformConfig(target, result.expectedPaths.platformDirectory)
+    : undefined;
+
+  return {
+    apply,
+    dryRun: result.dryRun,
+    writeManifest,
+    target: result.target,
+    root,
+    projectRoot: result.expectedPaths.projectRoot,
+    platformDirectory: result.expectedPaths.platformDirectory,
+    hooksDirectory: result.expectedPaths.hooksDirectory,
+    manifestFile: result.expectedPaths.manifestFile,
+    plannedActions: toJsonValue(result.plannedActions),
+    checks: toJsonValue(result.checks),
+    warnings: [...result.warnings],
+    manifestWritten: result.manifestWritten,
+    ...(result.manifest ? { manifest: toJsonValue(result.manifest) } : {}),
+    ...(applied ? { applied: toJsonValue(applied) } : {}),
+  };
+}
+
+async function uninstallPlatformTool(args: JsonObject): Promise<JsonObject> {
+  const root = await readMcpPlatformRoot(args);
+  const apply = readApply(args);
+  const manifestFile = readOptionalString(args.manifestFile, "manifestFile");
+  const manifest = await readInstallManifest({ projectRoot: root, manifestFile });
+  const removed = apply
+    ? await removePlatformConfig(manifest.target, manifest.expectedPaths.platformDirectory)
+    : undefined;
+
+  return {
+    apply,
+    dryRun: !apply,
+    target: manifest.target,
+    root,
+    projectRoot: manifest.expectedPaths.projectRoot,
+    platformDirectory: manifest.expectedPaths.platformDirectory,
+    hooksDirectory: manifest.expectedPaths.hooksDirectory,
+    manifestFile: manifest.expectedPaths.manifestFile,
+    hooksPlanned: countSupportedManifestHooks(manifest),
+    hooksRemoved: removed?.hooksRemoved ?? 0,
+    manifestRetained: true,
+    ...(removed ? { removed: toJsonValue(removed) } : {}),
+  };
+}
+
+async function repairPlatformTool(args: JsonObject): Promise<JsonObject> {
+  const root = await readMcpPlatformRoot(args);
+  const apply = readApply(args);
+  const manifestFile = readOptionalString(args.manifestFile, "manifestFile");
+  const manifest = await readInstallManifest({ projectRoot: root, manifestFile });
+  const applied = apply
+    ? await applyPlatformConfig(manifest.target, manifest.expectedPaths.platformDirectory)
+    : undefined;
+
+  return {
+    apply,
+    dryRun: !apply,
+    target: manifest.target,
+    root,
+    projectRoot: manifest.expectedPaths.projectRoot,
+    platformDirectory: manifest.expectedPaths.platformDirectory,
+    hooksDirectory: manifest.expectedPaths.hooksDirectory,
+    manifestFile: manifest.expectedPaths.manifestFile,
+    hooksPlanned: countSupportedManifestHooks(manifest),
+    hooksAdded: applied?.hooksAdded ?? 0,
+    ...(applied ? { applied: toJsonValue(applied) } : {}),
+  };
+}
+
+async function applyLifecycleTool(args: JsonObject): Promise<JsonObject> {
+  const target = readArtifactInstallTarget(args.target);
+  const kind = readArtifactInstallKind(args.kind);
+  const root = await readMcpInstallRoot(args);
+  const apply = readApply(args);
+  const result = await applyRuntimeLifecycle({
+    projectRoot: root,
+    target,
+    kind,
+    apply,
+    writeManifests: readLifecycleWriteManifests(args, apply),
+    platform: {
+      apply: applyPlatformConfig,
+    },
+  });
+
+  return toJsonValue(result) as JsonObject;
+}
+
+async function uninstallLifecycleTool(args: JsonObject): Promise<JsonObject> {
+  const root = await readMcpInstallRoot(args);
+  const apply = readApply(args);
+  const result = await uninstallRuntimeLifecycle({
+    projectRoot: root,
+    apply,
+    platformManifestFile: readOptionalString(args.platformManifestFile, "platformManifestFile"),
+    artifactManifestFile: readOptionalString(args.artifactManifestFile, "artifactManifestFile"),
+    platform: {
+      remove: removePlatformConfig,
+    },
+  });
+
+  return toJsonValue(result) as JsonObject;
+}
+
+async function repairLifecycleTool(args: JsonObject): Promise<JsonObject> {
+  const kind = readArtifactInstallKind(args.kind);
+  const root = await readMcpInstallRoot(args);
+  const apply = readApply(args);
+  const result = await repairRuntimeLifecycle({
+    projectRoot: root,
+    kind,
+    apply,
+    writeManifests: readLifecycleWriteManifests(args, apply),
+    manifestFile: readOptionalString(args.manifestFile, "manifestFile"),
+    platform: {
+      apply: applyPlatformConfig,
+    },
+  });
+
+  return toJsonValue(result) as JsonObject;
+}
+
+async function applyPlatformConfig(
+  target: InstallTarget,
+  platformDirectory: string,
+): Promise<
+  | { target: "codex"; configFile: string; hooksAdded: number; featureFlagAdded: boolean }
+  | { target: "claude"; settingsFile: string; hooksAdded: number }
+  | { target: "hermes"; configFile: string; hooksAdded: number; pluginAdded: boolean }
+> {
+  if (target === "codex") {
+    return applyCodexHookConfig({ root: platformDirectory });
+  }
+
+  if (target === "claude") {
+    return applyClaudeSettings({ root: platformDirectory });
+  }
+
+  return applyHermesHookConfig({ root: platformDirectory });
+}
+
+async function removePlatformConfig(
+  target: InstallTarget,
+  platformDirectory: string,
+): Promise<
+  | { target: "codex"; configFile: string; hooksRemoved: number }
+  | { target: "claude"; settingsFile: string; hooksRemoved: number }
+  | { target: "hermes"; configFile: string; hooksRemoved: number; pluginRemoved: boolean }
+> {
+  if (target === "codex") {
+    return removeCodexHookConfig({ root: platformDirectory });
+  }
+
+  if (target === "claude") {
+    return removeClaudeSettings({ root: platformDirectory });
+  }
+
+  return removeHermesHookConfig({ root: platformDirectory });
+}
+
+function countSupportedManifestHooks(manifest: InstallManifest): number {
+  return manifest.plannedActions.filter(
+    (action) => action.kind === "register_hook" && action.supported !== false,
+  ).length;
+}
+
+async function rollbackArtifactsTool(args: JsonObject): Promise<JsonObject> {
+  const root = await readMcpInstallRoot(args);
+  const apply = readApply(args);
+  const manifestFile = readOptionalString(args.manifestFile, "manifestFile");
+  const result = await rollbackCatalogArtifacts({
+    projectRoot: root,
+    manifestFile,
+    dryRun: !apply,
+  });
+  const deletedPaths = result.deletedPaths ?? [];
+  const restoredPaths = result.restoredPaths ?? [];
+
+  return {
+    apply,
+    dryRun: !apply,
+    root,
+    projectRoot: result.projectRoot,
+    target: result.target,
+    platformDirectory: result.platformDirectory,
+    manifestFile: result.manifestFile,
+    actions: toJsonValue(result.actions),
+    blockers: toJsonValue(result.blockers),
+    artifactsPlanned: result.actions.length,
+    actionsPlanned: result.actions.length,
+    artifactsDeleted: deletedPaths.length,
+    artifactsRestored: restoredPaths.length,
+    deletedPaths: [...deletedPaths],
+    restoredPaths: [...restoredPaths],
   };
 }
 
@@ -643,7 +1118,7 @@ function readEvidenceKey(value: unknown): EvidenceKey {
 }
 
 async function logEvent(args: JsonObject): Promise<JsonObject> {
-  const projectRoot = readRoot(args);
+  const projectRoot = await readMcpProjectRoot(args, "MCP project root");
   const eventType = readRequiredString(args.type, "type");
 
   if (eventType === "GATE_EVALUATED" || eventType === "RUN_CLOSED") {
@@ -662,7 +1137,7 @@ async function logEvent(args: JsonObject): Promise<JsonObject> {
     id: `evt_${Date.now()}`,
     ts: new Date().toISOString(),
     type: eventType,
-    payload: isJsonObject(args.payload) ? (redactJsonObject(args.payload) as JsonObject) : {},
+    payload: redactJsonObject(readOptionalJsonObject(args.payload, "payload")) as JsonObject,
   };
 
   if (args.gateType !== undefined) {
@@ -700,6 +1175,25 @@ function readSubPhase(value: unknown): (typeof SUB_PHASES)[number] {
   }
 
   throw new Error(`Invalid targetSubPhase: ${String(value)}`);
+}
+
+function readOperatingMode(value: unknown): (typeof OPERATING_MODES)[number] {
+  if (
+    typeof value === "string" &&
+    OPERATING_MODES.includes(value as (typeof OPERATING_MODES)[number])
+  ) {
+    return value as (typeof OPERATING_MODES)[number];
+  }
+
+  throw new Error(`Invalid mode: ${String(value)}`);
+}
+
+function readRiskClass(value: unknown): (typeof RISK_CLASSES)[number] {
+  if (typeof value === "string" && RISK_CLASSES.includes(value as (typeof RISK_CLASSES)[number])) {
+    return value as (typeof RISK_CLASSES)[number];
+  }
+
+  throw new Error(`Invalid riskClass: ${String(value)}`);
 }
 
 function readChangeType(value: unknown): Changeset["changeType"] {
@@ -841,11 +1335,52 @@ function readRuntimeHookCapabilityInput(
     hook.configDigest = readRequiredString(value.configDigest, `${fieldName}.configDigest`);
   }
 
+  if (value.proofs !== undefined) {
+    hook.proofs = readRuntimeProbeEvidenceArray(value.proofs, `${fieldName}.proofs`);
+  }
+
   if (value.notes !== undefined) {
     hook.notes = readStringArray(value.notes, `${fieldName}.notes`);
   }
 
   return hook;
+}
+
+function readRuntimeProbeEvidenceArray(value: unknown, fieldName: string): RuntimeProbeEvidence[] {
+  if (!Array.isArray(value)) {
+    throw new Error(`${fieldName} must be an array`);
+  }
+
+  return value.map((item, index) => readRuntimeProbeEvidence(item, `${fieldName}.${index}`));
+}
+
+function readRuntimeProbeEvidence(value: unknown, fieldName: string): RuntimeProbeEvidence {
+  if (!isJsonObject(value)) {
+    throw new Error(`${fieldName} must be an object`);
+  }
+
+  const proof: RuntimeProbeEvidence = {
+    type: readRuntimeProofType(value.type, `${fieldName}.type`),
+    status: readRequiredEvidenceStatus(value.status, `${fieldName}.status`),
+  };
+
+  if (value.observedAt !== undefined) {
+    proof.observedAt = readRequiredString(value.observedAt, `${fieldName}.observedAt`);
+  }
+
+  if (value.detail !== undefined) {
+    proof.detail = readRequiredString(value.detail, `${fieldName}.detail`);
+  }
+
+  return proof;
+}
+
+function readRuntimeProofType(value: unknown, fieldName: string): RuntimeProofType {
+  if (typeof value === "string" && RUNTIME_PROOF_TYPES.includes(value as RuntimeProofType)) {
+    return value as RuntimeProofType;
+  }
+
+  throw new Error(`${fieldName} must be a runtime proof type`);
 }
 
 function readOptionalHookDigestRecord(
@@ -873,10 +1408,26 @@ function readToolCall(params: unknown): { name: string; arguments: JsonObject } 
     throw new Error("tools/call params must include a string name");
   }
 
+  if (params.arguments !== undefined && !isJsonObject(params.arguments)) {
+    throw new Error("tools/call arguments must be an object when provided");
+  }
+
   return {
     name: params.name,
-    arguments: isJsonObject(params.arguments) ? params.arguments : {},
+    arguments: params.arguments ?? {},
   };
+}
+
+function readOptionalJsonObject(value: unknown, fieldName: string): JsonObject {
+  if (value === undefined) {
+    return {};
+  }
+
+  if (isJsonObject(value)) {
+    return value;
+  }
+
+  throw new Error(`${fieldName} must be an object when provided`);
 }
 
 function readRoot(args: JsonObject): string {
@@ -884,15 +1435,31 @@ function readRoot(args: JsonObject): string {
 }
 
 async function readArtifactBaseDir(args: JsonObject): Promise<{ root: string; baseDir: string }> {
-  const root = path.resolve(readRoot(args));
+  const root = await readMcpProjectRoot(args, "MCP artifact root");
   const baseDirInput =
     typeof args.baseDir === "string" && args.baseDir.length > 0 ? args.baseDir : root;
-  const realRoot = await ensureRealDirectory(root);
-  const baseDir = await resolvePathUnderRealRoot(realRoot, path.resolve(baseDirInput));
+  const baseDir = await resolvePathUnderRealRoot(root, path.resolve(baseDirInput));
 
-  assertPathInside(realRoot, baseDir, "Artifact baseDir");
+  assertPathInside(root, baseDir, "Artifact baseDir");
 
-  return { root: realRoot, baseDir };
+  return { root, baseDir };
+}
+
+async function readMcpInstallRoot(args: JsonObject): Promise<string> {
+  return readMcpProjectRoot(args, "MCP install root");
+}
+
+async function readMcpPlatformRoot(args: JsonObject): Promise<string> {
+  return readMcpProjectRoot(args, "MCP platform root");
+}
+
+async function readMcpProjectRoot(args: JsonObject, label: string): Promise<string> {
+  const serverRoot = await ensureRealDirectory(process.cwd());
+  const requestedRoot = await ensureRealDirectory(path.resolve(readRoot(args)));
+
+  assertPathInside(serverRoot, requestedRoot, label);
+
+  return requestedRoot;
 }
 
 function readApply(args: JsonObject): boolean {
@@ -907,6 +1474,46 @@ function readApply(args: JsonObject): boolean {
   throw new Error("apply must be a boolean");
 }
 
+function readWriteManifest(args: JsonObject): boolean {
+  if (args.writeManifest === undefined) {
+    return false;
+  }
+
+  if (typeof args.writeManifest === "boolean") {
+    return args.writeManifest;
+  }
+
+  throw new Error("writeManifest must be a boolean");
+}
+
+function readCaptureRestoreSnapshots(args: JsonObject): boolean {
+  if (args.captureRestoreSnapshots === undefined) {
+    return false;
+  }
+
+  if (typeof args.captureRestoreSnapshots === "boolean") {
+    return args.captureRestoreSnapshots;
+  }
+
+  throw new Error("captureRestoreSnapshots must be a boolean");
+}
+
+function readLifecycleWriteManifests(args: JsonObject, apply: boolean): boolean | undefined {
+  if (args.writeManifests === undefined) {
+    return undefined;
+  }
+
+  if (typeof args.writeManifests !== "boolean") {
+    throw new Error("writeManifests must be a boolean");
+  }
+
+  if (args.writeManifests && !apply) {
+    throw new Error("writeManifests requires apply:true for lifecycle operations.");
+  }
+
+  return args.writeManifests;
+}
+
 function readArtifactToolKind(value: unknown): CatalogArtifactSelection {
   if (value === undefined) {
     return "all";
@@ -914,9 +1521,9 @@ function readArtifactToolKind(value: unknown): CatalogArtifactSelection {
 
   if (
     typeof value === "string" &&
-    CATALOG_ARTIFACT_SELECTIONS.includes(value as CatalogArtifactSelection)
+    MCP_ARTIFACT_SELECTIONS.includes(value as McpArtifactSelection)
   ) {
-    return value as CatalogArtifactSelection;
+    return toCoreArtifactSelection(value as McpArtifactSelection);
   }
 
   throw new Error(`Invalid artifact kind: ${String(value)}`);
@@ -929,9 +1536,9 @@ function readArtifactInstallKind(value: unknown): ArtifactInstallSelection {
 
   if (
     typeof value === "string" &&
-    ARTIFACT_INSTALL_SELECTIONS.includes(value as ArtifactInstallSelection)
+    MCP_ARTIFACT_SELECTIONS.includes(value as McpArtifactSelection)
   ) {
-    return value as ArtifactInstallSelection;
+    return toCoreArtifactSelection(value as McpArtifactSelection);
   }
 
   throw new Error(`Invalid artifact install kind: ${String(value)}`);
@@ -946,6 +1553,14 @@ function readArtifactInstallTarget(value: unknown): ArtifactInstallTarget {
   }
 
   throw new Error(`Invalid artifact install target: ${String(value)}`);
+}
+
+function readInstallTarget(value: unknown): InstallTarget {
+  if (typeof value === "string" && INSTALL_TARGETS.includes(value as InstallTarget)) {
+    return value as InstallTarget;
+  }
+
+  throw new Error(`Invalid install target: ${String(value)}`);
 }
 
 function readProtocolVersion(params: unknown): string {
@@ -972,19 +1587,20 @@ function readGateDecision(value: unknown): GateDecision {
   throw new Error(`Invalid decision: ${String(value)}`);
 }
 
-function readEvidenceStatus(value: unknown): (typeof EVIDENCE_STATUSES)[number] {
+function readEvidenceStatus(value: unknown): EvidenceStatus {
   if (value === undefined) {
     return DEFAULT_EVIDENCE_STATUS;
   }
 
-  if (
-    typeof value === "string" &&
-    EVIDENCE_STATUSES.includes(value as (typeof EVIDENCE_STATUSES)[number])
-  ) {
-    return value as (typeof EVIDENCE_STATUSES)[number];
+  return readRequiredEvidenceStatus(value, "status");
+}
+
+function readRequiredEvidenceStatus(value: unknown, fieldName: string): EvidenceStatus {
+  if (typeof value === "string" && EVIDENCE_STATUSES.includes(value as EvidenceStatus)) {
+    return value as EvidenceStatus;
   }
 
-  throw new Error(`Invalid status: ${String(value)}`);
+  throw new Error(`${fieldName} must be an evidence status`);
 }
 
 function readRequiredString(value: unknown, fieldName: string): string {
@@ -1056,7 +1672,9 @@ function objectSchema(properties: JsonObject, required: string[] = []): JsonObje
 function gateInputSchema(): JsonObject {
   return objectSchema(
     {
-      root: stringProperty("Project root. Defaults to the MCP server working directory."),
+      root: stringProperty(
+        "Project root. Defaults to the MCP server working directory and must stay under it.",
+      ),
       gateType: {
         type: "string",
         enum: [...GATE_TYPES],
@@ -1093,21 +1711,60 @@ function runtimeDigestInputSchema(): JsonObject {
 
 function closeRunInputSchema(): JsonObject {
   return objectSchema({
-    root: stringProperty("Project root. Defaults to the MCP server working directory."),
+    root: stringProperty(
+      "Project root. Defaults to the MCP server working directory and must stay under it.",
+    ),
     closedAt: stringProperty("Optional close timestamp."),
     eventId: stringProperty("Optional close event id."),
+  });
+}
+
+function enterDevelopmentInputSchema(): JsonObject {
+  return objectSchema({
+    root: stringProperty(
+      "Project root. Defaults to the MCP server working directory and must stay under it.",
+    ),
+    phase: {
+      type: "string",
+      enum: [...MACRO_CYCLES],
+      description: "Target macro-cycle. Defaults to build.",
+      default: "build",
+    },
+    subPhase: {
+      type: "string",
+      enum: [...SUB_PHASES],
+      description: "Target subphase. Defaults to Execute.",
+      default: "Execute",
+    },
+    mode: {
+      type: "string",
+      enum: [...OPERATING_MODES],
+      description: "Operating mode. Defaults to auto.",
+      default: "auto",
+    },
+    riskClass: {
+      type: "string",
+      enum: [...RISK_CLASSES],
+      description: "Effective T/L/M/H/C risk class. Defaults to current risk.",
+    },
+    objective: stringProperty("Short objective for the governed development session."),
+    rawPrompt: stringProperty("Raw user prompt or intent summary."),
+    reason: stringProperty("Reason recorded in the state event log."),
   });
 }
 
 function runtimeInspectInputSchema(): JsonObject {
   return objectSchema(
     {
-      root: stringProperty("Project root. Defaults to the MCP server working directory."),
+      root: stringProperty(
+        "Project root. Defaults to the MCP server working directory and must stay under it.",
+      ),
       target: stringProperty("Runtime target, for example codex, claude, or hermes."),
       inspectedAt: stringProperty("Optional inspection timestamp."),
       runtimeName: stringProperty("Optional runtime display name."),
+      runtimeVersion: stringProperty("Optional runtime profile version bound to trusted proofs."),
       status: runtimeCapabilityStatusProperty("Optional runtime capability status."),
-      configDigest: stringProperty("Optional runtime profile config digest."),
+      configDigest: stringProperty("Optional observed runtime config content digest."),
       hooks: runtimeHooksProperty("Optional runtime hook capability overrides keyed by gate type."),
       knownLimitations: arrayProperty("string", "Optional runtime limitations."),
     },
@@ -1118,7 +1775,9 @@ function runtimeInspectInputSchema(): JsonObject {
 function evidenceInputSchema(): JsonObject {
   return objectSchema(
     {
-      root: stringProperty("Project root. Defaults to the MCP server working directory."),
+      root: stringProperty(
+        "Project root. Defaults to the MCP server working directory and must stay under it.",
+      ),
       key: {
         type: "string",
         enum: [...EVIDENCE_KEYS],
@@ -1140,13 +1799,15 @@ function evidenceInputSchema(): JsonObject {
 
 function generateArtifactsInputSchema(): JsonObject {
   return objectSchema({
-    root: stringProperty("Project root. Defaults to the MCP server working directory."),
+    root: stringProperty(
+      "Project root. Defaults to the MCP server working directory and must stay under it.",
+    ),
     baseDir: stringProperty(
       "Artifact output base directory. Defaults to root and must stay inside root.",
     ),
     kind: {
       type: "string",
-      enum: [...CATALOG_ARTIFACT_SELECTIONS],
+      enum: [...MCP_ARTIFACT_SELECTIONS],
       description: "Artifact kind to generate.",
       default: "all",
     },
@@ -1161,7 +1822,9 @@ function generateArtifactsInputSchema(): JsonObject {
 function installArtifactsInputSchema(): JsonObject {
   return objectSchema(
     {
-      root: stringProperty("Project root. Defaults to the MCP server working directory."),
+      root: stringProperty(
+        "Project root. Defaults to the MCP server working directory and must stay under it.",
+      ),
       target: {
         type: "string",
         enum: [...ARTIFACT_INSTALL_TARGETS],
@@ -1169,7 +1832,7 @@ function installArtifactsInputSchema(): JsonObject {
       },
       kind: {
         type: "string",
-        enum: [...ARTIFACT_INSTALL_SELECTIONS],
+        enum: [...MCP_ARTIFACT_SELECTIONS],
         description: "Artifact kind to install.",
         default: "all",
       },
@@ -1178,9 +1841,144 @@ function installArtifactsInputSchema(): JsonObject {
         description: "Write artifacts when true. Defaults to dry-run.",
         default: false,
       },
+      writeManifest: {
+        type: "boolean",
+        description: "Write .planning/artifact-install-manifest.json during apply.",
+        default: false,
+      },
+      captureRestoreSnapshots: {
+        type: "boolean",
+        description:
+          "Store previous managed artifact content in the manifest for automatic rollback restore.",
+        default: false,
+      },
     },
     ["target"],
   );
+}
+
+function platformInstallInputSchema(): JsonObject {
+  return objectSchema(
+    {
+      root: stringProperty(
+        "Project root. Defaults to the MCP server working directory and must stay under it.",
+      ),
+      target: {
+        type: "string",
+        enum: [...INSTALL_TARGETS],
+        description: "Runtime platform install target.",
+      },
+      apply: {
+        type: "boolean",
+        description: "Apply target adapter hook config when true. Defaults to dry-run.",
+        default: false,
+      },
+      writeManifest: {
+        type: "boolean",
+        description: "Write .planning/install-manifest.json.",
+        default: false,
+      },
+    },
+    ["target"],
+  );
+}
+
+function platformLifecycleInputSchema(): JsonObject {
+  return objectSchema({
+    root: stringProperty(
+      "Project root. Defaults to the MCP server working directory and must stay under it.",
+    ),
+    manifestFile: stringProperty("Optional platform install manifest file."),
+    apply: {
+      type: "boolean",
+      description: "Mutate managed platform hook config when true. Defaults to dry-run.",
+      default: false,
+    },
+  });
+}
+
+function lifecycleApplyInputSchema(): JsonObject {
+  return objectSchema(
+    {
+      root: stringProperty(
+        "Project root. Defaults to the MCP server working directory and must stay under it.",
+      ),
+      target: {
+        type: "string",
+        enum: [...ARTIFACT_INSTALL_TARGETS],
+        description: "Runtime lifecycle target.",
+      },
+      kind: {
+        type: "string",
+        enum: [...MCP_ARTIFACT_SELECTIONS],
+        description: "Artifact kind to install.",
+        default: "all",
+      },
+      apply: {
+        type: "boolean",
+        description: "Write platform hooks, artifacts, and lifecycle manifests when true.",
+        default: false,
+      },
+      writeManifests: {
+        type: "boolean",
+        description: "Write lifecycle manifests during apply. Defaults to apply:true.",
+      },
+    },
+    ["target"],
+  );
+}
+
+function lifecycleRepairInputSchema(): JsonObject {
+  return objectSchema({
+    root: stringProperty(
+      "Project root. Defaults to the MCP server working directory and must stay under it.",
+    ),
+    kind: {
+      type: "string",
+      enum: [...MCP_ARTIFACT_SELECTIONS],
+      description: "Artifact kind to repair.",
+      default: "all",
+    },
+    manifestFile: stringProperty("Optional platform install manifest file."),
+    apply: {
+      type: "boolean",
+      description: "Re-apply platform hooks, artifacts, and lifecycle manifests when true.",
+      default: false,
+    },
+    writeManifests: {
+      type: "boolean",
+      description: "Write lifecycle manifests during apply. Defaults to apply:true.",
+    },
+  });
+}
+
+function lifecycleUninstallInputSchema(): JsonObject {
+  return objectSchema({
+    root: stringProperty(
+      "Project root. Defaults to the MCP server working directory and must stay under it.",
+    ),
+    platformManifestFile: stringProperty("Optional platform install manifest file."),
+    artifactManifestFile: stringProperty("Optional artifact install manifest file."),
+    apply: {
+      type: "boolean",
+      description: "Rollback artifacts and remove managed platform hooks when true.",
+      default: false,
+    },
+  });
+}
+
+function rollbackArtifactsInputSchema(): JsonObject {
+  return objectSchema({
+    root: stringProperty(
+      "Project root. Defaults to the MCP server working directory and must stay under it.",
+    ),
+    manifestFile: stringProperty("Optional artifact install manifest file."),
+    apply: {
+      type: "boolean",
+      description: "Delete rollbackable artifacts when true. Defaults to dry-run.",
+      default: false,
+    },
+  });
 }
 
 function stringProperty(description: string): JsonObject {
@@ -1233,6 +2031,38 @@ function runtimeHooksProperty(description: string): JsonObject {
           },
           status: runtimeCapabilityStatusProperty("Hook capability status."),
           configDigest: stringProperty("Optional hook config digest."),
+          proofs: {
+            type: "array",
+            description: "Executable runtime probe evidence for this hook.",
+            items: objectSchema(
+              {
+                type: {
+                  type: "string",
+                  enum: [...RUNTIME_PROOF_TYPES],
+                  description: "Runtime proof type.",
+                },
+                status: {
+                  type: "string",
+                  enum: [...EVIDENCE_STATUSES],
+                  description: "Proof acceptance status.",
+                },
+                observedAt: stringProperty("Optional proof observation timestamp."),
+                detail: stringProperty("Optional proof detail."),
+                verifier: stringProperty("Trusted proof verifier. External values are downgraded."),
+                target: stringProperty("Runtime target bound to a trusted proof."),
+                runtimeVersion: stringProperty("Runtime profile version bound to a trusted proof."),
+                gateType: {
+                  type: "string",
+                  enum: [...GATE_TYPES],
+                  description: "GateType bound to a trusted proof.",
+                },
+                configDigest: stringProperty("Runtime config digest bound to a trusted proof."),
+                result: stringProperty("Verifier result bound to a trusted proof."),
+                proofDigest: stringProperty("Verifier digest over the trusted proof payload."),
+              },
+              ["type", "status"],
+            ),
+          },
           notes: arrayProperty("string", "Optional hook notes."),
         }),
       ]),
@@ -1240,6 +2070,28 @@ function runtimeHooksProperty(description: string): JsonObject {
     additionalProperties: false,
     description,
   };
+}
+
+function runtimeProbeInputSchema(): JsonObject {
+  return objectSchema(
+    {
+      root: stringProperty(
+        "Project root. Defaults to the MCP server working directory and must stay under it.",
+      ),
+      target: stringProperty("Runtime target, for example codex, claude, or hermes."),
+      bind: {
+        type: "boolean",
+        description: "Bind runtime gates immediately after probing.",
+        default: false,
+      },
+      verifyBlockingFixtures: {
+        type: "boolean",
+        description: "Execute managed blocking fixtures before minting trusted blocking proofs.",
+        default: false,
+      },
+    },
+    ["target"],
+  );
 }
 
 function runtimeCapabilityStatusProperty(description: string): JsonObject {
@@ -1322,6 +2174,10 @@ function toJsonValue(value: unknown): JsonValue {
   return JSON.parse(JSON.stringify(value)) as JsonValue;
 }
 
+function toCoreArtifactSelection(selection: McpArtifactSelection): ArtifactInstallSelection {
+  return selection;
+}
+
 function toArtifactSummary(artifact: CatalogArtifactDescriptor): JsonObject {
   return {
     kind: artifact.kind,
@@ -1332,39 +2188,7 @@ function toArtifactSummary(artifact: CatalogArtifactDescriptor): JsonObject {
 }
 
 function redactJsonObject(value: JsonObject): JsonObject {
-  return Object.fromEntries(
-    Object.entries(value).map(([key, item]) => [key, redactJsonValue(item, key)]),
-  ) as JsonObject;
-}
-
-function redactJsonValue(value: JsonValue, key?: string): JsonValue {
-  if (typeof value === "string") {
-    if (SECRET_KEY_PATTERN.test(key ?? "")) {
-      return "[REDACTED]";
-    }
-
-    return redactSecrets(value);
-  }
-
-  if (Array.isArray(value)) {
-    return value.map((item) => redactJsonValue(item, key));
-  }
-
-  if (value && typeof value === "object") {
-    return redactJsonObject(value);
-  }
-
-  return value;
-}
-
-function redactSecrets(value: string): string {
-  return value
-    .replace(
-      /((?:api[_-]?key|token|password|secret)\s*[:=]\s*["']?)[a-z0-9_-]{8,}/gi,
-      "$1[REDACTED]",
-    )
-    .replace(/sk-[a-z0-9]{8,}/gi, "sk-[REDACTED]")
-    .replace(/ghp_[a-z0-9]{8,}/gi, "ghp_[REDACTED]");
+  return redactRecord(value) as JsonObject;
 }
 
 function isDirectExecution(): boolean {

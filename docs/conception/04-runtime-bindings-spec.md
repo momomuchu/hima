@@ -19,7 +19,7 @@ Each RMS abstract concept maps to a concrete primitive on each platform. When a 
 | **pre_tool** | `PreToolUse` hook | `PreToolUse` hook | `pre_tool_call` plugin/shell hook |
 | **post_tool** | `PostToolUse` hook | `PostToolUse` hook | `post_tool_call` plugin/shell hook |
 | **stop** | `Stop` hook | `Stop` hook | `on_session_end` + `on_session_finalize` plugin hooks |
-| **subagent_start** | `SubagentStart` hook when available, otherwise spawn wrapper | spawn wrapper / no native hook equivalent | `subagent_start` plugin hook or `agent:start` gateway hook |
+| **subagent_start** | `SubagentStart` hook | no native executable MVP hook | no native executable MVP hook |
 | **subagent_stop** | `SubagentStop` hook | no equivalent — `no-op` with capability flag `subagent_stop_hook: false` | `subagent_stop` plugin hook |
 | **procedure.reusable** | skill in `.claude/skills/<name>/SKILL.md` or `~/.claude/skills/<name>/SKILL.md` | skill in `.agents/skills/<name>/SKILL.md` or `~/.agents/skills/<name>/SKILL.md` | skill in `~/.hermes/skills/<name>/SKILL.md` |
 | **procedure.slash_command** | `/skill-name` (skills merged with commands) | `/skill-name` via skills; custom prompts deprecated | `/<skill-name>` via installed skill or `quick_commands` in config |
@@ -46,8 +46,8 @@ The canonical `GateType` values and their full adapter bindings per platform. Ru
 | Dimension | Claude Code | Codex | Hermes |
 |---|---|---|---|
 | Event name | `SessionStart` | `SessionStart` | `on_session_start` (plugin) / `session:start` (gateway) |
-| Config location | `~/.claude/settings.json` or `.claude/settings.json` | `~/.codex/hooks.json` or `.codex/hooks.json` | `hooks:` block in `~/.hermes/config.yaml` (shell) or `ctx.register_hook()` in plugin Python |
-| Config format | JSON | JSON | YAML (shell) / Python (plugin) |
+| Config location | `~/.claude/settings.json` or `.claude/settings.json` | `~/.codex/config.toml` or `.codex/config.toml` | `hooks:` block in `~/.hermes/config.yaml` (shell) or `ctx.register_hook()` in plugin Python |
+| Config format | JSON | TOML `[[hooks]]` tables behind `[features] codex_hooks = true` | YAML (shell) / Python (plugin) |
 | Blocking | No — SessionStart is informational | Not documented as blocking | Not documented as blocking |
 | Output format | stdout text injected as `additionalContext` (≤10 000 chars) | stdout text | `{"context": "..."}` for `pre_llm_call`; plain stdout for shell hooks |
 | Harness use | load project state, inject phase + risk class into context | same | same |
@@ -57,8 +57,8 @@ The canonical `GateType` values and their full adapter bindings per platform. Ru
 | Dimension | Claude Code | Codex | Hermes |
 |---|---|---|---|
 | Event name | `UserPromptSubmit` | `UserPromptSubmit` | `pre_llm_call` (plugin) — closest semantic match |
-| Config location | `~/.claude/settings.json` | `~/.codex/hooks.json` | plugin Python via `ctx.register_hook("pre_llm_call", handler)` |
-| Config format | JSON | JSON | Python |
+| Config location | `~/.claude/settings.json` | `~/.codex/config.toml` | plugin Python via `ctx.register_hook("pre_llm_call", handler)` |
+| Config format | JSON | TOML `[[hooks]]` tables behind `[features] codex_hooks = true` | Python |
 | Blocking | Yes — `exit 2` or JSON `{"decision":"block","reason":"..."}` | Yes — can block with deny decision | Yes — return `{"action": "block"}` |
 | Output format | JSON with optional `additionalContext` field | JSON stdout | Python dict returned from handler |
 | Harness use | enforce mode rules, check risk class vs requested action, inject current phase |  same | same |
@@ -68,8 +68,8 @@ The canonical `GateType` values and their full adapter bindings per platform. Ru
 | Dimension | Claude Code | Codex | Hermes |
 |---|---|---|---|
 | Event name | `PreToolUse` | `PreToolUse` | `pre_tool_call` |
-| Config location | `~/.claude/settings.json` | `~/.codex/hooks.json` | `~/.hermes/config.yaml` hooks block or plugin |
-| Config format | JSON | JSON | YAML or Python |
+| Config location | `~/.claude/settings.json` | `~/.codex/config.toml` | `~/.hermes/config.yaml` hooks block or plugin |
+| Config format | JSON | TOML `[[hooks]]` tables behind `[features] codex_hooks = true` | YAML or Python |
 | Blocking | Yes — `exit 2` blocks the tool call | Yes — `deny` decision blocks | Yes — `{"action": "block"}` |
 | Output format | JSON: `{"decision":"block","reason":"..."}` or `{"decision":"allow"}` | JSON stdout with allow/deny | JSON stdout (shell) or Python dict (plugin) |
 | Payload received | `tool_name`, `tool_input`, `session_id`, `cwd`, `permission_mode` | same schema | `hook_event_name`, `tool_name`, `tool_input`, `session_id`, `cwd` in JSON stdin |
@@ -80,8 +80,8 @@ The canonical `GateType` values and their full adapter bindings per platform. Ru
 | Dimension | Claude Code | Codex | Hermes |
 |---|---|---|---|
 | Event name | `PostToolUse` | `PostToolUse` | `post_tool_call` |
-| Config location | `~/.claude/settings.json` | `~/.codex/hooks.json` | `~/.hermes/config.yaml` or plugin |
-| Config format | JSON | JSON | YAML or Python |
+| Config location | `~/.claude/settings.json` | `~/.codex/config.toml` | `~/.hermes/config.yaml` or plugin |
+| Config format | JSON | TOML `[[hooks]]` tables behind `[features] codex_hooks = true` | YAML or Python |
 | Blocking | No — action already completed; can inject context and affect later finalization | PostToolUse context injection documented; cannot undo completed tool action | `transform_tool_result` can replace output, but cannot undo completed side effects |
 | Output format | `additionalContext` in stdout injected into next turn | `additionalContext` | `{"result": ...}` from `transform_tool_result` |
 | Harness use | record/evaluate output in `.planning/run-set.json`, update route state, check evidence accumulation for later gates |  same | same; `transform_tool_result` used for evidence capture |
@@ -91,8 +91,8 @@ The canonical `GateType` values and their full adapter bindings per platform. Ru
 | Dimension | Claude Code | Codex | Hermes |
 |---|---|---|---|
 | Event name | `Stop` | `Stop` | `on_session_end` + `on_session_finalize` |
-| Config location | `~/.claude/settings.json` | `~/.codex/hooks.json` | plugin or `~/.hermes/config.yaml` |
-| Config format | JSON | JSON | YAML or Python |
+| Config location | `~/.claude/settings.json` | `~/.codex/config.toml` | plugin or `~/.hermes/config.yaml` |
+| Config format | JSON | TOML `[[hooks]]` tables behind `[features] codex_hooks = true` | YAML or Python |
 | Blocking | Yes — `exit 2` prevents stop, agent continues | Yes — can continue/block stop | Not documented as hard-blocking on session_end |
 | Output format | JSON with `continue: true` to prevent stop | JSON | Return value from Python handler |
 | Harness use | enforce Evidence Set sufficiency check before DONE; loop if evidence incomplete |  same | on_session_finalize used; no hard block available — record DONE_WITH_GAPS instead |
@@ -101,13 +101,13 @@ The canonical `GateType` values and their full adapter bindings per platform. Ru
 
 | Dimension | Claude Code | Codex | Hermes |
 |---|---|---|---|
-| Event name | `SubagentStart` when available; otherwise spawn wrapper | no native hook — spawn wrapper if harness owns launch | `subagent_start` plugin hook / `agent:start` gateway hook |
-| Config location | `~/.claude/settings.json` or harness spawn wrapper | harness spawn wrapper | plugin Python or gateway hook |
+| Event name | `SubagentStart` | no native hook in executable MVP profile | no native hook in executable MVP profile |
+| Config location | `~/.claude/settings.json` | no runtime config entry | no runtime config entry |
 | Config format | JSON or wrapper contract | wrapper contract | Python / YAML gateway |
 | Blocking | Yes when adapter supports a pre-spawn hook or wrapper | Yes only when harness owns spawn | Yes if plugin/gateway returns block action |
 | Output format | JSON | JSON | Python dict |
 | Harness use | record and authorize spawned-agent scope, max depth, write zones, and required evidence contract | same when launch is harness-mediated; otherwise capability gap | same |
-| Degradation | If no native hook exists, enforce at harness spawn wrapper | Capability flag `subagent_start_hook: false` when unmanaged launches cannot be intercepted | Partial support via plugin/gateway |
+| Degradation | Native hook in executable profile | Capability flag `subagent_start_hook: false` when unmanaged launches cannot be intercepted | Capability flag `subagent_start_hook: false`; future plugin/gateway support is not part of the executable MVP profile |
 
 ### 2.7 subagent_stop
 
@@ -119,6 +119,73 @@ The canonical `GateType` values and their full adapter bindings per platform. Ru
 | Blocking | Yes | — | Not explicitly documented as blocking |
 | Output format | JSON | — | Python dict |
 | Degradation | Full support | Capability flag `subagent_stop_hook: false` — harness skips check, records DONE_WITH_GAPS | Partial support via plugin |
+
+---
+
+### 2.8 Executable Runtime Profile Contract
+
+This table is the implementation-facing contract for runtime hook profiles. It is synchronized with `packages/core/src/runtime/runtime-profiles.ts` by `packages/core/test/runtime-profiles.test.ts`.
+
+| Target | GateType | Native event | Can block | Supported | Command |
+|---|---|---|---|---|---|
+| `claude` | `session_start` | `SessionStart` | false | true | `harness hook session-start --format claude` |
+| `claude` | `user_prompt` | `UserPromptSubmit` | true | true | `harness hook user-prompt-submit --format claude` |
+| `claude` | `pre_tool` | `PreToolUse` | true | true | `harness hook pre-tool-use --format claude` |
+| `claude` | `post_tool` | `PostToolUse` | false | true | `harness hook post-tool-use --format claude` |
+| `claude` | `stop` | `Stop` | true | true | `harness hook stop --format claude` |
+| `claude` | `subagent_start` | `SubagentStart` | true | true | `harness hook subagent-start --format claude` |
+| `claude` | `subagent_stop` | `SubagentStop` | true | true | `harness hook subagent-stop --format claude` |
+| `codex` | `session_start` | `SessionStart` | false | true | `harness hook session-start --format codex` |
+| `codex` | `user_prompt` | `UserPromptSubmit` | true | true | `harness hook user-prompt-submit --format codex` |
+| `codex` | `pre_tool` | `PreToolUse` | true | true | `harness hook pre-tool-use --format codex` |
+| `codex` | `post_tool` | `PostToolUse` | false | true | `harness hook post-tool-use --format codex` |
+| `codex` | `stop` | `Stop` | true | true | `harness hook stop --format codex` |
+| `codex` | `subagent_start` | null | false | false | `harness hook subagent-start --format codex` |
+| `codex` | `subagent_stop` | null | false | false | `harness hook subagent-stop --format codex` |
+| `hermes` | `session_start` | `on_session_start` | false | true | `harness hook session-start` |
+| `hermes` | `user_prompt` | `pre_llm_call` | true | true | `harness hook user-prompt-submit` |
+| `hermes` | `pre_tool` | `pre_tool_call` | true | true | `harness hook pre-tool-use` |
+| `hermes` | `post_tool` | `post_tool_call` | false | true | `harness hook post-tool-use` |
+| `hermes` | `stop` | `on_session_end` | false | true | `harness hook stop` |
+| `hermes` | `subagent_start` | null | false | false | `harness hook subagent-start` |
+| `hermes` | `subagent_stop` | `subagent_stop` | false | true | `harness hook subagent-stop` |
+
+The profile contract is intentionally narrower than future platform possibilities. Plugin or gateway hooks that are not represented here are candidate extensions, not v0.1 enforcement proof.
+
+Each target also carries a canonical runtime profile version. The current executable versions are `claude-profile-v2`, `codex-profile-v1`, and `hermes-profile-v1`. Runtime profile digest computation includes this version, so a profile-version change invalidates stale capability and binding evidence even when hook names stay unchanged.
+
+### 2.9 Executable Blocking Proof Contract
+
+`Can block` in the profile table is a runtime capability claim, not an enforcement authorization by itself. A blocking hook becomes usable for governed M/H/C enforcement only when its binding also has accepted executable proof.
+
+Canonical proof types:
+
+| Proof type | Native-equivalent use |
+|---|---|
+| `config_read` | Confirms configuration was read; does not prove runtime firing or blocking. |
+| `manifest_digest` | Confirms installed file identity; does not prove runtime firing or blocking. |
+| `dry_run` | Confirms `harness hook <event>` handles a fixture payload; does not prove runtime firing. |
+| `negative_fixture` | Native-equivalent only when core-minted, `status=accepted`, and verifier-bound metadata is present; proves the runtime's documented block response shape. |
+| `event_fire` | Native-equivalent only when core-minted, `status=accepted`, and verifier-bound metadata is present; proves the runtime invoked the hook in a real session. |
+| `manual_attestation` | Checkpoint evidence only; never native-equivalent blocking proof. |
+
+Binding rule:
+
+| Hook shape | Required result |
+|---|---|
+| `canBlock=false`, native event present, digest proof current | `native`, `canBlock=false` |
+| `canBlock=true`, native event present, digest proof current, core-minted accepted `negative_fixture` or `event_fire` with `observedAt`, `verifier`, `target`, `runtimeVersion`, `gateType`, `configDigest`, `result`, and `proofDigest`; proof `observedAt` is no earlier than the capability inspection, no later than the binding inspection, and no older than 15 minutes at binding time | `native`, `canBlock=true` |
+| `canBlock=true`, native event present, digest proof current, only `manual_attestation` or no executable proof | `stale`, `canBlock=false` |
+| `canBlock=true`, native event present, digest proof missing or mismatched | `stale`, `canBlock=false` |
+| `canBlock=true`, native event present, digest proof current, but executable proof predates capability inspection, is future-dated against binding inspection, or exceeds the 15-minute trusted proof freshness window | `stale`, `canBlock=false` |
+
+For trusted probe acquisition, `configDigest` is the observed runtime config content digest: target identity, canonical `runtimeVersion`, runtime profile digest, runtime config file digest, and install manifest digest when present. It is not only the static runtime profile digest. Changing the observed config, manifest, or runtime profile version invalidates the previous native binding unless a fresh probe records matching values.
+
+This preserves the bootstrapping path: installers register supported hooks from the runtime profile before proof exists, but policy gates do not treat those hooks as blocking until `rms.probe_runtime` has stored core-minted accepted executable proof in `run-set.json`. Runtime config registration alone is not executable proof; `negative_fixture` proof is minted only after managed fixture verification, and `event_fire` proof is reserved for real runtime invocation evidence. Caller-submitted proof overrides through CLI or MCP inspection are candidate-only and cannot promote a blocking hook to native-enforceable status.
+
+Runtime proof text fields are persisted in `run-set.json`; implementations must redact known secret patterns in proof `detail`, hook `notes`, and runtime `knownLimitations` before writing them.
+
+Route-required gate handling is an assessment over the canonical binding table, not a second stored binding model. `bindRuntime()` persists a complete `GateType -> RuntimeBinding` map for the active target. `assessRouteRuntimeBindings()` derives the required gate set from baseline risk policy, planned delegation, and explicit per-risk policy overrides, then evaluates those gates against the existing binding table. If a later route requirement adds `subagent_stop` on Codex, the result is a reported `missing` binding gap, not a new synthesized binding record.
 
 ---
 
@@ -167,7 +234,7 @@ artifacts/skills/classify-risk/SKILL.md   →  ~/.claude/skills/classify-risk/SK
         "hooks": [
           {
             "type": "command",
-            "command": "harness hook session_start"
+            "command": "harness hook session-start --format claude"
           }
         ]
       }
@@ -177,7 +244,7 @@ artifacts/skills/classify-risk/SKILL.md   →  ~/.claude/skills/classify-risk/SK
         "hooks": [
           {
             "type": "command",
-            "command": "harness hook user_prompt"
+            "command": "harness hook user-prompt-submit --format claude"
           }
         ]
       }
@@ -187,7 +254,7 @@ artifacts/skills/classify-risk/SKILL.md   →  ~/.claude/skills/classify-risk/SK
         "hooks": [
           {
             "type": "command",
-            "command": "harness hook pre_tool"
+            "command": "harness hook pre-tool-use --format claude"
           }
         ]
       }
@@ -197,7 +264,7 @@ artifacts/skills/classify-risk/SKILL.md   →  ~/.claude/skills/classify-risk/SK
         "hooks": [
           {
             "type": "command",
-            "command": "harness hook post_tool"
+            "command": "harness hook post-tool-use --format claude"
           }
         ]
       }
@@ -207,7 +274,7 @@ artifacts/skills/classify-risk/SKILL.md   →  ~/.claude/skills/classify-risk/SK
         "hooks": [
           {
             "type": "command",
-            "command": "harness hook stop"
+            "command": "harness hook stop --format claude"
           }
         ]
       }
@@ -217,7 +284,7 @@ artifacts/skills/classify-risk/SKILL.md   →  ~/.claude/skills/classify-risk/SK
         "hooks": [
           {
             "type": "command",
-            "command": "harness hook subagent_start"
+            "command": "harness hook subagent-start --format claude"
           }
         ]
       }
@@ -227,7 +294,7 @@ artifacts/skills/classify-risk/SKILL.md   →  ~/.claude/skills/classify-risk/SK
         "hooks": [
           {
             "type": "command",
-            "command": "harness hook subagent_stop"
+            "command": "harness hook subagent-stop --format claude"
           }
         ]
       }
@@ -242,7 +309,7 @@ artifacts/skills/classify-risk/SKILL.md   →  ~/.claude/skills/classify-risk/SK
 
 Written to: `~/.claude/settings.json` (global install) or `.claude/settings.json` (project install).
 
-### 4.2 Codex — `config.toml` + `hooks.json`
+### 4.2 Codex — `config.toml`
 
 ```toml
 # ~/.codex/config.toml
@@ -252,29 +319,36 @@ codex_hooks = true
 [agents]
 max_threads = 6
 max_depth = 1
-```
 
-```json
-// ~/.codex/hooks.json
-{
-  "hooks": {
-    "SessionStart": {
-      "command": "harness hook session_start"
-    },
-    "PreToolUse": {
-      "command": "harness hook pre_tool"
-    },
-    "PostToolUse": {
-      "command": "harness hook post_tool"
-    },
-    "UserPromptSubmit": {
-      "command": "harness hook user_prompt"
-    },
-    "Stop": {
-      "command": "harness hook stop"
-    }
-  }
-}
+[[hooks.SessionStart]]
+
+[[hooks.SessionStart.hooks]]
+type = "command"
+command = "harness hook session-start --format codex"
+
+[[hooks.PreToolUse]]
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = "harness hook pre-tool-use --format codex"
+
+[[hooks.PostToolUse]]
+
+[[hooks.PostToolUse.hooks]]
+type = "command"
+command = "harness hook post-tool-use --format codex"
+
+[[hooks.UserPromptSubmit]]
+
+[[hooks.UserPromptSubmit.hooks]]
+type = "command"
+command = "harness hook user-prompt-submit --format codex"
+
+[[hooks.Stop]]
+
+[[hooks.Stop.hooks]]
+type = "command"
+command = "harness hook stop --format codex"
 ```
 
 Note: `codex_hooks = true` is required. The installer must write this flag. Without it, all hooks are silently inactive.
@@ -285,19 +359,17 @@ Note: `codex_hooks = true` is required. The installer must write this flag. With
 # ~/.hermes/config.yaml
 hooks:
   on_session_start:
-    command: harness hook session_start
+    command: harness hook session-start
   pre_llm_call:
-    command: harness hook user_prompt
+    command: harness hook user-prompt-submit
   pre_tool_call:
-    command: harness hook pre_tool
+    command: harness hook pre-tool-use
   post_tool_call:
-    command: harness hook post_tool
+    command: harness hook post-tool-use
   on_session_end:
     command: harness hook stop
-  subagent_start:
-    command: harness hook subagent_start
   subagent_stop:
-    command: harness hook subagent_stop
+    command: harness hook subagent-stop
 
 skills:
   external_dirs: []
@@ -312,16 +384,16 @@ MCP servers (shared format across platforms, reformatted):
 # Hermes MCP entry in config.yaml
 mcp_servers:
   harness-state:
-    command: harness
-    args: [mcp-server]
+    command: harness-mcp-server
+    args: []
     enabled: true
 ```
 
 ```toml
 # Codex MCP entry in config.toml
 [mcp_servers.harness-state]
-command = "harness"
-args = ["mcp-server"]
+command = "harness-mcp-server"
+args = []
 ```
 
 ```json
@@ -329,8 +401,8 @@ args = ["mcp-server"]
 {
   "mcpServers": {
     "harness-state": {
-      "command": "harness",
-      "args": ["mcp-server"]
+      "command": "harness-mcp-server",
+      "args": []
     }
   }
 }
@@ -340,7 +412,7 @@ args = ["mcp-server"]
 
 ## 5. Installer Behavior
 
-`harness install --target <platform>` is idempotent. Running it twice must produce the same state.
+`harness install <platform>` is idempotent. Running it twice must produce the same state.
 
 ### 5.1 Claude Code
 
@@ -362,7 +434,7 @@ Steps executed by `adapter-codex/src/installer.ts`:
 
 1. Detect `~/.codex/` exists; abort with error if not found.
 2. Read existing `~/.codex/config.toml`; ensure `[features] codex_hooks = true` is present.
-3. Merge harness hooks into `~/.codex/hooks.json`.
+3. Merge harness hooks into `~/.codex/config.toml` as managed `[[hooks]]` tables.
 4. Inject harness instructions into `~/.codex/AGENTS.md` (append section, do not replace existing content).
 5. Copy `artifacts/skills/*` to `~/.agents/skills/`.
 6. Copy `artifacts/subagents/*` to `~/.codex/agents/` (TOML format — generate from Markdown via `adapter-codex` transformer).
@@ -525,12 +597,12 @@ Hooks require a platform adapter. The canonical gate interface is translated at 
 
 | Gate | Claude binding | Codex binding | Hermes binding |
 |---|---|---|---|
-| `pre_tool` | `PreToolUse` command hook in settings.json | `PreToolUse` command hook in hooks.json (requires feature flag) | `pre_tool_call` YAML hook in config.yaml |
+| `pre_tool` | `PreToolUse` command hook in settings.json | `PreToolUse` command hook in config.toml (requires feature flag) | `pre_tool_call` YAML hook in config.yaml |
 | `stop` | `Stop` command hook | `Stop` command hook | `on_session_end` hook (no hard-block capability) |
-| `subagent_start` | `SubagentStart` command hook or spawn wrapper | **no-op** for unmanaged launches | `subagent_start` plugin hook or `agent:start` gateway hook |
+| `subagent_start` | `SubagentStart` command hook | **no-op** for unmanaged launches | **no-op** in executable MVP profile |
 | `subagent_stop` | `SubagentStop` command hook | **no-op** | `subagent_stop` plugin hook |
 
-All three Tier 3 adapters call the same harness binary entry point: `harness hook <GateType>`. The adapter abstracts only the registration — not the runtime logic.
+All three Tier 3 adapters call the same harness binary entry point: `harness hook <GateType>`. Claude Code appends `--format claude` and Codex appends `--format codex` so each executable output matches the target hook response schema; Hermes keeps native harness JSON in the executable MVP profile. The adapter abstracts registration and output transport, not policy logic.
 
 ### Tier 4 — Not portable (platform-specific only)
 
@@ -794,7 +866,7 @@ Quick reference for `harness hook <GateType>` CLI argument to platform event nam
 | `pre_tool` | `PreToolUse` | `PreToolUse` | `pre_tool_call` |
 | `post_tool` | `PostToolUse` | `PostToolUse` | `post_tool_call` |
 | `stop` | `Stop` | `Stop` | `on_session_end` |
-| `subagent_start` | `SubagentStart` or spawn wrapper | **(no-op for unmanaged launches)** | `subagent_start` / `agent:start` |
+| `subagent_start` | `SubagentStart` | **(no-op for unmanaged launches)** | **(no-op in executable MVP profile)** |
 | `subagent_stop` | `SubagentStop` | **(no-op)** | `subagent_stop` |
 
 The harness binary dispatches on `GateType`, not the platform event name. Adapters handle platform-native registration; the runtime logic is platform-agnostic.

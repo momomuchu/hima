@@ -32,12 +32,12 @@ Required hook registrations:
 ```json
 {
   "hooks": {
-    "SessionStart": [{ "hooks": [{ "type": "command", "command": "harness hook session-start" }] }],
-    "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "harness hook user-prompt-submit" }] }],
-    "PreToolUse": [{ "hooks": [{ "type": "command", "command": "harness hook pre-tool-use" }] }],
-    "PostToolUse": [{ "hooks": [{ "type": "command", "command": "harness hook post-tool-use" }] }],
-    "Stop": [{ "hooks": [{ "type": "command", "command": "harness hook stop" }] }],
-    "SubagentStop": [{ "hooks": [{ "type": "command", "command": "harness hook subagent-stop" }] }]
+    "SessionStart": [{ "hooks": [{ "type": "command", "command": "harness hook session-start --format claude" }] }],
+    "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "harness hook user-prompt-submit --format claude" }] }],
+    "PreToolUse": [{ "hooks": [{ "type": "command", "command": "harness hook pre-tool-use --format claude" }] }],
+    "PostToolUse": [{ "hooks": [{ "type": "command", "command": "harness hook post-tool-use --format claude" }] }],
+    "Stop": [{ "hooks": [{ "type": "command", "command": "harness hook stop --format claude" }] }],
+    "SubagentStop": [{ "hooks": [{ "type": "command", "command": "harness hook subagent-stop --format claude" }] }]
   }
 }
 ```
@@ -46,6 +46,8 @@ Claude-specific facts:
 
 - `UserPromptSubmit`, `PreToolUse`, `Stop` and `SubagentStop` can block when
   configured with supported response shapes.
+- Claude command hooks MUST use `--format claude`; native HIMA hook JSON is not
+  a valid Claude Code hook response schema.
 - `PostToolUse` happens after side effects; it is evidence/audit, not
   pre-action enforcement.
 - Agent, prompt, HTTP and MCP hook types are extensions, not MVP requirements.
@@ -59,30 +61,44 @@ Adapter obligations:
 
 ## Codex Adapter
 
-Required config:
+Required inline `config.toml` registration:
 
 ```toml
 [features]
 codex_hooks = true
-```
 
-Required hook registrations:
+[[hooks.SessionStart]]
+[[hooks.SessionStart.hooks]]
+type = "command"
+command = "harness hook session-start --format codex"
 
-```json
-{
-  "hooks": {
-    "SessionStart": [{ "hooks": [{ "type": "command", "command": "harness hook session-start" }] }],
-    "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "harness hook user-prompt-submit" }] }],
-    "PreToolUse": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "harness hook pre-tool-use" }] }],
-    "PostToolUse": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "harness hook post-tool-use" }] }],
-    "Stop": [{ "hooks": [{ "type": "command", "command": "harness hook stop" }] }]
-  }
-}
+[[hooks.UserPromptSubmit]]
+[[hooks.UserPromptSubmit.hooks]]
+type = "command"
+command = "harness hook user-prompt-submit --format codex"
+
+[[hooks.PreToolUse]]
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = "harness hook pre-tool-use --format codex"
+
+[[hooks.PostToolUse]]
+[[hooks.PostToolUse.hooks]]
+type = "command"
+command = "harness hook post-tool-use --format codex"
+
+[[hooks.Stop]]
+[[hooks.Stop.hooks]]
+type = "command"
+command = "harness hook stop --format codex"
 ```
 
 Codex-specific facts:
 
 - Hooks are behind `codex_hooks`.
+- Codex inline TOML uses `[[hooks.<Event>]]` matcher groups and
+  `[[hooks.<Event>.hooks]]` handlers; the legacy `[[hooks]] event = ...` shape
+  is not the canonical registration format.
 - Multiple matching command hooks can run concurrently.
 - `PreToolUse` can deny supported Bash, `apply_patch` and MCP calls, but it is
   not a complete enforcement boundary for every possible tool path.
@@ -97,7 +113,9 @@ Adapter obligations:
 2. MUST never mark Codex `subagent_stop` as native.
 3. MUST encode known `PreToolUse` interception limitations in Capability Set.
 4. MUST handle concurrent hook registration by making harness hooks idempotent.
-5. MUST use supported deny/continue response shapes only; unsupported output
+5. MUST use `--format codex`; native HIMA hook JSON is not a valid Codex hook
+   response schema.
+6. MUST use supported deny/continue response shapes only; unsupported output
    fields are not enforcement proof.
 
 ## Hermes Adapter
@@ -141,8 +159,8 @@ Adapter obligations:
 | Fixture | Claude | Codex | Hermes |
 |---|---|---|---|
 | Missing user-prompt binding | route blocks M bypass enforcement | route blocks M bypass enforcement | route blocks M bypass enforcement |
-| Missing pre-tool binding | M/E/C governed write blocks | M/E/C governed write blocks | M/E/C governed write blocks |
-| Post-only enforcement | no `DONE_VERIFIED` for M/E/C hard gate | no `DONE_VERIFIED` for M/E/C hard gate | no `DONE_VERIFIED` for M/E/C hard gate |
+| Missing pre-tool binding | M/H/C governed write blocks | M/H/C governed write blocks | M/H/C governed write blocks |
+| Post-only enforcement | no `DONE_VERIFIED` for M/H/C hard gate | no `DONE_VERIFIED` for M/H/C hard gate | no `DONE_VERIFIED` for M/H/C hard gate |
 | Hook crash | event records error if possible; final capped | event records error if possible; final capped | event records error if possible; final capped |
 | Stale install digest | capability stale | capability stale | capability stale |
 

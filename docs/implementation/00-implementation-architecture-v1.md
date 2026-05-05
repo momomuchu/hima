@@ -82,7 +82,7 @@ hima/
     artifacts/
       skills/
       subagents/
-      books/
+      hooks/
 ```
 
 MVP implementation order should create only the packages needed for the first vertical slice:
@@ -130,6 +130,7 @@ Every executable vocabulary must have one source of truth:
 | Baseline risk policy and required gates | `packages/core/src/policy/baseline-policy.ts` | defaults, gate evaluation, status/doctor, tests |
 | Physical `.planning/` file paths | `packages/core/src/storage/planning-paths.ts` | storage, CLI, future MCP server |
 | Runtime file schemas | `packages/core/src/schemas/*.schema.ts` | storage validation, tests, fixtures |
+| Logical RMS set contracts | `packages/core/src/schemas/run-set.schema.ts` | storage validation, convergence, gate context, MCP/CLI services |
 
 Rules:
 
@@ -249,6 +250,16 @@ appendRunEvent(root, event): Promise<void>
 
 `appendRunEvent` mutates `run-set.json#/events` in MVP. It is logically append-only even though the physical JSON file is rewritten atomically.
 
+Logical RMS sets inside `run-set.json` are typed at the executable boundary:
+
+- `ProjectSet`, `IntentSet`, and `PolicySet` are object roots with typed known fields and
+  forward-compatible unknown fields.
+- `SubagentRunRecord` requires an `agentId` and preserves portable metadata.
+- Evidence metadata remains opaque data; it is not trusted authority except where an explicit
+  policy check reads an exact typed marker such as `metadata.verifiedHuman === true`.
+- `current-risk.yaml#/promotion_history` stores typed audit entries while preserving unknown
+  future audit fields.
+
 Filesystem rules:
 
 - Write to temp file in the same directory.
@@ -333,6 +344,13 @@ harness:log_event
 ```
 
 The MCP server calls the same `@harness/core` services as the CLI. It must not contain a parallel policy engine.
+
+MCP boundary rules:
+
+- `tools/call.arguments` must be an object when provided.
+- Gate and raw log-event payloads must be objects when provided.
+- `record_evidence` does not expose or trust caller-supplied `source`, `metadata`, `id`, or
+  `createdAt`; MCP evidence is agent-sourced unless a future explicit trusted channel is designed.
 
 ## 11. First Vertical Slice
 

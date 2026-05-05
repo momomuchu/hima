@@ -8,7 +8,7 @@ These fixtures turn the Cycle 01 final proposal and V2 validation checklist into
 implementation-shaped test cases. They do not define production schemas yet.
 They define the minimum observable inputs and expected outcomes an implementer
 must preserve when building the RMS kernel, MCP tools, guard registry, runtime
-bindings, evidence checks, subagent intake, skill/book drift detection and final
+bindings, evidence checks, subagent intake, skill/hook drift detection and final
 state gates.
 
 ## Sources Used
@@ -16,7 +16,7 @@ state gates.
 - `cycle-02/00-cycle-02-brief.md`
 - `../06-integrated-final-proposal.md`
 - `../02-edge-case-red-team.md`
-- `../03-skills-subagents-books-taxonomy.md`
+- `../03-skills-hooks-subagents-taxonomy.md`
 - `../04-single-mcp-state-kernel.md`
 - `../05-convergence-validation-cycle.md`
 - `../../pipeline-fractal-v4-state-machine/09-validation-checklist.md`
@@ -201,14 +201,14 @@ Expected checks:
 
 ## Guard Fixtures
 
-### VF-GUARD-001 - Bypass With E Risk Is Illegal
+### VF-GUARD-001 - Bypass With H risk Is Illegal
 
 Input:
 
 ```yaml
 request:
   transition_id: build_to_validation
-  risk_class: E
+  risk_class: H
   supervision_mode: bypass
   macro_cycle: BUILD
   cycle_substate: build.implementation_patch
@@ -218,7 +218,7 @@ Expected outcome: `BLOCK`
 
 Expected checks:
 
-- Risk overlay forbids bypass for E.
+- Risk overlay forbids bypass for H.
 - The decision is a `human_guard` or `risk_guard` block.
 - Required action is to switch to pairing or record an explicit approved human
   checkpoint if policy allows the next step.
@@ -411,13 +411,13 @@ Expected checks:
 
 ## Runtime Degradation Fixtures
 
-### VF-RUNTIME-001 - Low-Risk Optional Hook Missing With Post-Run Audit
+### VF-RUNTIME-001 - L-Risk Optional Hook Missing With Post-Run Audit
 
 Input:
 
 ```yaml
 runtime: codex
-risk_class: F
+risk_class: L
 required_gate: subagent_stop_capture
 binding_status: noop_traced
 can_block: false
@@ -433,13 +433,13 @@ Expected checks:
 - Final state may be at most `DONE_WITH_GAPS` unless required evidence is later
   collected by an acceptable path.
 
-### VF-RUNTIME-002 - E Risk Missing Blocking Hook
+### VF-RUNTIME-002 - H risk Missing Blocking Hook
 
 Input:
 
 ```yaml
 runtime: codex
-risk_class: E
+risk_class: H
 required_gate: pre_tool_write_guard
 binding_status: missing
 fallback_strategy: post_run_audit
@@ -450,7 +450,7 @@ Expected outcome: `BLOCK`
 
 Expected checks:
 
-- Post-run audit is insufficient for E enforcement.
+- Post-run audit is insufficient for H enforcement.
 - Runtime overlay emits `BLOCKED_RUNTIME_MISSING`.
 - No governed write transition is committed.
 
@@ -570,7 +570,7 @@ Expected checks:
 
 - Evidence status becomes `conflicted`.
 - Parent/kernel arbitration is required.
-- E/C requires human or independent review resolution before final state.
+- H/C requires human or independent review resolution before final state.
 
 ### VF-EVID-004 - Fresh Independent Evidence Satisfies M Stop Gate
 
@@ -675,7 +675,7 @@ Expected checks:
 - The blocking verdict blocks the related transition or final state.
 - Acceptance of the evidence packet does not mean accepting a final state.
 
-## Skill And Book Drift Fixtures
+## Skill And Reference doc Drift Fixtures
 
 ### VF-DRIFT-001 - Core Skill Hash Drift Blocks Auto Invocation
 
@@ -719,40 +719,40 @@ Expected checks:
 - Skills may request `propose_final_state`; they may not write final state.
 - Kernel rejects direct mutation and requires guard/evidence/convergence checks.
 
-### VF-DRIFT-003 - Book Conflicts With Policy Registry
+### VF-DRIFT-003 - Reference doc Conflicts With Policy Registry
 
 Input:
 
 ```yaml
-book_claim:
-  book: Risk And Policy Book
-  claim: E risk may use bypass after agent self-review
+reference_doc_claim:
+  doc_ref: docs/risk-and-policy.md
+  claim: H risk may use bypass after agent self-review
 registry_rule:
   policy: risk_overlay
-  rule: E risk forbids bypass without explicit human checkpoint
+  rule: H risk forbids bypass without explicit human checkpoint
 ```
 
 Expected outcome: `BLOCK`
 
 Expected checks:
 
-- Registry wins over book prose.
-- Implementation planning is blocked until the conflict is recorded for book
+- Registry wins over reference doc prose.
+- Implementation planning is blocked until the conflict is recorded for reference doc
   update or policy decision.
-- Runtime execution does not weaken the guard while the book is stale.
+- Runtime execution does not weaken the guard while the reference doc is stale.
 
-### VF-DRIFT-004 - Non-Authoritative Book Typo Does Not Block Low-Risk Run
+### VF-DRIFT-004 - Non-Authoritative Reference doc Typo Does Not Block L-Risk Run
 
 Input:
 
 ```yaml
-book_claim:
-  book: Cycle Playbooks Book
+reference_doc_claim:
+  doc_ref: docs/cycle-playbooks.md
   issue: display_alias_typo
 registry_rule:
   affected_guard: none
 run:
-  risk_class: F
+  risk_class: L
 ```
 
 Expected outcome: `PASS`
@@ -761,7 +761,7 @@ Expected checks:
 
 - The typo is recorded as learning or documentation debt.
 - No executable guard, state field or evidence requirement changes.
-- The low-risk run continues if all runtime guards pass.
+- The L-risk run continues if all runtime guards pass.
 
 ## MCP Outage Fixtures
 
@@ -796,7 +796,7 @@ mcp_health: unavailable
 operation:
   class: read_only_inspection
   source: .rms/runs/run_001/snapshot
-  risk_class: F
+  risk_class: L
 ```
 
 Expected outcome: `PASS`
@@ -828,7 +828,7 @@ Expected outcome: `PASS`
 Expected checks:
 
 - The fallback may append a guarded transition event only because it is declared,
-  locked and low-risk.
+  locked and L-risk.
 - The degradation remains visible in EventLog and EvidenceSet.
 - Sync back to MCP is required before stronger claims or M+ work.
 
@@ -883,13 +883,13 @@ Expected checks:
   are appended.
 - Final state is committed outside `macro_cycle`.
 
-### VF-FINAL-002 - DONE_WITH_GAPS With E/C Gap
+### VF-FINAL-002 - DONE_WITH_GAPS With H/C Gap
 
 Input:
 
 ```yaml
 final_candidate: DONE_WITH_GAPS
-risk_class: E
+risk_class: H
 evidence_set:
   unresolved_gaps:
     - missing_rollback_proof
@@ -899,7 +899,7 @@ Expected outcome: `BLOCK`
 
 Expected checks:
 
-- E/C gaps cannot be hidden by `DONE_WITH_GAPS`.
+- H/C gaps cannot be hidden by `DONE_WITH_GAPS`.
 - Human checkpoint may accept residual non-critical gaps only if policy permits;
   it cannot erase required safety evidence.
 
@@ -986,7 +986,7 @@ registry fixtures exist for at least these cases:
 | Runtime degradation | `VF-RUNTIME-001`, `VF-RUNTIME-002`, `VF-RUNTIME-003` |
 | Evidence stop gates | `VF-EVID-001`, `VF-EVID-002`, `VF-EVID-003`, `VF-EVID-004` |
 | Subagent boundaries | `VF-SUBAGENT-001`, `VF-SUBAGENT-002`, `VF-SUBAGENT-003` |
-| Skill/book drift | `VF-DRIFT-001`, `VF-DRIFT-002`, `VF-DRIFT-003` |
+| Skill/hook drift | `VF-DRIFT-001`, `VF-DRIFT-002`, `VF-DRIFT-003` |
 | MCP outage | `VF-MCP-001`, `VF-MCP-002`, `VF-MCP-004` |
 | Final state | `VF-FINAL-001`, `VF-FINAL-002`, `VF-FINAL-003`, `VF-FINAL-004` |
 

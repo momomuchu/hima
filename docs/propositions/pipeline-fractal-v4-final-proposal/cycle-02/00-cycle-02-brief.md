@@ -12,7 +12,7 @@ Hybrid Event-Sourced RMS Kernel
 + runtime adapters/hooks
 + skills as procedures
 + subagents as evidence/review lanes
-+ books as durable knowledge
++ reference docs as durable knowledge
 ```
 
 That was not enough. It did not complete a full development-style loop. Cycle 02
@@ -60,6 +60,6 @@ Cycle 02 is complete only if:
 
 ## Non-Goals
 
-Cycle 02 does not implement the MCP server, skills, subagents or books. It
+Cycle 02 does not implement the MCP server, skills, subagents or reference docs. It
 should make their contracts hard enough that implementation is no longer
 ambiguous.

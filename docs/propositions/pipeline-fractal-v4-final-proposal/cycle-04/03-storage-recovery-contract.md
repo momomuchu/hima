@@ -342,7 +342,7 @@ Storage integrity gates final states:
 |---|---|---|---|
 | `HEALTHY` | Allowed if evidence and convergence pass. | Allowed if policy permits gaps. | Allowed when matching blocker exists. |
 | `RECOVERED` | Allowed only after a fresh startup recheck returns `HEALTHY`. | Same as `DONE_VERIFIED`. | Allowed after recovery evidence. |
-| `DEGRADED_READ_ONLY` | Blocked. | Blocked unless closing policy explicitly allows storage gap for low risk. | `BLOCKED_POLICY` or `BLOCKED_RUNTIME_MISSING` may be proposed if append works. |
+| `DEGRADED_READ_ONLY` | Blocked. | Blocked unless closing policy explicitly allows storage gap for L risk. | `BLOCKED_POLICY` or `BLOCKED_RUNTIME_MISSING` may be proposed if append works. |
 | `BLOCKED_PENDING_TX` | Blocked. | Blocked. | May not close unless a new failure event can be appended and policy permits blocked stop. |
 | `BLOCKED_CORRUPT_LOG` | Blocked. | Blocked. | Blocked if append chain is unsafe; report storage blocker outside final commit. |
 | `BLOCKED_DIGEST_CHAIN` | Blocked. | Blocked. | Blocked if no safe append point exists. |
@@ -364,8 +364,8 @@ and state machine.
 
 | Condition | MCP behavior | Local fallback behavior |
 |---|---|---|
-| MCP transport down, storage healthy, T/F declared fallback | Local library may mutate if policy allows. | Must append events and mark degraded. |
-| MCP transport down, M/E/C governed transition | Block unless native-equivalent fallback is declared. | No direct manual `.rms/` writes. |
+| MCP transport down, storage healthy, T/L declared fallback | Local library may mutate if policy allows. | Must append events and mark degraded. |
+| MCP transport down, M/H/C governed transition | Block unless native-equivalent fallback is declared. | No direct manual `.rms/` writes. |
 | Startup finds recovery required | MCP starts in recovery mode. | Same recovery mode; no stronger claims. |
 | Recovery blocks on corrupt log | Return structured storage error. | Return same error; no file edits outside repair primitive. |
 

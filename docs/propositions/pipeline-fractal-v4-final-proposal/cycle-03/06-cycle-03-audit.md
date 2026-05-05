@@ -143,7 +143,7 @@ Required remaining artifact:
 | PFV4-OD-002 | `closed_by_contract` | Directed transition graph is fixed. |
 | PFV4-OD-003 | `closed_by_fixture` | CandidateEvidence import lane closes non-development import behavior. |
 | PFV4-OD-004 | `closed_by_contract` | Activation readiness shape is fixed enough for schema planning. |
-| PFV4-OD-005 | `closed_by_contract` | T/F/M/E/C supervision defaults and checkpoint boundary are fixed. |
+| PFV4-OD-005 | `closed_by_contract` | T/L/M/H/C supervision defaults and checkpoint boundary are fixed. |
 | PFV4-OD-006 | `closed_by_contract` | Forcing-signal classifier and downgrade/promotion rules are defined. |
 | PFV4-OD-007 | `still_blocking` | Convergence thresholds and policy contract are absent. |
 | PFV4-OD-008 | `closed_by_contract` | EvidenceRequirement, freshness graph and status derivation are defined. |
@@ -177,7 +177,7 @@ Expected result: closed.
 Cycle 03 artifact manifest and drift policy block core skill auto-invocation
 when installed hash or schema differs from registry.
 
-### Simulation D - Vague E-Risk Human Approval
+### Simulation D - Vague H-Risk Human Approval
 
 Expected result: closed.
 

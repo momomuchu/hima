@@ -1,15 +1,18 @@
 #!/usr/bin/env node
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { applyClaudeSettings } from "@harness/adapter-claude";
-import { applyCodexHookConfig } from "@harness/adapter-codex";
-import { applyHermesHookConfig } from "@harness/adapter-hermes";
+import { applyClaudeSettings, removeClaudeSettings } from "@harness/adapter-claude";
+import { applyCodexHookConfig, removeCodexHookConfig } from "@harness/adapter-codex";
+import { applyHermesHookConfig, removeHermesHookConfig } from "@harness/adapter-hermes";
 import {
   type AddEvidenceInput,
   ARTIFACT_INSTALL_SELECTIONS,
   ARTIFACT_INSTALL_TARGETS,
   type ArtifactInstallSelection,
+  type ArtifactRollbackPlan,
   addEvidence,
+  applyRuntimeLifecycle,
+  assessRouteRuntimeBindings,
   bindRuntime,
   CATALOG_ARTIFACT_SELECTIONS,
   type CatalogArtifactSelection,
@@ -30,15 +33,21 @@ import {
   EVIDENCE_STATUSES,
   type EvidenceItem,
   type EvidenceKey,
+  enterDevelopment,
   evaluateConvergence,
+  extractInstallManifestHookCommands,
   GATE_TYPES,
   type GateType,
   getOperationalCatalog,
+  getRuntimeHookProfiles,
+  getRuntimeProfile,
   getStatus,
   type HarnessErrorCode,
+  type HookResponse,
   handleHook,
   INSTALL_TARGETS,
   type InstallCatalogArtifactsResult,
+  type InstallManifest,
   type InstallPlatformResult,
   type InstallTarget,
   initProject,
@@ -48,24 +57,39 @@ import {
   MACRO_CYCLES,
   type MacroCycle,
   MISSING_RUNTIME_BINDING_STATUS,
+  OPERATING_MODES,
+  type OperatingMode,
   planArtifactInstall,
   planCatalogArtifacts,
+  probeRuntime,
+  RISK_CLASSES,
+  type RiskClass,
+  type RollbackCatalogArtifactsResult,
   RUNTIME_CAPABILITY_STATUSES,
+  RUNTIME_TARGETS,
   type RuntimeBinding,
+  type RuntimeBindingHealth,
   type RuntimeCapability,
   type RuntimeCapabilityStatus,
+  type RuntimeHookCapabilityInput,
+  RuntimeHooksInputSchema,
+  type RuntimeProbeResult,
+  readInstallManifest,
   readPlanningProject,
+  repairRuntimeLifecycle,
   requestTransition,
+  rollbackCatalogArtifacts,
   SUB_PHASES,
   type SubPhase,
   toHookCommand,
+  uninstallRuntimeLifecycle,
   type WriteCatalogArtifactsResult,
   writeCatalogArtifacts,
 } from "@harness/core";
 import { defineCommand, runMain } from "citty";
 
-const HOOK_EVENT_TO_GATE_TYPE = Object.fromEntries(
-  GATE_TYPES.flatMap((gateType) => {
+const HOOK_EVENT_TO_GATE_TYPE = Object.fromEntries([
+  ...GATE_TYPES.flatMap((gateType) => {
     const executableEvent = toHookCommand(gateType).replace("harness hook ", "");
 
     return [
@@ -73,11 +97,30 @@ const HOOK_EVENT_TO_GATE_TYPE = Object.fromEntries(
       [executableEvent.replaceAll("-", "_"), gateType],
     ];
   }),
-) as Record<string, GateType>;
+  ...RUNTIME_TARGETS.flatMap((target) =>
+    getRuntimeHookProfiles(target).flatMap((hook) =>
+      hook.nativeEvent === null
+        ? []
+        : [
+            [hook.nativeEvent, hook.gateType],
+            [hook.nativeEvent.toLowerCase(), hook.gateType],
+          ],
+    ),
+  ),
+]) as Record<string, GateType>;
+const MAX_HOOK_STDIN_BYTES = 1024 * 1024;
+const HOOK_STDIN_TIMEOUT_MS = 5000;
+const HOOK_OUTPUT_FORMATS = ["native", "claude", "codex"] as const;
 type CheckLevel = "pass" | "warn" | "fail";
 type EvidenceStatus = (typeof EVIDENCE_STATUSES)[number];
 type ConfidenceLevel = (typeof CONFIDENCE_LEVELS)[number];
+type HookOutputFormat = (typeof HOOK_OUTPUT_FORMATS)[number];
+type HookCommandOptions = {
+  hookCommands?: Partial<Record<GateType, string>>;
+  hookCommandPrefix?: string;
+};
 type ApplyPlatformConfigResult = Awaited<ReturnType<typeof applyPlatformConfig>>;
+type RemovePlatformConfigResult = Awaited<ReturnType<typeof removePlatformConfig>>;
 type CatalogArtifactsPlan = {
   ok: boolean;
   kind: CatalogArtifactSelection;
@@ -99,10 +142,60 @@ type InstallArtifactsPlan = {
   selection: ArtifactInstallSelection;
   dryRun: boolean;
   apply: boolean;
+  writeManifest: boolean;
+  captureRestoreSnapshots: boolean;
   artifactsPlanned: number;
   artifactsWritten: readonly string[];
   artifactsUnchanged: readonly string[];
+  manifest?: InstallCatalogArtifactsResult["manifest"];
+  manifestFile?: string;
   result: ReturnType<typeof planArtifactInstall> | InstallCatalogArtifactsResult;
+};
+type RollbackArtifactsPlan = {
+  ok: boolean;
+  root: string;
+  projectRoot: string;
+  target: InstallTarget;
+  platformDirectory: string;
+  manifestFile: string;
+  dryRun: boolean;
+  apply: boolean;
+  actions: ArtifactRollbackPlan["actions"];
+  blockers: ArtifactRollbackPlan["blockers"];
+  actionsPlanned: number;
+  artifactsPlanned: number;
+  deletedPaths: readonly string[];
+  restoredPaths: readonly string[];
+  artifactsDeleted: number;
+  artifactsRestored: number;
+  result: ArtifactRollbackPlan | RollbackCatalogArtifactsResult;
+};
+type PlatformUninstallPlan = {
+  ok: boolean;
+  action: "uninstall";
+  root: string;
+  target: InstallTarget;
+  platformDirectory: string;
+  manifestFile: string;
+  dryRun: boolean;
+  apply: boolean;
+  hooksPlanned: number;
+  hooksRemoved: number;
+  manifestRetained: true;
+  result?: RemovePlatformConfigResult;
+};
+type PlatformRepairPlan = {
+  ok: boolean;
+  action: "repair";
+  root: string;
+  target: InstallTarget;
+  platformDirectory: string;
+  manifestFile: string;
+  dryRun: boolean;
+  apply: boolean;
+  hooksPlanned: number;
+  hooksAdded: number;
+  result?: ApplyPlatformConfigResult;
 };
 
 interface DoctorCheck {
@@ -122,6 +215,12 @@ interface DoctorReport {
   sections: DoctorSection[];
   errors: number;
   warnings: number;
+}
+
+export interface CliCommandSurfaceEntry {
+  command: string;
+  description: string;
+  hasSubCommands: boolean;
 }
 
 const rootArg = {
@@ -240,13 +339,20 @@ const hook = defineCommand({
       description: "Evaluate without persisting an event",
       default: false,
     },
+    format: {
+      type: "enum",
+      description: "Hook output format",
+      options: [...HOOK_OUTPUT_FORMATS],
+      default: "native",
+    },
   },
   async run({ args }) {
     const gateType = parseHookEvent(args.event);
     const payload = await readJsonStdin();
     const result = await handleHook(args.root, gateType, payload, { dryRun: args.dryRun });
+    const output = formatHookResponse(gateType, result, args.format as HookOutputFormat);
 
-    console.log(JSON.stringify(result, null, 2));
+    console.log(JSON.stringify(output, null, 2));
   },
 });
 
@@ -286,6 +392,73 @@ const transition = defineCommand({
         2,
       ),
     );
+  },
+});
+
+const enter = defineCommand({
+  meta: {
+    name: "enter",
+    description: "Enter governed development mode with phase, subphase, mode, risk, and intent",
+  },
+  args: {
+    root: rootArg,
+    phase: {
+      type: "enum",
+      description: "Target MacroCycle",
+      options: [...MACRO_CYCLES],
+      default: "build",
+    },
+    subPhase: {
+      type: "enum",
+      description: "Target SubPhase",
+      options: [...SUB_PHASES],
+      default: "Execute",
+    },
+    mode: {
+      type: "enum",
+      description: "Operating mode",
+      options: [...OPERATING_MODES],
+      default: "auto",
+    },
+    riskClass: {
+      type: "enum",
+      description: "Effective T/L/M/H/C risk class",
+      options: [...RISK_CLASSES],
+      default: "T",
+    },
+    objective: {
+      type: "string",
+      description: "Short objective for the governed development session",
+      required: false,
+    },
+    prompt: {
+      type: "string",
+      description: "Raw user prompt or intent summary",
+      required: false,
+    },
+    reason: {
+      type: "string",
+      description: "Reason recorded in the state event log",
+      required: false,
+    },
+    json: {
+      type: "boolean",
+      description: "Print JSON",
+      default: false,
+    },
+  },
+  async run({ args }) {
+    const result = await enterDevelopment(args.root, {
+      phase: parseMacroCycle(args.phase),
+      subPhase: parseSubPhase(args.subPhase),
+      mode: parseOperatingMode(args.mode),
+      riskClass: parseRiskClass(args.riskClass),
+      objective: readOptionalString(args, "objective"),
+      rawPrompt: readOptionalString(args, "prompt"),
+      reason: readOptionalString(args, "reason"),
+    });
+
+    console.log(args.json ? JSON.stringify(result, null, 2) : formatEnterDevelopmentHuman(result));
   },
 });
 
@@ -530,6 +703,11 @@ const install = defineCommand({
       description: "Write only .planning/install-manifest.json",
       default: false,
     },
+    hookCommandPrefix: {
+      type: "string",
+      description: "Executable prefix to use before hook aliases, e.g. node ./dist/index.js",
+      required: false,
+    },
     apply: {
       type: "boolean",
       description: "Apply target adapter config after planning",
@@ -548,14 +726,21 @@ const install = defineCommand({
   },
   async run({ args }) {
     const target = parseInstallTarget(args.target);
+    const apply = args.apply === true;
     const result = await installPlatform({
       projectRoot: args.root,
       target,
-      dryRun: args.dryRun,
+      dryRun: apply ? false : args.dryRun,
       writeManifest: args.writeManifest,
+      hookCommandPrefix: readOptionalString(
+        { hookCommandPrefix: args.hookCommandPrefix },
+        "hookCommandPrefix",
+      ),
     });
-    const applied = args.apply
-      ? await applyPlatformConfig(target, result.expectedPaths.platformDirectory)
+    const applied = apply
+      ? await applyPlatformConfig(target, result.expectedPaths.platformDirectory, {
+          hookCommands: extractInstallManifestHookCommands(result.manifest as InstallManifest),
+        })
       : undefined;
 
     if (args.json) {
@@ -586,7 +771,7 @@ const catalog = defineCommand({
     const result = getOperationalCatalog();
 
     if (args.json) {
-      console.log(JSON.stringify(result, null, 2));
+      console.log(JSON.stringify(formatCatalogJson(result), null, 2));
       return;
     }
 
@@ -664,6 +849,17 @@ const installArtifacts = defineCommand({
       description: "Write installed artifacts",
       default: false,
     },
+    writeManifest: {
+      type: "boolean",
+      description: "Write .planning/artifact-install-manifest.json during apply",
+      default: false,
+    },
+    captureRestoreSnapshots: {
+      type: "boolean",
+      description:
+        "Store previous managed artifact content in the manifest for automatic rollback restore",
+      default: false,
+    },
     json: {
       type: "boolean",
       description: "Print JSON",
@@ -676,6 +872,8 @@ const installArtifacts = defineCommand({
       kind: args.kind,
       root: args.root,
       target: args.target,
+      writeManifest: args.writeManifest,
+      captureRestoreSnapshots: args.captureRestoreSnapshots,
     });
 
     if (args.json) {
@@ -687,6 +885,274 @@ const installArtifacts = defineCommand({
     if (!plan.ok) {
       process.exitCode = 1;
     }
+  },
+});
+
+const rollbackArtifacts = defineCommand({
+  meta: {
+    name: "rollback-artifacts",
+    description: "Plan or apply rollback of target platform catalog artifacts",
+  },
+  args: {
+    root: rootArg,
+    manifestFile: {
+      type: "string",
+      description: "Artifact install manifest file",
+      required: false,
+    },
+    apply: {
+      type: "boolean",
+      description: "Delete rollbackable artifacts",
+      default: false,
+    },
+    json: {
+      type: "boolean",
+      description: "Print JSON",
+      default: false,
+    },
+  },
+  async run({ args }) {
+    const plan = await generateRollbackArtifactsPlan({
+      apply: args.apply,
+      manifestFile: args.manifestFile,
+      root: args.root,
+    });
+
+    if (args.json) {
+      console.log(JSON.stringify(plan, null, 2));
+    } else {
+      console.log(formatRollbackArtifactsPlanHuman(plan));
+    }
+
+    if (!plan.ok) {
+      process.exitCode = 1;
+    }
+  },
+});
+
+const uninstallPlatformCommand = defineCommand({
+  meta: {
+    name: "uninstall-platform",
+    description: "Plan or remove managed platform hook registrations from an install manifest",
+  },
+  args: {
+    root: rootArg,
+    manifestFile: {
+      type: "string",
+      description: "Platform install manifest file",
+      required: false,
+    },
+    apply: {
+      type: "boolean",
+      description: "Remove managed platform hook registrations",
+      default: false,
+    },
+    json: {
+      type: "boolean",
+      description: "Print JSON",
+      default: false,
+    },
+  },
+  async run({ args }) {
+    const plan = await generatePlatformUninstallPlan({
+      apply: args.apply,
+      manifestFile: args.manifestFile,
+      root: args.root,
+    });
+
+    console.log(args.json ? JSON.stringify(plan, null, 2) : formatPlatformUninstallHuman(plan));
+  },
+});
+
+const repairPlatformCommand = defineCommand({
+  meta: {
+    name: "repair-platform",
+    description: "Plan or re-apply managed platform hook registrations from an install manifest",
+  },
+  args: {
+    root: rootArg,
+    manifestFile: {
+      type: "string",
+      description: "Platform install manifest file",
+      required: false,
+    },
+    apply: {
+      type: "boolean",
+      description: "Re-apply managed platform hook registrations",
+      default: false,
+    },
+    json: {
+      type: "boolean",
+      description: "Print JSON",
+      default: false,
+    },
+  },
+  async run({ args }) {
+    const plan = await generatePlatformRepairPlan({
+      apply: args.apply,
+      manifestFile: args.manifestFile,
+      root: args.root,
+    });
+
+    console.log(args.json ? JSON.stringify(plan, null, 2) : formatPlatformRepairHuman(plan));
+  },
+});
+
+const lifecycleApply = defineCommand({
+  meta: {
+    name: "apply",
+    description: "Plan or apply the full platform hooks + catalog artifacts lifecycle",
+  },
+  args: {
+    target: {
+      type: "positional",
+      description: "Target platform",
+      required: true,
+    },
+    root: rootArg,
+    kind: {
+      type: "enum",
+      description: "Artifact kind to install",
+      options: [...ARTIFACT_INSTALL_SELECTIONS],
+      default: "all",
+    },
+    apply: {
+      type: "boolean",
+      description: "Write platform hooks, artifacts, and lifecycle manifests",
+      default: false,
+    },
+    skipManifests: {
+      type: "boolean",
+      description: "Do not write lifecycle manifests during apply",
+      default: false,
+    },
+    hookCommandPrefix: {
+      type: "string",
+      description: "Executable prefix to use before hook aliases, e.g. node ./dist/index.js",
+      required: false,
+    },
+    json: {
+      type: "boolean",
+      description: "Print JSON",
+      default: false,
+    },
+  },
+  async run({ args }) {
+    const result = await generateLifecycleApplyPlan({
+      apply: args.apply,
+      kind: args.kind,
+      root: args.root,
+      skipManifests: args.skipManifests,
+      target: args.target,
+      hookCommandPrefix: args.hookCommandPrefix,
+    });
+
+    console.log(args.json ? JSON.stringify(result, null, 2) : formatLifecycleApplyHuman(result));
+  },
+});
+
+const lifecycleUninstall = defineCommand({
+  meta: {
+    name: "uninstall",
+    description: "Plan or uninstall platform hooks plus rollback catalog artifacts",
+  },
+  args: {
+    root: rootArg,
+    platformManifestFile: {
+      type: "string",
+      description: "Platform install manifest file",
+      required: false,
+    },
+    artifactManifestFile: {
+      type: "string",
+      description: "Artifact install manifest file",
+      required: false,
+    },
+    apply: {
+      type: "boolean",
+      description: "Rollback artifacts and remove managed hooks",
+      default: false,
+    },
+    json: {
+      type: "boolean",
+      description: "Print JSON",
+      default: false,
+    },
+  },
+  async run({ args }) {
+    const result = await generateLifecycleUninstallPlan({
+      apply: args.apply,
+      artifactManifestFile: args.artifactManifestFile,
+      platformManifestFile: args.platformManifestFile,
+      root: args.root,
+    });
+
+    console.log(
+      args.json ? JSON.stringify(result, null, 2) : formatLifecycleUninstallHuman(result),
+    );
+
+    if (!result.ok) {
+      process.exitCode = 1;
+    }
+  },
+});
+
+const lifecycleRepair = defineCommand({
+  meta: {
+    name: "repair",
+    description: "Plan or repair platform hooks plus catalog artifacts from manifests",
+  },
+  args: {
+    root: rootArg,
+    kind: {
+      type: "enum",
+      description: "Artifact kind to repair",
+      options: [...ARTIFACT_INSTALL_SELECTIONS],
+      default: "all",
+    },
+    manifestFile: {
+      type: "string",
+      description: "Platform install manifest file",
+      required: false,
+    },
+    apply: {
+      type: "boolean",
+      description: "Re-apply hooks and catalog artifacts",
+      default: false,
+    },
+    skipManifests: {
+      type: "boolean",
+      description: "Do not write lifecycle manifests during apply",
+      default: false,
+    },
+    json: {
+      type: "boolean",
+      description: "Print JSON",
+      default: false,
+    },
+  },
+  async run({ args }) {
+    const result = await generateLifecycleRepairPlan({
+      apply: args.apply,
+      kind: args.kind,
+      manifestFile: args.manifestFile,
+      root: args.root,
+      skipManifests: args.skipManifests,
+    });
+
+    console.log(args.json ? JSON.stringify(result, null, 2) : formatLifecycleRepairHuman(result));
+  },
+});
+
+const lifecycle = defineCommand({
+  meta: {
+    name: "lifecycle",
+    description: "Orchestrate platform hooks and catalog artifacts together",
+  },
+  subCommands: {
+    apply: lifecycleApply,
+    uninstall: lifecycleUninstall,
+    repair: lifecycleRepair,
   },
 });
 
@@ -710,7 +1176,7 @@ const runtimeDigest = defineCommand({
   run({ args }) {
     const target = parseInstallTarget(args.target);
     const digest = computeRuntimeProfileDigest(target);
-    const result = { target, digest };
+    const result = { target, runtimeVersion: getRuntimeProfile(target).runtimeVersion, digest };
 
     console.log(args.json ? JSON.stringify(result, null, 2) : formatRuntimeDigestHuman(result));
   },
@@ -733,6 +1199,16 @@ const runtimeInspect = defineCommand({
       description: "Observed runtime config digest",
       required: false,
     },
+    runtimeVersion: {
+      type: "string",
+      description: "Observed runtime profile version",
+      required: false,
+    },
+    hooksJson: {
+      type: "string",
+      description: "JSON object of runtime hook capability overrides keyed by GateType",
+      required: false,
+    },
     status: {
       type: "enum",
       description: "Observed runtime status",
@@ -749,6 +1225,8 @@ const runtimeInspect = defineCommand({
     const target = parseInstallTarget(args.target);
     const result = await inspectRuntime(args.root, target, {
       configDigest: typeof args.configDigest === "string" ? args.configDigest : undefined,
+      runtimeVersion: typeof args.runtimeVersion === "string" ? args.runtimeVersion : undefined,
+      hooks: parseRuntimeHooksJson(args.hooksJson),
       status: args.status as RuntimeCapabilityStatus,
     });
 
@@ -795,6 +1273,73 @@ const runtimeBind = defineCommand({
   },
 });
 
+const runtimeProbe = defineCommand({
+  meta: {
+    name: "probe",
+    description: "Probe runtime config and persist trusted runtime proofs for a target",
+  },
+  args: {
+    target: {
+      type: "positional",
+      description: "Target platform",
+      required: true,
+    },
+    root: rootArg,
+    bind: {
+      type: "boolean",
+      description: "Bind runtime gates immediately after probing",
+      default: false,
+    },
+    verifyBlockingFixtures: {
+      type: "boolean",
+      description: "Execute managed blocking fixtures before minting trusted blocking proofs",
+      default: false,
+    },
+    json: {
+      type: "boolean",
+      description: "Print JSON",
+      default: false,
+    },
+  },
+  async run({ args }) {
+    const target = parseInstallTarget(args.target);
+    const result = await probeRuntime(args.root, target, {
+      bind: args.bind,
+      verifyBlockingFixtures: args.verifyBlockingFixtures,
+    });
+
+    console.log(args.json ? JSON.stringify(result, null, 2) : formatRuntimeProbeHuman(result));
+  },
+});
+
+const runtimeAssessRoute = defineCommand({
+  meta: {
+    name: "assess-route",
+    description: "Assess route-required runtime bindings without mutating state",
+  },
+  args: {
+    root: rootArg,
+    json: {
+      type: "boolean",
+      description: "Print JSON",
+      default: false,
+    },
+  },
+  async run({ args }) {
+    const project = await readPlanningProject(args.root);
+    const assessment = assessRouteRuntimeBindings(project.runSet, project.currentRisk.risk_class);
+    const result = {
+      riskClass: project.currentRisk.risk_class,
+      activeTarget: project.runSet.runtimeBindings.activeTarget ?? null,
+      ...assessment,
+    };
+
+    console.log(
+      args.json ? JSON.stringify(result, null, 2) : formatRouteRuntimeAssessmentHuman(result),
+    );
+  },
+});
+
 const runtime = defineCommand({
   meta: {
     name: "runtime",
@@ -804,6 +1349,8 @@ const runtime = defineCommand({
     digest: runtimeDigest,
     inspect: runtimeInspect,
     bind: runtimeBind,
+    probe: runtimeProbe,
+    "assess-route": runtimeAssessRoute,
   },
 });
 
@@ -820,6 +1367,7 @@ const main = defineCommand({
     close,
     hook,
     transition,
+    enter,
     evidence,
     risk,
     doctor,
@@ -828,12 +1376,180 @@ const main = defineCommand({
     catalog,
     artifacts,
     "install-artifacts": installArtifacts,
+    "rollback-artifacts": rollbackArtifacts,
+    "uninstall-platform": uninstallPlatformCommand,
+    "repair-platform": repairPlatformCommand,
+    lifecycle,
     runtime,
   },
 });
 
 if (isDirectRun()) {
   runMain(main);
+}
+
+function formatHookResponse(
+  gateType: GateType,
+  result: HookResponse,
+  format: HookOutputFormat,
+): HookResponse | Record<string, unknown> {
+  if (format === "claude") {
+    return formatHookResponseForClaude(gateType, result);
+  }
+
+  if (format === "codex") {
+    return formatHookResponseForCodex(gateType, result);
+  }
+
+  return result;
+}
+
+export function formatHookResponseForCodex(
+  gateType: GateType,
+  result: HookResponse,
+): Record<string, unknown> {
+  const blocked = result.decision === "block";
+
+  if (gateType === "pre_tool") {
+    return blocked
+      ? {
+          hookSpecificOutput: {
+            hookEventName: "PreToolUse",
+            permissionDecision: "deny",
+            permissionDecisionReason: result.reason,
+          },
+        }
+      : {};
+  }
+
+  if (gateType === "session_start") {
+    return withAdditionalContext({}, "SessionStart", result.contextInjection);
+  }
+
+  if (gateType === "user_prompt") {
+    return blocked
+      ? {
+          decision: "block",
+          reason: result.reason,
+        }
+      : withAdditionalContext({}, "UserPromptSubmit", result.contextInjection);
+  }
+
+  if (gateType === "post_tool") {
+    const output = blocked
+      ? {
+          decision: "block",
+          reason: result.reason,
+        }
+      : result.decision === "warn"
+        ? { systemMessage: result.reason }
+        : {};
+
+    return withAdditionalContext(
+      output,
+      "PostToolUse",
+      result.contextInjection ?? (result.decision === "allow" ? undefined : result.reason),
+    );
+  }
+
+  if (gateType === "stop") {
+    return blocked
+      ? {
+          decision: "block",
+          reason: result.reason,
+        }
+      : {};
+  }
+
+  if (gateType === "subagent_start") {
+    return blocked
+      ? {
+          decision: "block",
+          reason: result.reason,
+        }
+      : withAdditionalContext({}, "SubagentStart", result.contextInjection);
+  }
+
+  if (gateType === "subagent_stop") {
+    return blocked
+      ? {
+          decision: "block",
+          reason: result.reason,
+        }
+      : {};
+  }
+
+  return result.decision === "warn" ? { systemMessage: result.reason } : {};
+}
+
+export function formatHookResponseForClaude(
+  gateType: GateType,
+  result: HookResponse,
+): Record<string, unknown> {
+  const blocked = result.decision === "block";
+  const output: Record<string, unknown> = {};
+
+  if (blocked && gateType !== "pre_tool") {
+    output.decision = "block";
+    output.reason = result.reason;
+  } else if (result.decision === "warn") {
+    output.systemMessage = result.reason;
+  }
+
+  if (gateType === "session_start") {
+    return withAdditionalContext(output, "SessionStart", result.contextInjection);
+  }
+
+  if (gateType === "pre_tool") {
+    output.hookSpecificOutput = {
+      hookEventName: "PreToolUse",
+      permissionDecision: blocked ? "deny" : "allow",
+      permissionDecisionReason: result.reason,
+    };
+  }
+
+  if (gateType === "user_prompt") {
+    return withAdditionalContext(output, "UserPromptSubmit", result.contextInjection);
+  }
+
+  if (gateType === "post_tool") {
+    const additionalContext =
+      result.contextInjection ?? (result.decision === "allow" ? undefined : result.reason);
+
+    return withAdditionalContext(output, "PostToolUse", additionalContext);
+  }
+
+  if (gateType === "subagent_start") {
+    return withAdditionalContext(output, "SubagentStart", result.contextInjection);
+  }
+
+  if (gateType === "stop") {
+    return blocked ? output : withAdditionalContext(output, "Stop", result.reason);
+  }
+
+  if (gateType === "subagent_stop") {
+    return withAdditionalContext(output, "SubagentStop", result.reason);
+  }
+
+  return output;
+}
+
+function withAdditionalContext(
+  output: Record<string, unknown>,
+  hookEventName: string,
+  additionalContext: string | undefined,
+): Record<string, unknown> {
+  if (additionalContext === undefined) {
+    return output;
+  }
+
+  return {
+    ...output,
+    hookSpecificOutput: {
+      hookEventName,
+      additionalContext,
+    },
+  };
 }
 
 export function parseHookEvent(input: unknown): GateType {
@@ -851,12 +1567,59 @@ export function parseHookEvent(input: unknown): GateType {
   throw new Error(`Unknown hook event: ${String(input)}`);
 }
 
+export function parseRuntimeHooksJson(
+  input: unknown,
+): Partial<Record<GateType, RuntimeHookCapabilityInput>> | undefined {
+  if (input === undefined) {
+    return undefined;
+  }
+
+  if (typeof input !== "string") {
+    throw new Error("hooksJson must be a JSON string");
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(input);
+  } catch (error) {
+    throw new Error(
+      `hooksJson must be valid JSON: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
+  return RuntimeHooksInputSchema.parse(parsed);
+}
+
 function parseMacroCycle(input: unknown): MacroCycle {
   if (typeof input === "string" && MACRO_CYCLES.includes(input as MacroCycle)) {
     return input as MacroCycle;
   }
 
   throw new Error(`Unknown MacroCycle: ${String(input)}`);
+}
+
+function parseSubPhase(input: unknown): SubPhase {
+  if (typeof input === "string" && SUB_PHASES.includes(input as SubPhase)) {
+    return input as SubPhase;
+  }
+
+  throw new Error(`Unknown SubPhase: ${String(input)}`);
+}
+
+function parseOperatingMode(input: unknown): OperatingMode {
+  if (typeof input === "string" && OPERATING_MODES.includes(input as OperatingMode)) {
+    return input as OperatingMode;
+  }
+
+  throw new Error(`Unknown operating mode: ${String(input)}`);
+}
+
+function parseRiskClass(input: unknown): RiskClass {
+  if (typeof input === "string" && RISK_CLASSES.includes(input as RiskClass)) {
+    return input as RiskClass;
+  }
+
+  throw new Error(`Unknown risk class: ${String(input)}`);
 }
 
 function parseInstallTarget(input: unknown): InstallTarget {
@@ -996,17 +1759,41 @@ export function formatCatalogArtifactsPlanHuman(plan: CatalogArtifactsPlan): str
 
 export async function generateInstallArtifactsPlan(args: {
   apply?: unknown;
+  captureRestoreSnapshots?: unknown;
   kind?: unknown;
   root?: unknown;
   target?: unknown;
+  writeManifest?: unknown;
 }): Promise<InstallArtifactsPlan> {
   const target = parseArtifactInstallTarget(args.target);
   const kind = parseArtifactInstallSelection(args.kind ?? "all");
   const root = readOptionalString({ root: args.root }, "root") ?? process.cwd();
   const apply = readBoolean({ apply: args.apply }, "apply");
+  const writeManifest = readBoolean({ writeManifest: args.writeManifest }, "writeManifest");
+  const captureRestoreSnapshots = readBoolean(
+    { captureRestoreSnapshots: args.captureRestoreSnapshots },
+    "captureRestoreSnapshots",
+  );
   const dryRun = !apply;
+  if (writeManifest && dryRun) {
+    throw new Error("writeManifest requires --apply for install-artifacts.");
+  }
+  if (captureRestoreSnapshots && dryRun) {
+    throw new Error("captureRestoreSnapshots requires --apply for install-artifacts.");
+  }
+  if (captureRestoreSnapshots && !writeManifest) {
+    throw new Error("captureRestoreSnapshots requires --writeManifest for install-artifacts.");
+  }
+
   const writeResult = apply
-    ? await installCatalogArtifacts({ projectRoot: root, target, kind, dryRun: false })
+    ? await installCatalogArtifacts({
+        projectRoot: root,
+        target,
+        kind,
+        dryRun: false,
+        writeManifest,
+        captureRestoreSnapshots,
+      })
     : undefined;
   const result =
     writeResult ?? planArtifactInstall({ projectRoot: root, target, kind, dryRun: true });
@@ -1021,9 +1808,13 @@ export async function generateInstallArtifactsPlan(args: {
     selection: result.selection,
     dryRun,
     apply,
+    writeManifest,
+    captureRestoreSnapshots,
     artifactsPlanned: result.artifacts.length,
     artifactsWritten: writeResult?.writtenPaths ?? [],
     artifactsUnchanged: writeResult?.unchangedPaths ?? [],
+    ...(writeResult?.manifest ? { manifest: writeResult.manifest } : {}),
+    ...(writeResult?.manifestFile ? { manifestFile: writeResult.manifestFile } : {}),
     result,
   };
 }
@@ -1039,29 +1830,369 @@ export function formatInstallArtifactsPlanHuman(plan: InstallArtifactsPlan): str
     `Artifacts  : ${plan.artifactsPlanned}`,
     `Written    : ${plan.artifactsWritten.length}`,
     `Unchanged  : ${plan.artifactsUnchanged.length}`,
+    `Manifest   : ${plan.manifestFile ?? "not written"}`,
+    `Snapshots  : ${plan.captureRestoreSnapshots ? "enabled" : "disabled"}`,
   ];
   lines.push("Result     : ready");
 
   return lines.join("\n");
 }
 
+export async function generateRollbackArtifactsPlan(args: {
+  apply?: unknown;
+  manifestFile?: unknown;
+  root?: unknown;
+}): Promise<RollbackArtifactsPlan> {
+  const root = readOptionalString({ root: args.root }, "root") ?? process.cwd();
+  const manifestFile = readOptionalString({ manifestFile: args.manifestFile }, "manifestFile");
+  const apply = readBoolean({ apply: args.apply }, "apply");
+  const dryRun = !apply;
+  const result = apply
+    ? await rollbackCatalogArtifacts({
+        projectRoot: root,
+        manifestFile,
+        dryRun: false,
+      })
+    : await rollbackCatalogArtifacts({
+        projectRoot: root,
+        manifestFile,
+        dryRun: true,
+      });
+  const deletedPaths = "deletedPaths" in result ? result.deletedPaths : [];
+  const restoredPaths = "restoredPaths" in result ? result.restoredPaths : [];
+
+  return {
+    ok: result.blockers.length === 0,
+    root: result.projectRoot,
+    projectRoot: result.projectRoot,
+    target: result.target,
+    platformDirectory: result.platformDirectory,
+    manifestFile: result.manifestFile,
+    dryRun,
+    apply,
+    actions: result.actions,
+    blockers: result.blockers,
+    actionsPlanned: result.actions.length,
+    artifactsPlanned: result.actions.length,
+    deletedPaths,
+    restoredPaths,
+    artifactsDeleted: deletedPaths.length,
+    artifactsRestored: restoredPaths.length,
+    result,
+  };
+}
+
+export function formatRollbackArtifactsPlanHuman(plan: RollbackArtifactsPlan): string {
+  const lines = [
+    "Rollback artifacts",
+    `Mode      : ${plan.dryRun ? "dry-run" : "apply"}`,
+    `Target    : ${plan.target}`,
+    `Root      : ${plan.projectRoot}`,
+    `Platform  : ${plan.platformDirectory}`,
+    `Manifest  : ${plan.manifestFile}`,
+    `Actions   : ${plan.actionsPlanned}`,
+    `Deleted   : ${plan.deletedPaths.length}`,
+    `Restored  : ${plan.restoredPaths.length}`,
+    `Blockers  : ${plan.blockers.length}`,
+    `Result    : ${plan.ok ? "ready" : "blocked"}`,
+  ];
+
+  return lines.join("\n");
+}
+
+export async function generatePlatformUninstallPlan(args: {
+  apply?: unknown;
+  manifestFile?: unknown;
+  root?: unknown;
+}): Promise<PlatformUninstallPlan> {
+  const root = readOptionalString({ root: args.root }, "root") ?? process.cwd();
+  const manifestFile = readOptionalString({ manifestFile: args.manifestFile }, "manifestFile");
+  const apply = readBoolean({ apply: args.apply }, "apply");
+  const dryRun = !apply;
+  const manifest = await readInstallManifest({ projectRoot: root, manifestFile });
+  const hookCommands = extractInstallManifestHookCommands(manifest);
+  const result = apply
+    ? await removePlatformConfig(manifest.target, manifest.expectedPaths.platformDirectory, {
+        hookCommands,
+      })
+    : undefined;
+
+  return {
+    ok: true,
+    action: "uninstall",
+    root: manifest.expectedPaths.projectRoot,
+    target: manifest.target,
+    platformDirectory: manifest.expectedPaths.platformDirectory,
+    manifestFile: manifest.expectedPaths.manifestFile,
+    dryRun,
+    apply,
+    hooksPlanned: countSupportedManifestHooks(manifest),
+    hooksRemoved: result?.hooksRemoved ?? 0,
+    manifestRetained: true,
+    ...(result ? { result } : {}),
+  };
+}
+
+export async function generatePlatformRepairPlan(args: {
+  apply?: unknown;
+  manifestFile?: unknown;
+  root?: unknown;
+}): Promise<PlatformRepairPlan> {
+  const root = readOptionalString({ root: args.root }, "root") ?? process.cwd();
+  const manifestFile = readOptionalString({ manifestFile: args.manifestFile }, "manifestFile");
+  const apply = readBoolean({ apply: args.apply }, "apply");
+  const dryRun = !apply;
+  const manifest = await readInstallManifest({ projectRoot: root, manifestFile });
+  const hookCommands = extractInstallManifestHookCommands(manifest);
+  const result = apply
+    ? await applyPlatformConfig(manifest.target, manifest.expectedPaths.platformDirectory, {
+        hookCommands,
+      })
+    : undefined;
+
+  return {
+    ok: true,
+    action: "repair",
+    root: manifest.expectedPaths.projectRoot,
+    target: manifest.target,
+    platformDirectory: manifest.expectedPaths.platformDirectory,
+    manifestFile: manifest.expectedPaths.manifestFile,
+    dryRun,
+    apply,
+    hooksPlanned: countSupportedManifestHooks(manifest),
+    hooksAdded: result?.hooksAdded ?? 0,
+    ...(result ? { result } : {}),
+  };
+}
+
+export function formatPlatformUninstallHuman(plan: PlatformUninstallPlan): string {
+  return [
+    "Uninstall platform",
+    `Mode              : ${plan.dryRun ? "dry-run" : "apply"}`,
+    `Target            : ${plan.target}`,
+    `Root              : ${plan.root}`,
+    `Platform          : ${plan.platformDirectory}`,
+    `Manifest          : ${plan.manifestFile}`,
+    `Hooks planned     : ${plan.hooksPlanned}`,
+    `Hooks removed     : ${plan.hooksRemoved}`,
+    `Manifest retained : ${plan.manifestRetained ? "yes" : "no"}`,
+    `Result            : ${plan.ok ? "ready" : "blocked"}`,
+  ].join("\n");
+}
+
+export function formatPlatformRepairHuman(plan: PlatformRepairPlan): string {
+  return [
+    "Repair platform",
+    `Mode          : ${plan.dryRun ? "dry-run" : "apply"}`,
+    `Target        : ${plan.target}`,
+    `Root          : ${plan.root}`,
+    `Platform      : ${plan.platformDirectory}`,
+    `Manifest      : ${plan.manifestFile}`,
+    `Hooks planned : ${plan.hooksPlanned}`,
+    `Hooks added   : ${plan.hooksAdded}`,
+    `Result        : ${plan.ok ? "ready" : "blocked"}`,
+  ].join("\n");
+}
+
+export async function generateLifecycleApplyPlan(args: {
+  apply?: unknown;
+  hookCommandPrefix?: unknown;
+  kind?: unknown;
+  root?: unknown;
+  skipManifests?: unknown;
+  target?: unknown;
+}) {
+  const target = parseArtifactInstallTarget(args.target);
+  const kind = parseArtifactInstallSelection(args.kind ?? "all");
+  const root = readOptionalString({ root: args.root }, "root") ?? process.cwd();
+  const apply = readBoolean({ apply: args.apply }, "apply");
+  const skipManifests = readBoolean({ skipManifests: args.skipManifests }, "skipManifests");
+  const hookCommandPrefix = readOptionalString(
+    { hookCommandPrefix: args.hookCommandPrefix },
+    "hookCommandPrefix",
+  );
+
+  return applyRuntimeLifecycle({
+    projectRoot: root,
+    target,
+    kind,
+    apply,
+    writeManifests: skipManifests ? false : undefined,
+    hookCommandPrefix,
+    platform: {
+      apply: async (platformTarget, platformDirectory) =>
+        applyPlatformConfig(platformTarget, platformDirectory, { hookCommandPrefix }),
+    },
+  });
+}
+
+export async function generateLifecycleRepairPlan(args: {
+  apply?: unknown;
+  kind?: unknown;
+  manifestFile?: unknown;
+  root?: unknown;
+  skipManifests?: unknown;
+}) {
+  const kind = parseArtifactInstallSelection(args.kind ?? "all");
+  const root = readOptionalString({ root: args.root }, "root") ?? process.cwd();
+  const manifestFile = readOptionalString({ manifestFile: args.manifestFile }, "manifestFile");
+  const apply = readBoolean({ apply: args.apply }, "apply");
+  const skipManifests = readBoolean({ skipManifests: args.skipManifests }, "skipManifests");
+  const manifest = apply
+    ? await readInstallManifest({ projectRoot: root, manifestFile })
+    : undefined;
+  const hookCommands =
+    manifest === undefined ? undefined : extractInstallManifestHookCommands(manifest);
+
+  return repairRuntimeLifecycle({
+    projectRoot: root,
+    kind,
+    manifestFile,
+    apply,
+    writeManifests: skipManifests ? false : undefined,
+    platform: {
+      apply: async (target, platformDirectory) =>
+        applyPlatformConfig(target, platformDirectory, { hookCommands }),
+    },
+  });
+}
+
+export async function generateLifecycleUninstallPlan(args: {
+  apply?: unknown;
+  artifactManifestFile?: unknown;
+  platformManifestFile?: unknown;
+  root?: unknown;
+}) {
+  const root = readOptionalString({ root: args.root }, "root") ?? process.cwd();
+  const platformManifestFile = readOptionalString(
+    { platformManifestFile: args.platformManifestFile },
+    "platformManifestFile",
+  );
+  const artifactManifestFile = readOptionalString(
+    { artifactManifestFile: args.artifactManifestFile },
+    "artifactManifestFile",
+  );
+  const apply = readBoolean({ apply: args.apply }, "apply");
+  const manifest = apply
+    ? await readInstallManifest({ projectRoot: root, manifestFile: platformManifestFile })
+    : undefined;
+  const hookCommands =
+    manifest === undefined ? undefined : extractInstallManifestHookCommands(manifest);
+
+  return uninstallRuntimeLifecycle({
+    projectRoot: root,
+    platformManifestFile,
+    artifactManifestFile,
+    apply,
+    platform: {
+      remove: async (target, platformDirectory) =>
+        removePlatformConfig(target, platformDirectory, { hookCommands }),
+    },
+  });
+}
+
+export function formatLifecycleApplyHuman(
+  plan: Awaited<ReturnType<typeof generateLifecycleApplyPlan>>,
+): string {
+  return [
+    "Runtime lifecycle apply",
+    `Mode                : ${plan.dryRun ? "dry-run" : "apply"}`,
+    `Target              : ${plan.target}`,
+    `Kind                : ${plan.kind}`,
+    `Root                : ${plan.projectRoot}`,
+    `Platform            : ${plan.platformDirectory}`,
+    `Write manifests     : ${plan.writeManifests ? "yes" : "no"}`,
+    `Platform manifest   : ${plan.platformInstall.manifestWritten ? plan.platformManifestFile : "not written"}`,
+    `Artifact manifest   : ${"manifestFile" in plan.artifactInstall ? plan.artifactInstall.manifestFile : "not written"}`,
+    `Artifacts planned   : ${plan.artifactInstall.actions.length}`,
+    `Artifacts written   : ${plan.artifactsWritten.length}`,
+    `Artifacts unchanged : ${plan.artifactsUnchanged.length}`,
+    `Result              : ${plan.ok ? "ready" : "blocked"}`,
+  ].join("\n");
+}
+
+export function formatLifecycleRepairHuman(
+  plan: Awaited<ReturnType<typeof generateLifecycleRepairPlan>>,
+): string {
+  return [
+    "Runtime lifecycle repair",
+    `Mode                : ${plan.dryRun ? "dry-run" : "apply"}`,
+    `Target              : ${plan.target}`,
+    `Kind                : ${plan.kind}`,
+    `Root                : ${plan.projectRoot}`,
+    `Platform            : ${plan.platformDirectory}`,
+    `Write manifests     : ${plan.writeManifests ? "yes" : "no"}`,
+    `Artifact manifest   : ${"manifestFile" in plan.artifactInstall ? plan.artifactInstall.manifestFile : "not written"}`,
+    `Artifacts planned   : ${plan.artifactInstall.actions.length}`,
+    `Artifacts written   : ${plan.artifactsWritten.length}`,
+    `Artifacts unchanged : ${plan.artifactsUnchanged.length}`,
+    `Result              : ${plan.ok ? "ready" : "blocked"}`,
+  ].join("\n");
+}
+
+export function formatLifecycleUninstallHuman(
+  plan: Awaited<ReturnType<typeof generateLifecycleUninstallPlan>>,
+): string {
+  return [
+    "Runtime lifecycle uninstall",
+    `Mode              : ${plan.dryRun ? "dry-run" : "apply"}`,
+    `Target            : ${plan.target}`,
+    `Root              : ${plan.projectRoot}`,
+    `Platform          : ${plan.platformDirectory}`,
+    `Platform manifest : ${plan.platformManifestFile}`,
+    `Artifact manifest : ${plan.artifactManifestFile}`,
+    `Artifacts deleted : ${plan.artifactsDeleted.length}`,
+    `Artifacts restored: ${plan.artifactsRestored.length}`,
+    `Rollback blockers : ${plan.blockers.length}`,
+    `Hooks removed     : ${plan.platformHooksRemoved ?? "unknown"}`,
+    `Result            : ${plan.ok ? "ready" : "blocked"}`,
+  ].join("\n");
+}
+
 export async function applyPlatformConfig(
   target: InstallTarget,
   platformDirectory: string,
+  options: HookCommandOptions = {},
 ): Promise<
   | { target: "codex"; configFile: string; hooksAdded: number; featureFlagAdded: boolean }
   | { target: "claude"; settingsFile: string; hooksAdded: number }
   | { target: "hermes"; configFile: string; hooksAdded: number; pluginAdded: boolean }
 > {
   if (target === "codex") {
-    return applyCodexHookConfig({ root: platformDirectory });
+    return applyCodexHookConfig({ root: platformDirectory, ...options });
   }
 
   if (target === "claude") {
-    return applyClaudeSettings({ root: platformDirectory });
+    return applyClaudeSettings({ root: platformDirectory, ...options });
   }
 
-  return applyHermesHookConfig({ root: platformDirectory });
+  return applyHermesHookConfig({ root: platformDirectory, ...options });
+}
+
+export async function removePlatformConfig(
+  target: InstallTarget,
+  platformDirectory: string,
+  options: HookCommandOptions = {},
+): Promise<
+  | { target: "codex"; configFile: string; hooksRemoved: number }
+  | { target: "claude"; settingsFile: string; hooksRemoved: number }
+  | { target: "hermes"; configFile: string; hooksRemoved: number; pluginRemoved: boolean }
+> {
+  if (target === "codex") {
+    return removeCodexHookConfig({ root: platformDirectory, ...options });
+  }
+
+  if (target === "claude") {
+    return removeClaudeSettings({ root: platformDirectory, ...options });
+  }
+
+  return removeHermesHookConfig({ root: platformDirectory, ...options });
+}
+
+function countSupportedManifestHooks(manifest: InstallManifest): number {
+  return manifest.plannedActions.filter(
+    (action) => action.kind === "register_hook" && action.supported !== false,
+  ).length;
 }
 
 async function readJsonStdin(): Promise<unknown> {
@@ -1070,9 +2201,33 @@ async function readJsonStdin(): Promise<unknown> {
   }
 
   const chunks: Buffer[] = [];
+  let totalBytes = 0;
+  let timedOut = false;
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    process.stdin.destroy(new Error("Timed out reading hook stdin."));
+  }, HOOK_STDIN_TIMEOUT_MS);
+  timeout.unref();
 
-  for await (const chunk of process.stdin) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  try {
+    for await (const chunk of process.stdin) {
+      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      totalBytes += buffer.length;
+
+      if (totalBytes > MAX_HOOK_STDIN_BYTES) {
+        throw new Error(`Hook stdin exceeds ${MAX_HOOK_STDIN_BYTES} bytes.`);
+      }
+
+      chunks.push(buffer);
+    }
+  } catch (error) {
+    if (timedOut) {
+      throw new Error(`Timed out reading hook stdin after ${HOOK_STDIN_TIMEOUT_MS}ms.`);
+    }
+
+    throw error;
+  } finally {
+    clearTimeout(timeout);
   }
 
   const raw = Buffer.concat(chunks).toString("utf8").trim();
@@ -1153,6 +2308,19 @@ export function formatStatusHuman(result: Awaited<ReturnType<typeof getStatus>>)
     `Run ID     : ${result.runId}`,
     `Evidence   : ${result.evidenceCount}`,
     `Blockers   : ${blockers}`,
+  ].join("\n");
+}
+
+export function formatEnterDevelopmentHuman(
+  result: Awaited<ReturnType<typeof enterDevelopment>>,
+): string {
+  return [
+    "Development entry",
+    `Run ID     : ${result.runId}`,
+    `From       : ${result.previous.phase}/${result.previous.subPhase ?? "none"} ${result.previous.mode} ${result.previous.riskClass}`,
+    `To         : ${result.current.phase}/${result.current.subPhase} ${result.current.mode} ${result.current.riskClass}`,
+    `Objective  : ${result.objective ?? "none"}`,
+    "Result     : active",
   ].join("\n");
 }
 
@@ -1263,22 +2431,36 @@ export function formatCatalogHuman(result: ReturnType<typeof getOperationalCatal
   return [
     "Operational catalog",
     `Skills    : ${result.skills.length}`,
-    `Books     : ${result.books.length}`,
+    `Hooks     : ${result.hooks.length}`,
     `Subagents : ${result.subagents.length}`,
   ].join("\n");
 }
 
+function formatCatalogJson(result: ReturnType<typeof getOperationalCatalog>) {
+  return {
+    skills: result.skills,
+    hooks: result.hooks,
+    subagents: result.subagents,
+  };
+}
+
 export function formatRuntimeDigestHuman(result: {
   target: InstallTarget;
+  runtimeVersion?: string;
   digest: string;
 }): string {
-  return [`Runtime target : ${result.target}`, `Digest         : ${result.digest}`].join("\n");
+  return [
+    `Runtime target  : ${result.target}`,
+    ...(result.runtimeVersion ? [`Runtime version : ${result.runtimeVersion}`] : []),
+    `Digest          : ${result.digest}`,
+  ].join("\n");
 }
 
 export function formatRuntimeInspectHuman(result: RuntimeCapability): string {
   return [
     `Runtime target : ${result.target}`,
     `Runtime name   : ${result.runtimeName}`,
+    ...(result.runtimeVersion ? [`Runtime ver.   : ${result.runtimeVersion}`] : []),
     `Status         : ${result.status}`,
     `Config digest  : ${result.configDigest ?? "n/a"}`,
     `Hooks          : ${Object.keys(result.hooks).length}`,
@@ -1297,9 +2479,41 @@ export function formatRuntimeBindHuman(result: Record<GateType, RuntimeBinding>)
 
   return [
     `Runtime target : ${target}`,
+    ...(bindings[0]?.runtimeVersion ? [`Runtime ver.   : ${bindings[0].runtimeVersion}`] : []),
     `Native gates   : ${nativeCount}`,
     `Stale gates    : ${staleCount}`,
     `Missing gates  : ${missingCount}`,
+  ].join("\n");
+}
+
+export function formatRuntimeProbeHuman(result: RuntimeProbeResult): string {
+  const nativeCount = Object.values(result.bindings ?? {}).filter(
+    (binding) => binding.status === "native",
+  ).length;
+
+  return [
+    `Runtime target   : ${result.target}`,
+    `Runtime version  : ${result.runtimeVersion}`,
+    `Config read      : ${result.configRead ? "yes" : "no"}`,
+    `Manifest read    : ${result.manifestRead ? "yes" : "no"}`,
+    `Profile digest   : ${result.profileDigest}`,
+    ...(result.configDigest ? [`Config digest    : ${result.configDigest}`] : []),
+    `Registered hooks : ${result.registeredHooks.length}`,
+    `Missing hooks    : ${result.missingHooks.length}`,
+    `Native gates     : ${result.bindings ? nativeCount : "not bound"}`,
+  ].join("\n");
+}
+
+export function formatRouteRuntimeAssessmentHuman(
+  result: RuntimeBindingHealth & { activeTarget?: string | null; riskClass?: string },
+): string {
+  return [
+    "Route runtime assessment",
+    ...(result.riskClass ? [`RiskClass  : ${result.riskClass}`] : []),
+    `Target     : ${result.activeTarget ?? "unknown"}`,
+    `Healthy    : ${result.healthy ? "yes" : "no"}`,
+    `Required   : ${result.requiredGates.length === 0 ? "none" : result.requiredGates.join(", ")}`,
+    `Gaps       : ${result.gaps.length === 0 ? "none" : result.gaps.join("\n             ")}`,
   ].join("\n");
 }
 
@@ -1408,7 +2622,8 @@ function parseOptionalInteger(input: unknown, name: string): number | undefined 
     return undefined;
   }
 
-  const value = typeof input === "number" ? input : Number.parseInt(String(input), 10);
+  const value =
+    typeof input === "number" ? input : parseStrictNumericString(input, name, /^[-+]?[0-9]+$/);
   if (!Number.isInteger(value) || value < 0) {
     throw new Error(`${name} must be a non-negative integer.`);
   }
@@ -1421,7 +2636,10 @@ function parseOptionalPercent(input: unknown, name: string): number | undefined 
     return undefined;
   }
 
-  const value = typeof input === "number" ? input : Number.parseFloat(String(input));
+  const value =
+    typeof input === "number"
+      ? input
+      : parseStrictNumericString(input, name, /^[-+]?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)$/);
   if (!Number.isFinite(value) || value < 0 || value > 100) {
     throw new Error(`${name} must be a number from 0 to 100.`);
   }
@@ -1452,7 +2670,30 @@ function readOptionalString(args: Record<string, unknown>, name: string): string
 }
 
 function readBoolean(args: Record<string, unknown>, name: string): boolean {
-  return args[name] === true;
+  const value = args[name];
+
+  if (value === undefined || value === null) {
+    return false;
+  }
+
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  throw new Error(`${name} must be a boolean.`);
+}
+
+function parseStrictNumericString(input: unknown, name: string, pattern: RegExp): number {
+  if (typeof input !== "string") {
+    throw new Error(`${name} must be a number.`);
+  }
+
+  const normalized = input.trim();
+  if (!pattern.test(normalized)) {
+    throw new Error(`${name} must be a number.`);
+  }
+
+  return Number(normalized);
 }
 
 function describeError(error: unknown): string {
@@ -1477,6 +2718,42 @@ function isDirectRun(): boolean {
   }
 
   return existsSync(process.argv[1]) && fileURLToPath(import.meta.url) === process.argv[1];
+}
+
+export function getCliCommandSurface(): CliCommandSurfaceEntry[] {
+  return collectCliCommandSurface(main, ["harness"]);
+}
+
+function collectCliCommandSurface(
+  commandInput: unknown,
+  pathSegments: string[],
+): CliCommandSurfaceEntry[] {
+  const command = readCommandSurfaceShape(commandInput);
+  const meta = readRecord(command.meta);
+  const subCommands = readRecord(command.subCommands);
+  const entry = {
+    command: pathSegments.join(" "),
+    description: typeof meta.description === "string" ? meta.description : "",
+    hasSubCommands: Object.keys(subCommands).length > 0,
+  };
+  const subEntries = Object.entries(subCommands).flatMap(([name, subCommand]) =>
+    collectCliCommandSurface(subCommand, [...pathSegments, name]),
+  );
+
+  return [entry, ...subEntries];
+}
+
+function readCommandSurfaceShape(commandInput: unknown): {
+  meta?: unknown;
+  subCommands?: unknown;
+} {
+  return readRecord(commandInput);
+}
+
+function readRecord(input: unknown): Record<string, unknown> {
+  return typeof input === "object" && input !== null && !Array.isArray(input)
+    ? (input as Record<string, unknown>)
+    : {};
 }
 
 export { main };

@@ -35,7 +35,7 @@ evidence rules.
 
 ## Registry Placement
 
-Evidence requirements live in the executable registry, not in books or comments.
+Evidence requirements live in the executable registry, not in reference docs or comments.
 
 ```text
 .rms/registry/
@@ -66,7 +66,7 @@ Conceptual JSON shape:
     "run_kind": ["development", "validation"],
     "macro_cycle": ["BUILD", "VALIDATION"],
     "cycle_substate": ["build.local_quality_check", "validation.regression_gate"],
-    "risk_class": ["M", "E", "C"],
+    "risk_class": ["M", "H", "C"],
     "supervision_mode": ["pairing", "auto_decision"],
     "final_candidate": ["DONE_VERIFIED", "DONE_WITH_GAPS"],
     "runtime_degradation": ["none", "policy_allowed_fallback"],
@@ -95,7 +95,7 @@ Conceptual JSON shape:
   },
   "gap_policy": {
     "gap_allowed": false,
-    "gap_allowed_for_risk": ["T", "F"],
+    "gap_allowed_for_risk": ["T", "L"],
     "gap_final_state_cap": "DONE_WITH_GAPS",
     "forbidden_gap_classes": ["security", "rollback", "human_checkpoint", "runtime_hard_gate"]
   },
@@ -219,10 +219,10 @@ not command names or prose summaries.
 | `schema-validation` | `schema-report`, `registry-validation` | Shows events, sets, registries and artifacts validate. |
 | `review-verdict` | `review-report`, `subagent-report`, `human-checkpoint` | Shows independent or required review result. |
 | `security-review` | `review-report`, `scanner-report`, `human-checkpoint` | Shows security-sensitive claims were checked. |
-| `rollback-proof` | `rollback-plan`, `restore-test`, `human-checkpoint` | Shows recovery path for E/C or release-sensitive work. |
+| `rollback-proof` | `rollback-plan`, `restore-test`, `human-checkpoint` | Shows recovery path for H/C or release-sensitive work. |
 | `deployment-proof` | `release-report`, `smoke-test`, `ops-check` | Shows release/run handoff is safe. |
 | `monitoring-proof` | `runtime-sample`, `alert-check`, `runbook-check` | Shows RUN obligations are met. |
-| `learning-capture` | `retrospective`, `book-update`, `decision-record` | Shows Apprentissage outputs are captured. |
+| `learning-capture` | `retrospective`, `documentation-update`, `decision-record` | Shows Apprentissage outputs are captured. |
 | `degradation-acceptance` | `degraded-route-record`, `human-checkpoint` | Shows fallback was declared and risk-allowed. |
 | `conflict-resolution` | `arbitration-record`, `independent-review`, `human-checkpoint` | Resolves conflicting evidence. |
 | `late-evidence-audit` | `audit-record`, `correction-record`, `reopen-record` | Records evidence after closure without mutating final state. |
@@ -235,10 +235,10 @@ add stricter requirements.
 | Risk | Minimum for progress | Minimum for `DONE_VERIFIED` | Gap policy |
 |---|---|---|---|
 | `T` | `intent-scope`, `change-summary`, one relevant verification proof | Fresh required proofs plus no conflicts. | Gaps allowed if explicit and owned. |
-| `F` | `intent-scope`, `route-decision`, `change-summary`, targeted verification | Fresh targeted verification, territory/runtime checks when files or tools were touched. | Non-critical gaps allowed for `DONE_WITH_GAPS`. |
-| `M` | All F proofs plus `risk-classification`, `runtime-binding-check`, `tests` or equivalent schema validation, review when stop gate requires it | Fresh full required set, no stale hard-gate proof, no unresolved gaps for block requirements. | `DONE_WITH_GAPS` allowed only for non-critical warn requirements. |
-| `E` | All M proofs plus independent review, security or rollback proof when applicable, human checkpoint when policy requires | Fresh independent proof, rollback/security/human proof for affected dimensions, no unresolved hard gaps. | Residual E gaps cannot be hidden by `DONE_WITH_GAPS`. |
-| `C` | All E proofs plus explicit human-visible checkpoint and independent safety/security review | Fresh maximum proof set, current human checkpoint, rollback proof, no unresolved conflicts or gaps. | `DONE_WITH_GAPS` forbidden for critical residual gaps. |
+| `L` | `intent-scope`, `route-decision`, `change-summary`, targeted verification | Fresh targeted verification, territory/runtime checks when files or tools were touched. | Non-critical gaps allowed for `DONE_WITH_GAPS`. |
+| `M` | All L proofs plus `risk-classification`, `runtime-binding-check`, `tests` or equivalent schema validation, review when stop gate requires it | Fresh full required set, no stale hard-gate proof, no unresolved gaps for block requirements. | `DONE_WITH_GAPS` allowed only for non-critical warn requirements. |
+| `H` | All M proofs plus independent review, security or rollback proof when applicable, human checkpoint when policy requires | Fresh independent proof, rollback/security/human proof for affected dimensions, no unresolved hard gaps. | Residual H gaps cannot be hidden by `DONE_WITH_GAPS`. |
+| `C` | All H proofs plus explicit human-visible checkpoint and independent safety/security review | Fresh maximum proof set, current human checkpoint, rollback proof, no unresolved conflicts or gaps. | `DONE_WITH_GAPS` forbidden for critical residual gaps. |
 
 ## Required Proofs By Cycle
 
@@ -246,12 +246,12 @@ add stricter requirements.
 |---|---|
 | `DISCOVERY` | `intent-scope`, source/provenance proof, open-question record, candidate-evidence labels for non-authoritative artifacts. |
 | `CADRAGE` | `intent-scope`, `risk-classification`, scope boundary, route options, rejected alternatives. |
-| `CONCEPTION` | design decision record, `route-decision`, review-verdict for M+, architecture/security review for E/C. |
+| `CONCEPTION` | design decision record, `route-decision`, review-verdict for M+, architecture/security review for H/C. |
 | `BUILD` | `change-summary`, `territory-check`, `runtime-binding-check`, tests/static-analysis/schema-validation according to artifact type. |
 | `VALIDATION` | verification result, regression or acceptance proof, conflict scan, stale evidence scan. |
-| `RELEASE` | deployment-proof, rollback-proof for M+, human checkpoint for E/C release decisions. |
+| `RELEASE` | deployment-proof, rollback-proof for M+, human checkpoint for H/C release decisions. |
 | `RUN` | monitoring-proof, runtime sample, incident/rollback readiness when operational risk is M+. |
-| `APPRENTISSAGE` | learning-capture, decision update, book/registry drift record when generated. |
+| `APPRENTISSAGE` | learning-capture, decision update, docs/registry drift record when generated. |
 
 Cycle evidence may satisfy final evidence only when it is still fresh against
 all selected invalidation dimensions.
@@ -397,7 +397,7 @@ Final-state caps:
 
 - `DONE_VERIFIED` requires folded status `verified`.
 - `DONE_WITH_GAPS` requires folded status `with_gaps` or `sufficient`, with
-  explicit gap records and no E/C residual hard gap.
+  explicit gap records and no H/C residual hard gap.
 - `stale` and `conflicted` block both `DONE_VERIFIED` and direct
   `DONE_WITH_GAPS` until the stale/conflict dimension is resolved or the run
   closes as a blocked final state.
@@ -508,7 +508,7 @@ Expected checks:
 Input:
 
 ```yaml
-risk_class: E
+risk_class: H
 requirement:
   requirement_id: req_evid_e_review
   proof_type: review-verdict
@@ -649,11 +649,11 @@ Input:
 
 ```yaml
 before:
-  risk_class: F
+  risk_class: L
   evidence_status: verified
 after:
   event_type: RISK_CLASS_PROMOTED
-  risk_class: E
+  risk_class: H
 evidence_set:
   items:
     - proof_type: tests
@@ -669,9 +669,9 @@ Expected outcome: `BLOCK`
 
 Expected checks:
 
-- Previous F verification does not satisfy E requirements.
+- Previous L verification does not satisfy H requirements.
 - Folded status becomes `missing` or `partial`.
-- `DONE_VERIFIED` is blocked until newly applicable E proofs are present.
+- `DONE_VERIFIED` is blocked until newly applicable H proofs are present.
 
 ### EVREQ-007 - Registry Migration Stales Schema Evidence
 
@@ -701,12 +701,12 @@ Expected checks:
 - Compatibility import is required before old evidence can satisfy new
   requirements.
 
-### EVREQ-008 - Accepted Low-Risk Gap Produces With Gaps
+### EVREQ-008 - Accepted L-Risk Gap Produces With Gaps
 
 Input:
 
 ```yaml
-risk_class: F
+risk_class: L
 target:
   final_candidate: DONE_WITH_GAPS
 requirement:
@@ -734,12 +734,12 @@ Expected checks:
 - `DONE_WITH_GAPS` is allowed.
 - `DONE_VERIFIED` remains blocked.
 
-### EVREQ-009 - E Gap Cannot Be Hidden By DONE_WITH_GAPS
+### EVREQ-009 - H Gap Cannot Be Hidden By DONE_WITH_GAPS
 
 Input:
 
 ```yaml
-risk_class: E
+risk_class: H
 target:
   final_candidate: DONE_WITH_GAPS
 accepted_gaps:

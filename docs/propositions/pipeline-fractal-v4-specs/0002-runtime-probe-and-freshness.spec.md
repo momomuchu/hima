@@ -4,8 +4,11 @@ Status: draft v1
 
 ## Purpose
 
-`rms.inspect_runtime` must prove hook capability. It cannot trust runtime name,
-documentation claims, or adapter self-attestation alone.
+`rms.probe_runtime` is the trusted acquisition path for hook capability proof.
+`rms.inspect_runtime` can store caller-submitted runtime facts, but those facts
+remain candidate evidence and cannot by themselves make a blocking hook native.
+The harness cannot trust runtime name, documentation claims, or adapter
+self-attestation alone.
 
 This spec defines the minimum probe sequence and freshness rules required
 before PFV4 can use a Binding Set entry for governed execution.
@@ -13,8 +16,9 @@ before PFV4 can use a Binding Set entry for governed execution.
 ## Probe Inputs
 
 ```yaml
-inspect_runtime_request:
+probe_runtime_request:
   runtime_hint: "claude|codex|hermes|unknown"
+  runtime_version: "canonical runtime profile version"
   cwd: "absolute path"
   session_id: "runtime session id or UNKNOWN"
   requested_route_id: "route id or UNSET"
@@ -69,7 +73,7 @@ Probe:
 
 - active Codex config layers;
 - `[features] codex_hooks = true`;
-- loaded hook sources: `hooks.json` and/or `[hooks]` tables;
+- loaded hook sources: `config.toml` `[[hooks]]` tables;
 - entries for `SessionStart`, `UserPromptSubmit`, `PreToolUse`,
   `PostToolUse`, and `Stop`;
 - no claim that `subagent_stop` is native;
@@ -88,7 +92,7 @@ codex_required_hooks:
 ```
 
 If `codex_hooks` is absent or false, all Codex hook Binding Set entries become
-`capability_unknown` or `missing` and M/E/C hard enforcement blocks.
+`capability_unknown` or `missing` and M/H/C hard enforcement blocks.
 
 ### Hermes
 
@@ -124,12 +128,12 @@ Capability and Binding Set evidence is stale when any of these change:
 
 | Trigger | Required action |
 |---|---|
-| Runtime config file digest changes. | Re-run `rms.inspect_runtime`. |
+| Runtime config file digest changes. | Re-run `rms.probe_runtime`. |
 | Hook install manifest digest changes. | Re-run hook command validation. |
 | Registry or policy digest changes. | Re-evaluate Binding Set legality. |
 | Runtime version changes. | Re-probe capability. |
 | Session resumes after compaction or restart. | Verify capability event still applies. |
-| Route adds a required gate. | Synthesize missing binding or inspect runtime. |
+| Route adds a required gate. | Report a `missing`, `stale`, or `capability_unknown` assessment gap; re-inspect runtime only when capability evidence may have changed. |
 | Hook command path disappears or changes digest. | Mark binding stale or failed. |
 
 ## Trust Model
@@ -148,8 +152,32 @@ Trusted evidence types:
 | `event_fire` | Proves runtime invoked the hook in a real session. |
 | `manual_attestation` | Allowed only as checkpoint evidence; not native-equivalent enforcement. |
 
-`can_block=true` for M/E/C hard enforcement requires either `event_fire` or an
-accepted `negative_fixture` tied to the runtime's documented blocking response.
+`can_block=true` for M/H/C hard enforcement requires either accepted
+`event_fire` or accepted `negative_fixture` minted by `core-runtime-probe`,
+with `observedAt`, `verifier`, `target`, `runtimeVersion`, `gateType`,
+`configDigest`, `result`, and `proofDigest`, tied to the runtime's documented
+blocking response.
+Caller-submitted inspection proofs are stored as candidate evidence only.
+
+For trusted probe acquisition, `configDigest` is the observed runtime config
+content digest: target identity, canonical `runtimeVersion`, static runtime
+profile digest, runtime config file digest, and install manifest digest when
+present. It is not only the static runtime profile digest.
+
+Runtime config registration is never sufficient to mint `negative_fixture`.
+The core may store config and manifest proofs from static inspection, but an
+accepted `negative_fixture` requires explicit managed fixture verification.
+Accepted `event_fire` remains reserved for proof that the runtime invoked the
+hook in a real session.
+
+The trusted blocking proof freshness window is strict:
+
+1. `observedAt` MUST be no earlier than the stored capability inspection time.
+2. `observedAt` MUST be no later than the binding inspection time.
+3. `observedAt` MUST be no older than 15 minutes at binding time.
+
+Any proof outside this window is treated as stale even when its digest,
+verifier, target, runtime version, gate, config digest and result match.
 
 ## Outputs
 
@@ -175,11 +203,21 @@ route_effect:
 
 1. MUST treat absent config, absent feature flag, absent hook command, stale
    digest, and failed probe as non-enforceable.
-2. MUST synthesize missing bindings for route-required gates.
+2. MUST assess every route-required gate against the complete canonical
+   `GateType -> RuntimeBinding` table and report missing, stale, or
+   capability-unknown bindings without creating a second stored binding table.
 3. MUST record the evidence type that justifies `can_block=true`.
 4. MUST invalidate capability evidence after config, install, registry, policy,
    runtime or route changes.
 5. MUST not allow manual attestation to become native-equivalent technical
-   proof for E/C hard gates.
-6. SHOULD expose a dry-run report showing which gates are enforceable, degraded
+   proof for H/C hard gates.
+6. MUST not allow caller-submitted proof payloads to become native-equivalent
+   technical proof; trusted proof must be minted by the core runtime probe.
+7. MUST reject trusted blocking proofs that predate capability inspection, are
+   future-dated against binding inspection, or exceed the 15-minute freshness
+   window.
+8. MUST NOT mint `negative_fixture` from static config registration alone.
+9. MUST NOT accept caller-controlled timestamps on public trusted acquisition
+   surfaces such as MCP `rms.probe_runtime`.
+10. SHOULD expose a dry-run report showing which gates are enforceable, degraded
    or missing.

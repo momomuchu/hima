@@ -1,0 +1,57 @@
+name: HIMA CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: corepack pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: corepack pnpm typecheck
+
+      - name: Test
+        run: corepack pnpm test
+
+      - name: Lint
+        run: corepack pnpm lint
+
+      - name: Audit
+        run: corepack pnpm audit --audit-level low
+
+      - name: Build
+        run: corepack pnpm build
+
+      - name: Package readiness
+        run: corepack pnpm package:readiness
+
+      - name: Package smoke
+        run: corepack pnpm smoke:package
+
+      - name: Tarball package smoke
+        run: corepack pnpm smoke:tarball

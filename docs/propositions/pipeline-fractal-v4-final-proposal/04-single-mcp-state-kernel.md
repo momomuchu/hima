@@ -11,7 +11,7 @@ The MCP kernel is not the agent, not the workflow skill layer, and not the
 runtime hook implementation. It owns canonical state, append-only events, guard
 decisions, runtime binding checks, evidence evaluation, and state projections.
 Skills remain portable procedures, subagents remain isolated work lanes, hooks
-remain runtime-native gates, and books/docs remain durable operating knowledge.
+remain runtime-native gates, and reference docs/docs remain durable operating knowledge.
 
 This follows the RMS split already proposed:
 
@@ -42,7 +42,7 @@ One MCP state/control kernel
 Many runtime bindings
 Many skills
 Many subagents
-Many books
+Many reference docs
 ```
 
 The server may be internally modular, but externally there should be one
@@ -204,7 +204,7 @@ The kernel evaluates guards with the merged matrix:
 ```text
 GuardDecision =
   base_guard(cycle, substate, transition)
-  + risk_overlay(T/F/M/E/C)
+  + risk_overlay(T/L/M/H/C)
   + supervision_overlay(pairing/auto_decision/bypass)
   + runtime_overlay(capabilities/bindings)
   + territory_overlay(path/tool/action)
@@ -247,10 +247,10 @@ Policy:
 
 - `native` allows if policy and guard conditions pass.
 - `fallback` allows only when the fallback is declared and risk/mode policy permits it.
-- `noop_traced` is acceptable only for non-enforcement concerns or low-risk warnings.
+- `noop_traced` is acceptable only for non-enforcement concerns or L-risk warnings.
 - `missing` blocks unless the route can be changed before action.
 - `capability_unknown` blocks until runtime discovery.
-- for M/E/C work, enforcement primitives cannot silently degrade.
+- for M/H/C work, enforcement primitives cannot silently degrade.
 
 ## Failure And Degraded Modes
 
@@ -258,7 +258,7 @@ Policy:
 |---|---|
 | Capability unknown | Block and request discovery. |
 | Required primitive missing, no fallback | `BLOCKED_RUNTIME_MISSING`. |
-| Hook unavailable, post-run audit possible | Warn for T/F if policy allows; block for M+ when enforcement is required. |
+| Hook unavailable, post-run audit possible | Warn for T/L if policy allows; block for M+ when enforcement is required. |
 | Event append fails | Block mutation; state cannot advance. |
 | Evidence stale/conflicted | Block `DONE_VERIFIED`; reroute or close with gaps only if allowed. |
 | Repeated state pattern without progress | `LOOP_DETECTED` candidate. |
@@ -276,7 +276,7 @@ fallback, risk allowance, guard decision and remaining gap.
 | Runtime hooks | Hook mechanics differ across Claude, Codex and Hermes; Binding Set maps them. |
 | Skills | Skills are portable procedures and workflow entrypoints, not canonical state owners. |
 | Subagent execution | Subagents are isolated work lanes; only their outputs/events enter RMS state. |
-| Long-form books/manuals | Books hold durable knowledge; the kernel references them but does not become documentation storage. |
+| Long-form reference docs/manuals | Reference docs hold durable knowledge; the kernel references them but does not become documentation storage. |
 | Shell execution | Runtime tools execute commands; MCP records decisions/evidence and may expose checks. |
 | Secrets and credentials | Runtime-native auth stores remain authoritative; MCP stores references and redacted capability facts only. |
 | Model/provider selection internals | Runtime and route policy choose bindings; MCP should not become a model broker unless represented as policy. |

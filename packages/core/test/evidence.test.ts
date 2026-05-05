@@ -110,6 +110,22 @@ describe("evidence sufficiency", () => {
       ]),
     ).toEqual(["human_validation"]);
   });
+
+  it.each([
+    { verifiedHuman: "true" },
+    { verifiedHuman: false },
+    { human: { verified: true } },
+  ])("does not trust non-exact human metadata %j", (metadata) => {
+    expect(
+      getAcceptedEvidenceKeys([
+        {
+          ...evidence("human_validation"),
+          source: "agent",
+          metadata,
+        },
+      ]),
+    ).toEqual([]);
+  });
 });
 
 describe("addEvidence", () => {
@@ -157,6 +173,37 @@ describe("addEvidence", () => {
         key: "human_validation",
         source: "human",
       });
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("preserves ordinary evidence metadata without treating it as authority", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-evidence-"));
+    const metadata = {
+      verifiedHuman: "not-authority",
+      command: "pnpm test",
+      nested: {
+        retained: true,
+        values: [1, "two", null],
+      },
+    };
+
+    try {
+      await initProject(root);
+
+      const item = await addEvidence(root, {
+        key: "ci_green",
+        kind: "command_output",
+        status: "accepted",
+        summary: "tests passed",
+        source: "agent",
+        metadata,
+      });
+      const project = await readPlanningProject(root);
+
+      expect(item.metadata).toEqual(metadata);
+      expect(project.runSet.evidence[0].metadata).toEqual(metadata);
     } finally {
       await rm(root, { recursive: true, force: true });
     }

@@ -57,4 +57,58 @@ describe("handleHook", () => {
     expect(project.runSet.events[0]?.reason).toContain("[REDACTED]");
     expect(project.runSet.events[0]?.reason).not.toContain("ghp_abcdefghijklmnopqrstuvwxyz123456");
   });
+
+  it("redacts structured secrets before persisting tool previews", async () => {
+    await initPlanningProject(root);
+
+    await handleHook(root, "post_tool", {
+      toolName: "shell",
+      toolInput: {
+        password: "correct-horse-battery-staple",
+        nested: {
+          token: "abcdefghijklmnopqrstuvwxyz123456",
+          apiKey: "sk-abcdefghijklmnopqrstuvwxyz123456",
+        },
+      },
+      toolOutput: {
+        secret: "ghp_abcdefghijklmnopqrstuvwxyz123456",
+      },
+    });
+    const project = await readPlanningProject(root);
+    const payload = project.runSet.events[0]?.payload ?? {};
+
+    expect(payload.toolInputPreview).toContain("[REDACTED]");
+    expect(payload.toolInputPreview).not.toContain("correct-horse-battery-staple");
+    expect(payload.toolInputPreview).not.toContain("abcdefghijklmnopqrstuvwxyz123456");
+    expect(payload.toolOutputPreview).toContain("[REDACTED]");
+    expect(payload.toolOutputPreview).not.toContain("ghp_abcdefghijklmnopqrstuvwxyz123456");
+  });
+
+  it("normalizes Claude Code snake_case hook payloads before gate evaluation", async () => {
+    await initPlanningProject(root);
+
+    const result = await handleHook(root, "pre_tool", {
+      hook_event_name: "PreToolUse",
+      session_id: "claude-session-1",
+      tool_name: "Bash",
+      tool_input: {
+        command: 'echo -n "HIMA_CLAUDE_TOOL_OK" > claude-smoke.txt',
+        description: "Create smoke file",
+      },
+    });
+    const project = await readPlanningProject(root);
+    const event = project.runSet.events[0];
+
+    expect(result.decision).toBe("warn");
+    expect(result.reason).toContain("write target outside allowed zones");
+    expect(result.reason).toContain("claude-smoke.txt");
+    expect(event?.payload).toMatchObject({
+      toolName: "Bash",
+      metadata: {
+        hookEventName: "PreToolUse",
+        sessionId: "claude-session-1",
+      },
+      toolInputPreview: expect.stringContaining("claude-smoke.txt"),
+    });
+  });
 });

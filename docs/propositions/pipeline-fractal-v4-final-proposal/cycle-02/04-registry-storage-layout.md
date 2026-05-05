@@ -30,7 +30,7 @@ Use a local event-sourced `.rms/` store:
 event log = authoritative history
 registry  = authoritative executable contract
 snapshots = validated projections
-books     = explanatory, never authoritative
+reference docs     = explanatory, never authoritative
 skills    = procedures, never direct writers
 subagents = evidence producers, never direct writers
 ```
@@ -382,7 +382,7 @@ Merge rules:
 3. `C` risk cannot be weakened from `block` to `warn`, `degrade`, or `allow` for
    autonomous final decisions.
 4. Missing capability, missing schema, unknown risk, invalid registry, or
-   unclassified M/E/C action becomes `block`.
+   unclassified M/H/C action becomes `block`.
 5. The merged decision must include `registry_version`, input refs, applied
    overlay ids, resulting decision, required action, and evidence requirements.
 
@@ -394,11 +394,11 @@ guard files.
 
 | File | Purpose |
 |---|---|
-| `policies/risk-policy.yaml` | T/F/M/E/C risk minima, forcing signals, promotion rules, bypass legality. |
+| `policies/risk-policy.yaml` | T/L/M/H/C risk minima, forcing signals, promotion rules, bypass legality. |
 | `policies/evidence-policy.yaml` | Required proof types by risk, cycle, transition, final state, degraded route, and accepted gap. |
 | `policies/convergence-policy.yaml` | Sample windows, repeated-state thresholds, score caps, divergence signals, max-attempt fuse. |
 | `policies/closing-policy.yaml` | `active -> closing -> closed` protocol and final-state authorization. |
-| `policies/human-checkpoint-policy.yaml` | Required checkpoint shapes, signatures, rejection handling, E/C acceptance limits. |
+| `policies/human-checkpoint-policy.yaml` | Required checkpoint shapes, signatures, rejection handling, H/C acceptance limits. |
 
 ### Runtime Registries
 
@@ -435,7 +435,7 @@ Rules:
 - `capability_unknown` blocks until discovery.
 - `missing` blocks unless the route can change before the governed action.
 - `fallback` is allowed only when declared and risk/mode policy permits it.
-- `noop_traced` is not valid for blocking enforcement in M/E/C work.
+- `noop_traced` is not valid for blocking enforcement in M/H/C work.
 
 ## Schema Boundaries
 
@@ -511,9 +511,9 @@ If the MCP server is unavailable:
 - no run may close as `DONE_VERIFIED` while required MCP/kernel validation is
   unavailable.
 
-For T/F work, an explicitly declared file/CLI fallback may continue in degraded
+For T/L work, an explicitly declared file/CLI fallback may continue in degraded
 mode only if it records `DEGRADED_ROUTE_ACCEPTED` and the route policy allows
-audit-only enforcement. For M/E/C work, missing governed transition capability
+audit-only enforcement. For M/H/C work, missing governed transition capability
 blocks unless a policy-approved native-equivalent fallback exists.
 
 ## Migration And Supersession Notes
@@ -542,7 +542,7 @@ coverage, but is superseded where it conflicts with:
 - event log over snapshots;
 - split guard registries and deterministic overlay merge;
 - `active -> closing -> closed` final-state protocol;
-- fail-closed runtime degradation for M/E/C.
+- fail-closed runtime degradation for M/H/C.
 
 ### Migration Files
 
@@ -587,12 +587,12 @@ The kernel blocks governed transitions when any of these conditions is true:
 | Pending transaction exists after restart | Recovery mode; block new governed transitions. |
 | Capability unknown for required primitive | Block until runtime discovery. |
 | Required primitive missing with no policy-allowed fallback | `BLOCKED_RUNTIME_MISSING`. |
-| Audit-only fallback requested for M/E/C enforcement | Block unless policy declares native-equivalent fallback. |
+| Audit-only fallback requested for M/H/C enforcement | Block unless policy declares native-equivalent fallback. |
 | Evidence stale, missing, or conflicted | Block `DONE_VERIFIED`; reroute or close with gaps only if policy permits. |
-| `DONE_WITH_GAPS` has E/C residual gap | Block. |
-| Bypass requested for M/E/C | Block; promote supervision mode or suspend for checkpoint. |
+| `DONE_WITH_GAPS` has H/C residual gap | Block. |
+| Bypass requested for M/H/C | Block; promote supervision mode or suspend for checkpoint. |
 | Critical risk in autonomous final decision | Block; require human checkpoint/pairing. |
-| Book prose conflicts with registry | Registry wins; record drift evidence and block if conflict affects active guard. |
+| Reference doc prose conflicts with registry | Registry wins; record drift evidence and block if conflict affects active guard. |
 | Skill or subagent tries direct `.rms/` mutation | Block; require MCP/local transaction tool. |
 | Late evidence arrives after closure | Reject for final-state mutation; record audit-only event if allowed. |
 
@@ -616,7 +616,7 @@ These fixtures should be converted into tests before implementation:
    `supersedes_evidence_id`.
 9. Legacy `.planning/agent/current-state.yaml` exists -> ignored for PFV4 V2
    authority unless imported by an explicit migration.
-10. Book claims bypass is allowed for M -> registry wins, drift recorded, bypass
+10. Reference doc claims bypass is allowed for M -> registry wins, drift recorded, bypass
     blocked.
 
 ## Decision Delta

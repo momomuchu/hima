@@ -23,7 +23,7 @@ Scale: 1 weak, 5 strong.
 | Runtime degradation clarity | 4 | 2 | 5 |
 | Skills boundary clarity | 4 | 2 | 5 |
 | Subagent evidence boundary | 4 | 3 | 5 |
-| Books authority boundary | 3 | 3 | 5 |
+| Reference docs authority boundary | 3 | 3 | 5 |
 | Implementation MVP complexity | 3 | 4 | 3 |
 | Long-term maintainability | 3 | 2 | 5 |
 | Edge-case fail-closed behavior | 4 | 2 | 5 |
@@ -34,8 +34,8 @@ Scale: 1 weak, 5 strong.
 | Option | Score | Interpretation |
 |---|---:|---|
 | A MCP-centric | 45 / 60 | Strong interface, but too dependent on MCP availability if the server is the whole kernel. |
-| B Runtime-native | 34 / 60 | Fast UX/MVP path, but high drift risk and weak authority boundaries. |
-| C Hybrid kernel | 57 / 60 | Best convergence: one authority, portable MCP, native adapters, bounded skills/subagents/books. |
+| B Runtime-native | 34 / 60 | Fast UX/MVP path, but H-risk drift and weak authority boundaries. |
+| C Hybrid kernel | 57 / 60 | Best convergence: one authority, portable MCP, native adapters, bounded skills/hooks/subagents. |
 
 ## Argument Against Each Option
 
@@ -43,7 +43,7 @@ Scale: 1 weak, 5 strong.
 
 MCP is portable, but it is not enough by itself. If MCP availability becomes the
 same thing as RMS availability, then an MCP outage can block even local
-low-risk work or tempt agents into unsafe bypass. A also risks making the MCP
+L-risk work or tempt agents into unsafe bypass. A also risks making the MCP
 server a monolith that owns docs, procedures and execution.
 
 ### Against B
@@ -99,17 +99,17 @@ convergence, runtime bindings and final states. MCP is the most portable
 cross-runtime interface, but runtime hooks and skills remain necessary for
 operator UX and enforcement. Therefore, the kernel owns truth; one MCP server
 exposes it; runtime adapters enforce it where possible; skills guide it;
-subagents produce evidence; books preserve durable knowledge.
+subagents produce evidence; reference docs preserve durable knowledge.
 
 Rejected:
 - MCP-only RMS | too brittle when MCP is unavailable and too prone to monolith.
 - Runtime-native skill/hook pack | too much semantic drift across runtimes.
 
 Constraints:
-- M/E/C cannot silently degrade when runtime enforcement is missing.
+- M/H/C cannot silently degrade when runtime enforcement is missing.
 - `DONE_VERIFIED` requires fresh evidence and verified convergence.
 - Subagent outputs are not authoritative until recorded as Evidence Set entries.
-- Books do not override executable registries.
+- Reference docs do not override executable registries.
 
 Confidence: medium-high
 Scope-risk: broad
@@ -117,17 +117,17 @@ Scope-risk: broad
 
 ## Remaining Choice For User
 
-The real choice is not whether to use MCP, skills, subagents or books. We need
+The real choice is not whether to use MCP, skills, subagents or reference docs. We need
 all four.
 
 The real choice is the authority order:
 
 ```text
 recommended:
-kernel > MCP/tools/resources > runtime adapters/hooks > skills > subagents > books
+kernel > MCP/tools/resources > runtime adapters/hooks > skills > hooks > subagents
 
 never:
-skills/books/subagents > kernel
+skills/hooks/subagents > kernel
 ```
 
 Cycle 02 should assume this order unless the user explicitly chooses A or B.

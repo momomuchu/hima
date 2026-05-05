@@ -3,28 +3,41 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  CATALOG_ARTIFACT_SELECTIONS,
   getOperationalCatalog,
   planCatalogArtifacts,
   writeCatalogArtifacts,
 } from "../src/index.js";
 
 describe("catalog artifact generation", () => {
+  it("keeps the runtime artifact vocabulary limited to skills, hooks, and subagents", () => {
+    const plan = planCatalogArtifacts();
+    const kinds = [...new Set(plan.artifacts.map((artifact) => artifact.kind))].sort();
+
+    expect(CATALOG_ARTIFACT_SELECTIONS).toEqual(["all", "skills", "hooks", "subagents"]);
+    expect(kinds).toEqual(["hook", "skill", "subagent"]);
+    expect(plan.artifacts.map((artifact) => artifact.kind)).not.toContain("book");
+    expect(plan.artifacts.map((artifact) => artifact.content).join("\n")).not.toContain(
+      "kind=book",
+    );
+  });
+
   it("keeps artifact install dry-run read-only", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "harness-core-artifact-install-dry-"));
 
     try {
       const result = await writeCatalogArtifacts({
         outputRoot: root,
-        kind: "books",
+        kind: "hooks",
         dryRun: true,
       });
 
       expect(result.dryRun).toBe(true);
       expect(result.writtenPaths).toEqual([]);
       expect(result.unchangedPaths).toEqual([]);
-      expect(result.artifacts.every((artifact) => artifact.kind === "book")).toBe(true);
+      expect(result.artifacts.every((artifact) => artifact.kind === "hook")).toBe(true);
       await expect(
-        access(path.join(root, "artifacts", "books", "gate-policy.md")),
+        access(path.join(root, "artifacts", "hooks", "gate-policy.md")),
       ).rejects.toThrow();
     } finally {
       await rm(root, { recursive: true, force: true });
@@ -37,13 +50,13 @@ describe("catalog artifact generation", () => {
     try {
       const result = await writeCatalogArtifacts({
         outputRoot: root,
-        kind: "books",
+        kind: "hooks",
       });
 
       expect(result.dryRun).toBe(false);
-      expect(result.writtenPaths).toHaveLength(getOperationalCatalog().books.length);
+      expect(result.writtenPaths).toHaveLength(getOperationalCatalog().hooks.length);
       await expect(
-        access(path.join(root, "artifacts", "books", "gate-policy.md")),
+        access(path.join(root, "artifacts", "hooks", "gate-policy.md")),
       ).resolves.toBeUndefined();
       await expect(
         access(path.join(root, "artifacts", "skills", "classify-risk", "SKILL.md")),
@@ -80,7 +93,7 @@ describe("catalog artifact generation", () => {
 
     expect(plan.dryRun).toBe(true);
     expect(plan.artifacts).toHaveLength(
-      catalog.skills.length + catalog.books.length + catalog.subagents.length,
+      catalog.skills.length + catalog.hooks.length + catalog.subagents.length,
     );
     expect(plan).toEqual(planCatalogArtifacts());
 
@@ -139,7 +152,7 @@ describe("catalog artifact generation", () => {
       expect(await readFile(filePath, "utf8")).toContain(
         "<!-- HIMA:CATALOG-ARTIFACT kind=subagent id=reviewer source=operational-catalog -->",
       );
-      await expect(access(path.join(root, "artifacts", "books"))).rejects.toThrow();
+      await expect(access(path.join(root, "artifacts", "hooks"))).rejects.toThrow();
     } finally {
       await rm(root, { recursive: true, force: true });
     }
@@ -147,16 +160,16 @@ describe("catalog artifact generation", () => {
 
   it("refuses to overwrite unmanaged existing files", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "harness-core-artifacts-refuse-"));
-    const filePath = path.join(root, "artifacts", "books", "gate-policy.md");
+    const filePath = path.join(root, "artifacts", "hooks", "gate-policy.md");
 
     try {
       await mkdir(path.dirname(filePath), { recursive: true });
-      await writeFile(filePath, "manual book content", "utf8");
+      await writeFile(filePath, "manual hook content", "utf8");
 
       await expect(
         writeCatalogArtifacts({
           outputRoot: root,
-          kind: "books",
+          kind: "hooks",
         }),
       ).rejects.toThrow("Refusing to overwrite unmanaged catalog artifact");
     } finally {
@@ -171,7 +184,7 @@ describe("catalog artifact generation", () => {
     try {
       await mkdir(path.join(root, "artifacts"), { recursive: true });
       try {
-        await symlink(outside, path.join(root, "artifacts", "books"), "dir");
+        await symlink(outside, path.join(root, "artifacts", "hooks"), "dir");
       } catch (error) {
         if (isNodeErrorWithCode(error, "EPERM")) {
           return;
@@ -183,9 +196,9 @@ describe("catalog artifact generation", () => {
       await expect(
         writeCatalogArtifacts({
           outputRoot: root,
-          kind: "books",
+          kind: "hooks",
         }),
-      ).rejects.toThrow("Refusing to write catalog artifact through symlink");
+      ).rejects.toThrow(/Refusing to write.*symlink/);
     } finally {
       await rm(root, { recursive: true, force: true });
       await rm(outside, { recursive: true, force: true });

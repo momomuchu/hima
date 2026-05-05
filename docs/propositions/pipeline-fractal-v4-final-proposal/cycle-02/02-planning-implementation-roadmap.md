@@ -6,7 +6,7 @@ Status: Cycle 02 planning lane
 
 This roadmap turns the Cycle 01 final proposal into an implementation-shaped
 path to MVP. It does not implement the RMS kernel, MCP server, skills,
-subagents, books, adapters, or registries. It defines the order in which those
+subagents, reference docs, adapters, or registries. It defines the order in which those
 contracts must become executable enough for an implementer to build without
 choosing architecture policy ad hoc.
 
@@ -18,7 +18,7 @@ Hybrid event-sourced RMS kernel
 + runtime adapters/hooks
 + skills as procedures
 + subagents as bounded evidence/review lanes
-+ books as durable knowledge
++ reference docs as durable knowledge
 ```
 
 ## Operating Loop
@@ -33,7 +33,7 @@ Discovery -> Planning -> Contract Design -> Verify -> Audit -> Integration
 |---|---|---|
 | Discovery | Read current proposal, state-machine V2, open decisions, edge cases, and any previous phase artifact. | Source snapshot and gap list. |
 | Planning | Pick the next smallest implementation slice and its dependencies. | Phase plan with acceptance criteria. |
-| Contract Design | Define schemas, tool contracts, registry records, fixtures, or book/subagent interfaces. | Contract artifact, not runtime code. |
+| Contract Design | Define schemas, tool contracts, registry records, fixtures, or reference doc/subagent interfaces. | Contract artifact, not runtime code. |
 | Verify | Convert the contract into fixtures, invariants, or review checks. | Expected pass/fail cases. |
 | Audit | Red-team fail-open, drift, stale evidence, authority overlap, and runtime degradation. | Blocker list or accepted residual gaps. |
 | Integration | Update the MVP contract boundary and next-phase dependencies. | Integration note and updated P0 status. |
@@ -48,7 +48,7 @@ The MVP proves one claim:
 ```text
 The RMS kernel can govern a local run through state transitions, guard
 evaluation, evidence capture, convergence sampling, runtime degradation handling,
-and final-state closure without letting skills, subagents, books, hooks, or MCP
+and final-state closure without letting skills, subagents, reference docs, hooks, or MCP
 clients become independent authorities.
 ```
 
@@ -61,7 +61,7 @@ graph LR
   S2 --> S3[Guard merge contract]
   S3 --> S4[MCP tool/resource contracts]
   S4 --> S5[Runtime adapter contracts]
-  S5 --> S6[Skills/subagents/books contracts]
+  S5 --> S6[Skills/subagents/reference docs contracts]
   S6 --> S7[Verification fixtures]
   S7 --> S8[Audit and MVP readiness]
 
@@ -84,7 +84,7 @@ blocks executable state-machine work.
 | Transition topology | Explicit directed graph with named rework edges. | `transitions` registry schema. | Guard evaluation, loop detection. |
 | Non-development representation | Inactive runs may use derived lens only; artifacts are `candidate_evidence` until imported. | Run schema and evidence import rule. | Activation, evidence status. |
 | Activation gate | `candidate -> armed` requires Intent, Policy, Capability, Binding, Route, and risk decision or explicit `UNKNOWN` where allowed. | Activation transition contract. | `rms.start_run`, `rms.plan_route`, `rms.transition`. |
-| Risk/supervision matrix | `T` bypass allowed, `F` conditional, `M` blocked by default, `E/C` forbidden; `C` requires human-visible checkpoint/pairing. | Risk and mode overlays. | Guard merge, route planning. |
+| Risk/supervision matrix | `T` bypass allowed, `L` conditional, `M` blocked by default, `H/C` forbidden; `C` requires human-visible checkpoint/pairing. | Risk and mode overlays. | Guard merge, route planning. |
 | Risk classifier mechanics | Agent proposes; forcing signals set minima; human/reviewer validates when required. | `rms.classify_risk` contract and fixtures. | Route planning, write gates. |
 | Evidence semantics | Evidence status derived from Evidence Set, not manually declared. | Evidence requirement schema. | Stop gate, final states. |
 | Convergence thresholds | Score and sample windows by risk, with max attempts as fuse only. | Convergence contract and fixtures. | Loop recovery, final closure. |
@@ -180,7 +180,7 @@ validated before runtime use.
 | `substates` | Macro-cycle-specific semantic substates and primary lens mapping. |
 | `transitions` | Directed graph of activation, internal, macro, rework, risk, meta-region, and final-state transitions. |
 | `guards` | Base guard definitions and required evaluation inputs. |
-| `risk-overlays` | T/F/M/E/C evidence depth, bypass, checkpoint, rollback, and review rules. |
+| `risk-overlays` | T/L/M/H/C evidence depth, bypass, checkpoint, rollback, and review rules. |
 | `mode-overlays` | Pairing, auto-decision, and bypass constraints. |
 | `runtime-overlays` | Required gates, binding statuses, fail-open rules, and fallback policy. |
 | `territory-overlays` | Path/tool/action permissions by cycle, substate, route, and risk. |
@@ -195,14 +195,14 @@ validated before runtime use.
 - A validator can reject unknown substates, generic `Cycle.Observer`-style
   stored states, invalid lens mappings, invalid transition edges, and missing
   evidence requirements.
-- Books can render registry explanations but cannot weaken registry rules.
+- Reference docs can render registry explanations but cannot weaken registry rules.
 
 ### Artifacts
 
 - Registry file split.
 - Minimal schema per registry.
 - Registry validation checklist.
-- Book/registry conflict fixture.
+- Docs/registry conflict fixture.
 
 ## Phase 3 - Guard Merge And Decision Contract
 
@@ -213,7 +213,7 @@ kernel transition code.
 
 ```text
 base_guard(cycle, substate, transition)
-+ risk_overlay(T/F/M/E/C)
++ risk_overlay(T/L/M/H/C)
 + supervision_overlay(pairing/auto_decision/bypass)
 + runtime_overlay(capabilities/bindings)
 + territory_overlay(path/tool/action)
@@ -245,7 +245,7 @@ Then apply policy caps:
 - `capability_unknown` blocks until discovery.
 - `missing` enforcement with no declared fallback blocks.
 - `M+` cannot silently downgrade required enforcement.
-- `E/C` runtime fail-open defaults to `BLOCKED_RUNTIME_MISSING`.
+- `H/C` runtime fail-open defaults to `BLOCKED_RUNTIME_MISSING`.
 - evidence `conflicted` or `stale` blocks `DONE_VERIFIED`.
 - `C` cannot use bypass and cannot close without human-visible checkpoint and
   independent review evidence.
@@ -337,10 +337,10 @@ Adapters do not own policy semantics and do not write around the kernel.
 - Runtime name alone never implies enforceability.
 - Required gate metadata includes `required_gate`, `binding_status`,
   `can_block`, `fallback_strategy`, `fail_open_risk`, and `trace_event`.
-- T/F may continue with traced degradation only when policy permits and final
+- T/L may continue with traced degradation only when policy permits and final
   state cannot be `DONE_VERIFIED` if required evidence is missing.
 - M requires native enforcement or exhaustive declared compensation.
-- E/C missing hard gates default to `BLOCKED_RUNTIME_MISSING`.
+- H/C missing hard gates default to `BLOCKED_RUNTIME_MISSING`.
 
 ### Artifacts
 
@@ -349,7 +349,7 @@ Adapters do not own policy semantics and do not write around the kernel.
 - Runtime degradation policy table.
 - Capability discovery fixture.
 
-## Phase 6 - Skills, Subagents, And Books Contract
+## Phase 6 - Skills, Subagents, And Reference docs Contract
 
 Objective: define portable procedures, bounded workers, and durable manuals
 without letting them become state authorities.
@@ -374,21 +374,21 @@ without letting them become state authorities.
 - `runtime-binding-inspector`
 - `state-invariant-reviewer`
 
-### MVP Books
+### MVP Reference docs
 
-- State Kernel Book.
-- Cycle Playbooks Book.
-- Risk And Policy Book.
-- Evidence And Convergence Book.
-- Runtime Bindings Book.
-- MCP And Tools Book.
+- State Kernel Reference doc.
+- Cycle Playbooks Reference doc.
+- Risk And Policy Reference doc.
+- Evidence And Convergence Reference doc.
+- Runtime Bindings Reference doc.
+- MCP And Tools Reference doc.
 
 ### Acceptance Criteria
 
 - Skills may request transitions and record evidence only through kernel APIs.
 - Subagents receive frozen state snapshots and return evidence candidates; they
   never mutate `.rms/`.
-- Books are generated from or reconciled with registries where possible; prose
+- Reference docs are generated from or reconciled with registries where possible; prose
   conflicts never override executable rules.
 - Skill drift blocks auto-invocation for core skills.
 - Subagent disagreement marks evidence conflicted until arbitration.
@@ -397,7 +397,7 @@ without letting them become state authorities.
 
 - Skill interface templates.
 - Subagent input/output schema.
-- Book authority notes.
+- Reference doc authority notes.
 - Drift and disagreement fixtures.
 
 ## Phase 7 - Verification Fixture Pack
@@ -410,11 +410,11 @@ Objective: make the MVP contract testable before implementation.
 |---|---|
 | Skill attempts direct final-state mutation. | Blocked; must request kernel transition. |
 | Subagent returns recommendation without evidence packet. | Rejected or marked non-decisive. |
-| Book conflicts with guard registry. | Registry wins; book update/audit record required. |
+| Reference doc conflicts with guard registry. | Registry wins; reference doc update/audit record required. |
 | `DONE_VERIFIED` with partial evidence. | Blocked. |
-| `DONE_WITH_GAPS` with unresolved E/C gap. | Blocked. |
+| `DONE_WITH_GAPS` with unresolved H/C gap. | Blocked. |
 | Codex lacks required blocking hook for M+ with no fallback. | `BLOCKED_RUNTIME_MISSING`. |
-| T/F runtime degradation has declared post-run audit fallback. | Warn/degrade; not `DONE_VERIFIED` until evidence is sufficient. |
+| T/L runtime degradation has declared post-run audit fallback. | Warn/degrade; not `DONE_VERIFIED` until evidence is sufficient. |
 | Inactive architecture artifact used as authoritative Build evidence. | Blocked until imported as evidence through active transition. |
 | Build/validation rework repeats same failing fix without new hypothesis. | `LOOP_DETECTED` or reroute/checkpoint. |
 | Critical risk enters bypass mode. | Blocked and risk policy evidence recorded. |
@@ -424,7 +424,7 @@ Objective: make the MVP contract testable before implementation.
 ### Acceptance Criteria
 
 - Fixtures cover state authority, guard authority, evidence stop gate,
-  convergence loop control, runtime degradation, subagent evidence, book drift,
+  convergence loop control, runtime degradation, subagent evidence, reference doc drift,
   and non-development run import.
 - Every fixture names required input state, event/evidence setup, expected guard
   decision, and expected final-state eligibility.
@@ -446,10 +446,10 @@ close remaining contract gaps.
 - Is there exactly one state authority?
 - Are event log, snapshot, and derived views conflict-resolved?
 - Are guards executable and deterministic?
-- Are runtime degradation rules fail-closed for M/E/C?
+- Are runtime degradation rules fail-closed for M/H/C?
 - Is `DONE_VERIFIED` impossible without fresh verified evidence and verified
   convergence?
-- Are skills, subagents, and books prevented from becoming authorities?
+- Are skills, hooks, and subagents prevented from becoming authorities?
 - Are non-development artifacts prevented from becoming evidence without import?
 - Is MCP outage behavior safe and typed?
 - Are P0 decisions closed or explicitly blocking?
@@ -471,14 +471,14 @@ The following must not be pulled into MVP unless a P0 blocker proves they are
 necessary:
 
 - Skill marketplace, install sync UX, and cross-runtime packaging automation.
-- Autonomous book rewriting outside `APPRENTISSAGE`.
+- Autonomous reference doc rewriting outside `APPRENTISSAGE`.
 - Subagents that spawn subagents.
 - Cross-repo orchestration.
 - Full release/operations automation.
 - Dashboard/UI.
 - Semantic memory as an authority source.
 - Advanced model/provider brokerage.
-- Specialized security/compliance books beyond minimal risk policy references.
+- Specialized security/compliance reference docs beyond minimal risk policy references.
 - Production deployment, canary, SBOM, and signing integrations.
 - Visual verification beyond evidence-ingestion contract.
 - Learning calibration loops beyond final-record capture and later backlog.
@@ -521,7 +521,7 @@ Before code starts, the integrated Cycle 02 output should hand off:
 | 3 | Guard merge contract | Phases 0-2 | Yes |
 | 4 | MCP tool/resource contracts | Phases 1-3 | Yes |
 | 5 | Runtime adapter/binding contracts | Phases 3-4 | Yes |
-| 6 | Skills/subagents/books contracts | Phases 4-5 | Yes |
+| 6 | Skills/subagents/reference docs contracts | Phases 4-5 | Yes |
 | 7 | Verification fixture pack | Phases 1-6 | Yes |
 | 8 | Audit/readiness gate | Phases 0-7 | Yes |
 

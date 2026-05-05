@@ -42,14 +42,14 @@ event-sourced RMS kernel
 > runtime adapters/hooks
 > skills
 > subagents
-> books
+> reference docs
 ```
 
 The kernel owns state truth. The MCP server is the default portable transport
 and control facade. The local transaction library is the only allowed fallback
 mutation path when MCP transport is unavailable. Runtime adapters enforce or
 report capabilities. Skills request procedures. Subagents return evidence
-candidates. Books explain contracts. None of MCP, skills, subagents, books,
+candidates. Reference docs explain contracts. None of MCP, skills, subagents, reference docs,
 hooks, snapshots or legacy planning files may become independent state
 authorities.
 
@@ -77,7 +77,7 @@ This ADR governs PFV4 executable planning for:
 - guard merge and policy overlays;
 - evidence, convergence and closing;
 - runtime binding and degradation;
-- skills, subagents, books and candidate evidence import.
+- skills, hooks, subagents and candidate evidence import.
 
 It does not rewrite historical documents. Older documents remain available as
 evidence of design history unless this ADR marks their assumptions as imported
@@ -99,7 +99,7 @@ or superseded.
 | `../06-integrated-final-proposal.md` | current | Provides Candidate C and the top-level authority split. | Current for architecture direction; superseded for claims that P0 decisions are implementation-ready. |
 | `../07-decision-matrix.md` | imported | Imports rejection of MCP-only and runtime-native authority. | Scoring is historical; authority order is imported. |
 | `../04-single-mcp-state-kernel.md` | imported | Imports one external MCP facade over the RMS kernel. | Superseded where it implies MCP server itself owns all kernel authority. |
-| `../03-skills-subagents-books-taxonomy.md` | imported | Imports role boundaries for skills, subagents and books. | Superseded where any artifact is treated as direct state authority. |
+| `../03-skills-hooks-subagents-taxonomy.md` | imported | Imports role boundaries for skills, hooks, and subagents. | Superseded where any artifact is treated as direct state authority. |
 | `../02-edge-case-red-team.md` | imported | Imports edge cases that must become fixtures. | Scenario list remains input to fixture coverage. |
 | `../05-convergence-validation-cycle.md` | imported | Imports convergence as score, samples and divergence signals. | Superseded where max attempts alone appears sufficient. |
 | `../01-three-convergent-architectures.md` | historical | Preserves rejected architecture alternatives. | Candidate C has superseded Candidates A and B for executable planning. |
@@ -116,7 +116,7 @@ or superseded.
 | `../../pipeline-fractal-v4-state-machine-v1-draft.md` | historical | Preserves early draft context. | Superseded for all executable state-machine assumptions. |
 | `../../../conception/01-state-machine-spec.md` | superseded | May provide historical vocabulary only. | Superseded by event-sourced kernel state and registry contracts. |
 | `../../../conception/03-rms-sets-schema.md` | imported | Imports set naming and initial field coverage where compatible. | Superseded by no-null, event-log, per-run versioning and registry schemas. |
-| `../../../conception/04-runtime-bindings-spec.md` | imported | Imports runtime binding concerns. | Superseded where hooks, crashes, disabled gates or timeouts fail open for M/E/C. |
+| `../../../conception/04-runtime-bindings-spec.md` | imported | Imports runtime binding concerns. | Superseded where hooks, crashes, disabled gates or timeouts fail open for M/H/C. |
 | `../../../conception/05-gates-policy-spec.md` | imported | Imports gate and policy vocabulary. | Superseded by deterministic guard merge and risk/runtime policy contracts. |
 | `../../../conception/06-skills-catalog-spec.md` | imported | Imports skill catalog candidates. | Superseded where skills directly mutate protected RMS state. |
 | `../../../conception/07-subagents-catalog-spec.md` | imported | Imports subagent catalog candidates. | Superseded where subagents are treated as authoritative without parent/kernel intake. |
@@ -124,7 +124,7 @@ or superseded.
 | `../../../conception/09-cli-commands-spec.md` | imported | Imports CLI command surface candidates. | Superseded where CLI writes bypass the local transaction library. |
 | `../../../conception/10-core-api-spec.md` | imported | Imports API surface candidates. | Superseded by Cycle 02 MCP tool contracts and kernel module split. |
 | `../../../transversal/harness-state-machine.md` | imported | Imports original red cards and risk of fake enforcement. | Superseded where French/generic state values conflict with ASCII registries. |
-| `../../../transversal/risk-classification.md` | imported | Imports risk forcing-signal intent. | Superseded by ASCII `T/F/M/E/C` identifiers and executable risk policy. |
+| `../../../transversal/risk-classification.md` | imported | Imports risk forcing-signal intent. | Superseded by ASCII `T/L/M/H/C` identifiers and executable risk policy. |
 | `../../../transversal/quality-model.md` | historical | Preserves quality rationale. | Not an executable guard authority unless imported into evidence policy. |
 | `../../../transversal/cross-cutting-activities.md` | historical | Preserves common activity taxonomy. | Not an executable substate authority. |
 
@@ -148,11 +148,11 @@ The following assumptions are rejected for implementation:
 11. `null` is a valid representation for unknown, absent or not-applicable
     state.
 12. Runtime names prove enforceability.
-13. Hook failures, disabled hooks or timeouts may fail open for M/E/C governed
+13. Hook failures, disabled hooks or timeouts may fail open for M/H/C governed
     enforcement.
-14. Post-run audit is equivalent to pre-action blocking for M/E/C territory or
+14. Post-run audit is equivalent to pre-action blocking for M/H/C territory or
     runtime gates.
-15. Books can override registries.
+15. Reference docs can override registries.
 16. Subagent verdicts are authoritative before parent/kernel evidence intake.
 17. Skill output can commit final state directly.
 18. Non-development architecture, research or planning artifacts are
@@ -161,7 +161,7 @@ The following assumptions are rejected for implementation:
 20. Legacy `.planning` or planning-state files can be read as PFV4 state
     authority.
 21. French or accented identifiers are executable canonical values.
-22. A human approval sentence is enough for E/C checkpoint semantics without
+22. A human approval sentence is enough for H/C checkpoint semantics without
     signer, scope, allowed action, residual risk and expiry.
 
 ## PFV4-OD Decision Delta
@@ -172,11 +172,11 @@ The following assumptions are rejected for implementation:
 | PFV4-OD-002 transition topology | closed_by_contract | `state/transitions.yaml`, `guard-engine`, transition fixtures | Explicit directed graph is canonical. Free transitions are forbidden even when guards otherwise allow. | Encode rework edges and unknown-edge fixture pack. |
 | PFV4-OD-003 non-development representation | closed_by_fixture | `candidate_evidence.schema.json`, `CANDIDATE_EVIDENCE_IMPORTED` event, `VF-SCHEMA-003` | Inactive non-development runs may expose derived lenses while `harness_machine.status=NOT_ACTIVE`; artifacts are only `candidate_evidence` until imported. | Define full CandidateEvidence import protocol in Cycle 03 lane 05. |
 | PFV4-OD-004 activation gate | closed_by_contract | activation transition registry, `rms.start_run`, `rms.plan_route`, `rms.transition` | `candidate -> armed` requires Intent, Policy, Capability, Binding, Route and Risk readiness; `armed -> active` requires registered cycle start. | Add readiness schema fields and fixtures for missing sets. |
-| PFV4-OD-005 risk and supervision matrix | closed_by_contract | `policies/risk-policy.yaml`, supervision overlay registry, `HumanCheckpoint` policy | ASCII `T/F/M/E/C` are canonical. Bypass is allowed for T, conditional for F, blocked for M and forbidden for E/C. C forbids autonomous final decision without checkpoint. | Mechanize classifier forcing signals under PFV4-OD-006. |
+| PFV4-OD-005 risk and supervision matrix | closed_by_contract | `policies/risk-policy.yaml`, supervision overlay registry, `HumanCheckpoint` policy | ASCII `T/L/M/H/C` are canonical. Bypass is allowed for T, conditional for L, blocked for M and forbidden for H/C. C forbids autonomous final decision without checkpoint. | Mechanize classifier forcing signals under PFV4-OD-006. |
 | PFV4-OD-006 risk classification mechanization | still_blocking | `risk-classifier`, `policies/risk-policy.yaml`, forcing-signal registry | Agent proposal plus forcing-signal minima is the required shape; downgrades require explicit evidence and event history. | Cycle 03 must define signal taxonomy, minima, promotion/downgrade rules and fixtures. |
 | PFV4-OD-007 convergence thresholds | still_blocking | `convergence-engine`, `policies/convergence-policy.yaml`, convergence fixtures | Max attempts alone is rejected. Convergence uses score, samples, progress events, repeated patterns and divergence signals. | Cycle 03 must define initial thresholds, score caps, sampling windows and loop fixtures. |
 | PFV4-OD-008 evidence status semantics | still_blocking | `evidence-engine`, `evidence-requirements.schema.json`, freshness graph | Evidence status is derived from required proof, observed proof, freshness, conflicts and accepted gaps. Manual status writes are invalid. | Cycle 03 must define EvidenceRequirement schema and invalidation graph. |
-| PFV4-OD-009 runtime degradation policy | still_blocking | `binding-set.schema.json`, runtime registries, runtime overlay fixtures | Runtime name proves nothing. Binding Set decides `native`, `fallback`, `noop_traced`, `missing` or `capability_unknown`. M/E/C fail closed for missing enforcement by default. | Cycle 03 must define complete Binding Set fields and runtime degradation matrix. |
+| PFV4-OD-009 runtime degradation policy | still_blocking | `binding-set.schema.json`, runtime registries, runtime overlay fixtures | Runtime name proves nothing. Binding Set decides `native`, `fallback`, `noop_traced`, `missing` or `capability_unknown`. M/H/C fail closed for missing enforcement by default. | Cycle 03 must define complete Binding Set fields and runtime degradation matrix. |
 | PFV4-OD-010 declarative guard registry location | closed_by_contract | `guards/base-guards.yaml`, overlay registries, `merged.guards.generated.json` | Split guard registries plus a generated merged guard cache are canonical. Markdown-only guards are invalid. | Cycle 03 lane 02 must define total merge lattice and weakening rules. |
 | PFV4-OD-011 English and ASCII canonicalization | closed_by_contract | registry manifest, schemas, migration glossary | English ASCII identifiers are canonical for executable state, events, guards, risk, mode, evidence and final states. French labels are display aliases only. | Add migration alias table when schemas are authored. |
 | PFV4-OD-012 territory enforcement scope | still_blocking | territory overlay registry, runtime binding check, path/tool/action schema | Layered enforcement is canonical: registry source of truth, runtime hooks when available, audit fallback only when risk policy allows. | Cycle 03 must define enforcement fixtures and degraded fallback legality by risk. |
@@ -207,7 +207,7 @@ No PFV4-OD-001 through PFV4-OD-013 decision is deferred out of MVP.
 The following expansions are out of MVP but do not change the OD statuses:
 
 - additional runtime adapters beyond the first Codex binding stubs;
-- full book generation and publishing workflow;
+- full reference doc generation and publishing workflow;
 - fully automatic risk classification without human validation path;
 - non-core skill marketplace drift policy;
 - historical run migration beyond explicit import or

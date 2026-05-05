@@ -1,11 +1,45 @@
+import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 import {
   getRuntimeProfile,
+  getRuntimeProfileSurface,
+  RUNTIME_PROOF_TYPES,
   RUNTIME_TARGETS,
   type RuntimeTarget,
   toHookCommand,
 } from "../src/index.js";
 import { GATE_TYPES, type GateType } from "../src/types/canonical.js";
+
+function markdownSection(markdown: string, heading: string): string {
+  const start = markdown.indexOf(heading);
+  expect(start).toBeGreaterThanOrEqual(0);
+
+  const remainder = markdown.slice(start);
+  const nextHeadingMatch = /\n##\s/.exec(remainder.slice(heading.length));
+
+  return nextHeadingMatch === null
+    ? remainder
+    : remainder.slice(0, heading.length + nextHeadingMatch.index);
+}
+
+function runtimeProfileRows(markdownTableSection: string) {
+  return [
+    ...markdownTableSection.matchAll(
+      /^\|\s*`([^`]+)`\s*\|\s*`([^`]+)`\s*\|\s*(`[^`]+`|null)\s*\|\s*(true|false)\s*\|\s*(true|false)\s*\|\s*`([^`]+)`\s*\|/gm,
+    ),
+  ].map((match) => ({
+    target: match[1],
+    gateType: match[2],
+    nativeEvent: match[3] === "null" ? null : match[3].slice(1, -1),
+    canBlock: match[4] === "true",
+    supported: match[5] === "true",
+    command: match[6],
+  }));
+}
+
+function backtickedFirstColumnValues(markdownTableSection: string): string[] {
+  return [...markdownTableSection.matchAll(/^\|\s*`([^`]+)`\s*\|/gm)].map((match) => match[1]);
+}
 
 describe("runtime profiles", () => {
   it("covers every canonical gate for every runtime target", () => {
@@ -16,7 +50,7 @@ describe("runtime profiles", () => {
       for (const gateType of GATE_TYPES) {
         expect(profile.hooks[gateType]).toMatchObject({
           gateType,
-          command: toHookCommand(gateType),
+          command: toHookCommand(gateType, target),
         });
       }
     }
@@ -45,8 +79,45 @@ describe("runtime profiles", () => {
       const profile = getRuntimeProfile(target);
 
       for (const gateType of GATE_TYPES) {
-        expect(profile.hooks[gateType].command).toBe(expectedCommands[gateType]);
+        expect(profile.hooks[gateType].command).toBe(toHookCommand(gateType, target));
+        if (target === "claude") {
+          expect(profile.hooks[gateType].command).toBe(
+            `${expectedCommands[gateType]} --format claude`,
+          );
+        } else if (target === "codex") {
+          expect(profile.hooks[gateType].command).toBe(
+            `${expectedCommands[gateType]} --format codex`,
+          );
+        } else {
+          expect(profile.hooks[gateType].command).toBe(expectedCommands[gateType]);
+        }
       }
     }
+  });
+
+  it("keeps the runtime bindings spec synchronized with executable runtime profiles", async () => {
+    const spec = await readFile(
+      new URL("../../../docs/conception/04-runtime-bindings-spec.md", import.meta.url),
+      "utf8",
+    );
+    const documentedRows = runtimeProfileRows(
+      markdownSection(spec, "### 2.8 Executable Runtime Profile Contract"),
+    );
+
+    expect(documentedRows).toEqual(getRuntimeProfileSurface());
+  });
+
+  it("keeps runtime proof vocabulary synchronized with the probe freshness spec", async () => {
+    const spec = await readFile(
+      new URL(
+        "../../../docs/propositions/pipeline-fractal-v4-specs/0002-runtime-probe-and-freshness.spec.md",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+
+    expect(backtickedFirstColumnValues(markdownSection(spec, "Trusted evidence types:"))).toEqual([
+      ...RUNTIME_PROOF_TYPES,
+    ]);
   });
 });

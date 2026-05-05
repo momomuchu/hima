@@ -15,7 +15,7 @@ Hybrid event-sourced RMS kernel
 + runtime adapters/hooks
 + portable skills
 + bounded subagents
-+ durable books
++ durable reference docs
 ```
 
 The MCP server is the portable state/control surface. The RMS kernel remains
@@ -35,7 +35,7 @@ evidence, expose projections, and close runs.
    it, and only with traceable evidence.
 7. `DONE_VERIFIED` is unavailable unless evidence and convergence both evaluate
    to `verified`.
-8. `M/E/C` work cannot silently downgrade required enforcement primitives.
+8. `M/H/C` work cannot silently downgrade required enforcement primitives.
 9. Runtime names never imply enforceability. Binding metadata decides.
 10. Tools return structured errors that can be recorded as blocker evidence.
 
@@ -65,7 +65,7 @@ Identifiers are stable ASCII strings.
 | `pipeline_activation` | `inactive`, `candidate`, `armed`, `active`, `suspended`, `closing`, `closed` |
 | `harness_machine.status` | `NOT_ACTIVE`, `IDLE`, `ACTIVE` |
 | `macro_cycle` | `IDLE`, `DISCOVERY`, `CADRAGE`, `CONCEPTION`, `BUILD`, `VALIDATION`, `RELEASE`, `RUN`, `APPRENTISSAGE` |
-| `risk_class` | `UNCLASSIFIED`, `T`, `F`, `M`, `E`, `C` |
+| `risk_class` | `UNCLASSIFIED`, `T`, `L`, `M`, `H`, `C` |
 | `supervision_mode` | `pairing`, `auto_decision`, `bypass` |
 | `primary_lens` | `NONE`, `OBSERVE`, `DEFINE`, `DESIGN`, `EXECUTE`, `VERIFY`, `CAPITALIZE`, `TRANSMIT` |
 | `evidence_status` | `missing`, `partial`, `sufficient`, `with_gaps`, `verified`, `stale`, `conflicted`, `NOT_APPLICABLE` |
@@ -357,13 +357,13 @@ Invariants:
 
 - `binding_status=fallback` must name a fallback strategy.
 - `binding_status=noop_traced` is acceptable only for non-enforcement concerns
-  or low-risk warnings.
-- Missing or audit-only enforcement blocks `M/E/C` when policy requires
+  or L-risk warnings.
+- Missing or audit-only enforcement blocks `M/H/C` when policy requires
   synchronous blocking.
 
 Degraded behavior:
 
-- For `T/F`, fallback may be allowed if declared and traced.
+- For `T/L`, fallback may be allowed if declared and traced.
 - For `M+`, degraded enforcement returns `RUNTIME_BINDING_MISSING` or
   `DEGRADED_ROUTE_FORBIDDEN` unless policy explicitly allows the fallback.
 
@@ -377,10 +377,10 @@ Input:
 {
   "run_id": "run_2026-05-03_001",
   "current_risk_class": "UNCLASSIFIED",
-  "proposed_risk_class": "F",
+  "proposed_risk_class": "L",
   "signals": [
     { "signal": "docs_only", "minimum_class": "T" },
-    { "signal": "architecture_contract", "minimum_class": "F" }
+    { "signal": "architecture_contract", "minimum_class": "L" }
   ],
   "requested_supervision_mode": "auto_decision",
   "actor": {},
@@ -394,7 +394,7 @@ Output:
 ```json
 {
   "ok": true,
-  "risk_class": "F",
+  "risk_class": "L",
   "supervision_mode": "auto_decision",
   "promotion": false,
   "forcing_signals_applied": ["architecture_contract"],
@@ -413,7 +413,7 @@ Invariants:
 - Downgrade requires explicit rationale and cannot discard higher-risk evidence
   without an event.
 - `risk_class=UNCLASSIFIED` forbids `bypass`.
-- `M/E/C` forbids `bypass` by default; `E/C` forbids it structurally.
+- `M/H/C` forbids `bypass` by default; `H/C` forbids it structurally.
 - `C` forbids autonomous `auto_decision` without a human checkpoint.
 
 Degraded behavior:
@@ -432,7 +432,7 @@ Input:
 {
   "run_id": "run_2026-05-03_001",
   "intent_id": "intent_2026-05-03_001",
-  "risk_class": "F",
+  "risk_class": "L",
   "supervision_mode": "auto_decision",
   "capability_set_id": "cap_codex_2026-05-03",
   "binding_set_id": "binding_codex_v1",
@@ -477,9 +477,9 @@ Invariants:
 
 Degraded behavior:
 
-- If only low-risk audit fallback is available, the route may be degraded for
-  `T/F` and must include `DEGRADED_ROUTE_ACCEPTED` evidence requirements.
-- For `M/E/C`, missing enforcement returns `ROUTE_PLAN_BLOCKED` unless a
+- If only L-risk audit fallback is available, the route may be degraded for
+  `T/L` and must include `DEGRADED_ROUTE_ACCEPTED` evidence requirements.
+- For `M/H/C`, missing enforcement returns `ROUTE_PLAN_BLOCKED` unless a
   policy-approved fallback exists.
 
 ### `rms.evaluate_guard`
@@ -526,7 +526,7 @@ Output:
     "gate": "transition_guard",
     "reason": "docs write is inside declared scope for build.implementation_slice",
     "severity": "info",
-    "risk_class": "F",
+    "risk_class": "L",
     "required_action": "record diff evidence before validation handoff",
     "evidence_required": ["state_transition_event", "change_summary"]
   },
@@ -733,7 +733,7 @@ Input:
     "target_type": "final_state",
     "candidate": "DONE_VERIFIED"
   },
-  "risk_class": "F",
+  "risk_class": "L",
   "route_id": "route_2026-05-03_001",
   "actor": {},
   "request_id": "req_0010",
@@ -755,7 +755,7 @@ Output:
     {
       "gap": "no automated tests for docs-only contract",
       "owner": "agent",
-      "risk_allowed": true
+      "gap_allowed_by_risk_policy": true
     }
   ],
   "done_verified_allowed": false,
@@ -862,7 +862,7 @@ Output:
   "final_record": {
     "evidence_status": "verified",
     "convergence_status": "verified",
-    "risk_class": "F",
+    "risk_class": "L",
     "blockers": [],
     "gaps": []
   },
@@ -876,7 +876,7 @@ Invariants:
 - Closing is a protocol: candidate, evidence evaluation, convergence
   evaluation, policy/runtime blocker check, final commit.
 - `DONE_VERIFIED` requires verified evidence and verified convergence.
-- `DONE_WITH_GAPS` is forbidden for unresolved `E/C` residual gaps.
+- `DONE_WITH_GAPS` is forbidden for unresolved `H/C` residual gaps.
 - Closed runs are immutable except append-only audit events.
 
 Degraded behavior:
@@ -1080,7 +1080,7 @@ Invariants:
 Degraded behavior:
 
 - `noop_traced` may satisfy observability-only requirements.
-- `fallback` may satisfy low-risk enforcement only when declared and
+- `fallback` may satisfy L-risk enforcement only when declared and
   risk/mode policy allows it.
 
 ### `rms.validate_registry`
@@ -1164,9 +1164,9 @@ Derived view fields are never mutated directly.
 |---|---|---|
 | Capability unknown | `CAPABILITY_UNKNOWN` block | Run `rms.inspect_runtime`; no enforcement-sensitive transition. |
 | Required primitive missing | `RUNTIME_BINDING_MISSING` block | Reroute or close `BLOCKED_RUNTIME_MISSING`. |
-| Fallback declared for T/F | `degrade` or `warn` | Continue only with `DEGRADED_ROUTE_ACCEPTED` evidence. |
-| Fallback declared for M/E/C enforcement | `DEGRADED_ROUTE_FORBIDDEN` by default | Continue only if explicit policy allows and evidence records risk acceptance. |
-| Hook unavailable but audit possible | `warn` for T/F, `block` for M+ when blocking required | Audit fallback only for low-risk policy-allowed actions. |
+| Fallback declared for T/L | `degrade` or `warn` | Continue only with `DEGRADED_ROUTE_ACCEPTED` evidence. |
+| Fallback declared for M/H/C enforcement | `DEGRADED_ROUTE_FORBIDDEN` by default | Continue only if explicit policy allows and evidence records risk acceptance. |
+| Hook unavailable but audit possible | `warn` for T/L, `block` for M+ when blocking required | Audit fallback only for L-risk policy-allowed actions. |
 | Event append fails | `EVENT_APPEND_FAILED` | No mutation; caller may retry after lock/storage repair. |
 | Evidence stale | `EVIDENCE_STALE` | Re-run proof or close with gaps only when risk allows. |
 | Evidence conflicted | `EVIDENCE_CONFLICTED` | Reconcile or reroute; no `DONE_VERIFIED`. |
@@ -1185,7 +1185,7 @@ recommend one, but they do not close the decisions by themselves.
 | PFV4-OD-002 transition topology | Explicit directed transition graph. |
 | PFV4-OD-003 non-development representation | Inactive runs may expose derived lens while `harness_machine.status=NOT_ACTIVE`. |
 | PFV4-OD-004 activation gate | `candidate -> armed` requires Intent, Policy, Capability, Route, and Risk known or explicitly `UNKNOWN`; `armed -> active` requires registered cycle start. |
-| PFV4-OD-005 risk/supervision matrix | ASCII `T/F/M/E/C`; bypass allowed for `T`, conditional for `F`, blocked for `M`, forbidden for `E/C`; `C` needs human checkpoint. |
+| PFV4-OD-005 risk/supervision matrix | ASCII `T/L/M/H/C`; bypass allowed for `T`, conditional for `L`, blocked for `M`, forbidden for `H/C`; `C` needs human checkpoint. |
 | PFV4-OD-006 risk classifier | Agent proposes, forcing signals set minima, human validates when policy requires. |
 | PFV4-OD-007 convergence thresholds | Score/samples/signals model, not max attempts alone. |
 | PFV4-OD-008 evidence semantics | Derived from Evidence Set requirements, freshness, conflicts, and accepted gaps. |
@@ -1206,7 +1206,7 @@ The eventual implementation should have fixtures proving:
 5. `risk_class=C` with `auto_decision` escalates or blocks without human
    checkpoint.
 6. `M` risk with audit-only territory enforcement blocks.
-7. `T/F` degraded fallback records degradation evidence.
+7. `T/L` degraded fallback records degradation evidence.
 8. Stale runtime capability blocks route planning for enforcement-sensitive
    actions.
 9. A blocked transition emits blocker evidence and does not mutate state.

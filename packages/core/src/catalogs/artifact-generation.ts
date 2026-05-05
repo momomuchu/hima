@@ -1,15 +1,17 @@
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { redactSecrets } from "../security/redaction.js";
 import { assertSafeWriteTarget, safeAtomicWriteFile } from "../storage/safe-write.js";
 import type {
-  BookCatalogEntry,
+  HookCatalogEntry,
   SkillCatalogEntry,
   SubagentCatalogEntry,
 } from "./operational-catalog.js";
 import { getOperationalCatalog } from "./operational-catalog.js";
 
-export type CatalogArtifactKind = "skill" | "book" | "subagent";
-export const CATALOG_ARTIFACT_SELECTIONS = ["all", "skills", "books", "subagents"] as const;
+export type CatalogArtifactKind = "skill" | "hook" | "subagent";
+export const CATALOG_ARTIFACT_SELECTIONS = ["all", "skills", "hooks", "subagents"] as const;
 export type CatalogArtifactSelection = (typeof CATALOG_ARTIFACT_SELECTIONS)[number];
 
 export interface CatalogArtifactDescriptor {
@@ -35,11 +37,13 @@ export interface CatalogArtifactPlanOptions {
 export interface WriteCatalogArtifactsOptions extends CatalogArtifactPlanOptions {
   readonly outputRoot: string;
   readonly force?: boolean;
+  readonly captureRestoreSnapshots?: boolean;
 }
 
 export interface WriteCatalogArtifactsResult extends CatalogArtifactPlan {
   readonly writtenPaths: readonly string[];
   readonly unchangedPaths: readonly string[];
+  readonly writeMetadata: readonly CatalogArtifactWriteMetadata[];
 }
 
 export interface WriteCatalogArtifactDescriptorsOptions {
@@ -47,6 +51,7 @@ export interface WriteCatalogArtifactDescriptorsOptions {
   readonly dryRun?: boolean;
   readonly artifacts: readonly CatalogArtifactDescriptor[];
   readonly force?: boolean;
+  readonly captureRestoreSnapshots?: boolean;
 }
 
 export interface WriteCatalogArtifactDescriptorsResult {
@@ -55,6 +60,31 @@ export interface WriteCatalogArtifactDescriptorsResult {
   readonly artifacts: readonly CatalogArtifactDescriptor[];
   readonly writtenPaths: readonly string[];
   readonly unchangedPaths: readonly string[];
+  readonly writeMetadata: readonly CatalogArtifactWriteMetadata[];
+}
+
+export type CatalogArtifactWriteStatus = "planned" | "written" | "unchanged";
+export type CatalogArtifactRollbackAction = "delete" | "restore" | "none";
+
+export interface CatalogArtifactRestoreSnapshot {
+  readonly encoding: "utf8";
+  readonly content: string;
+  readonly hash: string;
+}
+
+export interface CatalogArtifactWriteMetadata {
+  readonly path: string;
+  readonly relativePath: string;
+  readonly kind: CatalogArtifactKind;
+  readonly id: string;
+  readonly status: CatalogArtifactWriteStatus;
+  readonly previousHash: string | null;
+  readonly nextHash: string;
+  readonly rollback: {
+    readonly action: CatalogArtifactRollbackAction;
+    readonly previousHash: string | null;
+    readonly restoreSnapshot?: CatalogArtifactRestoreSnapshot;
+  };
 }
 
 const ARTIFACT_ROOT = "artifacts";
@@ -70,7 +100,7 @@ export function planCatalogArtifacts(
   const catalog = getOperationalCatalog();
   const allArtifacts = [
     ...sortById(catalog.skills).map(buildSkillArtifact),
-    ...sortById(catalog.books).map(buildBookArtifact),
+    ...sortById(catalog.hooks).map(buildHookArtifact),
     ...sortById(catalog.subagents).map(buildSubagentArtifact),
   ];
   const artifacts = filterArtifactsBySelection(allArtifacts, selection);
@@ -94,12 +124,14 @@ export async function writeCatalogArtifacts(
     dryRun: plan.dryRun,
     artifacts: plan.artifacts,
     force: options.force,
+    captureRestoreSnapshots: options.captureRestoreSnapshots,
   });
 
   return {
     ...plan,
     writtenPaths: writeResult.writtenPaths,
     unchangedPaths: writeResult.unchangedPaths,
+    writeMetadata: writeResult.writeMetadata,
   };
 }
 
@@ -116,11 +148,15 @@ export async function writeCatalogArtifactDescriptors(
       artifacts: options.artifacts,
       writtenPaths: [],
       unchangedPaths: [],
+      writeMetadata: options.artifacts.map((artifact) =>
+        buildWriteMetadata(outputRoot, artifact, "planned", undefined, false),
+      ),
     };
   }
 
   const writtenPaths: string[] = [];
   const unchangedPaths: string[] = [];
+  const writeMetadata: CatalogArtifactWriteMetadata[] = [];
   for (const artifact of options.artifacts) {
     const targetPath = resolveArtifactPath(outputRoot, artifact.relativePath);
     await assertSafeWriteTarget(outputRoot, targetPath);
@@ -136,12 +172,30 @@ export async function writeCatalogArtifactDescriptors(
 
       if (existingContent === artifact.content) {
         unchangedPaths.push(targetPath);
+        writeMetadata.push(
+          buildWriteMetadata(
+            outputRoot,
+            artifact,
+            "unchanged",
+            existingContent,
+            options.captureRestoreSnapshots === true,
+          ),
+        );
         continue;
       }
     }
 
     await safeAtomicWriteFile(outputRoot, targetPath, artifact.content);
     writtenPaths.push(targetPath);
+    writeMetadata.push(
+      buildWriteMetadata(
+        outputRoot,
+        artifact,
+        "written",
+        existingContent,
+        options.captureRestoreSnapshots === true,
+      ),
+    );
   }
 
   return {
@@ -150,6 +204,7 @@ export async function writeCatalogArtifactDescriptors(
     artifacts: options.artifacts,
     writtenPaths,
     unchangedPaths,
+    writeMetadata,
   };
 }
 
@@ -175,6 +230,7 @@ function buildSkillArtifact(entry: SkillCatalogEntry): CatalogArtifactDescriptor
     bullet("Operating modes", entry.activation.operatingModes ?? []),
     bullet("Keywords", entry.activation.keywords),
     bullet("Automatic", [String(entry.activation.auto)]),
+    ...(entry.procedure === undefined ? [] : ["", "## Procedure", "", ...entry.procedure]),
     "",
     "## Ownership",
     "",
@@ -184,7 +240,7 @@ function buildSkillArtifact(entry: SkillCatalogEntry): CatalogArtifactDescriptor
     "## References",
     "",
     bullet("Evidence produced", entry.evidenceProduced),
-    bullet("Books", entry.bookRefs),
+    bullet("Hooks", entry.hookRefs),
     bullet("Subagents", entry.subagentRefs),
   ]);
 
@@ -197,10 +253,10 @@ function buildSkillArtifact(entry: SkillCatalogEntry): CatalogArtifactDescriptor
   );
 }
 
-function buildBookArtifact(entry: BookCatalogEntry): CatalogArtifactDescriptor {
+function buildHookArtifact(entry: HookCatalogEntry): CatalogArtifactDescriptor {
   assertSafeId(entry.id);
   const content = renderMarkdown([
-    managedHeader("book", entry.id),
+    managedHeader("hook", entry.id),
     "",
     `# ${entry.title}`,
     "",
@@ -220,7 +276,7 @@ function buildBookArtifact(entry: BookCatalogEntry): CatalogArtifactDescriptor {
     bullet("Subagents", entry.subagentRefs),
   ]);
 
-  return artifact("book", entry.id, entry.title, `${ARTIFACT_ROOT}/books/${entry.id}.md`, content);
+  return artifact("hook", entry.id, entry.title, `${ARTIFACT_ROOT}/hooks/${entry.id}.md`, content);
 }
 
 function buildSubagentArtifact(entry: SubagentCatalogEntry): CatalogArtifactDescriptor {
@@ -247,7 +303,7 @@ function buildSubagentArtifact(entry: SubagentCatalogEntry): CatalogArtifactDesc
     "## References",
     "",
     bullet("Evidence produced", entry.evidenceProduced),
-    bullet("Books", entry.bookRefs),
+    bullet("Hooks", entry.hookRefs),
     bullet("Skills", entry.skillRefs),
   ]);
 
@@ -295,7 +351,11 @@ function managedHeader(kind: CatalogArtifactKind, id: string): string {
   return `${MANAGED_HEADER_PREFIX} kind=${kind} id=${id} source=operational-catalog -->`;
 }
 
-function isManagedCatalogArtifact(content: string, kind: CatalogArtifactKind, id: string): boolean {
+export function isManagedCatalogArtifact(
+  content: string,
+  kind: CatalogArtifactKind,
+  id: string,
+): boolean {
   const lines = content.split(/\r?\n/);
   const expectedHeader = managedHeader(kind, id);
 
@@ -351,6 +411,78 @@ function resolveArtifactPath(outputRoot: string, relativePath: string): string {
   }
 
   return targetPath;
+}
+
+function buildWriteMetadata(
+  outputRoot: string,
+  artifact: CatalogArtifactDescriptor,
+  status: CatalogArtifactWriteStatus,
+  previousContent: string | undefined,
+  captureRestoreSnapshots: boolean,
+): CatalogArtifactWriteMetadata {
+  const targetPath = resolveArtifactPath(outputRoot, artifact.relativePath);
+  const previousHash =
+    previousContent === undefined ? null : hashCatalogArtifactContent(previousContent);
+  const rollbackAction = getRollbackAction(status, previousContent);
+  const restoreSnapshot =
+    rollbackAction === "restore"
+      ? buildRestoreSnapshot(artifact, previousContent, captureRestoreSnapshots)
+      : undefined;
+
+  return {
+    path: targetPath,
+    relativePath: artifact.relativePath,
+    kind: artifact.kind,
+    id: artifact.id,
+    status,
+    previousHash,
+    nextHash: hashCatalogArtifactContent(artifact.content),
+    rollback: {
+      action: rollbackAction,
+      previousHash,
+      ...(restoreSnapshot ? { restoreSnapshot } : {}),
+    },
+  };
+}
+
+function buildRestoreSnapshot(
+  artifact: CatalogArtifactDescriptor,
+  previousContent: string | undefined,
+  captureRestoreSnapshots: boolean,
+): CatalogArtifactRestoreSnapshot | undefined {
+  if (
+    !captureRestoreSnapshots ||
+    previousContent === undefined ||
+    !isManagedCatalogArtifact(previousContent, artifact.kind, artifact.id) ||
+    containsPlaintextSecret(previousContent)
+  ) {
+    return undefined;
+  }
+
+  return {
+    encoding: "utf8",
+    content: previousContent,
+    hash: hashCatalogArtifactContent(previousContent),
+  };
+}
+
+function getRollbackAction(
+  status: CatalogArtifactWriteStatus,
+  previousContent: string | undefined,
+): CatalogArtifactRollbackAction {
+  if (status !== "written") {
+    return "none";
+  }
+
+  return previousContent === undefined ? "delete" : "restore";
+}
+
+export function hashCatalogArtifactContent(content: string): string {
+  return createHash("sha256").update(content).digest("hex");
+}
+
+function containsPlaintextSecret(content: string): boolean {
+  return redactSecrets(content) !== content;
 }
 
 async function readExistingFile(targetPath: string): Promise<string | undefined> {

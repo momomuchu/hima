@@ -1,6 +1,6 @@
 import { type EvidenceSufficiency, isEvidenceSufficient } from "../evidence/evaluate-evidence.js";
 import { getPolicyEventBlockers } from "../gates/policy-event-blockers.js";
-import { getRequiredGates } from "../policy/baseline-policy.js";
+import { getRequiredGates, mergeRequiredGates } from "../policy/baseline-policy.js";
 import {
   assessRuntimeBinding,
   type RuntimeBindingAssessment,
@@ -53,7 +53,7 @@ const BLOCKING_CAPABILITY_GATES = new Set<GateType>([
 export function evaluateConvergence(context: ConvergenceContext): ConvergenceEvaluation {
   const riskClass = context.currentRisk.risk_class;
   const evidenceSufficiency = isEvidenceSufficient(context.runSet.evidence, riskClass);
-  const runtimeBindingHealth = evaluateRuntimeBindingHealth(context.runSet, riskClass);
+  const runtimeBindingHealth = assessRouteRuntimeBindings(context.runSet, riskClass);
   const policyEventBlockers = getPolicyEventBlockers(context.runSet);
   const blockers = getBlockers(
     riskClass,
@@ -91,13 +91,16 @@ export function evaluateConvergence(context: ConvergenceContext): ConvergenceEva
   };
 }
 
-function evaluateRuntimeBindingHealth(
-  runSet: RunSetFile,
+export function assessRouteRuntimeBindings(
+  runSet: Pick<RunSetFile, "runtimeBindings" | "subagents" | "policy">,
   riskClass: RiskClass,
 ): RuntimeBindingHealth {
-  const requiredGates = getRequiredGates(riskClass, {
-    delegationPlanned: runSet.subagents.length > 0,
-  });
+  const requiredGates = mergeRequiredGates(
+    getRequiredGates(riskClass, {
+      delegationPlanned: runSet.subagents.length > 0,
+    }),
+    runSet.policy.riskPolicies?.[riskClass]?.requiredGates,
+  );
   const assessments = requiredGates.map((gateType) =>
     assessRuntimeBinding(runSet.runtimeBindings, gateType, {
       requireBlockingCapability: BLOCKING_CAPABILITY_GATES.has(gateType),

@@ -34,7 +34,7 @@ the proposal has fewer unresolved P0 decisions,
 stronger evidence,
 more deterministic guards,
 smaller implementation ambiguity,
-and a clearer split between MCP, skills, subagents and books.
+and a clearer split between MCP, skills, hooks, and subagents.
 ```
 
 Max cycles are only a fuse. A new cycle is allowed only when it has a distinct
@@ -48,7 +48,7 @@ evidence requirements.
 | Stage | Required action | Required evidence |
 |---|---|---|
 | 1. Load context | Read source docs and previous cycle results. | Source list, stale/missing source notes, active P0/P1 decisions. |
-| 2. Generate options | Produce or refresh three viable proposals. | Proposal deltas, decision claims, owned boundaries for MCP/skills/subagents/books. |
+| 2. Generate options | Produce or refresh three viable proposals. | Proposal deltas, decision claims, owned boundaries for MCP/skills/hooks/subagents. |
 | 3. Red-team options | Attack each proposal with edge cases. | Failure cases, contradiction list, runtime degradation cases, rejected assumptions. |
 | 4. Map runtime surfaces | Assign state, guards, evidence, procedures and knowledge to runtime surfaces. | Surface ownership table, overlap list, Binding Set implications. |
 | 5. Score convergence | Score progress using the rubric below. | Score record, caps applied, trend versus previous cycle, evidence gaps. |
@@ -71,7 +71,7 @@ fixtures later.
 | `decision_delta` | P0/P1 decisions opened, clarified, closed or demoted. |
 | `proposal_matrix` | Three proposals compared on the same dimensions. |
 | `edge_case_matrix` | Edge cases and expected handling per proposal. |
-| `surface_map` | What belongs in MCP, skills, subagents, books, hooks, logs and Evidence Set. |
+| `surface_map` | What belongs in MCP, skills, hooks, subagents, logs and Evidence Set. |
 | `guard_implications` | Which guards become simpler, stricter, degraded or blocked. |
 | `runtime_implications` | Binding Set and capability effects for Codex, Claude, Hermes and no-op/fallback paths. |
 | `fixture_delta` | Fixtures added, changed or still missing before implementation. |
@@ -95,7 +95,7 @@ Use a 0.00 to 1.00 scale:
 | Decision closure | 0.20 | Are P0/P1 decisions closing faster than new blockers appear? |
 | Evidence quality | 0.20 | Are proofs present, relevant, fresh, independent and decision-capable? |
 | Proposal convergence | 0.20 | Do the three proposals increasingly select the same boundary decisions? |
-| Runtime determinism | 0.15 | Are MCP, skills, subagents, books, hooks and bindings assigned without overlap? |
+| Runtime determinism | 0.15 | Are MCP, skills, hooks, subagents and bindings assigned without overlap? |
 | Fixture readiness | 0.15 | Can the claims be converted into schema, guard and convergence fixtures? |
 | Scope stability | 0.10 | Is the MVP surface shrinking or stabilizing instead of expanding? |
 
@@ -108,7 +108,7 @@ Apply caps after computing the weighted score:
 | Any P0 decision has no owner or no proposed default. | 0.49 |
 | The three proposals disagree on the state authority boundary. | 0.59 |
 | `DONE_VERIFIED` semantics remain inconsistent with Evidence Set or Convergence Set. | 0.59 |
-| Runtime degradation for M/E/C can still fail open silently. | 0.64 |
+| Runtime degradation for M/H/C can still fail open silently. | 0.64 |
 | No validation fixtures exist for a claimed implementation boundary. | 0.69 |
 | Edge cases are warnings only, with no expected handling. | 0.74 |
 | Two proposals tie because the scoring dimensions are vague. | 0.79 |
@@ -129,7 +129,7 @@ Cycle 01 starts with three proposals:
 
 1. MCP-first RMS kernel.
 2. Skill-first portable workflow layer.
-3. Book-first governance and knowledge layer with MCP enforcement.
+3. Reference doc-first governance and knowledge layer with MCP enforcement.
 
 The goal is not to average them. The goal is to force each proposal to explain
 the same hard boundaries, then integrate the stable answer.
@@ -147,7 +147,7 @@ Every proposal must answer:
 | Runtime portability | How are Codex, Claude, Hermes and fallback/no-op behavior represented? |
 | Human checkpoints | Who can accept gaps, overrides and critical decisions? |
 | Subagent boundary | What can subagents decide, and what must they return to the leader/RMS? |
-| Book boundary | What durable knowledge lives in books without becoming hidden runtime state? |
+| Reference doc boundary | What durable knowledge lives in reference docs without becoming hidden runtime state? |
 | MVP cut | What can be implemented first without violating V2 invariants? |
 
 ### Convergence Mechanics
@@ -169,7 +169,7 @@ The expected convergence target is:
 MCP owns canonical state, guards, evidence, convergence and runtime bindings.
 Skills expose portable workflows and user-facing procedures.
 Subagents execute bounded lanes and return evidence, not authority.
-Books store durable manuals, policies and operator knowledge.
+Reference docs store durable manuals, policies and operator knowledge.
 ```
 
 This target can still lose if evidence shows it creates a central bottleneck,
@@ -184,7 +184,7 @@ or rejected as evidence.
 |---|---|
 | Three proposals need independent option generation. | One proposal per lane, same evaluation dimensions. |
 | Edge cases need adversarial review. | Failure matrix with severity and expected handling. |
-| Runtime surfaces need mapping. | MCP/skills/subagents/books ownership table. |
+| Runtime surfaces need mapping. | MCP/skills/hooks/subagents ownership table. |
 | Validation fixtures need extraction. | Fixture list with expected pass/fail verdicts. |
 | Convergence score needs independent challenge. | Verifier report with score caps and gaps. |
 
@@ -216,7 +216,7 @@ Stop as blocked when:
 
 - a P0 requires human/product preference rather than more analysis;
 - source docs contradict each other and no supersession rule can be inferred;
-- runtime capability evidence is missing for a required M/E/C gate;
+- runtime capability evidence is missing for a required M/H/C gate;
 - the same cycle hypothesis failed twice without a new expected signal;
 - the score is capped below `0.60` by an unowned blocker.
 
@@ -230,7 +230,7 @@ Each cycle records:
 ```json
 {
   "cycle_id": "cycle-02",
-  "hypothesis": "MCP-owned guard merge removes overlap between skills and books",
+  "hypothesis": "MCP-owned guard merge removes overlap between skills and reference docs",
   "expected_signal": "guard authority becomes identical in all three proposals",
   "max_cycles_remaining": 2,
   "previous_score": 0.68,
@@ -261,11 +261,11 @@ that an implementer can turn them into schema, guard and convergence tests.
 |---|---|
 | MCP owns current state; skill tries to mutate final state directly. | Blocked; skill must request RMS transition. |
 | Subagent returns recommendation without evidence packet. | Rejected by subagent result gate. |
-| Book contains policy prose that conflicts with guard registry. | Registry wins; conflict recorded for book update. |
+| Reference doc contains policy prose that conflicts with guard registry. | Registry wins; conflict recorded for reference doc update. |
 | `DONE_VERIFIED` with evidence partial. | Blocked by stop gate. |
-| `DONE_WITH_GAPS` with unresolved E/C gap. | Blocked. |
-| Runtime lacks required blocking hook for M/E/C and no fallback is declared. | `BLOCKED_RUNTIME_MISSING`. |
-| Runtime lacks optional hook for T/F with post-run audit fallback. | Warn/degrade with explicit evidence gap. |
+| `DONE_WITH_GAPS` with unresolved H/C gap. | Blocked. |
+| Runtime lacks required blocking hook for M/H/C and no fallback is declared. | `BLOCKED_RUNTIME_MISSING`. |
+| Runtime lacks optional hook for T/L with post-run audit fallback. | Warn/degrade with explicit evidence gap. |
 | Three proposals disagree on state authority. | Score capped; no implementation handoff. |
 | Edge case has no expected handling. | Score capped; next-cycle backlog required. |
 | Validation loop repeats same proposal with no decision delta. | `LOOP_DETECTED` or forced reframe. |
@@ -284,7 +284,7 @@ Minimum fixture set for MVP readiness:
 - one convergence loop fixture;
 - one runtime degradation fixture;
 - one subagent evidence fixture;
-- one book/registry conflict fixture;
+- one docs/registry conflict fixture;
 - one non-development run fixture.
 
 ## Autonomous Repeat Loop
