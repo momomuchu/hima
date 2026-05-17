@@ -3,10 +3,15 @@
  * Covers: mapSkill GAP defaults, PRESETS count, buildActivateSkill schema.
  * Uses small inline RawSkill fixtures; does NOT depend on the real corpus.
  */
-import { describe, it, expect } from "vitest";
-import { mapSkill, PRESETS, buildActivateSkill } from "../src/map.js";
+import { describe, expect, it } from "vitest";
+import { buildActivateSkill, mapSkill, PRESETS } from "../src/map.js";
 import type { RawSkill } from "../src/parse.js";
-import { MACRO_CYCLES, OPERATING_MODES, RISK_CLASSES, SkillFrontmatterSchema } from "../src/schemas.js";
+import {
+  MACRO_CYCLES,
+  OPERATING_MODES,
+  RISK_CLASSES,
+  SkillFrontmatterSchema,
+} from "../src/schemas.js";
 
 // ---- fixture builders -----------------------------------------------------
 
@@ -155,15 +160,15 @@ describe("PRESETS", () => {
   it("P1 spans the full window (start=1, stop=13)", () => {
     const p1 = PRESETS.find((p) => p.pid === "P1");
     expect(p1).toBeDefined();
-    expect(p1!.start).toBe(1);
-    expect(p1!.stop).toBe(13);
+    expect(p1?.start).toBe(1);
+    expect(p1?.stop).toBe(13);
   });
 
   it("P16 is the scope preset (start=1, stop=1)", () => {
     const p16 = PRESETS.find((p) => p.pid === "P16");
     expect(p16).toBeDefined();
-    expect(p16!.start).toBe(1);
-    expect(p16!.stop).toBe(1);
+    expect(p16?.start).toBe(1);
+    expect(p16?.stop).toBe(1);
   });
 
   it("all presets have non-blank name and intent", () => {
@@ -178,14 +183,18 @@ describe("PRESETS", () => {
 
 describe("buildActivateSkill — frontmatter passes SkillFrontmatterSchema", () => {
   it("P1 (full) frontmatter is valid per SkillFrontmatterSchema", () => {
-    const p1 = PRESETS.find((p) => p.pid === "P1")!;
+    const p1 = PRESETS.find((p) => p.pid === "P1");
+    expect(p1).toBeDefined();
+    if (!p1) return;
     const skill = buildActivateSkill(p1, ["technical-analysis-discovery"]);
     const result = SkillFrontmatterSchema.safeParse(skill.frontmatter);
     expect(result.success).toBe(true);
   });
 
   it("P16 (scope) frontmatter is valid per SkillFrontmatterSchema", () => {
-    const p16 = PRESETS.find((p) => p.pid === "P16")!;
+    const p16 = PRESETS.find((p) => p.pid === "P16");
+    expect(p16).toBeDefined();
+    if (!p16) return;
     const skill = buildActivateSkill(p16, []);
     const result = SkillFrontmatterSchema.safeParse(skill.frontmatter);
     expect(result.success).toBe(true);

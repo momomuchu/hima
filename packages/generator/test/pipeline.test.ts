@@ -3,7 +3,7 @@
  * Uses canaryOnly:true to avoid dependency on the real corpus path.
  * Tests the full GeneratorResult contract.
  */
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { runGenerator } from "../src/index.js";
 
 describe("runGenerator — canaryOnly mode", () => {

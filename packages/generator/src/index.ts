@@ -8,19 +8,19 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { runCanary, type CanaryResult } from "./canary.js";
+import { type CanaryResult, runCanary } from "./canary.js";
 import {
   buildActivateSkill,
+  type DraftEntry,
   mapKeywordRegistry,
   mapSkill,
   PRESETS,
-  type DraftEntry,
 } from "./map.js";
 import { parse, SPINE } from "./parse.js";
 import {
   ActivateSkillSchema,
-  SkillCatalogEntrySchema,
   type KeywordRegistryDraft,
+  SkillCatalogEntrySchema,
 } from "./schemas.js";
 
 export interface GeneratorOptions {
@@ -201,7 +201,7 @@ export function main(argv: string[]): number {
   });
 
   process.stdout.write(
-    [
+    `${[
       `skills:   ${res.validSkills}/${res.skillCount} valid`,
       `activate: ${res.validActivate}/${res.activateCount} valid`,
       `keywords: ${res.keywordEntries} entries`,
@@ -211,7 +211,7 @@ export function main(argv: string[]): number {
         ? `ERRORS (${res.errors.length}):\n  ${res.errors.slice(0, 20).join("\n  ")}`
         : "errors:   0",
       `RESULT:   ${res.passed ? "PASS" : "FAIL"}`,
-    ].join("\n") + "\n",
+    ].join("\n")}\n`,
   );
   return res.passed ? 0 : 1;
 }

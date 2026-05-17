@@ -98,9 +98,8 @@ const SIGNAL_PARTS = /("[^"]+")|(\*\*\/[^\s|]+)|(phase:\s*\S+)/g;
 function parseSignal(raw: string): { a: string[]; b: string[] } {
   const a: string[] = [];
   const b: string[] = [];
-  let m: RegExpExecArray | null;
   SIGNAL_PARTS.lastIndex = 0;
-  while ((m = SIGNAL_PARTS.exec(raw)) !== null) {
+  for (const m of raw.matchAll(SIGNAL_PARTS)) {
     if (m[1]) a.push(m[1].replace(/^"|"$/g, "").trim());
     else if (m[2]) b.push(m[2]);
   }
@@ -140,13 +139,13 @@ export function parseRules(activationRulesPath: string): RawRule[] {
     const { a, b } = parseSignal(sigRaw);
     const fiRaw = field(body, "FORCE-INVOKE") ?? "";
     const fiM = /^(.+?)\s*\[(HARD|SOFT)\]\s*$/.exec(fiRaw.trim());
-    const forceInvokeSkill = fiM && fiM[1] ? fiM[1].trim() : fiRaw.trim();
+    const forceInvokeSkill = fiM?.[1] ? fiM[1].trim() : fiRaw.trim();
     const hardness: "HARD" | "SOFT" =
       fiM && fiM[2] === "HARD" ? "HARD" : fiM && fiM[2] === "SOFT" ? "SOFT" : "SOFT";
     const hoRaw = field(body, "HANDOFF") ?? "";
     const nsM = /^NEXT-STAGE\s+(\S+)/.exec(hoRaw.trim());
     const isEnd = !nsM && /END/.test(hoRaw);
-    const handoffTarget = nsM && nsM[1] ? nsM[1].trim() : isEnd ? "END" : hoRaw.trim();
+    const handoffTarget = nsM?.[1] ? nsM[1].trim() : isEnd ? "END" : hoRaw.trim();
     const precRaw = field(body, "PRECEDENCE");
     const precedence = precRaw && /^\d+$/.test(precRaw) ? Number(precRaw) : null;
     rules.push({

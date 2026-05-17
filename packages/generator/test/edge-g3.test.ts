@@ -5,13 +5,14 @@
  * misparsed as a hardness bracket, deriveId suffix stripping.
  * All fixtures are inline; no real corpus path is accessed.
  */
-import { describe, it, expect } from "vitest";
-import { parseRules } from "../src/parse.js";
+
+import { mkdirSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
 import { mapSkill } from "../src/map.js";
 import type { RawSkill } from "../src/parse.js";
-import { writeFileSync, mkdirSync } from "node:fs";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
+import { parseRules } from "../src/parse.js";
 
 // ---- fixture helpers -------------------------------------------------------
 
@@ -157,7 +158,8 @@ describe("AUTO-INVOQUER variant C — embedded in frontmatter description (§7)"
       dir: "idea-sourcing-excellence-book",
       frontmatter: {
         name: "idea-sourcing",
-        description: "Idea sourcing and brainstorming. AUTO-INVOQUER when: 'idea sourcing', 'brainstorming', 'problem log'.",
+        description:
+          "Idea sourcing and brainstorming. AUTO-INVOQUER when: 'idea sourcing', 'brainstorming', 'problem log'.",
       },
       body: `**OWNS**: idea sourcing decisions
 **NE GERE PAS**: execution decisions
@@ -203,7 +205,7 @@ PRECEDENCE: 10
     const rules = parseRules(path);
     const r = rules.find((r) => r.id === "build-001");
     expect(r).toBeDefined();
-    expect(r!.hardness).toBe("SOFT");
+    expect(r?.hardness).toBe("SOFT");
   });
 
   it("forceInvokeSkill is the bare skill name when bracket is absent", () => {
@@ -216,7 +218,7 @@ PRECEDENCE: 5
 `);
     const rules = parseRules(path);
     const r = rules.find((r) => r.id === "build-002");
-    expect(r!.forceInvokeSkill).toBe("code-quality-maintainability");
+    expect(r?.forceInvokeSkill).toBe("code-quality-maintainability");
   });
 });
 
@@ -237,8 +239,8 @@ PRECEDENCE: 100
     const rules = parseRules(path);
     const r = rules.find((r) => r.id === "FINANCE-saas-finance-unit-economics-001");
     expect(r).toBeDefined();
-    expect(r!.forceInvokeSkill).toBe("saas-finance-unit-economics");
-    expect(r!.hardness).toBe("HARD");
+    expect(r?.forceInvokeSkill).toBe("saas-finance-unit-economics");
+    expect(r?.hardness).toBe("HARD");
   });
 
   it("saas-finance-unit-economics without bracket is not truncated or misparsed", () => {
@@ -253,9 +255,9 @@ PRECEDENCE: 90
     const r = rules.find((r) => r.id === "FINANCE-saas-finance-unit-economics-002");
     expect(r).toBeDefined();
     // The full name including the digit suffix must be preserved
-    expect(r!.forceInvokeSkill).toBe("saas-finance-unit-economics");
+    expect(r?.forceInvokeSkill).toBe("saas-finance-unit-economics");
     // No bracket → SOFT
-    expect(r!.hardness).toBe("SOFT");
+    expect(r?.hardness).toBe("SOFT");
   });
 });
 

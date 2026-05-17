@@ -9,15 +9,13 @@
  */
 import { existsSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { runGenerator, type GeneratorResult } from "../src/index.js";
+import { type GeneratorResult, runGenerator } from "../src/index.js";
 
-const CORPUS_ROOT =
-  "C:/Users/momomuchu/research/otherskill/dist/excellence-pack/skills";
+const CORPUS_ROOT = "C:/Users/momomuchu/research/otherskill/dist/excellence-pack/skills";
 const ACTIVATION_RULES_PATH =
   "C:/Users/momomuchu/research/otherskill/.planning/term-universe/_activation/ACTIVATION-RULES.md";
 
-const corpusPresent =
-  existsSync(CORPUS_ROOT) && existsSync(ACTIVATION_RULES_PATH);
+const corpusPresent = existsSync(CORPUS_ROOT) && existsSync(ACTIVATION_RULES_PATH);
 
 // ---------------------------------------------------------------------------
 // Lazy-run: evaluate once, share across all assertions.
@@ -39,13 +37,10 @@ function getResult(): GeneratorResult {
 // ---------------------------------------------------------------------------
 describe("golden-g3 — generator output regression", () => {
   // ---- guard ---------------------------------------------------------------
-  it.skipIf(!corpusPresent)(
-    "corpus + activation-rules paths must exist (skip when absent)",
-    () => {
-      // If we reach here, both paths are present — nothing to assert.
-      expect(corpusPresent).toBe(true);
-    },
-  );
+  it.skipIf(!corpusPresent)("corpus + activation-rules paths must exist (skip when absent)", () => {
+    // If we reach here, both paths are present — nothing to assert.
+    expect(corpusPresent).toBe(true);
+  });
 
   // ---- numeric contracts ---------------------------------------------------
   it.skipIf(!corpusPresent)("skillCount === 32", () => {
@@ -66,19 +61,14 @@ describe("golden-g3 — generator output regression", () => {
 
   it.skipIf(!corpusPresent)("errors.length === 0", () => {
     const res = getResult();
-    expect(
-      res.errors,
-      `Generator errors:\n${res.errors.join("\n")}`,
-    ).toHaveLength(0);
+    expect(res.errors, `Generator errors:\n${res.errors.join("\n")}`).toHaveLength(0);
   });
 
   // ---- worked example A: technical-analysis-discovery ---------------------
   it.skipIf(!corpusPresent)(
     "technical-analysis-discovery entry matches skill-catalog-map §4",
     () => {
-      const entries = (
-        getResult() as GeneratorResult & { _drafts?: unknown[] }
-      );
+      const _entries = getResult() as GeneratorResult & { _drafts?: unknown[] };
       // Re-run with access to drafts via a dry-run; the GeneratorResult does
       // not expose drafts directly, so we re-invoke (cached corpus parse is
       // fast). We validate via the public GeneratorResult shape that the
@@ -144,64 +134,55 @@ describe("golden-g3 — generator output regression", () => {
         "blast radius",
       ];
       for (const kw of expectedKeywords) {
-        expect(
-          entry.activation.keywords,
-          `keyword missing: "${kw}"`,
-        ).toContain(kw);
+        expect(entry.activation.keywords, `keyword missing: "${kw}"`).toContain(kw);
       }
     },
   );
 
   // ---- worked example B: product-strategy ---------------------------------
-  it.skipIf(!corpusPresent)(
-    "product-strategy: id, owns subset, keywords subset",
-    async () => {
-      const { parse } = await import("../src/parse.js");
-      const { mapSkill } = await import("../src/map.js");
+  it.skipIf(!corpusPresent)("product-strategy: id, owns subset, keywords subset", async () => {
+    const { parse } = await import("../src/parse.js");
+    const { mapSkill } = await import("../src/map.js");
 
-      const { rawSkills } = parse(CORPUS_ROOT, ACTIVATION_RULES_PATH);
+    const { rawSkills } = parse(CORPUS_ROOT, ACTIVATION_RULES_PATH);
 
-      const raw = rawSkills.find((s) => s.dir === "product-strategy-excellence-book");
-      expect(raw, "raw skill for product-strategy not found").toBeDefined();
-      if (!raw) return;
+    const raw = rawSkills.find((s) => s.dir === "product-strategy-excellence-book");
+    expect(raw, "raw skill for product-strategy not found").toBeDefined();
+    if (!raw) return;
 
-      const entry = mapSkill(raw);
+    const entry = mapSkill(raw);
 
-      // id — GAP-1: strip -excellence-book suffix
-      expect(entry.id).toBe("product-strategy");
+    // id — GAP-1: strip -excellence-book suffix
+    expect(entry.id).toBe("product-strategy");
 
-      // owns subset (skill-catalog-map §4b verbatim)
-      const expectedOwns = [
-        "product vision decisions",
-        "bet portfolio decisions",
-        "roadmap prioritization decisions",
-        "product principle decisions",
-        "product review decisions",
-        "kill condition decisions",
-      ];
-      for (const own of expectedOwns) {
-        expect(entry.owns, `owns missing: "${own}"`).toContain(own);
-      }
+    // owns subset (skill-catalog-map §4b verbatim)
+    const expectedOwns = [
+      "product vision decisions",
+      "bet portfolio decisions",
+      "roadmap prioritization decisions",
+      "product principle decisions",
+      "product review decisions",
+      "kill condition decisions",
+    ];
+    for (const own of expectedOwns) {
+      expect(entry.owns, `owns missing: "${own}"`).toContain(own);
+    }
 
-      // keywords subset (AUTO-INVOQUER verbatim from §4b)
-      const expectedKeywords = [
-        "product strategy",
-        "roadmap",
-        "product vision",
-        "bet",
-        "prioritization",
-        "product review",
-        "kill condition",
-        "product principles",
-        "now-next-later",
-        "product portfolio",
-      ];
-      for (const kw of expectedKeywords) {
-        expect(
-          entry.activation.keywords,
-          `keyword missing: "${kw}"`,
-        ).toContain(kw);
-      }
-    },
-  );
+    // keywords subset (AUTO-INVOQUER verbatim from §4b)
+    const expectedKeywords = [
+      "product strategy",
+      "roadmap",
+      "product vision",
+      "bet",
+      "prioritization",
+      "product review",
+      "kill condition",
+      "product principles",
+      "now-next-later",
+      "product portfolio",
+    ];
+    for (const kw of expectedKeywords) {
+      expect(entry.activation.keywords, `keyword missing: "${kw}"`).toContain(kw);
+    }
+  });
 });

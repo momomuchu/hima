@@ -4,13 +4,14 @@
  * registry drafts, and the 16 activate-Pn structural skills
  * (goal3/design/preset-catalog.md §2 windows).
  */
+
+import type { RawRule, RawSkill } from "./parse.js";
 import {
+  type KeywordRegistryDraft,
   MACRO_CYCLES,
   OPERATING_MODES,
   RISK_CLASSES,
-  type KeywordRegistryDraft,
 } from "./schemas.js";
-import type { RawRule, RawSkill } from "./parse.js";
 
 export interface DraftEntry {
   id: string;
@@ -35,7 +36,7 @@ export interface DraftEntry {
 const DEFAULT_GATES = ["user_prompt", "session_start"]; // GAP-5
 
 function deriveId(skill: RawSkill): string {
-  const fmName = skill.frontmatter["name"];
+  const fmName = skill.frontmatter.name;
   const base = (fmName && fmName.trim().length > 0 ? fmName : skill.dir)
     .replace(/-excellence-book$/u, "")
     .replace(/-excellence$/u, "")
@@ -56,7 +57,7 @@ function firstH1(body: string): string | null {
 function titleCase(id: string): string {
   return id
     .split("-")
-    .map((w) => (w.length > 0 ? w[0]!.toUpperCase() + w.slice(1) : w))
+    .map((w) => (w.length > 0 ? w[0]?.toUpperCase() + w.slice(1) : w))
     .join(" ");
 }
 
@@ -96,7 +97,7 @@ function splitPhrases(raw: string): string[] {
 
 function extractKeywords(skill: RawSkill): string[] {
   const sources: string[] = [];
-  const desc = skill.frontmatter["description"];
+  const desc = skill.frontmatter.description;
   if (desc) sources.push(desc);
   sources.push(skill.body);
   const kws: string[] = [];
@@ -111,7 +112,7 @@ function extractKeywords(skill: RawSkill): string[] {
     // multi-line dash variant
     for (const line of src.split("\n")) {
       const dm = /^\s*-\s*["'“]([^"'”]+)["'”]/.exec(line);
-      if (dm && dm[1]) kws.push(dm[1].trim().toLowerCase());
+      if (dm?.[1]) kws.push(dm[1].trim().toLowerCase());
     }
   }
   // Variant D — unquoted inline list:
@@ -128,7 +129,10 @@ function extractKeywords(skill: RawSkill): string[] {
         "",
       );
       for (const part of seg.split(/,| or | et |\bou\b/i)) {
-        const t = part.replace(/^(or|and)\s+/i, "").trim().toLowerCase();
+        const t = part
+          .replace(/^(or|and)\s+/i, "")
+          .trim()
+          .toLowerCase();
         if (t.length > 1 && t.length < 60 && !/^when\b/.test(t)) kws.push(t);
       }
     }
@@ -159,7 +163,8 @@ export function mapSkill(skill: RawSkill): DraftEntry {
   const id = deriveId(skill);
   const title = firstH1(skill.body) ?? titleCase(id);
   const purpose =
-    (skill.frontmatter["description"]?.slice(0, 240) ?? null) ??
+    skill.frontmatter.description?.slice(0, 240) ??
+    null ??
     firstProse(skill.body) ??
     `Excellence discipline: ${title}.`;
   const ownsRaw = extractInline(skill.body, "OWNS");
@@ -223,22 +228,134 @@ export interface PresetDef {
 }
 
 export const PRESETS: readonly PresetDef[] = [
-  { pid: "P1", name: "full", start: 1, stop: 13, intent: "take this raw problem all the way to a measured, financed product", output: "shipped product + growth + CS + measurement + unit economics" },
-  { pid: "P2", name: "product-discovery", start: 1, stop: 4, intent: "go from raw problem to a written spec ready for design and build", output: "validated SPEC.md" },
-  { pid: "P3", name: "idea-to-design", start: 1, stop: 5, intent: "go from idea to a validated UX design ready for architecture", output: "spec + UX flows + designs + usability evidence" },
-  { pid: "P4", name: "idea-to-arch", start: 1, stop: 6, intent: "go from idea to an architecture decision record ready for implementation", output: "spec + UX + ADR + data model" },
-  { pid: "P5", name: "strategy", start: 2, stop: 3, intent: "sharpen positioning and run technical discovery on an existing problem", output: "positioning memo + discovery report" },
-  { pid: "P6", name: "discovery", start: 3, stop: 4, intent: "technical discovery and a spec in one pass for a scoped problem", output: "analysis report + SPEC.md" },
-  { pid: "P7", name: "discovery-to-design", start: 3, stop: 5, intent: "turn a scoped discovery into a spec and UX-complete design", output: "discovery + spec + UX flows" },
-  { pid: "P8", name: "discovery-to-arch", start: 3, stop: 6, intent: "discovery through to a fully designed and architected solution", output: "discovery + spec + UX + ADR" },
-  { pid: "P9", name: "spec-to-ship", start: 4, stop: 9, intent: "design, architect, build, and ship an existing spec", output: "deployed tested production build" },
-  { pid: "P10", name: "design-only", start: 5, stop: 5, intent: "UX flows, component designs, and usability validation only", output: "validated UX flows + component specs" },
-  { pid: "P11", name: "arch-to-ship", start: 6, stop: 9, intent: "architect, implement, and ship a design to production", output: "ADR + implemented + tested + deployed" },
-  { pid: "P12", name: "build-to-ship", start: 8, stop: 9, intent: "implement, test, and release an existing architecture", output: "green tests + deploy pipeline" },
-  { pid: "P13", name: "aiml-feature", start: 7, stop: 9, intent: "design an AI/ML feature, implement it, and ship it", output: "AI ADR + eval corpus + eval-gated release" },
-  { pid: "P14", name: "gtm", start: 10, stop: 13, intent: "acquire users, retain them, measure, validate unit economics for a shipped product", output: "channel fit + CS playbook + dashboard + unit economics" },
-  { pid: "P15", name: "have-idea-to-ship", start: 2, stop: 9, intent: "go straight from a formed idea with rough positioning to shipped product", output: "positioned spec + UX + architecture + shipped build" },
-  { pid: "P16", name: "scope", start: 1, stop: 1, intent: "fire exactly one decision rule for a narrow, targeted ask", output: "single matched rule output, no traversal" },
+  {
+    pid: "P1",
+    name: "full",
+    start: 1,
+    stop: 13,
+    intent: "take this raw problem all the way to a measured, financed product",
+    output: "shipped product + growth + CS + measurement + unit economics",
+  },
+  {
+    pid: "P2",
+    name: "product-discovery",
+    start: 1,
+    stop: 4,
+    intent: "go from raw problem to a written spec ready for design and build",
+    output: "validated SPEC.md",
+  },
+  {
+    pid: "P3",
+    name: "idea-to-design",
+    start: 1,
+    stop: 5,
+    intent: "go from idea to a validated UX design ready for architecture",
+    output: "spec + UX flows + designs + usability evidence",
+  },
+  {
+    pid: "P4",
+    name: "idea-to-arch",
+    start: 1,
+    stop: 6,
+    intent: "go from idea to an architecture decision record ready for implementation",
+    output: "spec + UX + ADR + data model",
+  },
+  {
+    pid: "P5",
+    name: "strategy",
+    start: 2,
+    stop: 3,
+    intent: "sharpen positioning and run technical discovery on an existing problem",
+    output: "positioning memo + discovery report",
+  },
+  {
+    pid: "P6",
+    name: "discovery",
+    start: 3,
+    stop: 4,
+    intent: "technical discovery and a spec in one pass for a scoped problem",
+    output: "analysis report + SPEC.md",
+  },
+  {
+    pid: "P7",
+    name: "discovery-to-design",
+    start: 3,
+    stop: 5,
+    intent: "turn a scoped discovery into a spec and UX-complete design",
+    output: "discovery + spec + UX flows",
+  },
+  {
+    pid: "P8",
+    name: "discovery-to-arch",
+    start: 3,
+    stop: 6,
+    intent: "discovery through to a fully designed and architected solution",
+    output: "discovery + spec + UX + ADR",
+  },
+  {
+    pid: "P9",
+    name: "spec-to-ship",
+    start: 4,
+    stop: 9,
+    intent: "design, architect, build, and ship an existing spec",
+    output: "deployed tested production build",
+  },
+  {
+    pid: "P10",
+    name: "design-only",
+    start: 5,
+    stop: 5,
+    intent: "UX flows, component designs, and usability validation only",
+    output: "validated UX flows + component specs",
+  },
+  {
+    pid: "P11",
+    name: "arch-to-ship",
+    start: 6,
+    stop: 9,
+    intent: "architect, implement, and ship a design to production",
+    output: "ADR + implemented + tested + deployed",
+  },
+  {
+    pid: "P12",
+    name: "build-to-ship",
+    start: 8,
+    stop: 9,
+    intent: "implement, test, and release an existing architecture",
+    output: "green tests + deploy pipeline",
+  },
+  {
+    pid: "P13",
+    name: "aiml-feature",
+    start: 7,
+    stop: 9,
+    intent: "design an AI/ML feature, implement it, and ship it",
+    output: "AI ADR + eval corpus + eval-gated release",
+  },
+  {
+    pid: "P14",
+    name: "gtm",
+    start: 10,
+    stop: 13,
+    intent: "acquire users, retain them, measure, validate unit economics for a shipped product",
+    output: "channel fit + CS playbook + dashboard + unit economics",
+  },
+  {
+    pid: "P15",
+    name: "have-idea-to-ship",
+    start: 2,
+    stop: 9,
+    intent: "go straight from a formed idea with rough positioning to shipped product",
+    output: "positioned spec + UX + architecture + shipped build",
+  },
+  {
+    pid: "P16",
+    name: "scope",
+    start: 1,
+    stop: 1,
+    intent: "fire exactly one decision rule for a narrow, targeted ask",
+    output: "single matched rule output, no traversal",
+  },
 ] as const;
 
 export function buildActivateSkill(p: PresetDef, hardSets: string[]) {
