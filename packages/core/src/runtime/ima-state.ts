@@ -78,15 +78,19 @@ export const SPINE: readonly SpineStage[] = [
 /**
  * IMA operating mode — orthogonal to the active window.
  *
+ * - M0 full-bypass: agent decides; no decision gates / no checkpoints /
+ *   no SOFT-warn friction. HARD floor still enforced (M0 HARD-safe, §10.2).
  * - M1 full-auto (DEFAULT): agent decides; HARD gates still enforced; no checkpoints.
  * - M2 checkpoint-gated: human holds go/no-go once per stage boundary.
  * - M3 explicit-pipeline: runs exactly the named window, no auto-extension.
+ * - M4 scoped: agent decides; single scoped rule, no spine traversal.
  *
- * state-machine.md §1: decision_owner = "agent" for M1/M3, "human" for M2.
- * GOAL-3 §4c: M0 and M4 are separate modes built in H2; this file covers M1–M3
- * which are sufficient for the H1 state-machine deliverable.
+ * state-machine.md §1: decision_owner = "agent" for M0/M1/M3/M4, "human" for M2.
+ * GOAL-3 §4c: the full 5-mode axis. M0/M4 HARD-bypass semantics live at the
+ * gate/policy layer (evaluate-gate.ts, baseline-policy.ts); ImaState only needs
+ * to carry the mode and resolve decision ownership (M2 is the sole human-owned).
  */
-export type ImaMode = "M1" | "M2" | "M3";
+export type ImaMode = "M0" | "M1" | "M2" | "M3" | "M4";
 
 // ─── Window ───────────────────────────────────────────────────────────────────
 // state-machine.md §1 — contiguous spine slice [start, stop] (inclusive)
