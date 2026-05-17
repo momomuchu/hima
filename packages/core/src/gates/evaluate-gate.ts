@@ -153,17 +153,7 @@ function evaluateDestructiveOp(
     /\bnpm\s+publish\b|\bpnpm\s+publish\b/.test(command) ||
     /\bpypi\b|\bmaven\s+deploy\b/.test(command);
 
-  const dClass = isD1
-    ? "D1"
-    : isD2
-      ? "D2"
-      : isD3
-        ? "D3"
-        : isD4
-          ? "D4"
-          : isD5
-            ? "D5"
-            : null;
+  const dClass = isD1 ? "D1" : isD2 ? "D2" : isD3 ? "D3" : isD4 ? "D4" : isD5 ? "D5" : null;
 
   if (!dClass) {
     return null;
@@ -658,7 +648,7 @@ function evaluateStop(context: GateEvaluationContext, event: GateEvent): GateRes
   // analysis+spec in GOAL-3 terminology), and no accepted hook_decision
   // evidence exists yet. "hook_decision" is EvidenceKey at canonical.ts line 68.
   if (isCheckpointMode(context.state.mode)) {
-    const PRE_ARCH_PHASES = new Set(["discovery", "cadrage"]);  // MACRO_CYCLES before build
+    const PRE_ARCH_PHASES = new Set(["discovery", "cadrage"]); // MACRO_CYCLES before build
     const hasHookDecision = hasAnyAcceptedEvidence(context, ["hook_decision"]);
     if (PRE_ARCH_PHASES.has(context.state.phase) && !hasHookDecision) {
       return {
@@ -685,7 +675,8 @@ function evaluateStop(context: GateEvaluationContext, event: GateEvent): GateRes
     return {
       decision: "allow",
       gateType: event.gateType,
-      reason: "stop allowed (M0 full-bypass: evidence-sufficiency check skipped; policy blockers clear)",
+      reason:
+        "stop allowed (M0 full-bypass: evidence-sufficiency check skipped; policy blockers clear)",
       finalState: "DONE_VERIFIED",
     };
   }
