@@ -27,7 +27,11 @@ const commands = [
   ["corepack", ["pnpm", "--filter", "@harness/adapter-codex", "build"]],
   ["corepack", ["pnpm", "--filter", "@harness/adapter-claude", "build"]],
   ["corepack", ["pnpm", "--filter", "@harness/adapter-hermes", "build"]],
-  ["vitest", ["run", ...testArgs]],
+  ["node", ["scripts/validate-claim-bearing-falsifies.test.mjs"]],
+  ["node", ["scripts/audit-construction-completion.test.mjs"]],
+  ["node", ["scripts/guard-construction-blocked-state.test.mjs"]],
+  ["node", ["scripts/conversation-compliance-scan.test.mjs"]],
+  ["corepack", ["pnpm", "exec", "vitest", "run", ...testArgs]],
 ];
 
 for (const [command, args] of commands) {

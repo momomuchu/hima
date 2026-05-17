@@ -70,6 +70,8 @@ describe("runtime profiles", () => {
       user_prompt: "harness hook user-prompt-submit",
       pre_tool: "harness hook pre-tool-use",
       post_tool: "harness hook post-tool-use",
+      pre_compact: "harness hook pre-compact",
+      post_compact: "harness hook post-compact",
       stop: "harness hook stop",
       subagent_start: "harness hook subagent-start",
       subagent_stop: "harness hook subagent-stop",

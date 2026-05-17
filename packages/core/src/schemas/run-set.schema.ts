@@ -186,6 +186,7 @@ export const SubagentRunRecordSchema = z
     runtime: OptionalStringSchema,
     status: SubagentRunStatusSchema.optional(),
     scope: StringArraySchema.optional(),
+    deliverables: StringArraySchema.optional(),
     startedAt: OptionalStringSchema,
     stoppedAt: OptionalStringSchema,
     evidenceRefs: StringArraySchema.optional(),

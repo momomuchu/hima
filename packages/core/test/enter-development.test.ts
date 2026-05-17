@@ -1,12 +1,17 @@
+import { existsSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   enterDevelopment,
+  getEventsLogPath,
   getStatus,
   initPlanningProject,
+  readEventLog,
+  readLedger,
   readPlanningProject,
+  verifyLedgerEntries,
   writePlanningProject,
 } from "../src/index.js";
 
@@ -34,6 +39,8 @@ describe("enterDevelopment", () => {
       now: new Date("2026-05-04T00:00:00.000Z"),
     });
     const project = await readPlanningProject(root);
+    const eventsLog = await readEventLog(root);
+    const ledger = await readLedger(root, project.runSet.runId);
 
     expect(result.current).toEqual({
       phase: "build",
@@ -75,6 +82,28 @@ describe("enterDevelopment", () => {
     expect(project.runSet.events.at(-1)).toMatchObject({
       type: "DEVELOPMENT_MODE_ENTERED",
     });
+    expect(eventsLog[0]).toMatchObject({
+      id: project.runSet.events.at(-1)?.id,
+      type: "RiskClassPromoted",
+      payload: {
+        owner: "Gate",
+        legacyType: "DEVELOPMENT_MODE_ENTERED",
+        event: {
+          payload: {
+            fromRiskClass: "T",
+            toRiskClass: "M",
+          },
+        },
+      },
+    });
+    expect(ledger[0].payload).toMatchObject({
+      type: "DEVELOPMENT_MODE_ENTERED",
+      payload: {
+        fromRiskClass: "T",
+        toRiskClass: "M",
+      },
+    });
+    expect(verifyLedgerEntries(ledger)).toBe(true);
   });
 
   it("refuses modes disallowed by the selected risk policy", async () => {
@@ -86,6 +115,36 @@ describe("enterDevelopment", () => {
         riskClass: "H",
       }),
     ).rejects.toThrow("Mode bypass is not allowed for risk class H");
+  });
+
+  it("does not emit RiskClassPromoted when risk class is unchanged or demoted", async () => {
+    const created = await initPlanningProject(root);
+
+    await enterDevelopment(root, {
+      mode: "auto",
+      riskClass: "T",
+      now: new Date("2026-05-04T00:00:00.000Z"),
+    });
+    expect(existsSync(getEventsLogPath(root))).toBe(false);
+
+    await writePlanningProject(root, {
+      ...(await readPlanningProject(root)),
+      currentRisk: {
+        ...created.currentRisk,
+        risk_class: "M",
+        rank: 2,
+        bypass_allowed: false,
+        human_checkpoint_required: false,
+        updated_at: "2026-05-04T00:01:00.000Z",
+      },
+    });
+
+    await enterDevelopment(root, {
+      mode: "auto",
+      riskClass: "T",
+      now: new Date("2026-05-04T00:02:00.000Z"),
+    });
+    expect(existsSync(getEventsLogPath(root))).toBe(false);
   });
 
   it("clears stored finalization gaps when reopening development", async () => {

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  assertGateType,
+  assertOperatingMode,
+  assertRiskClass,
+  assertSubPhase,
   CHANGE_TYPES,
   CONFIDENCE_LEVELS,
   compareRiskClass,
@@ -14,9 +18,17 @@ import {
   FINAL_STATES,
   GATE_DECISIONS,
   GATE_TYPES,
+  isGateType,
+  isOperatingMode,
+  isRiskClass,
+  isSubPhaseValue,
   MACRO_CYCLES,
   MISSING_RUNTIME_BINDING_STATUS,
   OPERATING_MODES,
+  parseGateType,
+  parseOperatingMode,
+  parseRiskClass,
+  parseSubPhase,
   RISK_CLASSES,
   RUNTIME_BINDING_STATUSES,
   RUNTIME_CAPABILITY_STATUSES,
@@ -75,12 +87,14 @@ describe("canonical vocabulary", () => {
     expect(riskAtLeast("L", "M")).toBe(false);
   });
 
-  it("includes the seven canonical gates", () => {
+  it("includes the nine canonical gates", () => {
     expect(GATE_TYPES).toEqual([
       "session_start",
       "user_prompt",
       "pre_tool",
       "post_tool",
+      "pre_compact",
+      "post_compact",
       "stop",
       "subagent_start",
       "subagent_stop",
@@ -133,6 +147,28 @@ describe("canonical vocabulary", () => {
     expect(RiskClassSchema.safeParse("F").success).toBe(false);
     expect(RiskClassSchema.safeParse("E").success).toBe(false);
     expect(RiskClassSchema.safeParse("É").success).toBe(false);
+  });
+
+  it("constructs and rejects C3 value-object vocabulary boundaries", () => {
+    expect(parseRiskClass("H")).toBe("H");
+    expect(parseSubPhase("Execute")).toBe("Execute");
+    expect(parseOperatingMode("pairing")).toBe("pairing");
+    expect(parseGateType("pre_tool")).toBe("pre_tool");
+
+    expect(isRiskClass("F")).toBe(false);
+    expect(isSubPhaseValue("Plan")).toBe(false);
+    expect(isOperatingMode("manual")).toBe(false);
+    expect(isGateType("before_tool")).toBe(false);
+
+    expect(() => parseRiskClass("F")).toThrow(TypeError);
+    expect(() => parseSubPhase("Plan")).toThrow(TypeError);
+    expect(() => parseOperatingMode("manual")).toThrow(TypeError);
+    expect(() => parseGateType("before_tool")).toThrow(TypeError);
+
+    expect(() => assertRiskClass("C")).not.toThrow();
+    expect(() => assertSubPhase("Verify")).not.toThrow();
+    expect(() => assertOperatingMode("auto")).not.toThrow();
+    expect(() => assertGateType("stop")).not.toThrow();
   });
 
   it("exports canonical defaults for command and runtime surfaces", () => {

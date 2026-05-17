@@ -15,8 +15,11 @@ import {
   type RuntimeProfile,
   safeAtomicWriteFile,
 } from "@harness/core";
+import { getHermesHookBindings, type HermesHookBinding } from "./hook-bindings.js";
 
 export const HERMES_CONFIG_FILE = "hermes.config.json";
+
+export { getHermesHookBindings, type HermesHookBinding };
 
 export interface HermesHookPreview {
   target: "hermes";
@@ -93,6 +96,7 @@ export function buildHermesHookPreview(
 ): HermesHookPreview {
   const profile = getRuntimeProfile("hermes");
   const digest = computeRuntimeProfileDigest("hermes");
+  const hookBindings = getHermesHookBindings();
   const bindings = buildRuntimeBindings(
     "hermes",
     buildHermesRuntimeCapability(profile),
@@ -115,18 +119,16 @@ export function buildHermesHookPreview(
           mode: "preview",
         },
       },
-      ...GATE_TYPES.flatMap((gateType) => {
-        const hook = profile.hooks[gateType];
-
+      ...hookBindings.flatMap((hook) => {
         return hook.supported && hook.nativeEvent
           ? [
               {
                 kind: "append" as const,
                 path: "gateway.plugins.harness.hooks" as const,
                 value: {
-                  gateType,
+                  gateType: hook.gateType,
                   event: hook.nativeEvent,
-                  command: resolveHookCommand(hook.command, gateType, options),
+                  command: resolveHookCommand(hook.command, hook.gateType, options),
                   blocking: hook.canBlock,
                 },
               },

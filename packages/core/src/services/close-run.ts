@@ -2,11 +2,12 @@ import {
   type ConvergenceEvaluation,
   evaluateConvergence,
 } from "../convergence/evaluate-convergence.js";
+import { RunAggregate } from "../domain/run/index.js";
 import { type RunEvent, type RunSetFile, RunSetFileSchema } from "../schemas/run-set.schema.js";
 import { PlanningStateFileSchema } from "../schemas/state.schema.js";
 import { writeJsonFile } from "../storage/json.js";
 import { getPlanningPaths } from "../storage/planning-paths.js";
-import { readPlanningProject } from "../storage/planning-store.js";
+import { appendRunEvent, readPlanningProject } from "../storage/planning-store.js";
 import { writeYamlFile } from "../storage/yaml.js";
 
 export interface CloseRunOptions {
@@ -34,6 +35,8 @@ export async function closeRun(
   const alreadyFinalized = project.runSet.finalization.state !== "ACTIVE";
 
   if (project.state.status === "closed" && alreadyFinalized) {
+    RunAggregate.assertAlwaysValid(project);
+
     return {
       evaluation,
       runSet: project.runSet,
@@ -42,15 +45,18 @@ export async function closeRun(
   }
 
   if (alreadyFinalized) {
-    await writeYamlFile(
-      paths.stateFile,
-      {
-        ...project.state,
-        status: "closed" as const,
-        updated_at: closedAt,
-      },
-      PlanningStateFileSchema,
-    );
+    const closedState = {
+      ...project.state,
+      status: "closed" as const,
+      updated_at: closedAt,
+    };
+    RunAggregate.assertAlwaysValid({
+      state: closedState,
+      currentRisk: project.currentRisk,
+      runSet: project.runSet,
+    });
+
+    await writeYamlFile(paths.stateFile, closedState, PlanningStateFileSchema);
 
     return {
       evaluation,
@@ -77,8 +83,14 @@ export async function closeRun(
       gaps: evaluation.gaps,
     },
   };
+  RunAggregate.assertAlwaysValid({
+    state: closedState,
+    currentRisk: project.currentRisk,
+    runSet,
+  });
 
   await writeYamlFile(paths.stateFile, closingState, PlanningStateFileSchema);
+  await appendRunEvent(projectRoot, event);
   await writeJsonFile(paths.runSetFile, runSet, RunSetFileSchema);
   await writeYamlFile(paths.stateFile, closedState, PlanningStateFileSchema);
 

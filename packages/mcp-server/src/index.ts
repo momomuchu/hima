@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { realpath } from "node:fs/promises";
+import { access, realpath } from "node:fs/promises";
 import path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { pathToFileURL } from "node:url";
@@ -45,6 +45,7 @@ import {
   inspectRuntime,
   installCatalogArtifacts,
   installPlatform,
+  isEvidenceSufficient,
   MACRO_CYCLES,
   OPERATING_MODES,
   planArtifactInstall,
@@ -58,6 +59,7 @@ import {
   type RuntimeProbeEvidence,
   type RuntimeProofType,
   readInstallManifest,
+  readLedger,
   readPlanningProject,
   redactRecord,
   redactSecrets,
@@ -66,8 +68,14 @@ import {
   rollbackCatalogArtifacts,
   SUB_PHASES,
   uninstallRuntimeLifecycle,
+  verifyLedgerEntries,
   writeCatalogArtifacts,
 } from "@harness/core";
+import {
+  assertMcpToolAllowed,
+  assertMcpToolSurfaceMatchesNamespacePolicy,
+  getMcpNamespacePolicySurface,
+} from "./policy/namespace-policy.js";
 
 type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 type JsonObject = { [key: string]: JsonValue };
@@ -138,31 +146,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: "rms.classify_risk",
     description: "Classify RMS risk for a changeset through @harness/core classifyRisk().",
-    inputSchema: objectSchema(
-      {
-        files: arrayProperty("string", "Changed file paths."),
-        labels: arrayProperty("string", "Change labels."),
-        changeType: {
-          type: "string",
-          enum: [...CHANGE_TYPES],
-          description: "Canonical change type.",
-        },
-        diffContent: stringProperty("Optional diff content used for forcing-signal scans."),
-        diffLinesNet: numberProperty("Optional net line count for the diff."),
-        impactEstimate: estimateProperty("Optional impact estimate from 1 to 5."),
-        probabilityEstimate: estimateProperty("Optional probability estimate from 1 to 5."),
-        reposCount: numberProperty("Optional number of repositories affected."),
-        ciGreen: {
-          type: "boolean",
-          description: "Whether CI is green for bypass checks.",
-        },
-        newEndpointExposed: {
-          type: "boolean",
-          description: "Whether the change exposes a new endpoint.",
-        },
-      },
-      ["files", "labels", "changeType"],
-    ),
+    inputSchema: riskClassificationInputSchema(),
   },
   {
     name: "rms.record_evidence",
@@ -293,6 +277,38 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
     description:
       "Close the current run using convergence evaluation and write finalization to run-set.json.",
     inputSchema: closeRunInputSchema(),
+  },
+  {
+    name: "hima_evaluate_completion",
+    description:
+      "Evaluate the current HIMA run completion evidence and convergence verdict without mutating state.",
+    inputSchema: objectSchema({
+      root: stringProperty(
+        "Project root. Defaults to the MCP server working directory and must stay under it.",
+      ),
+    }),
+  },
+  {
+    name: "hima_classify_risk",
+    description:
+      "Compatibility HIMA tool for classifying risk through @harness/core classifyRisk().",
+    inputSchema: riskClassificationInputSchema(),
+  },
+  {
+    name: "hima_record_evidence",
+    description:
+      "Compatibility HIMA tool for appending an evidence item through the governed evidence service.",
+    inputSchema: evidenceInputSchema(),
+  },
+  {
+    name: "hima_query_compliance",
+    description:
+      "Read the current HIMA run compliance summary, evidence sufficiency, finalization, and ledger health.",
+    inputSchema: objectSchema({
+      root: stringProperty(
+        "Project root. Defaults to the MCP server working directory and must stay under it.",
+      ),
+    }),
   },
   {
     name: "harness:get_state",
@@ -432,6 +448,8 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
   },
 ];
 
+assertMcpToolSurfaceMatchesNamespacePolicy(TOOL_DEFINITIONS.map((tool) => tool.name));
+
 if (isDirectExecution()) {
   main().catch((error: unknown) => {
     console.error(error instanceof Error ? (error.stack ?? error.message) : String(error));
@@ -536,6 +554,8 @@ export function getMcpToolSurface(): McpToolSurfaceEntry[] {
   }));
 }
 
+export { getMcpNamespacePolicySurface };
+
 async function callTool(params: unknown): Promise<JsonObject> {
   const request = readToolCall(params);
 
@@ -548,6 +568,8 @@ async function callTool(params: unknown): Promise<JsonObject> {
 }
 
 async function executeTool(name: string, args: JsonObject): Promise<JsonValue> {
+  assertMcpToolAllowed(name);
+
   switch (name) {
     case "rms.get_state":
     case "harness:get_state":
@@ -560,12 +582,14 @@ async function executeTool(name: string, args: JsonObject): Promise<JsonValue> {
     case "harness:enter_development":
       return enterDevelopmentTool(args);
     case "rms.classify_risk":
+    case "hima_classify_risk":
       return toJsonValue(classifyRisk(readChangeset(args)));
     case "rms.evaluate_gate":
     case "harness:evaluate_gate":
       return evaluateGateTool(args);
     case "rms.record_evidence":
     case "harness:record_evidence":
+    case "hima_record_evidence":
       return recordEvidence(args);
     case "rms.inspect_runtime":
       return inspectRuntimeTool(args);
@@ -612,6 +636,10 @@ async function executeTool(name: string, args: JsonObject): Promise<JsonValue> {
     case "rms.evaluate_convergence":
     case "harness:evaluate_convergence":
       return evaluateConvergenceTool(args);
+    case "hima_evaluate_completion":
+      return himaEvaluateCompletionTool(args);
+    case "hima_query_compliance":
+      return himaQueryComplianceTool(args);
     case "rms.close_run":
     case "harness:close_run":
       return closeRunTool(args);
@@ -700,11 +728,12 @@ async function recordEvidence(args: JsonObject): Promise<JsonObject> {
   const projectRoot = await readMcpProjectRoot(args, "MCP project root");
   const project = await readPlanningProject(projectRoot);
   const key = readEvidenceKey(args.key);
+  const summary = redactSecrets(readRequiredString(args.summary, "summary"));
   const item = await addEvidence(projectRoot, {
     key,
     kind: typeof args.kind === "string" && args.kind.length > 0 ? args.kind : key,
     status: readEvidenceStatus(args.status),
-    summary: readRequiredString(args.summary, "summary"),
+    summary: summary ?? "",
     source: "agent",
   });
 
@@ -795,6 +824,82 @@ async function evaluateConvergenceTool(args: JsonObject): Promise<JsonObject> {
   const project = await readPlanningProject(await readMcpProjectRoot(args, "MCP project root"));
 
   return toJsonValue(evaluateConvergence(project)) as JsonObject;
+}
+
+async function himaEvaluateCompletionTool(args: JsonObject): Promise<JsonObject> {
+  const project = await readPlanningProject(await readMcpProjectRoot(args, "MCP project root"));
+  const evidence = isEvidenceSufficient(project.runSet.evidence, project.currentRisk.risk_class);
+  const convergence = evaluateConvergence(project);
+
+  return toJsonValue({
+    runId: project.runSet.runId,
+    riskClass: project.currentRisk.risk_class,
+    evidence,
+    convergence,
+    completion: {
+      ready:
+        evidence.sufficient &&
+        convergence.finalizationRecommendation.finalState === "DONE_VERIFIED",
+      finalState: convergence.finalizationRecommendation.finalState,
+      blockers: convergence.blockers,
+    },
+  }) as JsonObject;
+}
+
+async function himaQueryComplianceTool(args: JsonObject): Promise<JsonObject> {
+  const projectRoot = await readMcpProjectRoot(args, "MCP project root");
+  const project = await readPlanningProject(projectRoot);
+  const ledger = await readCurrentRunLedger(projectRoot, project.runSet.runId);
+  const evidence = isEvidenceSufficient(project.runSet.evidence, project.currentRisk.risk_class);
+
+  return toJsonValue({
+    runId: project.runSet.runId,
+    riskClass: project.currentRisk.risk_class,
+    phase: project.state.phase,
+    subPhase: project.state.sub_phase,
+    evidence,
+    finalization: project.runSet.finalization ?? null,
+    ledger,
+  }) as JsonObject;
+}
+
+async function readCurrentRunLedger(
+  projectRoot: string,
+  runId: string,
+): Promise<{
+  exists: boolean;
+  verified: boolean;
+  entryCount: number;
+  lastSequence: number | null;
+  lastEventHash: string | null;
+}> {
+  const ledgerDirectory = path.join(projectRoot, ".hima", "state", "ledger");
+  const ledgerPath = path.resolve(ledgerDirectory, `${runId}.jsonl`);
+
+  assertPathInside(path.resolve(ledgerDirectory), ledgerPath, "HIMA compliance ledger path");
+
+  try {
+    await access(ledgerPath);
+  } catch {
+    return {
+      exists: false,
+      verified: false,
+      entryCount: 0,
+      lastSequence: null,
+      lastEventHash: null,
+    };
+  }
+
+  const entries = await readLedger(projectRoot, runId);
+  const lastEntry = entries.at(-1);
+
+  return {
+    exists: true,
+    verified: verifyLedgerEntries(entries),
+    entryCount: entries.length,
+    lastSequence: lastEntry?.sequence ?? null,
+    lastEventHash: lastEntry?.eventHash ?? null,
+  };
 }
 
 async function assessRouteRuntimeBindingsTool(args: JsonObject): Promise<JsonObject> {
@@ -1692,6 +1797,34 @@ function gateInputSchema(): JsonObject {
       },
     },
     ["gateType"],
+  );
+}
+
+function riskClassificationInputSchema(): JsonObject {
+  return objectSchema(
+    {
+      files: arrayProperty("string", "Changed file paths."),
+      labels: arrayProperty("string", "Change labels."),
+      changeType: {
+        type: "string",
+        enum: [...CHANGE_TYPES],
+        description: "Canonical change type.",
+      },
+      diffContent: stringProperty("Optional diff content used for forcing-signal scans."),
+      diffLinesNet: numberProperty("Optional net line count for the diff."),
+      impactEstimate: estimateProperty("Optional impact estimate from 1 to 5."),
+      probabilityEstimate: estimateProperty("Optional probability estimate from 1 to 5."),
+      reposCount: numberProperty("Optional number of repositories affected."),
+      ciGreen: {
+        type: "boolean",
+        description: "Whether CI is green for bypass checks.",
+      },
+      newEndpointExposed: {
+        type: "boolean",
+        description: "Whether the change exposes a new endpoint.",
+      },
+    },
+    ["files", "labels", "changeType"],
   );
 }
 

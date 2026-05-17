@@ -234,7 +234,7 @@ describe("platform install", () => {
     expect(detection.checks.every((check) => check.status === "warn")).toBe(true);
   });
 
-  it("plans Codex hook registrations, missing markers, and codex_hooks feature flag", async () => {
+  it("plans Codex hook registrations, missing markers, and hooks feature flag", async () => {
     const result = await installPlatform({ projectRoot: root, target: "codex" });
     const hookActions = result.plannedActions.filter((action) => action.kind === "register_hook");
     const featureFlagActions = result.plannedActions.filter(
@@ -252,7 +252,7 @@ describe("platform install", () => {
     });
     expect(featureFlagActions).toEqual([
       expect.objectContaining({
-        featureFlag: "codex_hooks",
+        featureFlag: "hooks",
         value: true,
         dryRun: true,
       }),

@@ -1,4 +1,4 @@
-import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -21,7 +21,10 @@ import {
   type RiskClass,
   type RuntimeBinding,
   type RuntimeCapability,
+  readEventLog,
+  readLedger,
   readPlanningProject,
+  verifyLedgerEntries,
   writePlanningProject,
 } from "../src/index.js";
 import {
@@ -279,6 +282,8 @@ describe("convergence", () => {
     const currentRiskAfter = await readFile(paths.currentRiskFile, "utf8");
     const planningEntries = await readdir(paths.planningDir);
     const project = await readPlanningProject(root);
+    const eventsLog = await readEventLog(root);
+    const ledger = await readLedger(root, project.runSet.runId);
 
     expect(stateAfter).not.toBe(stateBefore);
     expect(stateAfter).toContain("status: closed");
@@ -298,6 +303,11 @@ describe("convergence", () => {
         runtimeBindingHealthy: true,
       },
     });
+    expect(eventsLog.map((event) => event.id)).toEqual(["close-1"]);
+    expect(
+      ledger.map((event) => event.payload).map((payload) => (payload as { id: string }).id),
+    ).toEqual(["close-1"]);
+    expect(verifyLedgerEntries(ledger)).toBe(true);
   });
 
   it("writes canonical blocked finalization details to run-set.json", async () => {
@@ -338,6 +348,25 @@ describe("convergence", () => {
     expect(second.event.id).toBe("close-1");
     expect(project.runSet.events.filter((event) => event.type === "RUN_CLOSED")).toHaveLength(1);
     expect(project.state.status).toBe("closed");
+  });
+
+  it("rejects already-finalized DONE_VERIFIED when evidence is no longer sufficient", async () => {
+    await writePlanningProject(root, {
+      ...projectForRisk("M", { withRuntime: true }),
+      state: {
+        ...projectForRisk("M", { withRuntime: true }).state,
+        status: "closing",
+      },
+      runSet: {
+        ...projectForRisk("M", { withRuntime: true }).runSet,
+        finalization: {
+          state: "DONE_VERIFIED",
+          gaps: [],
+        },
+      },
+    });
+
+    await expect(closeRun(root)).rejects.toThrow("Run invariant violated");
   });
 
   it("persists critical post_tool policy violations and blocks convergence", async () => {
@@ -412,6 +441,50 @@ describe("convergence", () => {
       finalState: "BLOCKED_POLICY",
     });
     expect(stop.reason).toContain("SECRET_IN_PLAINTEXT");
+  });
+
+  it("blocks stop and convergence when a post_tool falsifier policy event is unresolved", async () => {
+    await mkdir(path.join(root, "docs", "goals"), { recursive: true });
+    await writeFile(
+      path.join(root, "docs", "goals", "claim.md"),
+      `---
+claim-bearing: true
+---
+# Claim
+`,
+      "utf8",
+    );
+    await writePlanningProject(
+      root,
+      projectForRisk("M", { withEvidence: true, withRuntime: true }),
+    );
+
+    await handleHook(root, "post_tool", {
+      toolName: "write_file",
+      toolInput: { path: "docs/goals/claim.md" },
+      toolOutput: "claim file written",
+    });
+    const project = await readPlanningProject(root);
+    const evaluation = evaluateConvergence(project);
+    const stop = await handleHook(root, "stop", {});
+
+    expect(project.runSet.events.at(-1)?.payload).toMatchObject({
+      policyEvent: {
+        source: "post_tool",
+        status: "unresolved",
+        severity: "critical",
+        violationType: "MISSING_FALSIFIES_IF",
+        resolvableByEvidence: true,
+      },
+    });
+    expect(evaluation.finalizationRecommendation.finalState).toBe("BLOCKED_POLICY");
+    expect(evaluation.blockers[0]).toContain("MISSING_FALSIFIES_IF");
+    expect(stop).toMatchObject({
+      decision: "block",
+      violationType: "UNRESOLVED_POLICY_VIOLATION",
+      finalState: "BLOCKED_POLICY",
+    });
+    expect(stop.reason).toContain("MISSING_FALSIFIES_IF");
   });
 
   it("prioritizes critical policy blockers over runtime blockers in final state", async () => {

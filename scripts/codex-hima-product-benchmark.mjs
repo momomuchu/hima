@@ -180,7 +180,7 @@ async function runCodex(prompt) {
       "--dangerously-bypass-approvals-and-sandbox",
       "--ignore-user-config",
       "--enable",
-      "codex_hooks",
+      "hooks",
       "--json",
       "--output-last-message",
       finalMessageFile,

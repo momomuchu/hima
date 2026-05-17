@@ -59,8 +59,38 @@ function escapeRegExp(value: string): string {
 }
 
 function normalizeWriteTarget(value: string): string {
-  return value
+  const slashNormalized = value
     .replaceAll("\\", "/")
     .replace(/^\.\/+/, "")
     .toLowerCase();
+
+  return pathSafeNormalize(slashNormalized).replace(/^\.\/+/, "");
+}
+
+function pathSafeNormalize(value: string): string {
+  if (value.length === 0) {
+    return value;
+  }
+
+  const segments: string[] = [];
+
+  for (const segment of value.split("/")) {
+    if (segment.length === 0 || segment === ".") {
+      continue;
+    }
+
+    if (segment === "..") {
+      if (segments.length > 0 && segments.at(-1) !== "..") {
+        segments.pop();
+        continue;
+      }
+
+      segments.push(segment);
+      continue;
+    }
+
+    segments.push(segment);
+  }
+
+  return segments.join("/");
 }

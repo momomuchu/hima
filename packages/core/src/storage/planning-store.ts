@@ -1,11 +1,14 @@
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
+import { toDomainEventLogEntry } from "../domain/events.js";
 import { BASE_GATES, RISK_POLICY } from "../policy/baseline-policy.js";
 import { type CurrentRiskFile, CurrentRiskFileSchema } from "../schemas/current-risk.schema.js";
 import { type RunEvent, type RunSetFile, RunSetFileSchema } from "../schemas/run-set.schema.js";
 import { type PlanningStateFile, PlanningStateFileSchema } from "../schemas/state.schema.js";
 import { RISK_CLASS_RANK } from "../types/canonical.js";
+import { appendEventLogEntry } from "./events-log.js";
 import { withFileLock } from "./file-lock.js";
+import { appendLedgerEntry } from "./hash-chained-ledger.js";
 import { readJsonFile, writeJsonFile } from "./json.js";
 import { getPlanningPaths } from "./planning-paths.js";
 import { readYamlFile, writeYamlFile } from "./yaml.js";
@@ -111,18 +114,31 @@ export async function writePlanningProject(
   ]);
 }
 
-export async function appendRunEvent(projectRoot: string, event: RunEvent): Promise<RunSetFile> {
+export function appendRunEvent(projectRoot: string, event: RunEvent): Promise<RunSetFile>;
+export function appendRunEvent(
+  projectRoot: string,
+  event: RunEvent,
+  updateRunSet: ((runSet: RunSetFile) => RunSetFile) | undefined,
+): Promise<RunSetFile>;
+export async function appendRunEvent(
+  projectRoot: string,
+  event: RunEvent,
+  updateRunSet?: ((runSet: RunSetFile) => RunSetFile) | undefined,
+): Promise<RunSetFile> {
   const paths = getPlanningPaths(projectRoot);
   const lockDir = path.join(paths.planningDir, ".run-set.lock");
 
   return withFileLock(lockDir, async () => {
     const project = await readPlanningProject(projectRoot);
-    const runSet = {
+    const baseRunSet = {
       ...project.runSet,
       events: [...project.runSet.events, event],
     };
+    const runSet = updateRunSet ? updateRunSet(baseRunSet) : baseRunSet;
 
     await writeJsonFile(paths.runSetFile, runSet, RunSetFileSchema);
+    await appendEventLogEntry(projectRoot, toDomainEventLogEntry(project.runSet.runId, event));
+    await appendLedgerEntry(projectRoot, project.runSet.runId, event);
     return runSet;
   });
 }

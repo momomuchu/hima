@@ -119,8 +119,13 @@ export function runGenerator(opts: GeneratorOptions): GeneratorResult {
 
   // EMIT (staging only; skip on dry-run or any error)
   if (!opts.dryRun && passed) {
-    const here = dirname(fileURLToPath(import.meta.url));
-    const outDir = opts.outDir ?? join(here, "generated");
+    // import.meta.url resolves to dist/index.js at runtime.
+    // Walk up two levels (dist/ → package root) then into src/generated/
+    // so the staging artifact lands in the tracked source tree, not the
+    // ephemeral dist/ directory.
+    const distDir = dirname(fileURLToPath(import.meta.url));
+    const packageRoot = dirname(distDir); // dist/ → package root
+    const outDir = opts.outDir ?? join(packageRoot, "src", "generated");
     mkdirSync(outDir, { recursive: true });
 
     const catalogTs =

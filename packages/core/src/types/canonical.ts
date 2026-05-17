@@ -11,52 +11,10 @@ export const MACRO_CYCLES = [
 
 export type MacroCycle = (typeof MACRO_CYCLES)[number];
 
-export const SUB_PHASES = [
-  "Observer",
-  "Define",
-  "Design",
-  "Execute",
-  "Verify",
-  "Capitalize",
-  "Transmit",
-] as const;
-
-export type SubPhase = (typeof SUB_PHASES)[number];
-export const DEFAULT_SUB_PHASE = "Observer" satisfies SubPhase;
-
-export const RISK_CLASSES = ["T", "L", "M", "H", "C"] as const;
-export type RiskClass = (typeof RISK_CLASSES)[number];
-
-export const RISK_CLASS_RANK: Record<RiskClass, number> = {
-  T: 0,
-  L: 1,
-  M: 2,
-  H: 3,
-  C: 4,
-};
-
-export function compareRiskClass(a: RiskClass, b: RiskClass): number {
-  return RISK_CLASS_RANK[a] - RISK_CLASS_RANK[b];
-}
-
-export function riskAtLeast(current: RiskClass, minimum: RiskClass): boolean {
-  return compareRiskClass(current, minimum) >= 0;
-}
-
-export const OPERATING_MODES = ["bypass", "auto", "pairing"] as const;
-export type OperatingMode = (typeof OPERATING_MODES)[number];
-
-export const GATE_TYPES = [
-  "session_start",
-  "user_prompt",
-  "pre_tool",
-  "post_tool",
-  "stop",
-  "subagent_start",
-  "subagent_stop",
-] as const;
-
-export type GateType = (typeof GATE_TYPES)[number];
+export * from "./gate-type.js";
+export * from "./operating-mode.js";
+export * from "./risk-class.js";
+export * from "./subphase.js";
 
 export const GATE_DECISIONS = ["allow", "warn", "block"] as const;
 export type GateDecision = (typeof GATE_DECISIONS)[number];

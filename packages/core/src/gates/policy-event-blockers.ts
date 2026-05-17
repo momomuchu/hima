@@ -1,9 +1,5 @@
 import type { RunSetFile } from "../schemas/run-set.schema.js";
 
-const ALWAYS_BLOCKING_VIOLATIONS = new Set(["SECRET_IN_PLAINTEXT", "BYPASS_ATTEMPTED"]);
-
-const RESOLVABLE_BY_EVIDENCE = new Set(["DONE_WITHOUT_EVIDENCE", "MIGRATION_WITHOUT_ADR"]);
-
 function hasAcceptedEvidenceSince(runSet: RunSetFile, sinceTimestamp: string): boolean {
   return runSet.evidence.some(
     (item) => item.status === "accepted" && item.createdAt > sinceTimestamp,
@@ -23,22 +19,43 @@ export function getPolicyEventBlockers(runSet: RunSetFile): string[] {
       return [];
     }
 
-    const violationType = event.payload.violationType;
+    const policyEvent =
+      event.payload.policyEvent &&
+      typeof event.payload.policyEvent === "object" &&
+      !Array.isArray(event.payload.policyEvent)
+        ? (event.payload.policyEvent as Record<string, unknown>)
+        : undefined;
+    const violationType = policyEvent?.violationType ?? event.payload.violationType;
     if (typeof violationType !== "string") {
       return [];
     }
 
-    if (RESOLVABLE_BY_EVIDENCE.has(violationType)) {
+    if (policyEvent) {
+      if (policyEvent.status !== "unresolved" || policyEvent.severity !== "critical") {
+        return [];
+      }
+      if (hasAcceptedEvidenceSince(runSet, event.ts)) {
+        return policyEvent.resolvableByEvidence === true ? [] : blocker(event, violationType);
+      }
+
+      return blocker(event, violationType);
+    }
+
+    if (["DONE_WITHOUT_EVIDENCE", "MIGRATION_WITHOUT_ADR"].includes(violationType)) {
       if (hasAcceptedEvidenceSince(runSet, event.ts)) {
         return [];
       }
-    } else if (!ALWAYS_BLOCKING_VIOLATIONS.has(violationType)) {
+    } else if (!["SECRET_IN_PLAINTEXT", "BYPASS_ATTEMPTED"].includes(violationType)) {
       return [];
     }
 
-    const reason = event.reason ? `: ${event.reason}` : "";
-    return [`critical post_tool policy violation (${violationType})${reason}`];
+    return blocker(event, violationType);
   });
+}
+
+function blocker(event: RunSetFile["events"][number], violationType: string): string[] {
+  const reason = event.reason ? `: ${event.reason}` : "";
+  return [`critical post_tool policy violation (${violationType})${reason}`];
 }
 
 function getLatestDevelopmentEntryTimestamp(runSet: RunSetFile): string | undefined {

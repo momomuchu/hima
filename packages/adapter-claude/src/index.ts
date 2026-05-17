@@ -15,8 +15,11 @@ import {
   type RuntimeProfile,
   safeAtomicWriteFile,
 } from "@harness/core";
+import { type ClaudeHookBinding, getClaudeHookBindings } from "./hook-bindings.js";
 
 export const CLAUDE_SETTINGS_FILE = "settings.json";
+
+export { type ClaudeHookBinding, getClaudeHookBindings };
 
 export interface ClaudeSettingsPreview {
   target: "claude";
@@ -87,6 +90,7 @@ export function buildClaudeSettingsPreview(
 ): ClaudeSettingsPreview {
   const profile = getRuntimeProfile("claude");
   const digest = computeRuntimeProfileDigest("claude");
+  const hookBindings = getClaudeHookBindings();
   const bindings = buildRuntimeBindings(
     "claude",
     buildClaudeRuntimeCapability(profile),
@@ -100,22 +104,20 @@ export function buildClaudeSettingsPreview(
   return {
     target: "claude",
     bindings,
-    operations: GATE_TYPES.flatMap((gateType) => {
-      const hook = profile.hooks[gateType];
-
+    operations: hookBindings.flatMap((hook) => {
       return hook.supported && hook.nativeEvent
         ? [
             {
               kind: "append" as const,
               path: "settings.json.hooks" as const,
               value: {
-                gateType,
+                gateType: hook.gateType,
                 event: hook.nativeEvent,
                 matcher: "",
                 hooks: [
                   {
                     type: "command" as const,
-                    command: resolveHookCommand(hook.command, gateType, options),
+                    command: resolveHookCommand(hook.command, hook.gateType, options),
                   },
                 ],
               },

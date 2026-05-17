@@ -106,7 +106,9 @@ describe("runtime bindings", () => {
     });
 
     expect(Object.keys(bindings).sort()).toEqual([
+      "post_compact",
       "post_tool",
+      "pre_compact",
       "pre_tool",
       "session_start",
       "stop",
@@ -266,7 +268,13 @@ describe("runtime bindings", () => {
   it("blocks medium subagent gates when required bindings are absent", () => {
     const start = evaluateGate(riskContext("M"), {
       gateType: "subagent_start",
-      metadata: { scope: [".planning/01-discovery/notes.md"], depth: 1 },
+      metadata: {
+        agentId: "worker-a",
+        task: "Verify delegated work",
+        scope: [".planning/01-discovery/notes.md"],
+        depth: 1,
+        expectedEvidenceKeys: ["subagent_output"],
+      },
     });
     const base = riskContext("M");
     const stop = evaluateGate(

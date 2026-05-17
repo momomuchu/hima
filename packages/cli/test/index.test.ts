@@ -2,6 +2,7 @@ import { access, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promise
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
+import { fileURLToPath } from "node:url";
 import {
   computeRuntimeProfileDigest,
   DEFAULT_EVIDENCE_KEY,
@@ -14,16 +15,30 @@ import {
   RISK_CLASS_RANK,
   RISK_POLICY,
   readPlanningProject,
+  runLocalSiemFixture,
+  runLocalStressFixture,
   toHookCommand,
   writePlanningProject,
 } from "@harness/core";
 import { runCommand } from "citty";
 import { describe, expect, it } from "vitest";
 import {
+  assembleCompliancePackArtifact,
+  checkBenchmarkExecutionPreflight,
+  checkRuntimeParityExecutionPreflight,
   createDoctorReport,
+  formatBenchmarkAuthorizationValidationHuman,
+  formatBenchmarkAuthorizationWriteHuman,
+  formatBenchmarkExecutionPreflightHuman,
+  formatBenchmarkPlanHuman,
+  formatBenchmarkValidationHuman,
+  formatBenchmarkWriteHuman,
   formatCatalogArtifactsPlanHuman,
   formatCatalogHuman,
   formatCloseRunHuman,
+  formatCompliancePackAssembleHuman,
+  formatCompliancePackValidationHuman,
+  formatCompliancePackWriteHuman,
   formatConvergenceHuman,
   formatDoctorHuman,
   formatEnterDevelopmentHuman,
@@ -36,7 +51,14 @@ import {
   formatRuntimeBindHuman,
   formatRuntimeDigestHuman,
   formatRuntimeInspectHuman,
+  formatRuntimeParityAuthorizationValidationHuman,
+  formatRuntimeParityAuthorizationWriteHuman,
+  formatRuntimeParityExecutionPreflightHuman,
+  formatRuntimeParityFixturesHuman,
+  formatSelfTestHuman,
+  formatSiemFixtureHuman,
   formatStatusHuman,
+  formatStressFixtureHuman,
   generateCatalogArtifactsPlan,
   getCliCommandSurface,
   main,
@@ -44,7 +66,28 @@ import {
   parseHookEvent,
   parseRiskClassifyArgs,
   parseRuntimeHooksJson,
+  planBenchmarkRun,
+  runLocalSelfTest,
+  validateBenchmarkAuthorizationFile,
+  validateBenchmarkResultFile,
+  validateCompliancePackFile,
+  validateRuntimeParityAuthorizationFile,
+  validateRuntimeParityFixtures,
+  writeBenchmarkAuthorizationArtifact,
+  writeBenchmarkResultArtifact,
+  writeCompliancePackArtifact,
+  writeRuntimeParityAuthorizationArtifact,
 } from "../src/index.js";
+
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+const benchmarkFixtureRoot = path.join(repoRoot, "fixtures", "benchmark-results");
+const runtimeParityFixtureRoot = path.join(repoRoot, "fixtures", "runtime-parity", "synthetic");
+
+async function writeLocalSiemFixtureReference(root: string, runId: string): Promise<string> {
+  const result = await runLocalSiemFixture({ root, runId, iterations: 1 });
+
+  return path.relative(root, result.fixtureFile);
+}
 
 function markdownSection(markdown: string, heading: string): string {
   const start = markdown.indexOf(heading);
@@ -649,8 +692,1244 @@ describe("CLI install and inspection commands", () => {
       const configFile = path.join(root, ".codex", "config.toml");
 
       await expectPathPresent(configFile);
-      expect(await readFile(configFile, "utf8")).toContain("codex_hooks = true");
+      expect(await readFile(configFile, "utf8")).toContain("hooks = true");
       expect(output).toContain("Applied target : codex");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("dispatches install apply through adapter-owned install metadata", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-install-dispatch-"));
+
+    try {
+      const output = await captureConsole(() =>
+        runCommand(main, { rawArgs: ["install", "codex", "--root", root, "--apply", "--json"] }),
+      );
+      const result = JSON.parse(output);
+
+      expect(result.applied).toMatchObject({
+        target: "codex",
+        hooksAdded: GATE_TYPES.length - 2,
+        plan: {
+          target: "codex",
+          hooksPlanned: GATE_TYPES.length - 2,
+        },
+      });
+      expect(result.applied.plan.systemPromptFile).toContain(path.join("src", "system-prompt.md"));
+      expect(
+        result.applied.plan.unsupportedHooks.map(
+          (binding: { gateType: string }) => binding.gateType,
+        ),
+      ).toEqual(["subagent_start", "subagent_stop"]);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("runs local self-test without launching external runtime sessions", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-self-test-"));
+
+    try {
+      const output = await captureConsole(() =>
+        runCommand(main, { rawArgs: ["self-test", "--root", root, "--json"] }),
+      );
+      const result = JSON.parse(output);
+
+      expect(result.ok).toBe(true);
+      expect(result.externalRuntimeSessionsLaunched).toBe(false);
+      expect(result.targets.map((target: { target: string }) => target.target)).toEqual([
+        "claude",
+        "codex",
+        "hermes",
+      ]);
+      expect(
+        result.targets.every(
+          (target: { runtimeExecution: { status: string } }) =>
+            target.runtimeExecution.status === "blocked_by_design",
+        ),
+      ).toBe(true);
+      expect(
+        result.targets.find((target: { target: string }) => target.target === "codex").install
+          .unsupportedHooks,
+      ).toEqual(["subagent_start", "subagent_stop"]);
+      await expectPathMissing(path.join(root, ".codex", "config.toml"));
+      await expectPathMissing(path.join(root, ".planning", "install-manifest.json"));
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("formats self-test as blocked local preflight rather than runtime execution", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-self-test-format-"));
+
+    try {
+      const result = await runLocalSelfTest({ root, target: "codex" });
+      const formatted = formatSelfTestHuman(result);
+
+      expect(result.externalRuntimeSessionsLaunched).toBe(false);
+      expect(result.targets).toHaveLength(1);
+      expect(formatted).toContain("External runtime sessions    : not launched");
+      expect(formatted).toContain("runtime=blocked_by_design");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("runs a local stress fixture without launching external runtime sessions", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-stress-fixture-"));
+
+    try {
+      const output = await captureConsole(() =>
+        runCommand(main, {
+          rawArgs: [
+            "stress-fixture",
+            "--root",
+            root,
+            "--runId",
+            "stress-cli-001",
+            "--iterations",
+            "100",
+            "--json",
+          ],
+        }),
+      );
+      const result = JSON.parse(output);
+
+      expect(result).toMatchObject({
+        ok: true,
+        runId: "stress-cli-001",
+        iterations: 100,
+        ledgerEntries: 100,
+        driftDetected: true,
+        externalSessionsLaunched: false,
+        validation: {
+          ledgerValid: true,
+          sequenceValid: true,
+          transitionOrderValid: true,
+        },
+      });
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("formats local stress fixture output as local-only evidence", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-stress-fixture-format-"));
+
+    try {
+      const result = await runLocalStressFixture({
+        root,
+        runId: "stress-format",
+        iterations: 5,
+      });
+      const formatted = formatStressFixtureHuman(result);
+
+      expect(formatted).toContain("Local stress fixture");
+      expect(formatted).toContain("Drift detected              : yes");
+      expect(formatted).toContain("External sessions            : not launched");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("writes local SIEM ingest fixture records without external transmission", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-siem-fixture-"));
+
+    try {
+      const output = await captureConsole(() =>
+        runCommand(main, {
+          rawArgs: [
+            "siem-fixture",
+            "--root",
+            root,
+            "--runId",
+            "siem-cli-001",
+            "--iterations",
+            "5",
+            "--json",
+          ],
+        }),
+      );
+      const result = JSON.parse(output);
+
+      expect(result).toMatchObject({
+        ok: true,
+        runId: "siem-cli-001",
+        records: 5,
+        ledgerValid: true,
+        externalTransmissions: false,
+        externalSessionsLaunched: false,
+      });
+      await access(result.fixtureFile);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("formats local SIEM fixture output as local-only ingest evidence", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-siem-fixture-format-"));
+
+    try {
+      const result = await runLocalSiemFixture({
+        root,
+        runId: "siem-format",
+        iterations: 2,
+      });
+      const formatted = formatSiemFixtureHuman(result);
+
+      expect(formatted).toContain("Local SIEM ingest fixture");
+      expect(formatted).toContain("External transmissions       : not sent");
+      expect(formatted).toContain("External sessions            : not launched");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("validates synthetic runtime parity fixtures without launching external sessions", async () => {
+    const output = await captureConsole(() =>
+      runCommand(main, {
+        rawArgs: [
+          "runtime",
+          "parity-fixture-validate",
+          "--root",
+          repoRoot,
+          "--fixturesDir",
+          path.join("fixtures", "runtime-parity", "synthetic"),
+          "--json",
+        ],
+      }),
+    );
+    const result = JSON.parse(output);
+
+    expect(result).toMatchObject({
+      ok: true,
+      parity: "pass",
+      fixtureScope: "synthetic_not_real_runtime",
+      expectedTargets: ["claude", "codex", "hermes"],
+      observedTargets: ["claude", "codex", "hermes"],
+      externalSessionsLaunched: false,
+    });
+  });
+
+  it("fails synthetic runtime parity validation when a target fixture is missing", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-runtime-parity-missing-"));
+
+    try {
+      const fixtureDir = path.join(root, "fixtures");
+      await mkdir(fixtureDir, { recursive: true });
+      for (const fixtureName of ["claude.json", "codex.json"]) {
+        await writeFile(
+          path.join(fixtureDir, fixtureName),
+          await readFile(path.join(runtimeParityFixtureRoot, fixtureName), "utf8"),
+          "utf8",
+        );
+      }
+
+      const result = await validateRuntimeParityFixtures({
+        root,
+        fixturesDir: "fixtures",
+      });
+
+      expect(result.ok).toBe(false);
+      expect(result.parity).toBe("fail");
+      expect(result.errors).toContain("Missing runtime parity fixture for target hermes.");
+      expect(result.externalSessionsLaunched).toBe(false);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("fails synthetic runtime parity validation when governance fields drift", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-runtime-parity-drift-"));
+
+    try {
+      const fixtureDir = path.join(root, "fixtures");
+      await mkdir(fixtureDir, { recursive: true });
+
+      for (const fixtureName of ["claude.json", "codex.json", "hermes.json"]) {
+        const fixture = JSON.parse(
+          await readFile(path.join(runtimeParityFixtureRoot, fixtureName), "utf8"),
+        );
+        if (fixture.runtimeTarget === "hermes") {
+          fixture.governance.requiredEvidenceKeys = ["hook_decision"];
+        }
+
+        await writeFile(path.join(fixtureDir, fixtureName), JSON.stringify(fixture), "utf8");
+      }
+
+      const result = await validateRuntimeParityFixtures({
+        root,
+        fixturesDir: "fixtures",
+      });
+
+      expect(result.ok).toBe(false);
+      expect(result.errors.join("\n")).toContain("Governance parity mismatch for target hermes");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("formats runtime parity fixture validation as synthetic local evidence only", async () => {
+    const result = await validateRuntimeParityFixtures({
+      root: repoRoot,
+      fixturesDir: path.join("fixtures", "runtime-parity", "synthetic"),
+    });
+    const formatted = formatRuntimeParityFixturesHuman(result);
+
+    expect(formatted).toContain("Parity                      : pass");
+    expect(formatted).toContain("Fixture scope               : synthetic_not_real_runtime");
+    expect(formatted).toContain("External sessions           : not launched");
+  });
+
+  it("writes blocked runtime parity authorization and keeps execution preflight closed", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-runtime-parity-auth-blocked-"));
+
+    try {
+      const output = await captureConsole(() =>
+        runCommand(main, {
+          rawArgs: [
+            "runtime",
+            "parity-authorization",
+            "write",
+            "--status",
+            "blocked",
+            "--scenarioId",
+            "small-feature",
+            "--targets",
+            "claude,codex,hermes",
+            "--blockReason",
+            "Runtime/model execution is not authorized.",
+            "--root",
+            root,
+            "--json",
+          ],
+        }),
+      );
+      const result = JSON.parse(output);
+
+      expect(result).toMatchObject({
+        ok: true,
+        executionAllowed: false,
+        externalSessionsLaunched: false,
+        authorization: {
+          kind: "real-runtime-parity-authorization",
+          status: "blocked",
+          scenarioId: "small-feature",
+          runtimeTargets: ["claude", "codex", "hermes"],
+          authorizationBoundary:
+            "explicit_authorization_required_before_real_runtime_parity_execution",
+        },
+      });
+
+      const preflight = await checkRuntimeParityExecutionPreflight({ root });
+      expect(preflight.executionAllowed).toBe(false);
+      expect(preflight.status).toBe("blocked");
+      expect(preflight.externalSessionsLaunched).toBe(false);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps runtime parity execution preflight closed when authorization is absent", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-runtime-parity-auth-absent-"));
+
+    try {
+      const preflight = await checkRuntimeParityExecutionPreflight({ root });
+
+      expect(preflight.executionAllowed).toBe(false);
+      expect(preflight.status).toBe("absent");
+      expect(preflight.reason).toContain("authorization artifact is absent");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects runtime parity authorization without all targets", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-runtime-parity-auth-targets-"));
+
+    try {
+      await expect(
+        writeRuntimeParityAuthorizationArtifact({
+          root,
+          status: "blocked",
+          scenarioId: "small-feature",
+          targets: "claude,codex",
+          blockReason: "Hermes is unavailable.",
+        }),
+      ).rejects.toThrow("Runtime parity authorization requires all targets");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects authorized runtime parity execution without cost credential and retention fields", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-runtime-parity-auth-missing-"));
+
+    try {
+      await expect(
+        writeRuntimeParityAuthorizationArtifact({
+          root,
+          status: "authorized",
+          scenarioId: "small-feature",
+          targets: "claude,codex,hermes",
+        }),
+      ).rejects.toThrow("Authorized runtime parity execution requires authorizedBy");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("validates explicit runtime parity authorization without launching execution", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-runtime-parity-auth-authorized-"));
+
+    try {
+      const result = await writeRuntimeParityAuthorizationArtifact({
+        root,
+        status: "authorized",
+        scenarioId: "small-feature",
+        targets: "claude,codex,hermes",
+        authorizedBy: "founder",
+        authorizationId: "runtime-parity-auth-001",
+        costBudgetUsd: "25",
+        credentialScope: "local-runtime-cli",
+        evidenceRetentionPath: ".planning/runtime-parity/evidence/",
+        transcriptRetentionPath: ".planning/runtime-parity/transcripts/",
+      });
+      const validation = await validateRuntimeParityAuthorizationFile(result.file);
+      const preflight = await checkRuntimeParityExecutionPreflight({ root });
+
+      expect(validation.executionAllowed).toBe(true);
+      expect(validation.runtimeTargets).toEqual(["claude", "codex", "hermes"]);
+      expect(preflight.executionAllowed).toBe(true);
+      expect(preflight.externalSessionsLaunched).toBe(false);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("formats runtime parity authorization and preflight as local gates only", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-runtime-parity-auth-format-"));
+
+    try {
+      const writeResult = await writeRuntimeParityAuthorizationArtifact({
+        root,
+        status: "blocked",
+        scenarioId: "small-feature",
+        targets: "claude,codex,hermes",
+        blockReason: "Runtime/model execution is not authorized.",
+      });
+      const validation = await validateRuntimeParityAuthorizationFile(writeResult.file);
+      const preflight = await checkRuntimeParityExecutionPreflight({ root });
+
+      expect(formatRuntimeParityAuthorizationWriteHuman(writeResult)).toContain(
+        "Execution allowed            : no",
+      );
+      expect(formatRuntimeParityAuthorizationValidationHuman(validation)).toContain(
+        "External sessions            : not launched",
+      );
+      expect(formatRuntimeParityExecutionPreflightHuman(preflight)).toContain(
+        "Status                       : blocked",
+      );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("plans benchmarks without launching external sessions", async () => {
+    const output = await captureConsole(() =>
+      runCommand(main, { rawArgs: ["benchmark", "plan", "--instances", "12", "--json"] }),
+    );
+    const result = JSON.parse(output);
+
+    expect(result).toMatchObject({
+      ok: true,
+      suite: "swe-bench-verified",
+      requestedInstances: 12,
+      executionMode: "dry_run_plan",
+      willLaunchExternalSessions: false,
+      requiresExplicitAuthorization: true,
+      status: "blocked_until_authorized",
+    });
+    expect(result.requiredEvidence).toContain("token_or_cost_accounting");
+  });
+
+  it("formats benchmark plans as authorization-blocked dry-runs", () => {
+    const plan = planBenchmarkRun({ instances: "3" });
+    const formatted = formatBenchmarkPlanHuman(plan);
+
+    expect(plan.willLaunchExternalSessions).toBe(false);
+    expect(formatted).toContain("External sessions            : not launched");
+    expect(formatted).toContain("Requires authorization       : yes");
+  });
+
+  it("rejects benchmark plans outside the approved instance range", () => {
+    expect(() => planBenchmarkRun({ instances: "0" })).toThrow(
+      "instances must be an integer between 1 and 20",
+    );
+    expect(() => planBenchmarkRun({ instances: "21" })).toThrow(
+      "instances must be an integer between 1 and 20",
+    );
+  });
+
+  it("validates benchmark result files without executing benchmarks", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-benchmark-validate-"));
+    const file = path.join(root, "planned-result.json");
+    await writeFile(
+      file,
+      JSON.stringify({
+        schemaVersion: 1,
+        suite: "swe-bench-verified",
+        status: "planned",
+        instanceId: "swe-verified-001",
+        runtimeTarget: "codex",
+        createdAt: "2026-05-14T23:59:00.000Z",
+      }),
+      "utf8",
+    );
+
+    try {
+      const output = await captureConsole(() =>
+        runCommand(main, { rawArgs: ["benchmark", "validate", file, "--json"] }),
+      );
+      const result = JSON.parse(output);
+
+      expect(result).toMatchObject({
+        ok: true,
+        file,
+        suite: "swe-bench-verified",
+        status: "planned",
+        instanceId: "swe-verified-001",
+        runtimeTarget: "codex",
+        externalSessionsLaunched: false,
+      });
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects fake executed benchmark result files", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-benchmark-invalid-"));
+    const file = path.join(root, "fake-executed-result.json");
+    await writeFile(
+      file,
+      JSON.stringify({
+        schemaVersion: 1,
+        suite: "swe-bench-verified",
+        status: "executed",
+        instanceId: "swe-verified-001",
+        runtimeTarget: "codex",
+        createdAt: "2026-05-14T23:59:00.000Z",
+      }),
+      "utf8",
+    );
+
+    try {
+      await expect(validateBenchmarkResultFile(file)).rejects.toThrow(
+        "Executed benchmark results require baselineTranscriptPath",
+      );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("formats benchmark validation as local validation only", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-benchmark-format-"));
+    const file = path.join(root, "blocked-result.json");
+    await writeFile(
+      file,
+      JSON.stringify({
+        schemaVersion: 1,
+        suite: "swe-bench-verified",
+        status: "blocked",
+        instanceId: "swe-verified-002",
+        runtimeTarget: "claude",
+        createdAt: "2026-05-14T23:59:00.000Z",
+        blockReason: "Runtime spend not authorized.",
+      }),
+      "utf8",
+    );
+
+    try {
+      const result = await validateBenchmarkResultFile(file);
+      const formatted = formatBenchmarkValidationHuman(result);
+
+      expect(result.externalSessionsLaunched).toBe(false);
+      expect(formatted).toContain("External sessions            : not launched");
+      expect(formatted).toContain("Status                       : blocked");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("validates canonical benchmark result fixtures through the CLI validator", async () => {
+    for (const [fixtureName, expectedStatus] of [
+      ["planned.json", "planned"],
+      ["blocked.json", "blocked"],
+      ["executed-valid.json", "executed"],
+    ] as const) {
+      const fixturePath = path.join(benchmarkFixtureRoot, fixtureName);
+      const output = await captureConsole(() =>
+        runCommand(main, { rawArgs: ["benchmark", "validate", fixturePath, "--json"] }),
+      );
+      const result = JSON.parse(output);
+
+      expect(result.status).toBe(expectedStatus);
+      expect(result.externalSessionsLaunched).toBe(false);
+    }
+  });
+
+  it("rejects the canonical fake executed benchmark fixture through the validator", async () => {
+    const fixturePath = path.join(benchmarkFixtureRoot, "executed-invalid-fake.json");
+
+    await expect(validateBenchmarkResultFile(fixturePath)).rejects.toThrow(
+      "Executed benchmark results require baselineTranscriptPath",
+    );
+  });
+
+  it("writes planned benchmark result artifacts that validate without executing benchmarks", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-benchmark-write-"));
+
+    try {
+      const output = await captureConsole(() =>
+        runCommand(main, {
+          rawArgs: [
+            "benchmark",
+            "write",
+            "--status",
+            "planned",
+            "--instanceId",
+            "swe-fixture-001",
+            "--target",
+            "codex",
+            "--root",
+            root,
+            "--json",
+          ],
+        }),
+      );
+      const result = JSON.parse(output);
+
+      expect(result).toMatchObject({
+        ok: true,
+        externalSessionsLaunched: false,
+        result: {
+          suite: "swe-bench-verified",
+          status: "planned",
+          instanceId: "swe-fixture-001",
+          runtimeTarget: "codex",
+        },
+      });
+      expect(result.file).toBe(
+        path.join(
+          root,
+          ".planning",
+          "benchmarks",
+          "swe-bench-verified",
+          "codex",
+          "swe-fixture-001.planned.json",
+        ),
+      );
+
+      const validation = await validateBenchmarkResultFile(result.file);
+      expect(validation.externalSessionsLaunched).toBe(false);
+      expect(validation.status).toBe("planned");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects blocked benchmark writes without a block reason", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-benchmark-blocked-"));
+
+    try {
+      await expect(
+        writeBenchmarkResultArtifact({
+          root,
+          status: "blocked",
+          instanceId: "swe-fixture-002",
+          target: "codex",
+        }),
+      ).rejects.toThrow("Blocked benchmark results require blockReason");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("does not offer executed benchmark writes through the local persistence command", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-benchmark-executed-"));
+
+    try {
+      await expect(
+        writeBenchmarkResultArtifact({
+          root,
+          status: "executed",
+          instanceId: "swe-fixture-003",
+          target: "codex",
+        }),
+      ).rejects.toThrow("benchmark write status must be planned or blocked");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects benchmark instance ids that could escape the persistence location", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-benchmark-instance-id-"));
+
+    try {
+      await expect(
+        writeBenchmarkResultArtifact({
+          root,
+          status: "planned",
+          instanceId: "../bad",
+          target: "codex",
+        }),
+      ).rejects.toThrow("benchmark instanceId may contain only");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("formats benchmark writes as local persistence only", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-benchmark-write-format-"));
+
+    try {
+      const result = await writeBenchmarkResultArtifact({
+        root,
+        status: "blocked",
+        instanceId: "swe-fixture-004",
+        target: "codex",
+        blockReason: "External benchmark spend is not authorized.",
+      });
+      const formatted = formatBenchmarkWriteHuman(result);
+
+      expect(result.externalSessionsLaunched).toBe(false);
+      expect(formatted).toContain("Status                       : blocked");
+      expect(formatted).toContain("External sessions            : not launched");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("writes blocked benchmark authorization and keeps execution preflight closed", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-benchmark-auth-blocked-"));
+
+    try {
+      const output = await captureConsole(() =>
+        runCommand(main, {
+          rawArgs: [
+            "benchmark",
+            "authorization",
+            "write",
+            "--status",
+            "blocked",
+            "--instances",
+            "10",
+            "--targets",
+            "codex",
+            "--blockReason",
+            "Runtime/model spend is not authorized.",
+            "--root",
+            root,
+            "--json",
+          ],
+        }),
+      );
+      const result = JSON.parse(output);
+
+      expect(result).toMatchObject({
+        ok: true,
+        executionAllowed: false,
+        externalSessionsLaunched: false,
+        authorization: {
+          suite: "swe-bench-verified",
+          status: "blocked",
+          requestedInstances: 10,
+          runtimeTargets: ["codex"],
+          authorizationBoundary: "explicit_authorization_required_before_execution",
+        },
+      });
+
+      const preflight = await checkBenchmarkExecutionPreflight({ root });
+      expect(preflight.executionAllowed).toBe(false);
+      expect(preflight.status).toBe("blocked");
+      expect(preflight.externalSessionsLaunched).toBe(false);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps benchmark execution preflight closed when authorization is absent", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-benchmark-auth-absent-"));
+
+    try {
+      const preflight = await checkBenchmarkExecutionPreflight({ root });
+
+      expect(preflight.executionAllowed).toBe(false);
+      expect(preflight.status).toBe("absent");
+      expect(preflight.reason).toContain("authorization artifact is absent");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects authorized benchmark execution without cost credential and retention fields", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-benchmark-auth-missing-"));
+
+    try {
+      await expect(
+        writeBenchmarkAuthorizationArtifact({
+          root,
+          status: "authorized",
+          instances: "10",
+          targets: "codex",
+        }),
+      ).rejects.toThrow("Authorized benchmark execution requires authorizedBy");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("validates explicit benchmark authorization without launching execution", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-benchmark-auth-authorized-"));
+
+    try {
+      const result = await writeBenchmarkAuthorizationArtifact({
+        root,
+        status: "authorized",
+        instances: "2",
+        targets: "codex,claude",
+        authorizedBy: "founder",
+        authorizationId: "auth-001",
+        costBudgetUsd: "25",
+        credentialScope: "local-runtime-cli",
+        evidenceRetentionPath: ".planning/benchmarks/evidence/",
+        transcriptRetentionPath: ".planning/benchmarks/transcripts/",
+      });
+      const validation = await validateBenchmarkAuthorizationFile(result.file);
+      const preflight = await checkBenchmarkExecutionPreflight({ root });
+
+      expect(validation.executionAllowed).toBe(true);
+      expect(validation.runtimeTargets).toEqual(["codex", "claude"]);
+      expect(preflight.executionAllowed).toBe(true);
+      expect(preflight.externalSessionsLaunched).toBe(false);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("formats benchmark authorization and preflight as local gates only", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-benchmark-auth-format-"));
+
+    try {
+      const writeResult = await writeBenchmarkAuthorizationArtifact({
+        root,
+        status: "blocked",
+        instances: "3",
+        targets: "codex",
+        blockReason: "Runtime/model spend is not authorized.",
+      });
+      const validation = await validateBenchmarkAuthorizationFile(writeResult.file);
+      const preflight = await checkBenchmarkExecutionPreflight({ root });
+
+      expect(formatBenchmarkAuthorizationWriteHuman(writeResult)).toContain(
+        "Execution allowed            : no",
+      );
+      expect(formatBenchmarkAuthorizationValidationHuman(validation)).toContain(
+        "External sessions            : not launched",
+      );
+      expect(formatBenchmarkExecutionPreflightHuman(preflight)).toContain(
+        "Status                       : blocked",
+      );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("writes draft compliance packs that validate without executing runtimes", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-compliance-pack-write-"));
+
+    try {
+      const output = await captureConsole(() =>
+        runCommand(main, {
+          rawArgs: [
+            "compliance-pack",
+            "write",
+            "--status",
+            "draft",
+            "--sessionId",
+            "session-001",
+            "--target",
+            "codex",
+            "--riskClassificationPath",
+            ".planning/current-risk.json",
+            "--runSetPath",
+            ".planning/run-set.json",
+            "--ledgerPath",
+            ".planning/ledger/session-001.jsonl",
+            "--runtimeEvidencePath",
+            "docs/excellence-application/05-architecture/runtime-session-evidence/cycle-30/preflight.json",
+            "--root",
+            root,
+            "--json",
+          ],
+        }),
+      );
+      const result = JSON.parse(output);
+
+      expect(result).toMatchObject({
+        ok: true,
+        externalSessionsLaunched: false,
+        pack: {
+          kind: "developer-session-compliance-pack",
+          status: "draft",
+          sessionId: "session-001",
+          runtimeTarget: "codex",
+          claimBoundary: "evidence_pack_not_compliance_certification",
+        },
+      });
+      expect(result.file).toBe(
+        path.join(root, ".planning", "compliance-packs", "session-001.draft.json"),
+      );
+
+      const validation = await validateCompliancePackFile(result.file);
+      expect(validation.externalSessionsLaunched).toBe(false);
+      expect(validation.status).toBe("draft");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("writes blocked compliance packs with explicit unavailable evidence", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-compliance-pack-blocked-"));
+
+    try {
+      const result = await writeCompliancePackArtifact({
+        root,
+        status: "blocked",
+        sessionId: "session-002",
+        target: "codex",
+        blockReason: "Real runtime session evidence is not authorized.",
+        unavailableEvidence: "runtime-session-transcript,benchmark-result",
+      });
+
+      expect(result.pack.status).toBe("blocked");
+      expect(result.pack.unavailableEvidence).toEqual([
+        "runtime-session-transcript",
+        "benchmark-result",
+      ]);
+      expect((await validateCompliancePackFile(result.file)).status).toBe("blocked");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects draft compliance pack writes with missing evidence references", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-compliance-pack-missing-"));
+
+    try {
+      await expect(
+        writeCompliancePackArtifact({
+          root,
+          status: "draft",
+          sessionId: "session-003",
+          target: "codex",
+          runSetPath: ".planning/run-set.json",
+        }),
+      ).rejects.toThrow("draft compliance packs require evidenceReferences.riskClassificationPath");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("does not offer assembled compliance pack writes through the local skeleton command", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-compliance-pack-assembled-"));
+
+    try {
+      await expect(
+        writeCompliancePackArtifact({
+          root,
+          status: "assembled",
+          sessionId: "session-004",
+          target: "codex",
+        }),
+      ).rejects.toThrow("compliance pack write status must be draft or blocked");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects compliance pack session ids that could escape the persistence location", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-compliance-pack-session-id-"));
+
+    try {
+      await expect(
+        writeCompliancePackArtifact({
+          root,
+          status: "blocked",
+          sessionId: "../session",
+          target: "codex",
+          blockReason: "Runtime evidence missing.",
+        }),
+      ).rejects.toThrow("compliance pack sessionId may contain only");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects fake compliance certification claims", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-compliance-pack-fake-"));
+    const file = path.join(root, "fake-compliant.json");
+    await writeFile(
+      file,
+      JSON.stringify({
+        schemaVersion: 1,
+        kind: "developer-session-compliance-pack",
+        status: "draft",
+        sessionId: "session-005",
+        runtimeTarget: "codex",
+        createdAt: "2026-05-14T23:59:00.000Z",
+        claimBoundary: "eu_ai_act_compliant",
+        evidenceReferences: {
+          riskClassificationPath: ".planning/current-risk.json",
+          runSetPath: ".planning/run-set.json",
+          ledgerPath: ".planning/ledger/session-005.jsonl",
+          runtimeEvidencePath: "runtime-evidence.json",
+        },
+      }),
+      "utf8",
+    );
+
+    try {
+      await expect(validateCompliancePackFile(file)).rejects.toThrow("claimBoundary");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("formats compliance pack validation and writes as local-only surfaces", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-compliance-pack-format-"));
+
+    try {
+      const writeResult = await writeCompliancePackArtifact({
+        root,
+        status: "blocked",
+        sessionId: "session-006",
+        target: "codex",
+        blockReason: "Runtime evidence missing.",
+      });
+      const validationResult = await validateCompliancePackFile(writeResult.file);
+
+      expect(formatCompliancePackWriteHuman(writeResult)).toContain(
+        "External sessions            : not launched",
+      );
+      expect(formatCompliancePackValidationHuman(validationResult)).toContain(
+        "Claim boundary               : evidence_pack_not_compliance_certification",
+      );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("assembles compliance packs only after local evidence references exist", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-compliance-pack-assemble-"));
+    const references = {
+      riskClassificationPath: ".planning/current-risk.json",
+      runSetPath: ".planning/run-set.json",
+      ledgerPath: ".planning/ledger/session-007.jsonl",
+      runtimeEvidencePath: "evidence/runtime.json",
+      benchmarkResultPath: "evidence/benchmark.json",
+      complianceMappingPath: "evidence/mapping.json",
+      siemFixturePath: await writeLocalSiemFixtureReference(root, "session-007-siem"),
+    };
+
+    try {
+      for (const [name, referencePath] of Object.entries(references)) {
+        if (name === "siemFixturePath") {
+          continue;
+        }
+
+        const absolutePath = path.join(root, referencePath);
+        await mkdir(path.dirname(absolutePath), { recursive: true });
+        await writeFile(absolutePath, "{}", "utf8");
+      }
+
+      const output = await captureConsole(() =>
+        runCommand(main, {
+          rawArgs: [
+            "compliance-pack",
+            "assemble",
+            "--sessionId",
+            "session-007",
+            "--target",
+            "codex",
+            "--riskClassificationPath",
+            references.riskClassificationPath,
+            "--runSetPath",
+            references.runSetPath,
+            "--ledgerPath",
+            references.ledgerPath,
+            "--runtimeEvidencePath",
+            references.runtimeEvidencePath,
+            "--benchmarkResultPath",
+            references.benchmarkResultPath,
+            "--complianceMappingPath",
+            references.complianceMappingPath,
+            "--siemFixturePath",
+            references.siemFixturePath,
+            "--root",
+            root,
+            "--json",
+          ],
+        }),
+      );
+      const result = JSON.parse(output);
+
+      expect(result).toMatchObject({
+        ok: true,
+        externalSessionsLaunched: false,
+        pack: {
+          status: "assembled",
+          sessionId: "session-007",
+          claimBoundary: "evidence_pack_not_compliance_certification",
+        },
+      });
+      expect(result.verifiedEvidencePaths).toHaveLength(7);
+      expect((await validateCompliancePackFile(result.file)).status).toBe("assembled");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects assembled compliance packs when required evidence files are missing", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-compliance-pack-missing-ref-"));
+
+    try {
+      await expect(
+        assembleCompliancePackArtifact({
+          root,
+          sessionId: "session-008",
+          target: "codex",
+          riskClassificationPath: ".planning/current-risk.json",
+          runSetPath: ".planning/run-set.json",
+          ledgerPath: ".planning/ledger/session-008.jsonl",
+          runtimeEvidencePath: "evidence/runtime.json",
+          benchmarkResultPath: "evidence/benchmark.json",
+          complianceMappingPath: "evidence/mapping.json",
+          siemFixturePath: "evidence/siem.json",
+        }),
+      ).rejects.toThrow("Missing compliance pack evidence reference riskClassificationPath");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects compliance pack SIEM fixture references that claim external transmission", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-compliance-pack-bad-siem-"));
+    const validSiemPath = await writeLocalSiemFixtureReference(root, "session-009-siem");
+    const invalidSiemPath = "evidence/siem-external.json";
+    const references = {
+      riskClassificationPath: ".planning/current-risk.json",
+      runSetPath: ".planning/run-set.json",
+      ledgerPath: ".planning/ledger/session-009.jsonl",
+      runtimeEvidencePath: "evidence/runtime.json",
+      benchmarkResultPath: "evidence/benchmark.json",
+      complianceMappingPath: "evidence/mapping.json",
+      siemFixturePath: invalidSiemPath,
+    };
+
+    try {
+      for (const [name, referencePath] of Object.entries(references)) {
+        if (name === "siemFixturePath") {
+          continue;
+        }
+
+        const absolutePath = path.join(root, referencePath);
+        await mkdir(path.dirname(absolutePath), { recursive: true });
+        await writeFile(absolutePath, "{}", "utf8");
+      }
+
+      const invalidSiemFile = path.join(root, invalidSiemPath);
+      await mkdir(path.dirname(invalidSiemFile), { recursive: true });
+      const fixture = JSON.parse(await readFile(path.join(root, validSiemPath), "utf8"));
+      await writeFile(
+        invalidSiemFile,
+        JSON.stringify({ ...fixture, externalTransmissions: true }, null, 2),
+        "utf8",
+      );
+
+      await expect(
+        assembleCompliancePackArtifact({
+          root,
+          sessionId: "session-009",
+          target: "codex",
+          ...references,
+        }),
+      ).rejects.toThrow("Invalid compliance pack SIEM fixture reference siemFixturePath");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects compliance pack evidence references outside the project root", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-compliance-pack-outside-"));
+
+    try {
+      await expect(
+        assembleCompliancePackArtifact({
+          root,
+          sessionId: "session-009",
+          target: "codex",
+          riskClassificationPath: "../current-risk.json",
+          runSetPath: ".planning/run-set.json",
+          ledgerPath: ".planning/ledger/session-009.jsonl",
+          runtimeEvidencePath: "evidence/runtime.json",
+          benchmarkResultPath: "evidence/benchmark.json",
+          complianceMappingPath: "evidence/mapping.json",
+          siemFixturePath: "evidence/siem.json",
+        }),
+      ).rejects.toThrow(
+        "Compliance pack evidence reference riskClassificationPath must stay inside root",
+      );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("formats assembled compliance packs as local evidence generation only", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harness-cli-compliance-pack-assemble-format-"));
+    const references = {
+      riskClassificationPath: ".planning/current-risk.json",
+      runSetPath: ".planning/run-set.json",
+      ledgerPath: ".planning/ledger/session-010.jsonl",
+      runtimeEvidencePath: "evidence/runtime.json",
+      benchmarkResultPath: "evidence/benchmark.json",
+      complianceMappingPath: "evidence/mapping.json",
+      siemFixturePath: await writeLocalSiemFixtureReference(root, "session-010-siem"),
+    };
+
+    try {
+      for (const [name, referencePath] of Object.entries(references)) {
+        if (name === "siemFixturePath") {
+          continue;
+        }
+
+        const absolutePath = path.join(root, referencePath);
+        await mkdir(path.dirname(absolutePath), { recursive: true });
+        await writeFile(absolutePath, "{}", "utf8");
+      }
+
+      const result = await assembleCompliancePackArtifact({
+        root,
+        sessionId: "session-010",
+        target: "codex",
+        ...references,
+      });
+      const formatted = formatCompliancePackAssembleHuman(result);
+
+      expect(formatted).toContain("Status                       : assembled");
+      expect(formatted).toContain("Verified evidence references : 7");
+      expect(formatted).toContain("External sessions            : not launched");
     } finally {
       await rm(root, { recursive: true, force: true });
     }
@@ -1709,7 +2988,7 @@ describe("CLI install and inspection commands", () => {
         path.join(platformDirectory, "config.toml"),
         [
           "[features]",
-          "codex_hooks = true",
+          "hooks = true",
           "",
           "[[hooks.PreToolUse]]",
           "",
@@ -1759,7 +3038,7 @@ describe("CLI install and inspection commands", () => {
         path.join(platformDirectory, "config.toml"),
         [
           "[features]",
-          "codex_hooks = true",
+          "hooks = true",
           "",
           "[[hooks.PreToolUse]]",
           "",

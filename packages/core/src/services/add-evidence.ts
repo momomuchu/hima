@@ -3,7 +3,11 @@ import { isHumanOnlyEvidenceKey, isTrustedHumanEvidence } from "../evidence/eval
 import { type EvidenceItem, EvidenceItemSchema } from "../schemas/run-set.schema.js";
 import { withFileLock } from "../storage/file-lock.js";
 import { getPlanningPaths } from "../storage/planning-paths.js";
-import { readPlanningProject, writePlanningProject } from "../storage/planning-store.js";
+import {
+  appendRunEvent,
+  readPlanningProject,
+  writePlanningProject,
+} from "../storage/planning-store.js";
 
 export type AddEvidenceInput = Omit<EvidenceItem, "id" | "createdAt"> &
   Partial<Pick<EvidenceItem, "id" | "createdAt">>;
@@ -40,6 +44,18 @@ export async function addEvidence(
         evidence: [...project.runSet.evidence, item],
       },
     });
+  });
+  await appendRunEvent(projectRoot, {
+    id: `evidence-added-${item.id}`,
+    ts: item.createdAt,
+    type: "EVIDENCE_ADDED",
+    payload: {
+      evidenceId: item.id,
+      key: item.key,
+      kind: item.kind,
+      status: item.status,
+      source: item.source,
+    },
   });
 
   return item;

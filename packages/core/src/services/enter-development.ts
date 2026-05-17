@@ -1,7 +1,9 @@
 import { getRequiredGates, RISK_POLICY } from "../policy/baseline-policy.js";
+import { appendEventLogEntry } from "../storage/events-log.js";
+import { appendLedgerEntry } from "../storage/hash-chained-ledger.js";
 import { readPlanningProject, writePlanningProject } from "../storage/planning-store.js";
 import type { MacroCycle, OperatingMode, RiskClass, SubPhase } from "../types/canonical.js";
-import { RISK_CLASS_RANK } from "../types/canonical.js";
+import { compareRiskClass, RISK_CLASS_RANK } from "../types/canonical.js";
 import { HarnessError } from "../types/errors.js";
 
 export interface EnterDevelopmentInput {
@@ -65,6 +67,23 @@ export async function enterDevelopment(
     riskClass: project.currentRisk.risk_class,
   };
   const riskChanged = previous.riskClass !== riskClass;
+  const event = {
+    id: `development-entry-${Date.now()}`,
+    ts: now,
+    type: "DEVELOPMENT_MODE_ENTERED",
+    reason: input.reason ?? "hima-enter skill activation",
+    payload: {
+      fromPhase: previous.phase,
+      fromSubPhase: previous.subPhase,
+      fromMode: previous.mode,
+      fromRiskClass: previous.riskClass,
+      toPhase: phase,
+      toSubPhase: subPhase,
+      toMode: mode,
+      toRiskClass: riskClass,
+      objective,
+    },
+  };
 
   await writePlanningProject(projectRoot, {
     state: {
@@ -115,32 +134,27 @@ export async function enterDevelopment(
         mode,
         riskClass,
       },
-      events: [
-        ...project.runSet.events,
-        {
-          id: `development-entry-${Date.now()}`,
-          ts: now,
-          type: "DEVELOPMENT_MODE_ENTERED",
-          reason: input.reason ?? "hima-enter skill activation",
-          payload: {
-            fromPhase: previous.phase,
-            fromSubPhase: previous.subPhase,
-            fromMode: previous.mode,
-            fromRiskClass: previous.riskClass,
-            toPhase: phase,
-            toSubPhase: subPhase,
-            toMode: mode,
-            toRiskClass: riskClass,
-            objective,
-          },
-        },
-      ],
+      events: [...project.runSet.events, event],
       finalization: {
         state: "ACTIVE",
         gaps: [],
       },
     },
   });
+  if (riskChanged && compareRiskClass(riskClass, previous.riskClass) > 0) {
+    await appendEventLogEntry(projectRoot, {
+      id: event.id,
+      ts: event.ts,
+      type: "RiskClassPromoted",
+      runId: project.runSet.runId,
+      payload: {
+        owner: "Gate",
+        legacyType: "DEVELOPMENT_MODE_ENTERED",
+        event,
+      },
+    });
+    await appendLedgerEntry(projectRoot, project.runSet.runId, event);
+  }
 
   return {
     ok: true,

@@ -16,8 +16,11 @@ import {
   safeAtomicWriteFile,
   toHookCommand,
 } from "@harness/core";
+import { type CodexHookBinding, getCodexHookBindings } from "./hook-bindings.js";
 
 export const CODEX_CONFIG_FILE = "config.toml";
+
+export { type CodexHookBinding, getCodexHookBindings };
 
 export interface CodexHookConfigPreview {
   target: "codex";
@@ -32,7 +35,7 @@ export type CodexPreviewOperation =
       path: "config.toml";
       value: {
         features: {
-          codex_hooks: true;
+          hooks: true;
         };
       };
     }
@@ -78,22 +81,21 @@ export function buildCodexHookConfigPreview(
 ): CodexHookConfigPreview {
   const profile = getRuntimeProfile("codex");
   const digest = computeRuntimeProfileDigest("codex");
+  const hookBindings = getCodexHookBindings();
   const bindings = buildRuntimeBindings("codex", buildCodexRuntimeCapability(profile), "preview", {
     expectedDigest: digest,
     currentDigest: digest,
   });
-  const hookCommands = GATE_TYPES.flatMap((gateType) => {
-    const hook = profile.hooks[gateType];
-
+  const hookCommands = hookBindings.flatMap((hook) => {
     return hook.supported && hook.nativeEvent
       ? [
           {
             kind: "append" as const,
             path: "config.toml.hooks" as const,
             value: {
-              gateType,
+              gateType: hook.gateType,
               event: hook.nativeEvent,
-              command: resolveHookCommand(hook.command, gateType, options),
+              command: resolveHookCommand(hook.command, hook.gateType, options),
             },
           },
         ]
@@ -109,7 +111,7 @@ export function buildCodexHookConfigPreview(
         path: "config.toml",
         value: {
           features: {
-            codex_hooks: true,
+            hooks: true,
           },
         },
       },
@@ -240,10 +242,13 @@ function ensureCodexHooksFeature(config: string): string {
   const featuresHeaderIndex = lines.findIndex((line) => line.trim() === "[features]");
 
   if (featuresHeaderIndex === -1) {
-    return appendBlock(config, ["[features]", "codex_hooks = true"]);
+    return appendBlock(config, ["[features]", "hooks = true"]);
   }
 
   let insertIndex = lines.length;
+  let hooksLineIndex = -1;
+  let changed = false;
+
   for (let index = featuresHeaderIndex + 1; index < lines.length; index += 1) {
     if (/^\s*\[/.test(lines[index] ?? "")) {
       insertIndex = index;
@@ -251,16 +256,28 @@ function ensureCodexHooksFeature(config: string): string {
     }
 
     if (/^\s*codex_hooks\s*=/.test(lines[index] ?? "")) {
-      if (/^\s*codex_hooks\s*=\s*true\s*(?:#.*)?$/.test(lines[index] ?? "")) {
-        return config;
-      }
+      lines.splice(index, 1);
+      insertIndex -= 1;
+      index -= 1;
+      changed = true;
+      continue;
+    }
 
-      lines[index] = "codex_hooks = true";
-      return lines.join("\n");
+    if (/^\s*hooks\s*=/.test(lines[index] ?? "")) {
+      hooksLineIndex = index;
     }
   }
 
-  lines.splice(insertIndex, 0, "codex_hooks = true");
+  if (hooksLineIndex !== -1) {
+    if (/^\s*hooks\s*=\s*true\s*(?:#.*)?$/.test(lines[hooksLineIndex] ?? "")) {
+      return changed ? lines.join("\n") : config;
+    }
+
+    lines[hooksLineIndex] = "hooks = true";
+    return lines.join("\n");
+  }
+
+  lines.splice(insertIndex, 0, "hooks = true");
   return lines.join("\n");
 }
 
@@ -294,20 +311,24 @@ function removeCodexHookBlocks(
   config: string,
   expectedHooks: CodexHookCommandPreview[],
 ): { config: string; hooksRemoved: number } {
-  const hookBlocks = [
-    ...legacyCodexHookBlocks(config),
-    ...expectedHooks.flatMap((hook) => officialCodexHookBlocks(config, hook.event)),
-  ];
   let nextConfig = config;
   let hooksRemoved = 0;
 
-  for (const block of hookBlocks) {
+  for (const block of legacyCodexHookBlocks(config)) {
     if (!isManagedCodexHookBlock(block, expectedHooks)) {
       continue;
     }
 
     nextConfig = nextConfig.replace(block, "").replace(/\n{3,}/g, "\n\n");
     hooksRemoved += 1;
+  }
+
+  for (const hook of expectedHooks) {
+    const removal = removeOfficialCodexHookCommands(nextConfig, hook.event, (command) =>
+      command === hook.command ? "remove" : "keep",
+    );
+    nextConfig = removal.config;
+    hooksRemoved += removal.hooksRemoved;
   }
 
   return {
@@ -333,14 +354,10 @@ function removeStaleCodexHookBlocks(
   config: string,
   hook: CodexHookCommandPreview,
 ): { config: string; hooksRemoved: number } {
-  const hookBlocks = [
-    ...legacyCodexHookBlocks(config),
-    ...officialCodexHookBlocks(config, hook.event),
-  ];
   let nextConfig = config;
   let hooksRemoved = 0;
 
-  for (const block of hookBlocks) {
+  for (const block of legacyCodexHookBlocks(config)) {
     if (!isStaleManagedCodexHookBlock(block, hook)) {
       continue;
     }
@@ -348,6 +365,12 @@ function removeStaleCodexHookBlocks(
     nextConfig = nextConfig.replace(block, "").replace(/\n{3,}/g, "\n\n");
     hooksRemoved += 1;
   }
+
+  const officialRemoval = removeOfficialCodexHookCommands(nextConfig, hook.event, (command) =>
+    isHookCommandForGate(command, hook.gateType) && command !== hook.command ? "remove" : "keep",
+  );
+  nextConfig = officialRemoval.config;
+  hooksRemoved += officialRemoval.hooksRemoved;
 
   return {
     config: nextConfig.trim().length === 0 ? "" : nextConfig.trimEnd(),
@@ -391,7 +414,7 @@ function matchTomlStringValue(block: string, key: string): string | undefined {
 function officialCodexHookBlocks(config: string, event: string): string[] {
   const escapedEvent = escapeRegExp(event);
   const blockPattern = new RegExp(
-    `(?:^|\\n)\\s*\\[\\[hooks\\.${escapedEvent}\\]\\][\\s\\S]*?(?=\\n\\s*\\[\\[hooks\\.[^.\\]\\r\\n]+\\]\\]|\\n\\s*\\[[^\\[]|(?![\\s\\S]))`,
+    `(?:^|\\n)\\s*\\[\\[hooks\\.${escapedEvent}\\]\\][\\s\\S]*?(?=\\n\\s*\\[\\[hooks\\]\\]|\\n\\s*\\[\\[hooks\\.[^.\\]\\r\\n]+\\]\\]|\\n\\s*\\[[^\\[]|$)`,
     "g",
   );
 
@@ -406,6 +429,85 @@ function officialCodexHookCommands(block: string): string[] {
   return [...block.matchAll(/^\s*command\s*=\s*"((?:[^"\\]|\\.)*)"\s*$/gm)].map((match) =>
     (match[1] ?? "").replace(/\\"/g, '"').replace(/\\\\/g, "\\"),
   );
+}
+
+function removeOfficialCodexHookCommands(
+  config: string,
+  event: string,
+  decideCommand: (command: string) => "keep" | "remove",
+): { config: string; hooksRemoved: number } {
+  let nextConfig = config;
+  let hooksRemoved = 0;
+
+  for (const block of officialCodexHookBlocks(config, event)) {
+    const removal = removeOfficialCodexHookCommandsFromBlock(block, decideCommand);
+
+    if (removal.hooksRemoved === 0) {
+      continue;
+    }
+
+    nextConfig = nextConfig.replace(block, removal.block).replace(/\n{3,}/g, "\n\n");
+    hooksRemoved += removal.hooksRemoved;
+  }
+
+  return {
+    config: nextConfig.trim().length === 0 ? "" : nextConfig.trimEnd(),
+    hooksRemoved,
+  };
+}
+
+function removeOfficialCodexHookCommandsFromBlock(
+  block: string,
+  decideCommand: (command: string) => "keep" | "remove",
+): { block: string; hooksRemoved: number } {
+  const hookBlocks = [
+    ...block.matchAll(
+      /(?:^|\n)\s*\[\[hooks\.[^.\]\r\n]+\.hooks\]\][\s\S]*?(?=\n\s*\[\[hooks\.[^.\]\r\n]+\.hooks\]\]|\s*$)/g,
+    ),
+  ];
+
+  if (hookBlocks.length === 0 || hookBlocks[0]?.index === undefined) {
+    return { block, hooksRemoved: 0 };
+  }
+
+  const preamble = block.slice(0, hookBlocks[0].index);
+  const keptHookBlocks: string[] = [];
+  let hooksRemoved = 0;
+
+  for (const hookBlockMatch of hookBlocks) {
+    const hookBlock = hookBlockMatch[0];
+    const command = matchTomlStringValue(hookBlock, "command");
+
+    if (command !== undefined && decideCommand(command) === "remove") {
+      hooksRemoved += 1;
+      continue;
+    }
+
+    keptHookBlocks.push(hookBlock);
+  }
+
+  if (hooksRemoved === 0) {
+    return { block, hooksRemoved: 0 };
+  }
+
+  if (keptHookBlocks.length === 0 && isDisposableOfficialCodexHookPreamble(preamble)) {
+    return { block: "", hooksRemoved };
+  }
+
+  return {
+    block: `${preamble}${keptHookBlocks.join("")}`.trimEnd(),
+    hooksRemoved,
+  };
+}
+
+function isDisposableOfficialCodexHookPreamble(preamble: string): boolean {
+  return preamble
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .every(
+      (line) => /^\[\[hooks\.[^.\]\r\n]+\]\]$/.test(line) || /^#\s*hima_gate_type\s*=/.test(line),
+    );
 }
 
 function isHookCommandForGate(command: string, gateType: GateType): boolean {

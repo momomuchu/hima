@@ -1,14 +1,16 @@
 import { link, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { GATE_TYPES, toHookCommand } from "@harness/core";
+import { GATE_TYPES, getRuntimeProfile, toHookCommand } from "@harness/core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   applyHermesHookConfig,
   buildHermesHookPreview,
+  getHermesHookBindings,
   HERMES_CONFIG_FILE,
   removeHermesHookConfig,
 } from "../src/index.js";
+import { applyHermesInstall, planHermesInstall } from "../src/install.js";
 
 let tempRoot: string;
 
@@ -60,6 +62,145 @@ describe("buildHermesHookPreview", () => {
       status: "degraded",
       reason: "runtime hook is observable but cannot block",
     });
+  });
+
+  it("keeps every generated hook command aligned with the Hermes runtime profile", () => {
+    const profile = getRuntimeProfile("hermes");
+    const preview = buildHermesHookPreview();
+    const appendValues = preview.operations.flatMap((operation) =>
+      operation.kind === "append" ? [operation.value] : [],
+    );
+
+    expect(appendValues).toEqual(
+      GATE_TYPES.flatMap((gateType) => {
+        const hook = profile.hooks[gateType];
+
+        return hook.supported && hook.nativeEvent
+          ? [
+              {
+                gateType,
+                event: hook.nativeEvent,
+                command: hook.command,
+                blocking: hook.canBlock,
+              },
+            ]
+          : [];
+      }),
+    );
+    expect(preview.markers).toEqual([
+      {
+        gateType: "session_start",
+        status: "degraded",
+        reason: "runtime hook is observable but cannot block",
+      },
+      {
+        gateType: "post_tool",
+        status: "degraded",
+        reason: "runtime hook is observable but cannot block",
+      },
+      {
+        gateType: "post_compact",
+        status: "degraded",
+        reason: "runtime hook is observable but cannot block",
+      },
+      {
+        gateType: "stop",
+        status: "degraded",
+        reason: "runtime hook is observable but cannot block",
+      },
+      {
+        gateType: "subagent_start",
+        status: "missing",
+        reason: "runtime does not expose a native event for this gate",
+      },
+      {
+        gateType: "subagent_stop",
+        status: "degraded",
+        reason: "runtime hook is observable but cannot block",
+      },
+    ]);
+  });
+
+  it("ships a package-local system prompt with anti-bypass and degraded-hook boundaries", async () => {
+    const prompt = await readFile(new URL("../src/system-prompt.md", import.meta.url), "utf8");
+
+    expect(prompt).toContain("Do not bypass HIMA");
+    expect(prompt).toContain(".planning/");
+    expect(prompt).toContain(".hima/state/");
+    expect(prompt).toContain("subagent_start");
+    expect(prompt).toContain("observable but non-blocking");
+    expect(prompt).toContain("real-runtime E2E");
+    expect(prompt).toContain("five-client compatibility");
+  });
+
+  it("exposes hook bindings aligned with the Hermes runtime profile", () => {
+    const profile = getRuntimeProfile("hermes");
+    const bindings = getHermesHookBindings();
+
+    expect(
+      bindings.map(({ target, gateType, nativeEvent, canBlock, supported, command }) => ({
+        target,
+        gateType,
+        nativeEvent,
+        canBlock,
+        supported,
+        command,
+      })),
+    ).toEqual(
+      GATE_TYPES.map((gateType) => {
+        const hook = profile.hooks[gateType];
+
+        return {
+          target: "hermes",
+          gateType,
+          nativeEvent: hook.nativeEvent,
+          canBlock: hook.canBlock,
+          supported: hook.supported,
+          command: hook.command,
+        };
+      }),
+    );
+    expect(
+      bindings
+        .filter((binding) => binding.status === "unsupported")
+        .map((binding) => binding.gateType),
+    ).toEqual(["subagent_start"]);
+    expect(
+      bindings
+        .filter((binding) => binding.status === "degraded")
+        .map((binding) => binding.gateType),
+    ).toEqual(["session_start", "post_tool", "post_compact", "stop", "subagent_stop"]);
+    expect(bindings.find((binding) => binding.gateType === "subagent_stop")).toMatchObject({
+      status: "degraded",
+      canBlock: false,
+      reason: "runtime hook is observable but cannot block",
+    });
+  });
+
+  it("plans install wiring from prompt and hook-binding surfaces without writing", async () => {
+    const plan = planHermesInstall({ root: tempRoot });
+
+    expect(plan.configFile).toBe(path.join(path.resolve(tempRoot), HERMES_CONFIG_FILE));
+    expect(plan.systemPromptFile).toContain(path.join("src", "system-prompt.md"));
+    expect(plan.hookBindings).toEqual(getHermesHookBindings());
+    expect(plan.unsupportedHooks.map((binding) => binding.gateType)).toEqual(["subagent_start"]);
+    expect(plan.degradedHooks.map((binding) => binding.gateType)).toEqual([
+      "session_start",
+      "post_tool",
+      "post_compact",
+      "stop",
+      "subagent_stop",
+    ]);
+    expect(plan.hooksPlanned).toBe(GATE_TYPES.length - 1);
+    await expect(readFile(plan.configFile, "utf8")).rejects.toThrow();
+  });
+
+  it("applies config through the install module while preserving degraded hook metadata", async () => {
+    const result = await applyHermesInstall({ root: tempRoot });
+
+    expect(result.hooksAdded).toBe(GATE_TYPES.length - 1);
+    expect(result.configFile).toBe(path.join(tempRoot, HERMES_CONFIG_FILE));
+    expect(result.plan.degradedHooks.map((binding) => binding.gateType)).toContain("subagent_stop");
   });
 
   it("documents and applies the deterministic MVP config file", async () => {
