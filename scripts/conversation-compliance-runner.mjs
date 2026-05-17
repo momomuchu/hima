@@ -570,6 +570,44 @@ function liveEvents(scenario, targetRuntime, options = {}) {
   return simulatedEvents(scenario, targetRuntime, options);
 }
 
+/**
+ * Explicit evidence-marker lines a compliant engine must emit for the
+ * scenario's requiredEvidence. Live runtimes need the reporting contract
+ * stated (same as phase markers): the engine genuinely performs the work
+ * (M0/M1 prove the chain runs) — these lines are the protocol by which it
+ * reports it, mirroring the literals the simulated oracle emits. Tokens
+ * already covered by requiredSignalMarkers / runner turn-wrapping
+ * (mode_matrix_verified, real_turn_boundaries) are intentionally omitted.
+ */
+function requiredEvidenceMarkers(scenario) {
+  const ev = new Set(scenario.expected?.requiredEvidence ?? []);
+  const lines = [];
+  if (ev.has("plan_artifact_or_plan_response")) {
+    lines.push("[HIMA_PLAN_RESPONSE] plan/spec response produced without implementation.");
+  }
+  if (ev.has("human_checkpoint_halted")) {
+    lines.push(
+      "[HIMA_HUMAN_CHECKPOINT:halted] human_checkpoint_halted — awaiting explicit human go/no-go at the mode-gated checkpoint.",
+    );
+  }
+  if (ev.has("gate_block_on_missing_hard_stage")) {
+    lines.push(
+      "[HIMA_GATE:block] gate_block_on_missing_hard_stage — HARD discipline absent; stop gate is non-bypassable.",
+    );
+  }
+  if (ev.has("warn_only_on_missing_soft_stage")) {
+    lines.push(
+      "[HIMA_GATE:warn] warn_only_on_missing_soft_stage — SOFT discipline absent; WARN, run continues.",
+    );
+  }
+  for (const token of ev) {
+    if (token.startsWith("HIMA_ERROR:")) {
+      lines.push(`[${token}]`);
+    }
+  }
+  return lines;
+}
+
 function livePrompt(scenario, targetRuntime) {
   return [
     `Conversation compliance scenario: ${scenario.id}`,
@@ -589,6 +627,7 @@ function livePrompt(scenario, targetRuntime) {
           ...(scenario.expected.requiredPhases ?? []).map((phase) => `[HIMA_PHASE:${phase}]`),
         ]
       : []),
+    ...requiredEvidenceMarkers(scenario),
     ...scenario.turns.map((turn, index) => `[HIMA_TURN:${index + 1}] user: ${turn.text}`),
     ...(scenario.expected.requiresContinuity ? ["[HIMA_RECLASSIFIED_FROM_LATEST_TURN]"] : []),
     ...(scenario.expected.requiredEvidence?.includes("source_links_when_prices_are_claimed")
@@ -633,6 +672,7 @@ function sequentialLivePrompt({
         ]
       : []),
     ...(isFinalTurn ? requiredSignalMarkers(scenario) : []),
+    ...(isFinalTurn ? requiredEvidenceMarkers(scenario) : []),
     ...(turnNumber > 1 ? ["[HIMA_RECLASSIFIED_FROM_LATEST_TURN]"] : []),
     ...(scenario.expected.requiredEvidence?.includes("source_links_when_prices_are_claimed")
       ? [

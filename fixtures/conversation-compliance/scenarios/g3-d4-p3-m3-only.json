@@ -20,7 +20,7 @@
       "git_push"
     ],
     "requiredEvidence": ["plan_artifact_or_plan_response", "mode_matrix_verified"],
-    "forbiddenEvidenceRequirements": ["DONE_VERIFIED", "BLOCKED_POLICY", "architecture"],
+    "forbiddenEvidenceRequirements": ["DONE_VERIFIED", "BLOCKED_POLICY", "HIMA_PHASE:architecture"],
     "stopPolicy": "allow_plan_stop",
     "runtimeSchema": "runtime_native",
     "requiresContinuity": false,
