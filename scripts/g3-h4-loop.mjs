@@ -23,7 +23,7 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { readFileSync, existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -32,7 +32,7 @@ import { fileURLToPath } from "node:url";
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const matrixScript = path.join(repoRoot, "scripts", "g3-essai-matrix.mjs");
 const loopLogPath = path.join(repoRoot, "LOOP-LOG.md");
-const ladderPath = path.join(repoRoot, "GOAL-3-LADDER.md");
+const _ladderPath = path.join(repoRoot, "GOAL-3-LADDER.md");
 
 // ─── CLI args ─────────────────────────────────────────────────────────────────
 
@@ -67,11 +67,16 @@ const BUCKET_PRIORITY = { D1: 1, D3: 2, D4: 3, D2: 4, D5: 5, UNKNOWN: 6 };
 
 function statusSeverity(status) {
   switch (status) {
-    case "FAIL":    return 4;
-    case "PARTIAL": return 3;
-    case "—":       return 2; // not yet run = unknown, high priority to run
-    case "PASS":    return 0;
-    default:        return 1;
+    case "FAIL":
+      return 4;
+    case "PARTIAL":
+      return 3;
+    case "—":
+      return 2; // not yet run = unknown, high priority to run
+    case "PASS":
+      return 0;
+    default:
+      return 1;
   }
 }
 
@@ -100,7 +105,7 @@ function parseTableRows(output) {
     const m = pipeRowRe.exec(line);
     if (!m) continue;
 
-    const stem   = m[1].trim();
+    const stem = m[1].trim();
     const bucket = m[2].trim();
     const status = m[3].trim();
     const reason = (m[4] ?? "").trim();
@@ -181,7 +186,9 @@ function describeIncrement(cell) {
     }
 
     case "D3": {
-      const hardSoft = stem.includes("-hardskip") ? "HARD-skip RED canary" : "SOFT-skip advisory canary";
+      const hardSoft = stem.includes("-hardskip")
+        ? "HARD-skip RED canary"
+        : "SOFT-skip advisory canary";
       const presetMatch = stem.match(/g3-d3-(p\d+)/);
       const preset = presetMatch ? presetMatch[1].toUpperCase() : stem;
       if (status === "PASS") {
@@ -252,7 +259,8 @@ function invokeMatrixList() {
     // Matrix ran but no scenarios found — degrade gracefully
     return {
       ok: false,
-      error: "g3-essai-matrix.mjs --list returned 0 parseable rows. Scenario directory may be empty or the table format changed.",
+      error:
+        "g3-essai-matrix.mjs --list returned 0 parseable rows. Scenario directory may be empty or the table format changed.",
       rows: [],
     };
   }
@@ -320,11 +328,11 @@ async function main() {
 
     // Synthetic fallback: inject one representative cell per bucket
     const fallbackRows = [
-      { stem: "g3-p1-full",             bucket: "D1", status: "—", reason: "" },
-      { stem: "g3-d2-w1-1",             bucket: "D2", status: "—", reason: "" },
-      { stem: "g3-d3-p3-hardskip",      bucket: "D3", status: "—", reason: "" },
-      { stem: "g3-d4-p3-m0-bypass",     bucket: "D4", status: "—", reason: "" },
-      { stem: "g3-d5-p3-state-emit",    bucket: "D5", status: "—", reason: "" },
+      { stem: "g3-p1-full", bucket: "D1", status: "—", reason: "" },
+      { stem: "g3-d2-w1-1", bucket: "D2", status: "—", reason: "" },
+      { stem: "g3-d3-p3-hardskip", bucket: "D3", status: "—", reason: "" },
+      { stem: "g3-d4-p3-m0-bypass", bucket: "D4", status: "—", reason: "" },
+      { stem: "g3-d5-p3-state-emit", bucket: "D5", status: "—", reason: "" },
     ];
     rows.push(...fallbackRows);
   }
@@ -332,7 +340,9 @@ async function main() {
   // 2. Surface last verdict context
   const lastVerdict = readLastVerdict();
   if (lastVerdict) {
-    console.log(`Last H4 verdict: stem=${lastVerdict.stem}  transition=${lastVerdict.statusTransition}`);
+    console.log(
+      `Last H4 verdict: stem=${lastVerdict.stem}  transition=${lastVerdict.statusTransition}`,
+    );
   } else {
     console.log("Last H4 verdict: none (first H4 wave or LOOP-LOG not yet created).");
   }
@@ -380,11 +390,15 @@ async function main() {
   console.log(loopLogRow);
   console.log();
   console.log("─── GOAL-3-LADDER note ─────────────────────────────────────────────────────");
-  console.log(`  Add row: ${waveLabel} | H4 | ${cell.bucket}/${cell.stem} | before=current status | after=pending | increment above`);
+  console.log(
+    `  Add row: ${waveLabel} | H4 | ${cell.bucket}/${cell.stem} | before=current status | after=pending | increment above`,
+  );
   console.log();
 
   if (dryRun) {
-    console.log("[dry-run] No files written. Orchestrator applies the above to LOOP-LOG.md and GOAL-3-LADDER.md, then commits (S or B, never mixed).");
+    console.log(
+      "[dry-run] No files written. Orchestrator applies the above to LOOP-LOG.md and GOAL-3-LADDER.md, then commits (S or B, never mixed).",
+    );
   }
 }
 
