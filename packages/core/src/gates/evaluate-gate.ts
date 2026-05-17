@@ -564,28 +564,30 @@ function evaluatePostTool(context: GateEvaluationContext, event: GateEvent): Gat
   }
 
   // ── MISSING_FALSIFIES_IF + MIGRATION_WITHOUT_ADR: skipped in M0 ─────────
-  if (!isFullBypassMode(context.state.mode) && writeEvent) {
-    const falsifiesIfViolation = findFalsifiesIfViolation(context.projectRoot, targets);
-    if (falsifiesIfViolation) {
-      return {
-        decision: "block",
-        gateType: event.gateType,
-        reason: falsifiesIfViolation,
-        violationType: "MISSING_FALSIFIES_IF",
-        finalState: "BLOCKED_POLICY",
-        policyEvent: postToolPolicyEvent("MISSING_FALSIFIES_IF", true),
-      };
-    }
+  if (writeEvent) {
+    if (!isFullBypassMode(context.state.mode)) {
+      const falsifiesIfViolation = findFalsifiesIfViolation(context.projectRoot, targets);
+      if (falsifiesIfViolation) {
+        return {
+          decision: "block",
+          gateType: event.gateType,
+          reason: falsifiesIfViolation,
+          violationType: "MISSING_FALSIFIES_IF",
+          finalState: "BLOCKED_POLICY",
+          policyEvent: postToolPolicyEvent("MISSING_FALSIFIES_IF", true),
+        };
+      }
 
-    if (targets.some(isMigrationTarget) && !hasAdrEvidence(context)) {
-      return {
-        decision: "block",
-        gateType: event.gateType,
-        reason: "migration output detected without ADR or expand/contract evidence",
-        violationType: "MIGRATION_WITHOUT_ADR",
-        finalState: "BLOCKED_POLICY",
-        policyEvent: postToolPolicyEvent("MIGRATION_WITHOUT_ADR", true),
-      };
+      if (targets.some(isMigrationTarget) && !hasAdrEvidence(context)) {
+        return {
+          decision: "block",
+          gateType: event.gateType,
+          reason: "migration output detected without ADR or expand/contract evidence",
+          violationType: "MIGRATION_WITHOUT_ADR",
+          finalState: "BLOCKED_POLICY",
+          policyEvent: postToolPolicyEvent("MIGRATION_WITHOUT_ADR", true),
+        };
+      }
     }
   }
   // ─────────────────────────────────────────────────────────────────────────
