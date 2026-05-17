@@ -16,11 +16,11 @@ import {
   advance,
   enter,
   hardSkip,
-  inspectState,
-  unblock,
   type ImaMode,
+  inspectState,
   type SpineConfig,
   type StageWindow,
+  unblock,
 } from "../src/runtime/ima-state.js";
 
 // ─── Shared fixtures ──────────────────────────────────────────────────────────
@@ -126,12 +126,7 @@ describe("enter()", () => {
 
   it("throws when stop precedes start on spine", () => {
     expect(() =>
-      enter(
-        "run_x",
-        { start: "design-ux", stop: "analysis-discovery" },
-        "M1",
-        traceDisciplines,
-      ),
+      enter("run_x", { start: "design-ux", stop: "analysis-discovery" }, "M1", traceDisciplines),
     ).toThrow();
   });
 });
@@ -264,9 +259,7 @@ describe("hardSkip()", () => {
     expect(afterSkip.mode).toBe("M3"); // mode unchanged
     expect(afterSkip.blocker?.code).toBe("HARD_SKIP");
     expect(afterSkip.blocker?.message).toContain("HARD discipline");
-    expect(afterSkip.blocker?.resolution).toBe(
-      "Provide the missing evidence then call unblock()",
-    );
+    expect(afterSkip.blocker?.resolution).toBe("Provide the missing evidence then call unblock()");
 
     // advance() must refuse while blocked (even in bypass mode)
     const advResult = advance(afterSkip, traceDisciplines);
@@ -469,11 +462,7 @@ describe("worked trace (state-machine.md §5)", () => {
     expect(s3.window).toEqual({ start: "analysis-discovery", stop: "design-ux" });
     expect(s3.mode).toBe("M1");
     expect(s3.forced_disciplines).toEqual([]);
-    expect(s3.completed_stages).toEqual([
-      "analysis-discovery",
-      "specification",
-      "design-ux",
-    ]);
+    expect(s3.completed_stages).toEqual(["analysis-discovery", "specification", "design-ux"]);
     expect(s3.next_handoff).toBeNull();
     expect(s3.decision_owner).toBe("agent");
     expect(s3.blocked).toBe(false);

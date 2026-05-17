@@ -360,10 +360,7 @@ const OPERATIONAL_CATALOG = {
         gateTypes: ["session_start", "user_prompt"],
         riskClasses: ALL_RISKS,
         operatingModes: ALL_MODES,
-        keywords: [
-          "design this api",
-          "how should i design this api",
-        ],
+        keywords: ["design this api", "how should i design this api"],
         auto: true,
       },
       owns: [
@@ -470,12 +467,8 @@ const OPERATIONAL_CATALOG = {
         ],
         auto: true,
       },
-      owns: [
-        "Skill: Brand, Marketing and Communications decisions",
-      ],
-      outOfScope: [
-        "out-of-discipline decisions",
-      ],
+      owns: ["Skill: Brand, Marketing and Communications decisions"],
+      outOfScope: ["out-of-discipline decisions"],
       evidenceProduced: [],
       hookRefs: [],
       subagentRefs: [],
@@ -572,27 +565,21 @@ const OPERATIONAL_CATALOG = {
     {
       id: "concurrency-distributed-correctness",
       title: "Skill: Concurrency & Distributed Correctness",
-      purpose: "level selection and anomaly mapping; optimistic concurrency control (version columns,",
+      purpose:
+        "level selection and anomaly mapping; optimistic concurrency control (version columns,",
       activation: {
         macroCycles: ALL_CYCLES,
         gateTypes: ["session_start", "user_prompt"],
         riskClasses: ALL_RISKS,
         operatingModes: ALL_MODES,
-        keywords: [
-          "race condition",
-          "double submit",
-          "this transaction",
-          "isolation level",
-        ],
+        keywords: ["race condition", "double submit", "this transaction", "isolation level"],
         auto: true,
       },
       owns: [
         "race condition and double-submit prevention decisions",
         "database transaction isolation",
       ],
-      outOfScope: [
-        "- retry / circuit breaker / timeout / exponential backoff",
-      ],
+      outOfScope: ["- retry / circuit breaker / timeout / exponential backoff"],
       evidenceProduced: [],
       hookRefs: [],
       subagentRefs: [],
@@ -647,7 +634,8 @@ const OPERATIONAL_CATALOG = {
     {
       id: "developer-productivity-tooling",
       title: "Skill: Developer Productivity & Tooling",
-      purpose: "(custom CLI, script, generator, template, or nothing); build and test cycle-time performance;",
+      purpose:
+        "(custom CLI, script, generator, template, or nothing); build and test cycle-time performance;",
       activation: {
         macroCycles: ALL_CYCLES,
         gateTypes: ["session_start", "user_prompt"],
@@ -671,12 +659,8 @@ const OPERATIONAL_CATALOG = {
         ],
         auto: true,
       },
-      owns: [
-        "Skill: Developer Productivity & Tooling decisions",
-      ],
-      outOfScope: [
-        "out-of-discipline decisions",
-      ],
+      owns: ["Skill: Developer Productivity & Tooling decisions"],
+      outOfScope: ["out-of-discipline decisions"],
       evidenceProduced: [],
       hookRefs: [],
       subagentRefs: [],
@@ -684,7 +668,8 @@ const OPERATIONAL_CATALOG = {
     {
       id: "domain-modeling-ddd",
       title: "Skill: Domain Modeling / DDD",
-      purpose: "maintaining); subdomain identification (core / supporting / generic, and distillation);",
+      purpose:
+        "maintaining); subdomain identification (core / supporting / generic, and distillation);",
       activation: {
         macroCycles: ALL_CYCLES,
         gateTypes: ["session_start", "user_prompt"],
@@ -709,12 +694,8 @@ const OPERATIONAL_CATALOG = {
         ],
         auto: true,
       },
-      owns: [
-        "Skill: Domain Modeling / DDD decisions",
-      ],
-      outOfScope: [
-        "out-of-discipline decisions",
-      ],
+      owns: ["Skill: Domain Modeling / DDD decisions"],
+      outOfScope: ["out-of-discipline decisions"],
       evidenceProduced: [],
       hookRefs: [],
       subagentRefs: [],
@@ -728,10 +709,7 @@ const OPERATIONAL_CATALOG = {
         gateTypes: ["session_start", "user_prompt"],
         riskClasses: ALL_RISKS,
         operatingModes: ALL_MODES,
-        keywords: [
-          "how should this fail?",
-          "what happens when this call fails?",
-        ],
+        keywords: ["how should this fail?", "what happens when this call fails?"],
         auto: true,
       },
       owns: [
@@ -770,9 +748,7 @@ const OPERATIONAL_CATALOG = {
         "User-facing error messaging: public message vs. private diagnostic split",
         "Fail-loud vs. fail-silent: the decision rule for when silent degradation is acceptable",
       ],
-      outOfScope: [
-        "out-of-discipline decisions",
-      ],
+      outOfScope: ["out-of-discipline decisions"],
       evidenceProduced: [],
       hookRefs: [],
       subagentRefs: [],
@@ -940,12 +916,8 @@ const OPERATIONAL_CATALOG = {
         ],
         auto: true,
       },
-      owns: [
-        "Skill: Integration and Automation decisions",
-      ],
-      outOfScope: [
-        "out-of-discipline decisions",
-      ],
+      owns: ["Skill: Integration and Automation decisions"],
+      outOfScope: ["out-of-discipline decisions"],
       evidenceProduced: [],
       hookRefs: [],
       subagentRefs: [],
@@ -1021,12 +993,8 @@ const OPERATIONAL_CATALOG = {
         ],
         auto: true,
       },
-      owns: [
-        "Skill: Observability decisions",
-      ],
-      outOfScope: [
-        "out-of-discipline decisions",
-      ],
+      owns: ["Skill: Observability decisions"],
+      outOfScope: ["out-of-discipline decisions"],
       evidenceProduced: [],
       hookRefs: [],
       subagentRefs: [],
@@ -1056,12 +1024,8 @@ const OPERATIONAL_CATALOG = {
         ],
         auto: true,
       },
-      owns: [
-        "Skill: Performance Engineering decisions",
-      ],
-      outOfScope: [
-        "out-of-discipline decisions",
-      ],
+      owns: ["Skill: Performance Engineering decisions"],
+      outOfScope: ["out-of-discipline decisions"],
       evidenceProduced: [],
       hookRefs: [],
       subagentRefs: [],
@@ -1295,11 +1259,7 @@ const OPERATIONAL_CATALOG = {
         gateTypes: ["session_start", "user_prompt"],
         riskClasses: ALL_RISKS,
         operatingModes: ALL_MODES,
-        keywords: [
-          "schema-first",
-          "schema first approach",
-          "should i be schema-first?",
-        ],
+        keywords: ["schema-first", "schema first approach", "should i be schema-first?"],
         auto: true,
       },
       owns: [
@@ -1310,10 +1270,10 @@ const OPERATIONAL_CATALOG = {
         "Zod / Valibot / ArkType",
         "Protocol Buffers",
         "Avro",
-        "Codegen pipelines: schema → types / clients / server stubs / validators / docs / DB",
+        "Codegen pipelines: schema -> types / clients / server stubs / validators / docs / DB",
         "Schema evolution and compatibility: backward / forward / full compatibility rules",
         "safe",
-        "Validation at the boundary: \"parse",
+        'Validation at the boundary: "parse',
         "don't validate\" (Alexis King 2019)",
         "validate at the",
         "Single source of truth for types across frontend / backend / DB / docs",
@@ -1328,9 +1288,7 @@ const OPERATIONAL_CATALOG = {
         "Schema-driven anti-patterns: code-first drift",
         "hand-rolled validators at every layer",
       ],
-      outOfScope: [
-        "out-of-discipline decisions",
-      ],
+      outOfScope: ["out-of-discipline decisions"],
       evidenceProduced: [],
       hookRefs: [],
       subagentRefs: [],
@@ -1432,7 +1390,7 @@ const OPERATIONAL_CATALOG = {
       id: "spec-driven-development",
       title: "Skill: Spec-Driven Development",
       purpose:
-        "(feature / fix / improvement / refactor); the spec → plan → tasks → implement → verify",
+        "(feature / fix / improvement / refactor); the spec -> plan -> tasks -> implement -> verify",
       activation: {
         macroCycles: ALL_CYCLES,
         gateTypes: ["session_start", "user_prompt"],
@@ -1445,13 +1403,8 @@ const OPERATIONAL_CATALOG = {
         ],
         auto: true,
       },
-      owns: [
-        "spec-first vs. code-first decision by change type",
-        "spec granularity thresholds",
-      ],
-      outOfScope: [
-        "| Topic | Routes to |",
-      ],
+      owns: ["spec-first vs. code-first decision by change type", "spec granularity thresholds"],
+      outOfScope: ["| Topic | Routes to |"],
       evidenceProduced: [],
       hookRefs: [],
       subagentRefs: [],
@@ -1545,7 +1498,8 @@ const OPERATIONAL_CATALOG = {
     {
       id: "ui-knowledge",
       title: "UI/UX",
-      purpose: "Use this skill as the compact execution surface for the UI knowledge excellence book.",
+      purpose:
+        "Use this skill as the compact execution surface for the UI knowledge excellence book.",
       activation: {
         macroCycles: ALL_CYCLES,
         gateTypes: ["session_start", "user_prompt"],
@@ -1570,12 +1524,8 @@ const OPERATIONAL_CATALOG = {
         ],
         auto: true,
       },
-      owns: [
-        "UI/UX decisions",
-      ],
-      outOfScope: [
-        "out-of-discipline decisions",
-      ],
+      owns: ["UI/UX decisions"],
+      outOfScope: ["out-of-discipline decisions"],
       evidenceProduced: [],
       hookRefs: [],
       subagentRefs: [],
@@ -1590,9 +1540,7 @@ const OPERATIONAL_CATALOG = {
         gateTypes: ["session_start", "user_prompt"],
         riskClasses: ALL_RISKS,
         operatingModes: ALL_MODES,
-        keywords: [
-          "user intent",
-        ],
+        keywords: ["user intent"],
         auto: true,
       },
       owns: [
@@ -1650,12 +1598,7 @@ const OPERATIONAL_CATALOG = {
         "store compliance decisions",
         "platform capability decisions",
       ],
-      outOfScope: [
-        "cloud/infrastructure",
-        "mobile UX flows",
-        "production reliability",
-        "security",
-      ],
+      outOfScope: ["cloud/infrastructure", "mobile UX flows", "production reliability", "security"],
       evidenceProduced: [],
       hookRefs: [],
       subagentRefs: [],

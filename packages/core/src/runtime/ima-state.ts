@@ -304,10 +304,7 @@ function nextStage(s: SpineStage): SpineStage {
  * state-machine.md §2.1.
  */
 function isInsideWindow(stage: SpineStage, w: StageWindow): boolean {
-  return (
-    stageIndex(stage) >= stageIndex(w.start) &&
-    stageIndex(stage) <= stageIndex(w.stop)
-  );
+  return stageIndex(stage) >= stageIndex(w.start) && stageIndex(stage) <= stageIndex(w.stop);
 }
 
 /**
@@ -337,9 +334,7 @@ function assertWindowValid(w: StageWindow): void {
     );
   }
   if (stageIndex(w.stop) < stageIndex(w.start)) {
-    throw new Error(
-      `[ima-state] Window stop "${w.stop}" precedes start "${w.start}" on the spine`,
-    );
+    throw new Error(`[ima-state] Window stop "${w.stop}" precedes start "${w.start}" on the spine`);
   }
 }
 
@@ -376,8 +371,7 @@ export function enter(
 
   const active_stage = window.start;
   const forced_disciplines = spineConfig.disciplinesFor(active_stage);
-  const next_handoff: SpineStage =
-    active_stage === window.stop ? "END" : nextStage(active_stage);
+  const next_handoff: SpineStage = active_stage === window.stop ? "END" : nextStage(active_stage);
 
   return {
     run_id,
@@ -444,8 +438,7 @@ export function advance(current: ImaState, spineConfig: SpineConfig): AdvanceRes
 
   // Advance into next stage — reload disciplines, never carry over (state-machine.md §1 invariant 2)
   const forced_disciplines = spineConfig.disciplinesFor(target);
-  const next_handoff: SpineStage =
-    target === current.window.stop ? "END" : nextStage(target);
+  const next_handoff: SpineStage = target === current.window.stop ? "END" : nextStage(target);
 
   const nextState: ImaState = {
     ...current,
@@ -546,11 +539,8 @@ export function inspectState(state: ImaState): InspectorOutput {
     if (state.active_stage === "END") {
       return "FINALIZED";
     }
-    const total =
-      stageIndex(state.window.stop) - stageIndex(state.window.start) + 1;
-    const done = state.completed_stages.filter((s) =>
-      isInsideWindow(s, state.window),
-    ).length;
+    const total = stageIndex(state.window.stop) - stageIndex(state.window.start) + 1;
+    const done = state.completed_stages.filter((s) => isInsideWindow(s, state.window)).length;
     return `${done}/${total} stages done`;
   })();
 
@@ -561,14 +551,9 @@ export function inspectState(state: ImaState): InspectorOutput {
       : "ACTIVE";
 
   const disciplinesStr =
-    state.forced_disciplines.length > 0
-      ? state.forced_disciplines.join(", ")
-      : "—";
+    state.forced_disciplines.length > 0 ? state.forced_disciplines.join(", ") : "—";
 
-  const completedStr =
-    state.completed_stages.length > 0
-      ? state.completed_stages.join(" → ")
-      : "—";
+  const completedStr = state.completed_stages.length > 0 ? state.completed_stages.join(" → ") : "—";
 
   const nextHandoffStr = state.next_handoff ?? "—";
 

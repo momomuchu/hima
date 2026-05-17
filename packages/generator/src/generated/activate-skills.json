@@ -8,9 +8,7 @@
         "cycle:full",
         "take this raw problem all the way to a measured, financed product"
       ],
-      "expected_outputs": [
-        "shipped product + growth + CS + measurement + unit economics"
-      ],
+      "expected_outputs": ["shipped product + growth + CS + measurement + unit economics"],
       "requires_tools": [],
       "fallback_for_toolsets": [],
       "description": "Structural activation of the full dev-cycle window (spine 1-13)."
@@ -72,9 +70,7 @@
         "cycle:product-discovery",
         "go from raw problem to a written spec ready for design and build"
       ],
-      "expected_outputs": [
-        "validated SPEC.md"
-      ],
+      "expected_outputs": ["validated SPEC.md"],
       "requires_tools": [],
       "fallback_for_toolsets": [],
       "description": "Structural activation of the product-discovery dev-cycle window (spine 1-4)."
@@ -107,9 +103,7 @@
         "cycle:idea-to-design",
         "go from idea to a validated UX design ready for architecture"
       ],
-      "expected_outputs": [
-        "spec + UX flows + designs + usability evidence"
-      ],
+      "expected_outputs": ["spec + UX flows + designs + usability evidence"],
       "requires_tools": [],
       "fallback_for_toolsets": [],
       "description": "Structural activation of the idea-to-design dev-cycle window (spine 1-5)."
@@ -145,9 +139,7 @@
         "cycle:idea-to-arch",
         "go from idea to an architecture decision record ready for implementation"
       ],
-      "expected_outputs": [
-        "spec + UX + ADR + data model"
-      ],
+      "expected_outputs": ["spec + UX + ADR + data model"],
       "requires_tools": [],
       "fallback_for_toolsets": [],
       "description": "Structural activation of the idea-to-arch dev-cycle window (spine 1-6)."
@@ -188,9 +180,7 @@
         "cycle:strategy",
         "sharpen positioning and run technical discovery on an existing problem"
       ],
-      "expected_outputs": [
-        "positioning memo + discovery report"
-      ],
+      "expected_outputs": ["positioning memo + discovery report"],
       "requires_tools": [],
       "fallback_for_toolsets": [],
       "description": "Structural activation of the strategy dev-cycle window (spine 2-3)."
@@ -219,9 +209,7 @@
         "cycle:discovery",
         "technical discovery and a spec in one pass for a scoped problem"
       ],
-      "expected_outputs": [
-        "analysis report + SPEC.md"
-      ],
+      "expected_outputs": ["analysis report + SPEC.md"],
       "requires_tools": [],
       "fallback_for_toolsets": [],
       "description": "Structural activation of the discovery dev-cycle window (spine 3-4)."
@@ -248,9 +236,7 @@
         "cycle:discovery-to-design",
         "turn a scoped discovery into a spec and UX-complete design"
       ],
-      "expected_outputs": [
-        "discovery + spec + UX flows"
-      ],
+      "expected_outputs": ["discovery + spec + UX flows"],
       "requires_tools": [],
       "fallback_for_toolsets": [],
       "description": "Structural activation of the discovery-to-design dev-cycle window (spine 3-5)."
@@ -280,9 +266,7 @@
         "cycle:discovery-to-arch",
         "discovery through to a fully designed and architected solution"
       ],
-      "expected_outputs": [
-        "discovery + spec + UX + ADR"
-      ],
+      "expected_outputs": ["discovery + spec + UX + ADR"],
       "requires_tools": [],
       "fallback_for_toolsets": [],
       "description": "Structural activation of the discovery-to-arch dev-cycle window (spine 3-6)."
@@ -313,13 +297,8 @@
       "name": "activate-spec-to-ship",
       "version": "1.0.0",
       "type": "task",
-      "triggers": [
-        "cycle:spec-to-ship",
-        "design, architect, build, and ship an existing spec"
-      ],
-      "expected_outputs": [
-        "deployed tested production build"
-      ],
+      "triggers": ["cycle:spec-to-ship", "design, architect, build, and ship an existing spec"],
+      "expected_outputs": ["deployed tested production build"],
       "requires_tools": [],
       "fallback_for_toolsets": [],
       "description": "Structural activation of the spec-to-ship dev-cycle window (spine 4-9)."
@@ -368,9 +347,7 @@
         "cycle:design-only",
         "UX flows, component designs, and usability validation only"
       ],
-      "expected_outputs": [
-        "validated UX flows + component specs"
-      ],
+      "expected_outputs": ["validated UX flows + component specs"],
       "requires_tools": [],
       "fallback_for_toolsets": [],
       "description": "Structural activation of the design-only dev-cycle window (spine 5-5)."
@@ -381,11 +358,7 @@
       "stop": 5
     },
     "mode": "auto",
-    "hardSets": [
-      "ui-knowledge",
-      "ui-styling",
-      "ux-research-product-experience"
-    ],
+    "hardSets": ["ui-knowledge", "ui-styling", "ux-research-product-experience"],
     "body": "<!-- HIMA:SKILL-ARTIFACT name=activate-design-only source=consommable-generator -->\n# Activate: design-only (P10)\n\n## Activation\n- Window: spine [5 -> 5]\n- Invocation: `/cycle:design-only[:mode]` (default mode: auto)\n\n## Ownership\n- Owns: deterministic structural activation of the design-only chain-window.\n- Out of scope: deciding the verdict (the windowed disciplines do that).\n\n## Forced disciplines (HARD — non-skippable, even in bypass)\n- ui-knowledge\n- ui-styling\n- ux-research-product-experience\n\nIntent seed: \"I want to UX flows, component designs, and usability validation only\". Output at stop: validated UX flows + component specs.\nTraverse NEXT-STAGE transitively, bounded by the window stop; a skipped\nHARD discipline BLOCKs the run in every mode (GOAL-3 v3 §4c, authoritative)."
   },
   {
@@ -393,13 +366,8 @@
       "name": "activate-arch-to-ship",
       "version": "1.0.0",
       "type": "task",
-      "triggers": [
-        "cycle:arch-to-ship",
-        "architect, implement, and ship a design to production"
-      ],
-      "expected_outputs": [
-        "ADR + implemented + tested + deployed"
-      ],
+      "triggers": ["cycle:arch-to-ship", "architect, implement, and ship a design to production"],
+      "expected_outputs": ["ADR + implemented + tested + deployed"],
       "requires_tools": [],
       "fallback_for_toolsets": [],
       "description": "Structural activation of the arch-to-ship dev-cycle window (spine 6-9)."
@@ -439,13 +407,8 @@
       "name": "activate-build-to-ship",
       "version": "1.0.0",
       "type": "task",
-      "triggers": [
-        "cycle:build-to-ship",
-        "implement, test, and release an existing architecture"
-      ],
-      "expected_outputs": [
-        "green tests + deploy pipeline"
-      ],
+      "triggers": ["cycle:build-to-ship", "implement, test, and release an existing architecture"],
+      "expected_outputs": ["green tests + deploy pipeline"],
       "requires_tools": [],
       "fallback_for_toolsets": [],
       "description": "Structural activation of the build-to-ship dev-cycle window (spine 8-9)."
@@ -477,13 +440,8 @@
       "name": "activate-aiml-feature",
       "version": "1.0.0",
       "type": "task",
-      "triggers": [
-        "cycle:aiml-feature",
-        "design an AI/ML feature, implement it, and ship it"
-      ],
-      "expected_outputs": [
-        "AI ADR + eval corpus + eval-gated release"
-      ],
+      "triggers": ["cycle:aiml-feature", "design an AI/ML feature, implement it, and ship it"],
+      "expected_outputs": ["AI ADR + eval corpus + eval-gated release"],
       "requires_tools": [],
       "fallback_for_toolsets": [],
       "description": "Structural activation of the aiml-feature dev-cycle window (spine 7-9)."
@@ -521,9 +479,7 @@
         "cycle:gtm",
         "acquire users, retain them, measure, validate unit economics for a shipped product"
       ],
-      "expected_outputs": [
-        "channel fit + CS playbook + dashboard + unit economics"
-      ],
+      "expected_outputs": ["channel fit + CS playbook + dashboard + unit economics"],
       "requires_tools": [],
       "fallback_for_toolsets": [],
       "description": "Structural activation of the gtm dev-cycle window (spine 10-13)."
@@ -554,9 +510,7 @@
         "cycle:have-idea-to-ship",
         "go straight from a formed idea with rough positioning to shipped product"
       ],
-      "expected_outputs": [
-        "positioned spec + UX + architecture + shipped build"
-      ],
+      "expected_outputs": ["positioned spec + UX + architecture + shipped build"],
       "requires_tools": [],
       "fallback_for_toolsets": [],
       "description": "Structural activation of the have-idea-to-ship dev-cycle window (spine 2-9)."
@@ -605,13 +559,8 @@
       "name": "activate-scope",
       "version": "1.0.0",
       "type": "task",
-      "triggers": [
-        "cycle:scope",
-        "fire exactly one decision rule for a narrow, targeted ask"
-      ],
-      "expected_outputs": [
-        "single matched rule output, no traversal"
-      ],
+      "triggers": ["cycle:scope", "fire exactly one decision rule for a narrow, targeted ask"],
+      "expected_outputs": ["single matched rule output, no traversal"],
       "requires_tools": [],
       "fallback_for_toolsets": [],
       "description": "Structural activation of the scope dev-cycle window (spine 1-1)."
@@ -622,10 +571,7 @@
       "stop": 1
     },
     "mode": "auto",
-    "hardSets": [
-      "idea-sourcing",
-      "idea-to-pmf"
-    ],
+    "hardSets": ["idea-sourcing", "idea-to-pmf"],
     "body": "<!-- HIMA:SKILL-ARTIFACT name=activate-scope source=consommable-generator -->\n# Activate: scope (P16)\n\n## Activation\n- Window: spine [1 -> 1]\n- Invocation: `/cycle:scope[:mode]` (default mode: auto)\n\n## Ownership\n- Owns: deterministic structural activation of the scope chain-window.\n- Out of scope: deciding the verdict (the windowed disciplines do that).\n\n## Forced disciplines (HARD — non-skippable, even in bypass)\n- idea-sourcing\n- idea-to-pmf\n\nIntent seed: \"I want to fire exactly one decision rule for a narrow, targeted ask\". Output at stop: single matched rule output, no traversal.\nTraverse NEXT-STAGE transitively, bounded by the window stop; a skipped\nHARD discipline BLOCKs the run in every mode (GOAL-3 v3 §4c, authoritative)."
   }
 ]
