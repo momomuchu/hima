@@ -583,6 +583,12 @@ function livePrompt(scenario, targetRuntime) {
     `[HIMA_STOP:${scenario.expected.stopPolicy}]`,
     "[HIMA_HOOK_SCHEMA:valid]",
     ...requiredSignalMarkers(scenario),
+    ...((scenario.expected.requiredPhases ?? []).length > 0
+      ? [
+          "As you traverse the dev-cycle chain, emit one phase marker on its own line the moment you enter each stage, in order — these exact markers are required:",
+          ...(scenario.expected.requiredPhases ?? []).map((phase) => `[HIMA_PHASE:${phase}]`),
+        ]
+      : []),
     ...scenario.turns.map((turn, index) => `[HIMA_TURN:${index + 1}] user: ${turn.text}`),
     ...(scenario.expected.requiresContinuity ? ["[HIMA_RECLASSIFIED_FROM_LATEST_TURN]"] : []),
     ...(scenario.expected.requiredEvidence?.includes("source_links_when_prices_are_claimed")
@@ -620,6 +626,12 @@ function sequentialLivePrompt({
     `[HIMA_STOP:${scenario.expected.stopPolicy}]`,
     "[HIMA_HOOK_SCHEMA:valid]",
     expectedPhaseMarker(scenario, turnNumber),
+    ...(isFinalTurn && (scenario.expected.requiredPhases ?? []).length > 0
+      ? [
+          "This turn completes the dev-cycle window. For every stage the chain traversed, emit its phase marker on its own line, in order — all of these exact markers are required in this response:",
+          ...(scenario.expected.requiredPhases ?? []).map((phase) => `[HIMA_PHASE:${phase}]`),
+        ]
+      : []),
     ...(isFinalTurn ? requiredSignalMarkers(scenario) : []),
     ...(turnNumber > 1 ? ["[HIMA_RECLASSIFIED_FROM_LATEST_TURN]"] : []),
     ...(scenario.expected.requiredEvidence?.includes("source_links_when_prices_are_claimed")
