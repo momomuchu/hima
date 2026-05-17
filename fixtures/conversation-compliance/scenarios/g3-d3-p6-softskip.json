@@ -1,0 +1,38 @@
+{
+  "id": "g3-d3-p6-softskip",
+  "kind": "advisory",
+  "description": "D3 RED canary — preset P6 (cycle:discovery, window [3→4]), SOFT variant. The SOFT stage 'source_links_when_prices_are_claimed' is absent. Runner must WARN only, not BLOCK. Final state must be DONE_WITH_GAPS. Resolves warn_only_on_missing_soft_stage via scan.mjs:357 fallthrough; stopPolicy checked at scan.mjs:176-191.",
+  "turns": [
+    {
+      "role": "user",
+      "text": "Run cycle:discovery on an existing authentication service. Include pricing estimates but omit source links for those estimates."
+    }
+  ],
+  "expected": {
+    "route": "plan",
+    "allowedTools": ["read_files"],
+    "forbiddenTools": ["apply_patch", "npm_test_required", "git_commit", "git_push"],
+    "requiredEvidence": ["warn_only_on_missing_soft_stage"],
+    "forbiddenEvidenceRequirements": ["gate_block_on_missing_hard_stage", "DONE_VERIFIED", "BLOCKED_POLICY"],
+    "stopPolicy": "allow_plan_stop",
+    "runtimeSchema": "runtime_native",
+    "requiresContinuity": false,
+    "d3": {
+      "preset": "P6",
+      "cycle": "discovery",
+      "window": [3, 4],
+      "hardSet": ["technical-analysis-discovery", "specification-requirements", "schema-driven-development"],
+      "canaryKind": "soft_stage_removed",
+      "removedStage": "source_links_when_prices_are_claimed",
+      "stageHardness": "SOFT",
+      "bypassableByModeM0": true,
+      "expectedRunnerVerdict": "WARN",
+      "expectedFinalState": "DONE_WITH_GAPS",
+      "scannerPaths": {
+        "warnToken": "scan.mjs:357 fallthrough — new RegExp(escapeRegExp('warn_only_on_missing_soft_stage'),'iu').test(combined)",
+        "stopPolicy": "scan.mjs:176-191 checkStopBehavior — extractMarker(text,'HIMA_STOP') === 'allow_plan_stop'"
+      },
+      "note": "T/L class WARN — run continues, final state DONE_WITH_GAPS. BLOCKED_POLICY must NOT appear."
+    }
+  }
+}

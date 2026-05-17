@@ -1,0 +1,32 @@
+{
+  "id": "g3-d4-p9-m3-only",
+  "kind": "build",
+  "description": "D4 mode-matrix — preset P9 (cycle:spec-to-ship, window [4→9]) under M3 (explicit-pipeline / only). Runs exactly the declared window [4→9]; no auto-extension beyond quality-release is permitted even if NEXT-STAGE signals are present. Human picks the window; the engine executes it and stops. Models GOAL-3 §4c M3: 'runs exactly the named window, no auto-extension'.",
+  "turns": [
+    {
+      "role": "user",
+      "text": "Activate cycle:spec-to-ship:only. Execute exactly the declared window: specification → design-ux → architecture → ai-ml → build → quality-release. Stop at quality-release. Do NOT auto-extend into any stage beyond window [4→9], regardless of any NEXT-STAGE signal."
+    }
+  ],
+  "expected": {
+    "route": "build",
+    "allowedTools": ["read_files", "web_search"],
+    "forbiddenTools": ["external_publish", "payment", "user_contact", "apply_patch", "git_commit", "git_push"],
+    "requiredEvidence": ["development_cycle_signal", "mode_matrix_verified"],
+    "forbiddenEvidenceRequirements": ["DONE_VERIFIED", "BLOCKED_POLICY"],
+    "stopPolicy": "allow_plan_stop",
+    "runtimeSchema": "runtime_native",
+    "requiresContinuity": false,
+    "requiredPhases": ["specification", "design-ux", "architecture", "build", "quality-release"],
+    "requiredRuntimeSignals": ["mode_matrix_verified"],
+    "d4": {
+      "modeId": "M3",
+      "operatingMode": "explicit_pipeline",
+      "preset": "P9",
+      "cycle": "spec-to-ship",
+      "window": [4, 9],
+      "contract": "Executes exactly window [4→9]; NEXT-STAGE signals beyond quality-release are suppressed; no auto-extension; human picked the window",
+      "ref": "GOAL-3.md §4c M3 row 'runs exactly the named window, no auto-extension'; preset-catalog.md §4 mode-token 'only' = M3; mode-axis.md §1 M3 auto-extension=no"
+    }
+  }
+}

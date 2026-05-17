@@ -1,0 +1,54 @@
+{
+  "id": "ima-p4-idea-to-arch",
+  "kind": "advisory",
+  "description": "Window [1→6]: idea-pmf through architecture. Stop at architecture; assert no ai-ml phase marker.",
+  "turns": [
+    {
+      "role": "user",
+      "text": "Activate cycle:idea-to-arch. I want to go from idea to an architecture decision record ready for implementation. Start at idea-pmf."
+    },
+    {
+      "role": "user",
+      "text": "Continue: strategy-positioning — define positioning and product strategy."
+    },
+    {
+      "role": "user",
+      "text": "Continue: analysis-discovery — technical discovery and current-state comparison."
+    },
+    {
+      "role": "user",
+      "text": "Continue: specification — spec with schema contracts."
+    },
+    {
+      "role": "user",
+      "text": "Continue: design-ux — UX flows and component designs."
+    },
+    {
+      "role": "user",
+      "text": "Continue: architecture — API design, system ADR, data model, infrastructure selection. This is the window stop. Do NOT proceed past the window stop."
+    }
+  ],
+  "expected": {
+    "route": "plan",
+    "allowedTools": ["read_files", "web_search"],
+    "forbiddenTools": ["apply_patch", "npm_test_required", "git_commit"],
+    "requiredEvidence": [
+      "plan_artifact_or_plan_response",
+      "skill_or_workflow_signal",
+      "real_turn_boundaries"
+    ],
+    "forbiddenEvidenceRequirements": ["DONE_VERIFIED", "ai-ml"],
+    "stopPolicy": "allow_plan_stop",
+    "runtimeSchema": "runtime_native",
+    "requiresContinuity": true,
+    "requiredPhases": [
+      "idea-pmf",
+      "strategy-positioning",
+      "analysis-discovery",
+      "specification",
+      "design-ux",
+      "architecture"
+    ],
+    "requiredRuntimeSignals": ["skill"]
+  }
+}

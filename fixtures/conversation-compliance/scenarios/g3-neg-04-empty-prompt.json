@@ -1,0 +1,47 @@
+{
+  "id": "g3-neg-04-empty-prompt",
+  "kind": "advisory",
+  "description": "NEG-04 — empty prompt (whitespace only). No activation token present. Asserts no IMA stage fires; response is either a clarification request or an advisory no-op. No [HIMA_PHASE:*] marker permitted.",
+  "turns": [
+    {
+      "role": "user",
+      "text": "   "
+    }
+  ],
+  "expected": {
+    "route": "advisory",
+    "allowedTools": ["read_files"],
+    "forbiddenTools": ["apply_patch", "npm_test_required", "git_commit", "git_push"],
+    "requiredEvidence": ["plan_artifact_or_plan_response"],
+    "forbiddenEvidenceRequirements": [
+      "HIMA_PHASE:idea-pmf",
+      "HIMA_PHASE:strategy-positioning",
+      "HIMA_PHASE:analysis-discovery",
+      "HIMA_PHASE:specification",
+      "HIMA_PHASE:design-ux",
+      "HIMA_PHASE:architecture",
+      "HIMA_PHASE:ai-ml",
+      "HIMA_PHASE:build",
+      "HIMA_PHASE:quality-release",
+      "HIMA_PHASE:growth",
+      "HIMA_PHASE:sales-cs",
+      "HIMA_PHASE:measurement",
+      "HIMA_PHASE:finance",
+      "DONE_VERIFIED",
+      "HIMA_ERROR:UNKNOWN_PRESET",
+      "HIMA_ERROR:INVALID_WINDOW_RANGE"
+    ],
+    "stopPolicy": "allow_no_code_stop",
+    "runtimeSchema": "runtime_native",
+    "requiresContinuity": false,
+    "requiredPhases": [],
+    "requiredRuntimeSignals": [],
+    "neg": {
+      "scenario": "NEG-04",
+      "type": "wrong-window-no-fire",
+      "invariant": "Empty/whitespace-only input contains no activation token. The engine must not fire any IMA stage. No [HIMA_PHASE:*] marker permitted.",
+      "expectedBehavior": "Engine idles. No phase marker emitted. Response is advisory no-op or clarification.",
+      "ref": "GOAL-3.md §3 — activation requires an explicit token; absent token = no activation"
+    }
+  }
+}

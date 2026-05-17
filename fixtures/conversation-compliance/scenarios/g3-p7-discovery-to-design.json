@@ -1,0 +1,39 @@
+{
+  "id": "ima-p7-discovery-to-design",
+  "kind": "advisory",
+  "description": "Window [3→5]: analysis-discovery through design-ux. Stop at design-ux; assert no architecture phase marker (no over-run).",
+  "turns": [
+    {
+      "role": "user",
+      "text": "Activate cycle:discovery-to-design. I want to turn a scoped discovery into a spec and UX-complete design. Start at analysis-discovery."
+    },
+    {
+      "role": "user",
+      "text": "Continue: specification — write the spec with schema contracts."
+    },
+    {
+      "role": "user",
+      "text": "Continue: design-ux — UX flows, component specs, usability evidence. This is the window stop. Do NOT proceed past the window stop."
+    }
+  ],
+  "expected": {
+    "route": "plan",
+    "allowedTools": ["read_files"],
+    "forbiddenTools": ["apply_patch", "npm_test_required", "git_commit"],
+    "requiredEvidence": [
+      "plan_artifact_or_plan_response",
+      "skill_or_workflow_signal",
+      "real_turn_boundaries"
+    ],
+    "forbiddenEvidenceRequirements": ["DONE_VERIFIED", "architecture"],
+    "stopPolicy": "allow_plan_stop",
+    "runtimeSchema": "runtime_native",
+    "requiresContinuity": true,
+    "requiredPhases": [
+      "analysis-discovery",
+      "specification",
+      "design-ux"
+    ],
+    "requiredRuntimeSignals": ["skill"]
+  }
+}

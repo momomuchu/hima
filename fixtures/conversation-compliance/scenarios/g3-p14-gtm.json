@@ -1,0 +1,39 @@
+{
+  "id": "ima-p14-gtm",
+  "kind": "advisory",
+  "description": "Window [10→13]: growth through finance. Existing product: acquire users, retain them, measure, and validate unit economics. Stop at finance with no build phase marker.",
+  "turns": [
+    {
+      "role": "user",
+      "text": "Activate cycle:gtm. I have a shipped product. Acquire users, retain them, measure, and validate unit economics."
+    },
+    {
+      "role": "user",
+      "text": "Continue: sales-cs — CS playbook and activation plan."
+    },
+    {
+      "role": "user",
+      "text": "Continue: measurement — measurement dashboard spec."
+    },
+    {
+      "role": "user",
+      "text": "Continue: finance — unit economics verdict. This is the window stop. Do NOT proceed further."
+    }
+  ],
+  "expected": {
+    "route": "advisory",
+    "allowedTools": ["read_files", "web_search"],
+    "forbiddenTools": ["apply_patch", "npm_test_required", "git_commit", "npm_publish"],
+    "requiredEvidence": [
+      "plan_artifact_or_plan_response",
+      "skill_or_workflow_signal",
+      "real_turn_boundaries"
+    ],
+    "forbiddenEvidenceRequirements": ["DONE_VERIFIED", "ci_green"],
+    "stopPolicy": "allow_plan_stop",
+    "runtimeSchema": "runtime_native",
+    "requiresContinuity": true,
+    "requiredPhases": ["growth", "sales-cs", "measurement", "finance"],
+    "requiredRuntimeSignals": ["skill"]
+  }
+}

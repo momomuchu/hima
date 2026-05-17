@@ -1,0 +1,46 @@
+{
+  "id": "ima-p11-arch-to-ship",
+  "kind": "full_cycle",
+  "description": "Window [6→9]: architecture through quality-release. Asserts 4 stages activated in order, build HARD disciplines present, RED/GREEN evidence, stop at quality-release with no growth phase marker.",
+  "durationProfile": {
+    "targetMinutes": 30,
+    "minimumTurns": 4,
+    "pace": "sequential_stop_then_follow_up"
+  },
+  "turns": [
+    {
+      "role": "user",
+      "text": "Activate cycle:arch-to-ship. I have a design. Architect, implement, and ship to production."
+    },
+    {
+      "role": "user",
+      "text": "Continue: ai-ml — design AI route or confirm no AI component."
+    },
+    {
+      "role": "user",
+      "text": "Continue: build — implement. This is the first turn where build evidence is allowed."
+    },
+    {
+      "role": "user",
+      "text": "Continue: quality-release — run tests, deploy. This is the window stop. Do NOT proceed past the window stop."
+    }
+  ],
+  "expected": {
+    "route": "build",
+    "allowedTools": ["read_files", "apply_patch", "shell", "npm_test_required"],
+    "forbiddenTools": ["git_push", "npm_publish", "external_publish", "payment", "user_contact"],
+    "requiredEvidence": [
+      "red_green_tests",
+      "skill_or_workflow_signal",
+      "development_cycle_signal",
+      "real_turn_boundaries"
+    ],
+    "forbiddenEvidenceRequirements": ["DONE_VERIFIED", "growth"],
+    "stopPolicy": "require_build_evidence",
+    "runtimeSchema": "runtime_native",
+    "requiresContinuity": true,
+    "requiredPhases": ["architecture", "ai-ml", "build", "quality-release"],
+    "noBuildBeforeTurn": 3,
+    "requiredRuntimeSignals": ["skill", "development_cycle"]
+  }
+}

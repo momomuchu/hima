@@ -1,0 +1,45 @@
+{
+  "id": "g3-neg-02-out-of-spine-token",
+  "kind": "advisory",
+  "description": "NEG-02 — /cycle:nonsense activation token that names no known preset and resolves to no valid window. Asserts explicit rejection with [HIMA_ERROR:UNKNOWN_PRESET] — engine must NOT silently pass through or default-route to any spine stage.",
+  "turns": [
+    {
+      "role": "user",
+      "text": "Activate cycle:nonsense. Run through all the stages of the nonsense cycle."
+    }
+  ],
+  "expected": {
+    "route": "advisory",
+    "allowedTools": ["read_files"],
+    "forbiddenTools": ["apply_patch", "npm_test_required", "git_commit", "git_push"],
+    "requiredEvidence": ["HIMA_ERROR:UNKNOWN_PRESET"],
+    "forbiddenEvidenceRequirements": [
+      "HIMA_PHASE:idea-pmf",
+      "HIMA_PHASE:strategy-positioning",
+      "HIMA_PHASE:analysis-discovery",
+      "HIMA_PHASE:specification",
+      "HIMA_PHASE:design-ux",
+      "HIMA_PHASE:architecture",
+      "HIMA_PHASE:ai-ml",
+      "HIMA_PHASE:build",
+      "HIMA_PHASE:quality-release",
+      "HIMA_PHASE:growth",
+      "HIMA_PHASE:sales-cs",
+      "HIMA_PHASE:measurement",
+      "HIMA_PHASE:finance",
+      "DONE_VERIFIED"
+    ],
+    "stopPolicy": "allow_no_code_stop",
+    "runtimeSchema": "runtime_native",
+    "requiresContinuity": false,
+    "requiredPhases": [],
+    "requiredRuntimeSignals": [],
+    "neg": {
+      "scenario": "NEG-02",
+      "type": "explicit-rejection",
+      "invariant": "cycle:<x> where <x> is not in the P1–P16 preset table must emit [HIMA_ERROR:UNKNOWN_PRESET] and halt. Silent pass-through is a defect.",
+      "expectedBehavior": "[HIMA_ERROR:UNKNOWN_PRESET] in transcript. Zero spine stages open.",
+      "ref": "GOAL-3.md §3 preset lookup — unknown preset = hard rejection, not fallback"
+    }
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "id": "g3-d3-p15-softskip",
+  "kind": "full_cycle",
+  "description": "D3 RED canary — preset P15 (cycle:have-idea-to-ship, window [2→9]), SOFT variant. The SOFT stage 'source_links_when_prices_are_claimed' is absent — pricing claims in the strategy-positioning stage carry no source citations. Runner must emit WARN only, not BLOCK. Final state must be DONE_WITH_GAPS, not BLOCKED_POLICY. Resolves warn_only_on_missing_soft_stage via scan.mjs:357 fallthrough regex; stopPolicy matched by checkStopBehavior at scan.mjs:176-191.",
+  "durationProfile": {
+    "targetMinutes": 45,
+    "minimumTurns": 3,
+    "pace": "sequential_stop_then_follow_up"
+  },
+  "turns": [
+    {
+      "role": "user",
+      "text": "Activate cycle:have-idea-to-ship for a real-time collaboration SaaS tool. Start at strategy-positioning. Include competitive pricing estimates in the positioning memo but omit source links for those estimates."
+    },
+    {
+      "role": "user",
+      "text": "Continue: analysis-discovery through specification and design-ux and architecture. Produce discovery report, spec, UX flows, and ADR."
+    },
+    {
+      "role": "user",
+      "text": "Continue: ai-ml through build and quality-release. Implement, test, and ship to production."
+    }
+  ],
+  "expected": {
+    "route": "build",
+    "allowedTools": ["read_files", "apply_patch", "shell"],
+    "forbiddenTools": ["git_push", "npm_publish", "external_publish", "payment", "user_contact"],
+    "requiredEvidence": ["warn_only_on_missing_soft_stage"],
+    "forbiddenEvidenceRequirements": ["gate_block_on_missing_hard_stage", "DONE_VERIFIED", "BLOCKED_POLICY"],
+    "stopPolicy": "allow_plan_stop",
+    "runtimeSchema": "runtime_native",
+    "requiresContinuity": true,
+    "requiredPhases": ["strategy-positioning", "specification", "build", "quality-release"],
+    "noBuildBeforeTurn": 3,
+    "d3": {
+      "preset": "P15",
+      "cycle": "have-idea-to-ship",
+      "window": [2, 9],
+      "hardSet": [
+        "positioning-messaging-category",
+        "product-goal-sprint-alignment",
+        "product-strategy",
+        "technical-analysis-discovery",
+        "specification-requirements",
+        "schema-driven-development",
+        "ui-styling",
+        "ui-knowledge",
+        "ux-research-product-experience",
+        "api-design",
+        "architecture-system-design",
+        "cloud-platform-infrastructure",
+        "database-storage-performance",
+        "ddd",
+        "ai-ml-product-engineering",
+        "code-quality-maintainability",
+        "concurrency",
+        "error-handling",
+        "observability",
+        "performance",
+        "web-mobile-platform",
+        "production-reliability-devops",
+        "testing",
+        "feature-delivery"
+      ],
+      "canaryKind": "soft_stage_removed",
+      "removedStage": "source_links_when_prices_are_claimed",
+      "stageHardness": "SOFT",
+      "bypassableByModeM0": true,
+      "expectedRunnerVerdict": "WARN",
+      "expectedFinalState": "DONE_WITH_GAPS",
+      "scannerPaths": {
+        "warnToken": "scan.mjs:357 fallthrough — new RegExp(escapeRegExp('warn_only_on_missing_soft_stage'),'iu').test(combined)",
+        "stopPolicy": "scan.mjs:176-191 checkStopBehavior — extractMarker(text,'HIMA_STOP') === 'allow_plan_stop'"
+      },
+      "note": "T/L class WARN — run continues across all 8 stages [2→9], final state DONE_WITH_GAPS per §5.3. BLOCKED_POLICY must NOT appear in transcript. P15 window [2→9] skips GTM/finance stages; source-link omission on competitive price claims at stage 2 (strategy-positioning) is the SOFT violation under test."
+    }
+  }
+}

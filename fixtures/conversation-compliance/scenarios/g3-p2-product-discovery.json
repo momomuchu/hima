@@ -1,0 +1,44 @@
+{
+  "id": "ima-p2-product-discovery",
+  "kind": "plan",
+  "description": "Window [1→4]: idea-pmf through specification. No build. Stop at specification; assert no design-ux phase marker.",
+  "turns": [
+    {
+      "role": "user",
+      "text": "Activate cycle:product-discovery. I want to go from raw problem to a validated spec ready for design and build. Start at idea-pmf."
+    },
+    {
+      "role": "user",
+      "text": "Continue: strategy-positioning — sharpen the positioning and validate the problem framing."
+    },
+    {
+      "role": "user",
+      "text": "Continue: analysis-discovery — technical discovery and current-state comparison."
+    },
+    {
+      "role": "user",
+      "text": "Continue: specification — write the spec with acceptance criteria. This is the window stop. Do NOT proceed past the window stop."
+    }
+  ],
+  "expected": {
+    "route": "plan",
+    "allowedTools": ["read_files", "web_search"],
+    "forbiddenTools": ["apply_patch", "npm_test_required", "git_commit"],
+    "requiredEvidence": [
+      "plan_artifact_or_plan_response",
+      "skill_or_workflow_signal",
+      "real_turn_boundaries"
+    ],
+    "forbiddenEvidenceRequirements": ["DONE_VERIFIED", "ci_green", "design-ux"],
+    "stopPolicy": "allow_plan_stop",
+    "runtimeSchema": "runtime_native",
+    "requiresContinuity": true,
+    "requiredPhases": [
+      "idea-pmf",
+      "strategy-positioning",
+      "analysis-discovery",
+      "specification"
+    ],
+    "requiredRuntimeSignals": ["skill"]
+  }
+}

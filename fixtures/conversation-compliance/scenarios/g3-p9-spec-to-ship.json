@@ -1,0 +1,64 @@
+{
+  "id": "ima-p9-spec-to-ship",
+  "kind": "full_cycle",
+  "description": "Window [4→9]: specification through quality-release. Asserts 6 stages activated in order, build HARD disciplines present, RED/GREEN evidence, stop at quality-release with no growth phase marker.",
+  "durationProfile": {
+    "targetMinutes": 45,
+    "minimumTurns": 6,
+    "pace": "sequential_stop_then_follow_up"
+  },
+  "turns": [
+    {
+      "role": "user",
+      "text": "Activate cycle:spec-to-ship. I have a spec. Start at specification stage and run through to quality-release."
+    },
+    {
+      "role": "user",
+      "text": "Continue: design-ux — translate the spec into UX flows and component designs."
+    },
+    {
+      "role": "user",
+      "text": "Continue: architecture — API contract, system ADR, infrastructure selection."
+    },
+    {
+      "role": "user",
+      "text": "Continue: ai-ml — design the AI/ML route if applicable; else confirm no AI component."
+    },
+    {
+      "role": "user",
+      "text": "Continue: build — implement. This is the first turn where build evidence is allowed."
+    },
+    {
+      "role": "user",
+      "text": "Continue: quality-release — run tests, pass reliability gate. This is the window stop. Do NOT proceed past the window stop."
+    }
+  ],
+  "expected": {
+    "route": "build",
+    "allowedTools": ["read_files", "apply_patch", "shell", "npm_test_required"],
+    "forbiddenTools": ["git_push", "npm_publish", "external_publish", "payment", "user_contact"],
+    "requiredEvidence": [
+      "red_green_tests",
+      "skill_or_workflow_signal",
+      "development_cycle_signal",
+      "real_turn_boundaries"
+    ],
+    "forbiddenEvidenceRequirements": [
+      "DONE_VERIFIED",
+      "growth"
+    ],
+    "stopPolicy": "require_build_evidence",
+    "runtimeSchema": "runtime_native",
+    "requiresContinuity": true,
+    "requiredPhases": [
+      "specification",
+      "design-ux",
+      "architecture",
+      "ai-ml",
+      "build",
+      "quality-release"
+    ],
+    "noBuildBeforeTurn": 5,
+    "requiredRuntimeSignals": ["skill", "hook", "development_cycle"]
+  }
+}

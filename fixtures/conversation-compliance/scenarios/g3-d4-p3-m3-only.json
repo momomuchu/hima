@@ -1,0 +1,32 @@
+{
+  "id": "g3-d4-p3-m3-only",
+  "kind": "plan",
+  "description": "D4 mode-matrix — preset P3 (cycle:idea-to-design, window [1→5]) under M3 (explicit-pipeline / only). Runs exactly the declared window [1→5]; no auto-extension beyond design-ux is permitted even if NEXT-STAGE signals are present. Human picks the window; the engine executes it and stops. Models GOAL-3 §4c M3: 'runs exactly the named window, no auto-extension'.",
+  "turns": [
+    {
+      "role": "user",
+      "text": "Activate cycle:idea-to-design:only. Execute exactly the declared window: idea-pmf → strategy-positioning → analysis-discovery → specification → design-ux. Stop at design-ux. Do NOT auto-extend into any stage beyond window [1→5], regardless of any NEXT-STAGE signal."
+    }
+  ],
+  "expected": {
+    "route": "plan",
+    "allowedTools": ["read_files", "web_search"],
+    "forbiddenTools": ["external_publish", "payment", "user_contact", "apply_patch", "git_commit", "git_push"],
+    "requiredEvidence": ["plan_artifact_or_plan_response", "mode_matrix_verified"],
+    "forbiddenEvidenceRequirements": ["DONE_VERIFIED", "BLOCKED_POLICY", "architecture"],
+    "stopPolicy": "allow_plan_stop",
+    "runtimeSchema": "runtime_native",
+    "requiresContinuity": false,
+    "requiredPhases": ["idea-pmf", "strategy-positioning", "analysis-discovery", "specification", "design-ux"],
+    "requiredRuntimeSignals": ["mode_matrix_verified"],
+    "d4": {
+      "modeId": "M3",
+      "operatingMode": "explicit_pipeline",
+      "preset": "P3",
+      "cycle": "idea-to-design",
+      "window": [1, 5],
+      "contract": "Executes exactly window [1→5]; NEXT-STAGE signals beyond design-ux are suppressed; no auto-extension; human picked the window",
+      "ref": "GOAL-3.md §4c M3 row 'runs exactly the named window, no auto-extension'; preset-catalog.md §4 mode-token 'only' = M3"
+    }
+  }
+}

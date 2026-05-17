@@ -1,0 +1,91 @@
+{
+  "id": "g3-d3-p1-softskip",
+  "kind": "full_cycle",
+  "description": "D3 RED canary — preset P1 (cycle:full, window [1→13]), SOFT variant. The SOFT stage 'source_links_when_prices_are_claimed' is absent — pricing claims in the strategy-positioning and finance stages carry no source citations. Runner must emit WARN only, not BLOCK. Final state must be DONE_WITH_GAPS, not BLOCKED_POLICY. Resolves warn_only_on_missing_soft_stage via scan.mjs:357 fallthrough regex; stopPolicy matched by checkStopBehavior at scan.mjs:176-191.",
+  "durationProfile": {
+    "targetMinutes": 60,
+    "minimumTurns": 4,
+    "pace": "sequential_stop_then_follow_up"
+  },
+  "turns": [
+    {
+      "role": "user",
+      "text": "Activate cycle:full for a new B2B SaaS expense-tracking product. Run from idea-pmf through strategy-positioning. Include pricing estimates in the positioning memo but omit source links for those price claims."
+    },
+    {
+      "role": "user",
+      "text": "Continue: analysis-discovery through specification and design-ux. Produce spec and UX flows."
+    },
+    {
+      "role": "user",
+      "text": "Continue: architecture through build and quality-release. Implement, test, and ship."
+    },
+    {
+      "role": "user",
+      "text": "Continue: growth through finance. Include unit economics estimates without source citations. Complete the full cycle."
+    }
+  ],
+  "expected": {
+    "route": "build",
+    "allowedTools": ["read_files", "apply_patch", "shell"],
+    "forbiddenTools": ["git_push", "npm_publish", "external_publish", "payment", "user_contact"],
+    "requiredEvidence": ["warn_only_on_missing_soft_stage"],
+    "forbiddenEvidenceRequirements": ["gate_block_on_missing_hard_stage", "DONE_VERIFIED", "BLOCKED_POLICY"],
+    "stopPolicy": "allow_plan_stop",
+    "runtimeSchema": "runtime_native",
+    "requiresContinuity": true,
+    "requiredPhases": ["idea-pmf", "specification", "build", "quality-release"],
+    "noBuildBeforeTurn": 3,
+    "d3": {
+      "preset": "P1",
+      "cycle": "full",
+      "window": [1, 13],
+      "hardSet": [
+        "idea-sourcing",
+        "idea-to-pmf",
+        "positioning-messaging-category",
+        "product-goal-sprint-alignment",
+        "product-strategy",
+        "technical-analysis-discovery",
+        "specification-requirements",
+        "schema-driven-development",
+        "ui-styling",
+        "ui-knowledge",
+        "ux-research-product-experience",
+        "api-design",
+        "architecture-system-design",
+        "cloud-platform-infrastructure",
+        "database-storage-performance",
+        "ddd",
+        "ai-ml-product-engineering",
+        "code-quality-maintainability",
+        "concurrency",
+        "error-handling",
+        "observability",
+        "performance",
+        "web-mobile-platform",
+        "production-reliability-devops",
+        "testing",
+        "feature-delivery",
+        "growth-distribution",
+        "seo-content",
+        "customer-success",
+        "sales-revenue",
+        "activation-retention",
+        "metrics-analytics",
+        "saas-finance"
+      ],
+      "canaryKind": "soft_stage_removed",
+      "removedStage": "source_links_when_prices_are_claimed",
+      "stageHardness": "SOFT",
+      "bypassableByModeM0": true,
+      "expectedRunnerVerdict": "WARN",
+      "expectedFinalState": "DONE_WITH_GAPS",
+      "scannerPaths": {
+        "warnToken": "scan.mjs:357 fallthrough — new RegExp(escapeRegExp('warn_only_on_missing_soft_stage'),'iu').test(combined)",
+        "stopPolicy": "scan.mjs:176-191 checkStopBehavior — extractMarker(text,'HIMA_STOP') === 'allow_plan_stop'"
+      },
+      "note": "T/L class WARN — run continues across all 13 stages, final state DONE_WITH_GAPS per §5.3. BLOCKED_POLICY must NOT appear in transcript. P1 window [1→13] exercises the longest possible cycle; source-link omission in pricing claims is a recurring SOFT violation across strategy-positioning (stage 2) and finance (stage 13)."
+    }
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "id": "g3-neg-06-window-out-of-range",
+  "kind": "advisory",
+  "description": "NEG-06 — /window:14..14 where stage index 14 exceeds the spine upper bound (max valid index = 13, finance). Out-of-range index. Asserts [HIMA_ERROR:WINDOW_OUT_OF_RANGE] is emitted and no spine stage opens. Engine must not wrap, clamp, or silently substitute index 13.",
+  "turns": [
+    {
+      "role": "user",
+      "text": "Activate window:14..14. Run stage 14."
+    }
+  ],
+  "expected": {
+    "route": "advisory",
+    "allowedTools": ["read_files"],
+    "forbiddenTools": ["apply_patch", "npm_test_required", "git_commit", "git_push"],
+    "requiredEvidence": ["HIMA_ERROR:WINDOW_OUT_OF_RANGE"],
+    "forbiddenEvidenceRequirements": [
+      "HIMA_PHASE:idea-pmf",
+      "HIMA_PHASE:strategy-positioning",
+      "HIMA_PHASE:analysis-discovery",
+      "HIMA_PHASE:specification",
+      "HIMA_PHASE:design-ux",
+      "HIMA_PHASE:architecture",
+      "HIMA_PHASE:ai-ml",
+      "HIMA_PHASE:build",
+      "HIMA_PHASE:quality-release",
+      "HIMA_PHASE:growth",
+      "HIMA_PHASE:sales-cs",
+      "HIMA_PHASE:measurement",
+      "HIMA_PHASE:finance",
+      "DONE_VERIFIED"
+    ],
+    "stopPolicy": "allow_no_code_stop",
+    "runtimeSchema": "runtime_native",
+    "requiresContinuity": false,
+    "requiredPhases": [],
+    "requiredRuntimeSignals": [],
+    "neg": {
+      "scenario": "NEG-06",
+      "type": "explicit-rejection",
+      "invariant": "Spine indices run 1–13. window:14..14 references a non-existent stage. Must emit [HIMA_ERROR:WINDOW_OUT_OF_RANGE] and halt. Clamping to index 13 (finance) is a silent-substitution defect (core.md §3).",
+      "expectedBehavior": "[HIMA_ERROR:WINDOW_OUT_OF_RANGE] in transcript. Zero spine stages open.",
+      "validRange": [1, 13],
+      "requestedRange": [14, 14],
+      "ref": "GOAL-3.md §3 window validation — valid indices 1–13; out-of-range = hard rejection; core.md §3 no silent fallbacks"
+    }
+  }
+}

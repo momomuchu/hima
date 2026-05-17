@@ -1,0 +1,32 @@
+{
+  "id": "g3-d4-p9-m1-auto",
+  "kind": "build",
+  "description": "D4 mode-matrix — preset P9 (cycle:spec-to-ship, window [4→9]) under M1 (full-auto, DEFAULT). All HARD gates live. SOFT violations produce WARN+DONE_WITH_GAPS. Agent decides; no HUMAN_CHECKPOINT. Traverses specification → design-ux → architecture → ai-ml → build → quality-release then stops; no auto-extension beyond quality-release.",
+  "turns": [
+    {
+      "role": "user",
+      "text": "Activate cycle:spec-to-ship. Run the full spec-to-ship arc in auto mode. Traverse all 6 stages in order: specification, design-ux, architecture, ai-ml, build, quality-release. Produce a deployed, tested, production-ready build. Stop at quality-release — do NOT auto-extend beyond window [4→9]."
+    }
+  ],
+  "expected": {
+    "route": "build",
+    "allowedTools": ["read_files", "web_search"],
+    "forbiddenTools": ["external_publish", "payment", "user_contact", "apply_patch", "git_commit", "git_push"],
+    "requiredEvidence": ["development_cycle_signal", "mode_matrix_verified"],
+    "forbiddenEvidenceRequirements": ["DONE_VERIFIED", "BLOCKED_POLICY"],
+    "stopPolicy": "allow_plan_stop",
+    "runtimeSchema": "runtime_native",
+    "requiresContinuity": false,
+    "requiredPhases": ["specification", "design-ux", "architecture", "build", "quality-release"],
+    "requiredRuntimeSignals": ["mode_matrix_verified"],
+    "d4": {
+      "modeId": "M1",
+      "operatingMode": "auto",
+      "preset": "P9",
+      "cycle": "spec-to-ship",
+      "window": [4, 9],
+      "contract": "All HARD gates live; SOFT violations → WARN+DONE_WITH_GAPS; agent decides; no HUMAN_CHECKPOINT; stops at quality-release, no over-run",
+      "ref": "GOAL-3.md §4c M1 row; GOAL-3.md §5 D4 'M1 runs to stop, HARD gates live'; preset-catalog.md P9 output 'Deployed, tested, production-ready build passing reliability tier gate'"
+    }
+  }
+}

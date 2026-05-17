@@ -1,0 +1,71 @@
+{
+  "id": "ima-p15-have-idea-to-ship",
+  "kind": "full_cycle",
+  "description": "Window [2→9]: strategy-positioning through quality-release. Idea exists; skip idea-sourcing. Build and ship. Stop at quality-release with no growth or idea-pmf phase markers.",
+  "durationProfile": {
+    "targetMinutes": 60,
+    "minimumTurns": 8,
+    "pace": "sequential_stop_then_follow_up"
+  },
+  "turns": [
+    {
+      "role": "user",
+      "text": "Activate cycle:have-idea-to-ship. I have a formed idea with rough positioning. Go straight to shipped product; skip idea-sourcing."
+    },
+    {
+      "role": "user",
+      "text": "Continue: analysis-discovery — technical discovery and current-state comparison."
+    },
+    {
+      "role": "user",
+      "text": "Continue: specification — spec with acceptance criteria and schema contracts."
+    },
+    {
+      "role": "user",
+      "text": "Continue: design-ux — UX flows and component designs."
+    },
+    {
+      "role": "user",
+      "text": "Continue: architecture — API contract, system ADR, infrastructure selection."
+    },
+    {
+      "role": "user",
+      "text": "Continue: ai-ml — design AI route or confirm no AI component."
+    },
+    {
+      "role": "user",
+      "text": "Continue: build — implement. This is the first turn where build evidence is allowed."
+    },
+    {
+      "role": "user",
+      "text": "Continue: quality-release — run tests, pass reliability gate. This is the window stop. Do NOT proceed past the window stop."
+    }
+  ],
+  "expected": {
+    "route": "build",
+    "allowedTools": ["read_files", "apply_patch", "shell", "npm_test_required"],
+    "forbiddenTools": ["git_push", "npm_publish", "external_publish", "payment", "user_contact"],
+    "requiredEvidence": [
+      "red_green_tests",
+      "skill_or_workflow_signal",
+      "development_cycle_signal",
+      "real_turn_boundaries"
+    ],
+    "forbiddenEvidenceRequirements": ["DONE_VERIFIED", "idea-pmf", "growth"],
+    "stopPolicy": "require_build_evidence",
+    "runtimeSchema": "runtime_native",
+    "requiresContinuity": true,
+    "requiredPhases": [
+      "strategy-positioning",
+      "analysis-discovery",
+      "specification",
+      "design-ux",
+      "architecture",
+      "ai-ml",
+      "build",
+      "quality-release"
+    ],
+    "noBuildBeforeTurn": 7,
+    "requiredRuntimeSignals": ["skill", "hook", "development_cycle"]
+  }
+}
