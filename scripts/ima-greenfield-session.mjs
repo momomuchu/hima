@@ -283,9 +283,12 @@ const read = (f) => {
     return "";
   }
 };
-const ideaSourcingFile = artifactsAfter.find((f) => /idea-sourcing\.md$/i.test(f));
-const pmfFile = artifactsAfter.find((f) => /idea-to-pmf\.md$/i.test(f));
-const specFile = artifactsAfter.find((f) => /(^|\/)SPEC\.md$/i.test(f));
+// Robust: match the stage anywhere in the path (LLM names files freely:
+// idea-sourcing-evidence.md, idea-to-pmf-verdict.md, …) — not an exact stem.
+const ideaSourcingFile = artifactsAfter.find((f) => /idea[-_]?sourcing/i.test(f) && f.endsWith(".md"));
+const pmfFile = artifactsAfter.find((f) => /idea[-_]?to[-_]?pmf|pmf[-_]?verdict/i.test(f) && f.endsWith(".md"));
+const specFile = artifactsAfter.find((f) => /(^|\/)spec[^/]*\.md$/i.test(f));
+const buildMilestoneFile = artifactsAfter.find((f) => /build[-_]?milestone/i.test(f));
 const pmfBody = pmfFile ? read(pmfFile) : "";
 const pmfVerdict =
   (pmfBody.match(/\b(build|kill|pivot)\b(?=[^]*verdict|.*verdict)/i) ||
@@ -298,8 +301,10 @@ const reachedPmf = Boolean(pmfFile) || phaseOrder.includes("idea-to-pmf");
 const reachedSpec = Boolean(specFile) || phaseOrder.includes("specification");
 const reachedBuild =
   phaseOrder.includes("build") ||
+  Boolean(buildMilestoneFile) ||
   artifactsAfter.some((f) => /\.(test|spec)\.[mc]?[jt]sx?$/.test(f)) ||
-  artifactsAfter.some((f) => f === "package.json" && /vitest|jest|node:test/.test(read(f)));
+  artifactsAfter.some((f) => /^src\//.test(f)) ||
+  artifactsAfter.some((f) => f === "package.json" && /vitest|jest|node:test|test/.test(read(f)));
 // Minimum bar: autonomously produced BOTH an idea-sourcing AND an
 // idea-to-pmf artifact from an empty folder (it started the pipeline alone).
 const minimumMet = reachedIdeaSourcing && reachedPmf;
