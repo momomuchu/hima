@@ -114,6 +114,25 @@ function extractKeywords(skill: RawSkill): string[] {
       if (dm && dm[1]) kws.push(dm[1].trim().toLowerCase());
     }
   }
+  // Variant D — unquoted inline list:
+  //   **AUTO-INVOQUER:** when the task mentions UI, UX, landing page, ...
+  // No quotes at all; keywords are a comma / " or " separated list after a
+  // "mentions"/"when ..." preamble. Only used when no quoted/dash kw found.
+  if (kws.length === 0) {
+    for (const src of sources) {
+      const m = /AUTO-INVOQUER\b[^:]*:?\s*(.+)/i.exec(src);
+      if (!m || m[1] === undefined) continue;
+      let seg = (m[1].split(/\n\n/)[0] ?? m[1]).split(/[.\n]/)[0] ?? "";
+      seg = seg.replace(
+        /^.*?\b(?:mentions?|says?|involves?|when (?:the\s+)?(?:task|request|user)\b[^,:]*)\s*:?\s*/i,
+        "",
+      );
+      for (const part of seg.split(/,| or | et |\bou\b/i)) {
+        const t = part.replace(/^(or|and)\s+/i, "").trim().toLowerCase();
+        if (t.length > 1 && t.length < 60 && !/^when\b/.test(t)) kws.push(t);
+      }
+    }
+  }
   return [...new Set(kws.filter((k) => k.length > 1))];
 }
 
