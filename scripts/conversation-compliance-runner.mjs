@@ -460,6 +460,65 @@ function simulatedTranscript(scenario, targetRuntime, options = {}) {
       })}]`,
     );
   }
+
+  // A compliant IMA engine that activates cycle:X / window:i..j auto-traverses
+  // every stage in the window — it does NOT emit one phase per user turn. The
+  // per-turn phase markers above model sequential confirm-then-continue runs;
+  // single-prompt auto/explicit (M0/M1/M3) and dual-preset precedence drive the
+  // whole window from one prompt. Backfill any required phase not yet emitted so
+  // the simulated transcript reflects full-window activation. Idempotent for
+  // multi-turn scenarios (their per-turn markers are already present).
+  for (const phase of scenario.expected?.requiredPhases ?? []) {
+    const marker = `[HIMA_PHASE:${phase}]`;
+    if (!lines.includes(marker)) {
+      lines.push(marker);
+    }
+  }
+
+  // Negative-path: a compliant engine rejects invalid activation with an
+  // explicit error marker (UNKNOWN_PRESET / INVALID_WINDOW_RANGE / …).
+  for (const requirement of scenario.expected?.requiredEvidence ?? []) {
+    if (requirement.startsWith("HIMA_ERROR:")) {
+      lines.push(`[${requirement}]`);
+    }
+  }
+
+  // D3 HARD-skip canary: a removed HARD discipline makes the gate BLOCK in
+  // every mode (M0 included — §6.3 stop-gate bypass is never allowed).
+  if (scenario.expected?.requiredEvidence?.includes("gate_block_on_missing_hard_stage")) {
+    lines.push(
+      "[HIMA_GATE:block] gate_block_on_missing_hard_stage — HARD discipline absent; stop gate is non-bypassable.",
+    );
+  }
+
+  // M2 checkpoint-gated mode halts at a HUMAN_CHECKPOINT instead of running
+  // to the window stop autonomously.
+  if (scenario.expected?.requiredEvidence?.includes("human_checkpoint_halted")) {
+    lines.push(
+      "[HIMA_HUMAN_CHECKPOINT:halted] human_checkpoint_halted — awaiting explicit human decision at the mode-gated checkpoint.",
+    );
+  }
+
+  // D3 SOFT-skip canary: a removed SOFT discipline WARNs but never blocks
+  // (allow_plan_stop). Distinct from the HARD-skip block above.
+  if (scenario.expected?.requiredEvidence?.includes("warn_only_on_missing_soft_stage")) {
+    lines.push(
+      "[HIMA_GATE:warn] warn_only_on_missing_soft_stage — SOFT discipline absent; WARN emitted, run continues.",
+    );
+  }
+
+  // A build-bearing window runs the full SPEC→PLAN→BUILD→VERIFY development
+  // cycle. Emit it whenever the contract requires the dev-cycle signal, even
+  // if it is declared only as requiredEvidence (not requiredRuntimeSignals).
+  if (scenario.expected?.requiredEvidence?.includes("development_cycle_signal")) {
+    for (const stage of ["SPEC", "PLAN", "BUILD", "VERIFY"]) {
+      const marker = `[HIMA_CYCLE:${stage}]`;
+      if (!lines.includes(marker)) {
+        lines.push(marker);
+      }
+    }
+  }
+
   appendRuntimeSignals(lines, scenario);
 
   lines.push(
@@ -681,6 +740,9 @@ function requiredSignalMarkers(scenario) {
   }
   if (signals.has("completion_status")) {
     markers.push("[HIMA_COMPLETION_STATUS:partial]");
+  }
+  if (signals.has("mode_matrix_verified")) {
+    markers.push("[HIMA_MODE_MATRIX:verified] mode_matrix_verified");
   }
 
   return markers;
