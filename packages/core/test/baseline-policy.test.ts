@@ -16,10 +16,12 @@ describe("baseline policy", () => {
   });
 
   it("models checkpoints as policy inside auto/pairing, not as extra modes", () => {
-    expect(RISK_POLICY.H.allowedModes).toEqual(["auto", "pairing"]);
+    // Post-H2: "checkpoint" (M2) and "explicit" (M3) are valid modes for H/C.
+    // M0 variants ("bypass", "full-bypass") remain excluded — GOAL-3 §10.2 HARD-safe.
+    expect(RISK_POLICY.H.allowedModes).toEqual(["auto", "pairing", "checkpoint", "explicit"]);
     expect(RISK_POLICY.H.requiresHumanCheckpoint).toBe(true);
     expect(RISK_POLICY.H.mandatoryEvidenceKeys).toContain("threat_model_stride");
-    expect(RISK_POLICY.C.allowedModes).toEqual(["auto", "pairing"]);
+    expect(RISK_POLICY.C.allowedModes).toEqual(["auto", "pairing", "checkpoint", "explicit"]);
     expect(RISK_POLICY.C.requiresHumanCheckpoint).toBe(true);
     expect(RISK_POLICY.C.mandatoryEvidenceKeys).toContain("independent_security_audit");
   });
