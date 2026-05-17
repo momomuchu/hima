@@ -262,7 +262,7 @@ const events = {
   subagents: grab(/\[HIMA_SUBAGENT:[^\]]+\]/g),
   gate: grab(/\[HIMA_GATE:[^\]]+\]/g),
   decisions: grab(/\[HIMA_DECISION:[^\]]*\]/g),
-  errors: grab(/\[HIMA_ERROR:[^\]]*\]/g),
+  errors: grab(/\[HIMA_ERROR(?::[^\]]*)?\]/g),
   sessionEnd: grab(/\[HIMA_SESSION_END:[^\]]*\]/g),
   rawErrorsign: grab(/\b(?:Error|Exception|ENOENT|EPERM|Traceback|FATAL)\b[^\n]{0,120}/g).slice(
     0,
@@ -348,6 +348,22 @@ writeFileSync(
   "utf8",
 );
 
+// Artifact-primary error/recovery count, consistent with the PMF-verdict
+// multi-source reader above (the same anti-overfitting lesson): an error
+// surfaced + recovered is real even when the transcript marker is absent /
+// truncated on SIGTERM / model-varied (bare `[HIMA_ERROR]` vs payload form),
+// or when it is narrated only in an on-disk artifact (build log, decision
+// memo). Combined corpus = transcript + captured artifact bodies. Exclude the
+// literal prompt-template placeholder (`[HIMA_ERROR:<what failed>]` —
+// documentation, not a surfaced error) by construction, same philosophy as
+// the spawn_enoent real-signature fix. Avoids the silent under-report (counter
+// said 0 while the same report's prose said 2 — core.md §3: an observability
+// layer must not silently drop a real surfaced error).
+const errorCorpus = `${text}\n${Object.values(captured).join("\n")}`;
+const errorMarkers = [...errorCorpus.matchAll(/\[HIMA_ERROR(?::[^\]]*)?\]/g)]
+  .map((m) => m[0])
+  .filter((m) => !/[<>]/u.test(m));
+
 const report = [
   `# IMA Greenfield Autonomous Session — ${stamp}`,
   "",
@@ -366,7 +382,7 @@ const report = [
   `- subagents: ${events.subagents.length}`,
   `- gate verdicts: ${events.gate.join(" ") || "none"}`,
   `- explicit decisions: ${events.decisions.length}`,
-  `- HIMA_ERROR recoveries: ${events.errors.length}`,
+  `- HIMA_ERROR recoveries: ${errorMarkers.length}`,
   `- raw error-ish lines: ${events.rawErrorsign.length}`,
   `- session-end marker: ${events.sessionEnd.join(" ") || "ABSENT (likely truncated/timeout)"}`,
   "",
