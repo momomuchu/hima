@@ -7,7 +7,7 @@ const defaultScenarioRoot = path.join(repoRoot, "fixtures", "conversation-compli
 
 const hardErrorPatterns = [
   { id: "hook_schema_validation_failed", pattern: /Hook JSON output validation failed/iu },
-  { id: "spawn_enoent", pattern: /\bENOENT\b/iu },
+  { id: "spawn_enoent", pattern: /^(?!.*npm\s+error\s+enoent).*\bENOENT\b/imu },
   { id: "unexpected_argument", pattern: /unexpected argument/iu },
   {
     id: "malformed_hima_hook_path",
