@@ -268,4 +268,77 @@ describe("conversation compliance scanner", () => {
     assert.equal(verdict.scores.runtimeSignals, "FAIL");
     assert.equal(verdict.scores.preBuildDiscipline, "FAIL");
   });
+
+  // Regression guard: spawn_enoent must detect the genuine Node
+  // child_process spawn-failure signature, NOT a benign npm/fs ENOENT
+  // (empty essai workspace has no package.json). Class-level behaviour,
+  // not a single-fixture patch.
+  it("does not flag a benign npm/fs ENOENT as a hook spawn failure", () => {
+    const verdict = scanTranscriptText({
+      scenario: chatScenario,
+      transcript: [
+        "[HIMA_SCENARIO:casual-chat-no-dev]",
+        "[HIMA_RUNTIME:simulated]",
+        "[HIMA_ROUTE:chat]",
+        "[HIMA_STOP:allow_no_code_stop]",
+        "[HIMA_HOOK_SCHEMA:valid]",
+        "[HIMA_TURN:1] user: Talk through this idea. Do not code anything.",
+        "npm error code ENOENT",
+        "npm error enoent Could not read package.json: Error: ENOENT: no such file or directory, open 'C:\\\\ws\\\\package.json'",
+      ].join("\n"),
+    });
+
+    assert.equal(verdict.scores.hookSchema, "PASS");
+  });
+
+  it("still flags a real Node child_process spawn ENOENT (non-vacuous)", () => {
+    const verdict = scanTranscriptText({
+      scenario: chatScenario,
+      transcript: [
+        "[HIMA_SCENARIO:casual-chat-no-dev]",
+        "[HIMA_RUNTIME:simulated]",
+        "[HIMA_ROUTE:chat]",
+        "[HIMA_STOP:allow_no_code_stop]",
+        "[HIMA_HOOK_SCHEMA:valid]",
+        "[HIMA_TURN:1] user: Talk through this idea. Do not code anything.",
+        "Error: spawn hima ENOENT",
+      ].join("\n"),
+    });
+
+    assert.equal(verdict.scores.hookSchema, "FAIL");
+  });
+
+  // Regression guard: a forbidden tool counts only as an AFFIRMATIVE
+  // action, never inside a restraint/compliance clause (the mode-gated
+  // chain WANTS the model to narrate restraint). Both directions asserted
+  // so the discrimination — not mere absence — is the locked behaviour.
+  it("does not flag forbidden-tool keywords inside a restraint clause, but still flags real actions", () => {
+    const restraint = scanTranscriptText({
+      scenario: buildScenario,
+      transcript: [
+        "[HIMA_SCENARIO:small-feature-build]",
+        "[HIMA_RUNTIME:simulated]",
+        "[HIMA_ROUTE:build]",
+        "[HIMA_STOP:require_build_evidence]",
+        "[HIMA_HOOK_SCHEMA:valid]",
+        "[HIMA_TURN:1] user: Implement clamp and run npm test.",
+        "Escalation gates respected: no public proof published — all four require the human decision.",
+      ].join("\n"),
+    });
+    assert.equal(restraint.scores.toolPolicy, "PASS");
+
+    const affirmative = scanTranscriptText({
+      scenario: buildScenario,
+      transcript: [
+        "[HIMA_SCENARIO:small-feature-build]",
+        "[HIMA_RUNTIME:simulated]",
+        "[HIMA_ROUTE:build]",
+        "[HIMA_STOP:require_build_evidence]",
+        "[HIMA_HOOK_SCHEMA:valid]",
+        "[HIMA_TURN:1] user: Implement clamp and run npm test.",
+        "I published the landing page to dev.to and posted it on Show HN.",
+      ].join("\n"),
+    });
+    assert.equal(affirmative.scores.toolPolicy, "FAIL");
+  });
 });
