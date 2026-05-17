@@ -681,7 +681,11 @@ function evaluateStop(context: GateEvaluationContext, event: GateEvent): GateRes
     };
   }
 
-  // ── M1 / M2 (post-checkpoint) / M3 / M4: full evidence enforcement ───────
+  // ── Every non-full-bypass mode (M1, M2 post-checkpoint, M3, M4 scoped):
+  //    full evidence enforcement. There is no discrete M4 predicate — scoped
+  //    is not a bypass mode, so it correctly falls through to this branch.
+  //    (M4/scoped has no dedicated OperatingMode value yet — see GOAL-3
+  //    gap-closure; functionally it receives full enforcement here.) ─────────
   const sufficiency = hasSufficientEvidence(context);
 
   if (

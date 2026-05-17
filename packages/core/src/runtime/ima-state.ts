@@ -123,7 +123,7 @@ export type ForcedDiscipline = string;
 
 /**
  * Who holds go/no-go authority at each stage boundary.
- * state-machine.md §1: "agent" for M1/M3, "human" for M2.
+ * state-machine.md §1: "agent" for M0/M1/M3/M4, "human" for M2.
  */
 export type DecisionOwner = "agent" | "human";
 
@@ -175,7 +175,7 @@ export interface SpineConfig {
  * 2. forced_disciplines is always re-derived at stage entry — never carried over.
  * 3. next_handoff equals the stage after active_stage when inside the window,
  *    "END" when active_stage === window.stop, and null when active_stage === "END".
- * 4. decision_owner is "agent" for M1/M3, "human" for M2.
+ * 4. decision_owner is "agent" for M0/M1/M3/M4, "human" for M2.
  * 5. blocked and blocker are the only pair that can be set mid-stage; all other
  *    fields change only at transition boundaries.
  *
@@ -225,7 +225,7 @@ export interface ImaState {
 
   /**
    * Who owns the go/no-go decision to advance.
-   * state-machine.md §1: "agent" for M1/M3, "human" for M2.
+   * state-machine.md §1: "agent" for M0/M1/M3/M4, "human" for M2.
    */
   readonly decision_owner: DecisionOwner;
 
@@ -313,7 +313,7 @@ function isInsideWindow(stage: SpineStage, w: StageWindow): boolean {
 
 /**
  * Derives the decision_owner from the mode.
- * state-machine.md §1: "human" for M2, "agent" for M1/M3.
+ * state-machine.md §1: "human" for M2, "agent" for M0/M1/M3/M4.
  */
 function decisionOwnerFor(mode: ImaMode): DecisionOwner {
   return mode === "M2" ? "human" : "agent";
@@ -397,7 +397,7 @@ export function enter(
 /**
  * Advances the state machine after the active stage signals completion.
  *
- * Called when the active stage emits stage_complete (agent in M1/M3, or human
+ * Called when the active stage emits stage_complete (agent in M0/M1/M3/M4, or human
  * approves in M2). state-machine.md §2.3.
  *
  * Returns { ok: false } without mutation when:

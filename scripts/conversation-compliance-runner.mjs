@@ -587,7 +587,7 @@ function requiredEvidenceMarkers(scenario) {
   }
   if (ev.has("human_checkpoint_halted")) {
     lines.push(
-      "[HIMA_HUMAN_CHECKPOINT:halted] human_checkpoint_halted — awaiting explicit human go/no-go at the mode-gated checkpoint.",
+      "[HIMA_HUMAN_CHECKPOINT:halted] human_checkpoint_halted — awaiting explicit human decision at the mode-gated checkpoint.",
     );
   }
   if (ev.has("gate_block_on_missing_hard_stage")) {
