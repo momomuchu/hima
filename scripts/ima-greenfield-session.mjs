@@ -211,10 +211,16 @@ const transcriptPath = path.join(traceRoot, "02-transcript.log");
 log(`launching autonomous claude (timeout ${timeoutSec}s)…`);
 const started = Date.now();
 const sessionResult = await new Promise((resolve) => {
+  // shell:false (NOT win32 shell) so the long multiline prompt arg is passed
+  // verbatim — shell:true mangles it and claude falls back to (empty) stdin.
+  // Close stdin immediately so claude does not wait 3s for stdin then print
+  // a generic greeting. (Mirrors conversation-compliance-runner run().)
   const c = spawn("claude", ["--permission-mode", "bypassPermissions", "--print", prompt], {
     cwd: workspace,
-    shell: process.platform === "win32",
+    stdio: ["pipe", "pipe", "pipe"],
+    shell: false,
   });
+  c.stdin?.end();
   let out = "";
   const killer = setTimeout(() => {
     log(`TIMEOUT ${timeoutSec}s — killing session`);
@@ -267,12 +273,50 @@ const planningArtifacts = artifactsAfter.filter(
   (f) => f.startsWith(".planning/") || /SPEC|PMF|idea|ADR|README/i.test(f),
 );
 
+// On-disk artifacts ARE the trace (the prompt mandates "write to files not
+// chat"). Transcript markers truncate on SIGTERM / may be absent in --print,
+// so artifact evidence is PRIMARY; markers are corroborating/secondary.
+const read = (f) => {
+  try {
+    return readFileSync(path.join(workspace, f), "utf8");
+  } catch {
+    return "";
+  }
+};
+const ideaSourcingFile = artifactsAfter.find((f) => /idea-sourcing\.md$/i.test(f));
+const pmfFile = artifactsAfter.find((f) => /idea-to-pmf\.md$/i.test(f));
+const specFile = artifactsAfter.find((f) => /(^|\/)SPEC\.md$/i.test(f));
+const pmfBody = pmfFile ? read(pmfFile) : "";
+const pmfVerdict =
+  (pmfBody.match(/\b(build|kill|pivot)\b(?=[^]*verdict|.*verdict)/i) ||
+    pmfBody.match(/verdict[^]{0,80}?\b(build|kill|pivot)\b/i) ||
+    [])[1]?.toLowerCase() ?? (pmfBody ? "stated-in-doc" : "none");
+
 const phaseOrder = events.phases.map((p) => p.replace(/\[HIMA_PHASE:|\]/g, ""));
-const reachedIdeaSourcing = phaseOrder.includes("idea-sourcing");
-const reachedPmf = phaseOrder.includes("idea-to-pmf");
-const hasPmfArtifact = artifactsAfter.some((f) => /pmf|idea-to-pmf/i.test(f));
-const reachedBuild = phaseOrder.includes("build");
-const minimumMet = reachedPmf && (hasPmfArtifact || events.gate.length > 0);
+const reachedIdeaSourcing = Boolean(ideaSourcingFile) || phaseOrder.includes("idea-sourcing");
+const reachedPmf = Boolean(pmfFile) || phaseOrder.includes("idea-to-pmf");
+const reachedSpec = Boolean(specFile) || phaseOrder.includes("specification");
+const reachedBuild =
+  phaseOrder.includes("build") ||
+  artifactsAfter.some((f) => /\.(test|spec)\.[mc]?[jt]sx?$/.test(f)) ||
+  artifactsAfter.some((f) => f === "package.json" && /vitest|jest|node:test/.test(read(f)));
+// Minimum bar: autonomously produced BOTH an idea-sourcing AND an
+// idea-to-pmf artifact from an empty folder (it started the pipeline alone).
+const minimumMet = reachedIdeaSourcing && reachedPmf;
+
+// Capture artifact contents into the trace (real observability of WHAT it
+// decided autonomously — the idea, the PMF verdict, the spec).
+const captured = {};
+for (const f of [ideaSourcingFile, pmfFile, specFile, ...planningArtifacts].filter(Boolean)) {
+  if (!captured[f]) captured[f] = read(f).slice(0, 8000);
+}
+writeFileSync(
+  path.join(traceRoot, "03-artifact-contents.md"),
+  Object.entries(captured)
+    .map(([f, c]) => `\n\n===== ${f} =====\n${c}`)
+    .join("\n"),
+  "utf8",
+);
 
 const report = [
   `# IMA Greenfield Autonomous Session — ${stamp}`,
@@ -301,12 +345,14 @@ const report = [
     ? planningArtifacts.map((f) => `- ${f}`).join("\n")
     : "(NONE — nothing written to disk)",
   "",
-  "## Autonomy verdict",
-  `- reached idea-sourcing: ${reachedIdeaSourcing}`,
-  `- reached idea-to-pmf: ${reachedPmf}`,
-  `- PMF artifact on disk: ${hasPmfArtifact}`,
-  `- reached build: ${reachedBuild}`,
-  `- MINIMUM BAR (autonomous start through PMF gate): ${minimumMet ? "MET" : "NOT MET"}`,
+  "## Autonomy verdict (artifact-primary — on-disk evidence, not markers)",
+  `- reached idea-sourcing: ${reachedIdeaSourcing}${ideaSourcingFile ? ` (${ideaSourcingFile})` : ""}`,
+  `- reached idea-to-pmf:   ${reachedPmf}${pmfFile ? ` (${pmfFile})` : ""}`,
+  `- PMF verdict (parsed):  ${pmfVerdict}`,
+  `- reached specification: ${reachedSpec}${specFile ? ` (${specFile})` : ""}`,
+  `- reached build:         ${reachedBuild}`,
+  `- MINIMUM BAR (autonomous empty→idea-sourcing→idea-to-pmf): ${minimumMet ? "MET" : "NOT MET"}`,
+  `- session terminated by: ${sessionResult.code === null ? `TIMEOUT at ${timeoutSec}s (mid-pipeline — not a failure)` : `exit ${sessionResult.code}`}`,
   "",
   "## Honest assessment",
   minimumMet
