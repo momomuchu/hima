@@ -528,7 +528,7 @@ const OPERATIONAL_CATALOG = {
     },
     {
       id: "code-quality-maintainability",
-      title: "2026-05-17 skill note — Shotgun Surgery / Divergent Change",
+      title: "2026-05-17 skill note -- Shotgun Surgery / Divergent Change",
       purpose:
         "When a user asks about Shotgun Surgery, Divergent Change, scattered changes, ripple effects, co-change, broad PRs, logical coupling, Move Function, Split Phase, Inline Function, Extract Class, AI boundary cleanup or whether to split/consoli",
       activation: {
@@ -736,7 +736,7 @@ const OPERATIONAL_CATALOG = {
       },
       owns: [
         "Error typology: programmer error vs. operational error vs. expected domain error",
-        "Result/Either types vs. exceptions — when each",
+        "Result/Either types vs. exceptions -- when each",
         "per language/framework",
         "Retry policy: retryable errors",
         "max attempts",
@@ -1289,7 +1289,7 @@ const OPERATIONAL_CATALOG = {
       id: "schema-driven-development",
       title: "Skill: Schema-Driven Development (schema-first / contract-first)",
       purpose:
-        "Thrift, OpenAPI Specification, GraphQL SDL, TypeSpec, Cap'n Proto — selection decision tree",
+        "Thrift, OpenAPI Specification, GraphQL SDL, TypeSpec, Cap'n Proto -- selection decision tree",
       activation: {
         macroCycles: ALL_CYCLES,
         gateTypes: ["session_start", "user_prompt"],
