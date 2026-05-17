@@ -15,7 +15,7 @@ import { evaluateHardLimits } from "../security/hard-limits.js";
 import { scanPromptInjectionText } from "../security/prompt-injection-scan.js";
 import { redactUnknown } from "../security/redaction.js";
 import type { FinalState, GateDecision, OperatingMode, RiskClass } from "../types/canonical.js";
-import { compareRiskClass, isRiskClass, riskAtLeast } from "../types/canonical.js";
+import { compareRiskClass, isRiskClass, MACRO_CYCLES, riskAtLeast } from "../types/canonical.js";
 import {
   type CompactionCriticalState,
   evaluateCompactionContinuity,
@@ -41,7 +41,8 @@ export type GateViolationType =
   | "PROMPT_INJECTION_DETECTED"
   | "RUNTIME_BINDING_UNAVAILABLE"
   | "UNRESOLVED_POLICY_VIOLATION"
-  | "INVALID_PHASE_TRANSITION";
+  | "INVALID_PHASE_TRANSITION"
+  | "PRE_BUILD_DISCIPLINE";
 
 export interface GateEvaluationContext {
   projectRoot: string;
@@ -409,6 +410,39 @@ function evaluatePreTool(context: GateEvaluationContext, event: GateEvent): Gate
   }
 
   if (!writeEvent) {
+    // ── General pre-build discipline ──────────────────────────────────────
+    // Build/test EXECUTION tooling must not run before the build phase.
+    // This is a GENERAL HIMA gate (every project/adapter via PreToolUse),
+    // not an essai-only assertion: a non-write shell call like `npm test`
+    // was previously allowed unconditionally, letting the chain run build
+    // tooling during discovery/spec. M0 full-bypass skips (mode-axis.md
+    // §2b); HARD limits/destructive pause already fired above. Risk-scaled.
+    if (!isFullBypassMode(context.state.mode)) {
+      const cmd = readShellCommand(event).toLowerCase();
+      const isBuildTool =
+        /\b(?:npm|pnpm|yarn)\s+(?:run\s+)?(?:test|build)\b/.test(cmd) ||
+        /\bnpm\s+ci\b/.test(cmd) ||
+        /\b(?:vitest|jest|mocha|ava)\b/.test(cmd) ||
+        /\bnode\s+--test\b/.test(cmd) ||
+        /\btsc\b\s*(?:-b\b|--build\b)/.test(cmd);
+      const phaseIdx = MACRO_CYCLES.indexOf(context.state.phase);
+      const buildIdx = MACRO_CYCLES.indexOf("build");
+      const beforeBuild =
+        phaseIdx !== -1 &&
+        phaseIdx < buildIdx &&
+        context.state.sub_phase !== "Execute" &&
+        context.state.sub_phase !== "Verify";
+      if (isBuildTool && beforeBuild) {
+        return {
+          decision: riskAtLeast(context.currentRisk.risk_class, "H") ? "block" : "warn",
+          gateType: "pre_tool",
+          reason: `pre-build discipline: build/test tooling invoked in ${context.state.phase}/${context.state.sub_phase}, before the build phase. Reach the build stage before running the product's build/test.`,
+          violationType: "PRE_BUILD_DISCIPLINE",
+          contextInjection: buildContextInjection(context, allowedZones),
+        };
+      }
+    }
+
     const runtimeBinding = enforceBlockingRuntimeBinding(context, "pre_tool");
     if (runtimeBinding) {
       return runtimeBinding;
