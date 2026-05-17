@@ -671,8 +671,26 @@ function sequentialLivePrompt({
           ...(scenario.expected.requiredPhases ?? []).map((phase) => `[HIMA_PHASE:${phase}]`),
         ]
       : []),
-    ...(isFinalTurn ? requiredSignalMarkers(scenario) : []),
-    ...(isFinalTurn ? requiredEvidenceMarkers(scenario) : []),
+    // Final turn: the full marker block is mandatory (the working contract
+    // for short scenarios). Non-final turns of a long chain: the SAME markers
+    // are offered as a "emit the moment this signal naturally occurs THIS
+    // turn" menu so they are not all deferred into one final mega-response
+    // (the P1 13-turn failure mode — by turn 13 the model is doing real build
+    // work and under-emits a 20+ marker block). Additive + backward-compatible:
+    // short scenarios still satisfy the contract on the final turn; long
+    // chains can report incrementally, mirroring the simulated oracle's
+    // per-stage emission and how a real engine actually reports.
+    ...(isFinalTurn
+      ? [...requiredSignalMarkers(scenario), ...requiredEvidenceMarkers(scenario)]
+      : (() => {
+          const menu = [...requiredSignalMarkers(scenario), ...requiredEvidenceMarkers(scenario)];
+          return menu.length > 0
+            ? [
+                "If any of these signals/evidence naturally occur THIS turn, emit its exact marker now on its own line (do not defer all of them to the final turn):",
+                ...menu,
+              ]
+            : [];
+        })()),
     ...(turnNumber > 1 ? ["[HIMA_RECLASSIFIED_FROM_LATEST_TURN]"] : []),
     ...(scenario.expected.requiredEvidence?.includes("source_links_when_prices_are_claimed")
       ? [
