@@ -188,7 +188,10 @@ const prompt = [
   "   evidence artifact under .planning/ with a clear idea id.",
   "2. idea-to-pmf: evaluate PMF (problem, audience, wedge, MVP scope,",
   "   build/pivot/kill verdict). Produce an idea-to-pmf verdict artifact.",
-  "3. GATE: only if the PMF verdict is build, continue. Otherwise stop and",
+  "   CONTRACT: the LAST line of the idea-to-pmf artifact must be exactly,",
+  "   on its own line, machine-readable (no prose around it):",
+  "     HIMA-PMF-VERDICT: BUILD   (or KILL, or PIVOT)",
+  "3. GATE: only if HIMA-PMF-VERDICT is BUILD, continue. Otherwise stop and",
   "   record the kill/pivot rationale.",
   "4. If valid: continue the pipeline — specification (SPEC.md with",
   "   acceptance criteria), then design/architecture as warranted, then a",
@@ -293,16 +296,29 @@ const pmfFile = artifactsAfter.find(
 );
 const specFile = artifactsAfter.find((f) => /(^|\/)spec[^/]*\.md$/i.test(f));
 const buildMilestoneFile = artifactsAfter.find((f) => /build[-_]?milestone/i.test(f));
-const pmfBody = pmfFile ? read(pmfFile) : "";
-// Extract the EXPLICIT verdict declaration, not the first build/kill/pivot
-// token anywhere — prose like "No kill/pivot trigger met" must not be read
-// as a kill. Priority: an explicit "VERDICT[: ]**X**" / "## Verdict\n**X**"
-// declaration; only then a looser fallback.
-const pmfVerdict =
-  (pmfBody.match(/\bVERDICT\b[:\s]*\**\s*(BUILD|KILL|PIVOT)\b/i) ||
-    pmfBody.match(/^\s*#{1,4}\s*\d*\.?\s*Verdict[\s\S]{0,120}?\*{0,2}\b(BUILD|KILL|PIVOT)\b/im) ||
-    pmfBody.match(/\*\*\s*(BUILD|KILL|PIVOT)\s*\.?\s*\*\*/i) ||
-    [])[1]?.toLowerCase() ?? (pmfBody ? "stated-in-doc" : "none");
+// The LLM scatters PMF reasoning across multiple freely-named files
+// (01-pmf-scorecard.md, 02-decision-memo-build-pivot-kill.md, …). Reading
+// one file + regex is inherently brittle (the anti-overfitting lesson).
+// General fix: (1) the chain CONTRACT mandates a canonical machine token
+// `HIMA-PMF-VERDICT: X` (see prompt); read it across ALL artifacts + the
+// transcript — deterministic, phrasing-independent. (2) Only if the
+// contract token is absent, fall back to an explicit VERDICT declaration
+// scanned over EVERY pmf-related file concatenated (not just the first).
+const allPmfFiles = artifactsAfter.filter(
+  (f) =>
+    /idea[-_]?to[-_]?pmf|pmf[-_]?(verdict|scorecard|decision)|build[-_]?pivot[-_]?kill/i.test(f) &&
+    f.endsWith(".md"),
+);
+const pmfBody = allPmfFiles.map(read).join("\n\n");
+const canonical = (`${pmfBody}\n${text}`.match(/HIMA-PMF-VERDICT:\s*\**\s*(BUILD|KILL|PIVOT)\b/i) ||
+  text.match(/\[HIMA_GATE:\s*pmf\s*=\s*(build|kill|pivot)\s*\]/i) ||
+  [])[1];
+const pmfVerdict = canonical
+  ? canonical.toLowerCase()
+  : ((pmfBody.match(/\bVERDICT\b[:\s]*\**\s*(BUILD|KILL|PIVOT)\b/i) ||
+      pmfBody.match(/^\s*#{1,4}\s*\d*\.?\s*Verdict[\s\S]{0,120}?\*{0,2}\b(BUILD|KILL|PIVOT)\b/im) ||
+      pmfBody.match(/\*\*\s*(BUILD|KILL|PIVOT)\s*\.?\s*\*\*/i) ||
+      [])[1]?.toLowerCase() ?? (pmfBody ? "stated-in-doc" : "none"));
 
 const phaseOrder = events.phases.map((p) => p.replace(/\[HIMA_PHASE:|\]/g, ""));
 const reachedIdeaSourcing = Boolean(ideaSourcingFile) || phaseOrder.includes("idea-sourcing");
