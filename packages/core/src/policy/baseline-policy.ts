@@ -38,7 +38,7 @@ export interface MandatoryEvidenceAlternative {
 
 export const RISK_POLICY: Record<RiskClass, RiskPolicy> = {
   T: {
-    // low-risk — all modes allowed including M0 explicit and legacy bypass
+    // T-risk (lowest) — all modes allowed including M0 explicit and legacy bypass
     allowedModes: ["bypass", "auto", "pairing", "full-bypass", "checkpoint", "explicit"],
     bypassAllowed: true,
     mandatoryEvidenceKeys: ["ci_green", "sast_clean", "secrets_clean"],
@@ -49,7 +49,7 @@ export const RISK_POLICY: Record<RiskClass, RiskPolicy> = {
     requiresSubagentGatesWhenDelegating: false,
   },
   L: {
-    // low-risk — same as T, all modes allowed
+    // L-risk — same as T, all modes allowed
     allowedModes: ["bypass", "auto", "pairing", "full-bypass", "checkpoint", "explicit"],
     bypassAllowed: true,
     mandatoryEvidenceKeys: [
@@ -67,7 +67,7 @@ export const RISK_POLICY: Record<RiskClass, RiskPolicy> = {
     requiresSubagentGatesWhenDelegating: false,
   },
   M: {
-    // medium-risk — M0/"bypass"/"full-bypass" NOT allowed; "checkpoint" and "explicit" added
+    // M-risk — M0/"bypass"/"full-bypass" NOT allowed; "checkpoint" and "explicit" added
     allowedModes: ["auto", "pairing", "checkpoint", "explicit"],
     bypassAllowed: false,
     mandatoryEvidenceKeys: [
@@ -86,7 +86,7 @@ export const RISK_POLICY: Record<RiskClass, RiskPolicy> = {
     requiresSubagentGatesWhenDelegating: true,
   },
   H: {
-    // high-risk — same as M, M0 excluded
+    // H-risk — same as M, M0 excluded
     allowedModes: ["auto", "pairing", "checkpoint", "explicit"],
     bypassAllowed: false,
     mandatoryEvidenceKeys: [
