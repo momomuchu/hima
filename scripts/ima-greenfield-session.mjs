@@ -285,14 +285,23 @@ const read = (f) => {
 };
 // Robust: match the stage anywhere in the path (LLM names files freely:
 // idea-sourcing-evidence.md, idea-to-pmf-verdict.md, …) — not an exact stem.
-const ideaSourcingFile = artifactsAfter.find((f) => /idea[-_]?sourcing/i.test(f) && f.endsWith(".md"));
-const pmfFile = artifactsAfter.find((f) => /idea[-_]?to[-_]?pmf|pmf[-_]?verdict/i.test(f) && f.endsWith(".md"));
+const ideaSourcingFile = artifactsAfter.find(
+  (f) => /idea[-_]?sourcing/i.test(f) && f.endsWith(".md"),
+);
+const pmfFile = artifactsAfter.find(
+  (f) => /idea[-_]?to[-_]?pmf|pmf[-_]?verdict/i.test(f) && f.endsWith(".md"),
+);
 const specFile = artifactsAfter.find((f) => /(^|\/)spec[^/]*\.md$/i.test(f));
 const buildMilestoneFile = artifactsAfter.find((f) => /build[-_]?milestone/i.test(f));
 const pmfBody = pmfFile ? read(pmfFile) : "";
+// Extract the EXPLICIT verdict declaration, not the first build/kill/pivot
+// token anywhere — prose like "No kill/pivot trigger met" must not be read
+// as a kill. Priority: an explicit "VERDICT[: ]**X**" / "## Verdict\n**X**"
+// declaration; only then a looser fallback.
 const pmfVerdict =
-  (pmfBody.match(/\b(build|kill|pivot)\b(?=[^]*verdict|.*verdict)/i) ||
-    pmfBody.match(/verdict[^]{0,80}?\b(build|kill|pivot)\b/i) ||
+  (pmfBody.match(/\bVERDICT\b[:\s]*\**\s*(BUILD|KILL|PIVOT)\b/i) ||
+    pmfBody.match(/^\s*#{1,4}\s*\d*\.?\s*Verdict[\s\S]{0,120}?\*{0,2}\b(BUILD|KILL|PIVOT)\b/im) ||
+    pmfBody.match(/\*\*\s*(BUILD|KILL|PIVOT)\s*\.?\s*\*\*/i) ||
     [])[1]?.toLowerCase() ?? (pmfBody ? "stated-in-doc" : "none");
 
 const phaseOrder = events.phases.map((p) => p.replace(/\[HIMA_PHASE:|\]/g, ""));
