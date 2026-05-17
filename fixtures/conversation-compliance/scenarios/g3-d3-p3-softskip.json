@@ -13,7 +13,11 @@
     "allowedTools": ["read_files"],
     "forbiddenTools": ["apply_patch", "npm_test_required", "git_commit", "git_push"],
     "requiredEvidence": ["warn_only_on_missing_soft_stage"],
-    "forbiddenEvidenceRequirements": ["gate_block_on_missing_hard_stage", "DONE_VERIFIED", "BLOCKED_POLICY"],
+    "forbiddenEvidenceRequirements": [
+      "gate_block_on_missing_hard_stage",
+      "DONE_VERIFIED",
+      "BLOCKED_POLICY"
+    ],
     "stopPolicy": "allow_plan_stop",
     "runtimeSchema": "runtime_native",
     "requiresContinuity": false,
@@ -21,7 +25,19 @@
       "preset": "P3",
       "cycle": "idea-to-design",
       "window": [1, 5],
-      "hardSet": ["idea-sourcing", "idea-to-pmf", "positioning-messaging-category", "product-goal-sprint-alignment", "product-strategy", "technical-analysis-discovery", "specification-requirements", "schema-driven-development", "ui-styling", "ui-knowledge", "ux-research-product-experience"],
+      "hardSet": [
+        "idea-sourcing",
+        "idea-to-pmf",
+        "positioning-messaging-category",
+        "product-goal-sprint-alignment",
+        "product-strategy",
+        "technical-analysis-discovery",
+        "specification-requirements",
+        "schema-driven-development",
+        "ui-styling",
+        "ui-knowledge",
+        "ux-research-product-experience"
+      ],
       "canaryKind": "soft_stage_removed",
       "removedStage": "source_links_when_prices_are_claimed",
       "stageHardness": "SOFT",

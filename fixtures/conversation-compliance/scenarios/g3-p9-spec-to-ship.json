@@ -43,10 +43,7 @@
       "development_cycle_signal",
       "real_turn_boundaries"
     ],
-    "forbiddenEvidenceRequirements": [
-      "DONE_VERIFIED",
-      "growth"
-    ],
+    "forbiddenEvidenceRequirements": ["DONE_VERIFIED", "growth"],
     "stopPolicy": "require_build_evidence",
     "runtimeSchema": "runtime_native",
     "requiresContinuity": true,

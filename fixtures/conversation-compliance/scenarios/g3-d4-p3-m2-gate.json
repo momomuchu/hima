@@ -15,7 +15,14 @@
   "expected": {
     "route": "plan",
     "allowedTools": ["read_files", "web_search"],
-    "forbiddenTools": ["external_publish", "payment", "user_contact", "apply_patch", "git_commit", "git_push"],
+    "forbiddenTools": [
+      "external_publish",
+      "payment",
+      "user_contact",
+      "apply_patch",
+      "git_commit",
+      "git_push"
+    ],
     "requiredEvidence": [
       "plan_artifact_or_plan_response",
       "human_checkpoint_halted",
@@ -26,7 +33,13 @@
     "stopPolicy": "allow_plan_stop",
     "runtimeSchema": "runtime_native",
     "requiresContinuity": true,
-    "requiredPhases": ["idea-pmf", "strategy-positioning", "analysis-discovery", "specification", "design-ux"],
+    "requiredPhases": [
+      "idea-pmf",
+      "strategy-positioning",
+      "analysis-discovery",
+      "specification",
+      "design-ux"
+    ],
     "noBuildBeforeTurn": 2,
     "requiredRuntimeSignals": ["mode_matrix_verified"],
     "d4": {

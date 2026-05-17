@@ -15,7 +15,14 @@
   "expected": {
     "route": "build",
     "allowedTools": ["read_files", "web_search"],
-    "forbiddenTools": ["external_publish", "payment", "user_contact", "apply_patch", "git_commit", "git_push"],
+    "forbiddenTools": [
+      "external_publish",
+      "payment",
+      "user_contact",
+      "apply_patch",
+      "git_commit",
+      "git_push"
+    ],
     "requiredEvidence": [
       "development_cycle_signal",
       "human_checkpoint_halted",

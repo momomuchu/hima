@@ -11,7 +11,14 @@
   "expected": {
     "route": "plan",
     "allowedTools": ["read_files"],
-    "forbiddenTools": ["external_publish", "payment", "user_contact", "apply_patch", "git_commit", "git_push"],
+    "forbiddenTools": [
+      "external_publish",
+      "payment",
+      "user_contact",
+      "apply_patch",
+      "git_commit",
+      "git_push"
+    ],
     "requiredEvidence": ["plan_artifact_or_plan_response", "mode_matrix_verified"],
     "forbiddenEvidenceRequirements": ["DONE_VERIFIED", "BLOCKED_POLICY"],
     "stopPolicy": "allow_plan_stop",

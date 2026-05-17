@@ -33,12 +33,7 @@
     "stopPolicy": "allow_plan_stop",
     "runtimeSchema": "runtime_native",
     "requiresContinuity": true,
-    "requiredPhases": [
-      "idea-pmf",
-      "strategy-positioning",
-      "analysis-discovery",
-      "specification"
-    ],
+    "requiredPhases": ["idea-pmf", "strategy-positioning", "analysis-discovery", "specification"],
     "requiredRuntimeSignals": ["skill"]
   }
 }

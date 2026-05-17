@@ -20,8 +20,8 @@
  * Exits 0 only if all scenarios PASS.
  */
 
-import { readdir } from "node:fs/promises";
 import { spawn } from "node:child_process";
+import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -70,7 +70,7 @@ function classifyBucket(stem) {
 async function enumerateScenarios() {
   const entries = (await readdir(scenarioRoot))
     .filter((f) => f.startsWith("g3-") && f.endsWith(".json"))
-    .sort((a, b) => a.localeCompare(a, undefined, { numeric: true }));
+    .sort((a, _b) => a.localeCompare(a, undefined, { numeric: true }));
 
   return entries.map((filename) => {
     const stem = filename.replace(/\.json$/, "");
@@ -87,9 +87,12 @@ function runScenario(stem) {
       process.execPath,
       [
         runnerScript,
-        "--runtime", "simulated",
-        "--conversation-mode", "sequential",
-        "--scenario", stem,
+        "--runtime",
+        "simulated",
+        "--conversation-mode",
+        "sequential",
+        "--scenario",
+        stem,
         "--json",
       ],
       { cwd: repoRoot, stdio: ["ignore", "pipe", "pipe"] },
@@ -98,8 +101,12 @@ function runScenario(stem) {
     let stdout = "";
     let stderr = "";
 
-    child.stdout.on("data", (chunk) => { stdout += chunk; });
-    child.stderr.on("data", (chunk) => { stderr += chunk; });
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk;
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk;
+    });
 
     child.on("close", (exitCode) => {
       let status = exitCode === 0 ? "PASS" : "FAIL";
@@ -112,9 +119,10 @@ function runScenario(stem) {
         const first = parsed.results?.[0];
         if (first && first.status !== "PASS") {
           const failures = first.detectedFailures ?? [];
-          reason = failures.length > 0
-            ? failures.map((f) => `${f.axis}:${f.id}`).join(", ")
-            : (first.status ?? "");
+          reason =
+            failures.length > 0
+              ? failures.map((f) => `${f.axis}:${f.id}`).join(", ")
+              : (first.status ?? "");
         }
       } catch {
         // runner wrote plain text or errored before JSON
@@ -134,8 +142,8 @@ function runScenario(stem) {
 
 function renderTable(rows) {
   const COL_SCENARIO = 35;
-  const COL_BUCKET   = 8;
-  const COL_STATUS   = 8;
+  const COL_BUCKET = 8;
+  const COL_STATUS = 8;
 
   const hr = `${"─".repeat(COL_SCENARIO + COL_BUCKET + COL_STATUS + 10)}`;
   const header = [
@@ -179,7 +187,9 @@ async function main() {
     }
   }
 
-  console.log(`GOAL-3 essai matrix — ${scenarios.length} scenario(s)${bucketFilter ? ` [bucket: ${bucketFilter.toUpperCase()}]` : ""}`);
+  console.log(
+    `GOAL-3 essai matrix — ${scenarios.length} scenario(s)${bucketFilter ? ` [bucket: ${bucketFilter.toUpperCase()}]` : ""}`,
+  );
 
   // --list: enumerate only, no run
   if (listOnly) {

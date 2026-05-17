@@ -12,10 +12,7 @@
     "route": "plan",
     "allowedTools": ["read_files", "web_search"],
     "forbiddenTools": ["apply_patch", "npm_test_required", "git_commit", "git_push"],
-    "requiredEvidence": [
-      "plan_artifact_or_plan_response",
-      "skill_or_workflow_signal"
-    ],
+    "requiredEvidence": ["plan_artifact_or_plan_response", "skill_or_workflow_signal"],
     "forbiddenEvidenceRequirements": [
       "HIMA_PHASE:growth",
       "HIMA_PHASE:sales-cs",

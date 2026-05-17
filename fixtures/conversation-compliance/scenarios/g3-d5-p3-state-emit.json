@@ -24,7 +24,14 @@
   "expected": {
     "route": "plan",
     "allowedTools": ["read_files"],
-    "forbiddenTools": ["external_publish", "payment", "user_contact", "git_commit", "git_push", "npm_publish"],
+    "forbiddenTools": [
+      "external_publish",
+      "payment",
+      "user_contact",
+      "git_commit",
+      "git_push",
+      "npm_publish"
+    ],
     "requiredEvidence": [
       "state_object_emitted_per_turn",
       "real_turn_boundaries",

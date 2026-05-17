@@ -3,7 +3,10 @@
   "kind": "build",
   "description": "Non-preset single-stage window [8→8]: build only, via window form. Distinct from P16 (scoped rule) — this activates the full build stage's HARD set, not a single rule.",
   "turns": [
-    { "role": "user", "text": "Activate window:8..8. Run only the build stage. Implement the feature. Do NOT proceed past the window stop." }
+    {
+      "role": "user",
+      "text": "Activate window:8..8. Run only the build stage. Implement the feature. Do NOT proceed past the window stop."
+    }
   ],
   "expected": {
     "route": "build",

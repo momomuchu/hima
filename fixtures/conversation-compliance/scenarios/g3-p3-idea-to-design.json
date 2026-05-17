@@ -33,12 +33,7 @@
       "skill_or_workflow_signal",
       "real_turn_boundaries"
     ],
-    "forbiddenEvidenceRequirements": [
-      "DONE_VERIFIED",
-      "ci_green",
-      "sast_clean",
-      "architecture"
-    ],
+    "forbiddenEvidenceRequirements": ["DONE_VERIFIED", "ci_green", "sast_clean", "architecture"],
     "stopPolicy": "allow_plan_stop",
     "runtimeSchema": "runtime_native",
     "requiresContinuity": true,

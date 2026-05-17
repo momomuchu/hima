@@ -12,7 +12,7 @@
  *
  * Read-only. Prints a JSON report.
  */
-import { readFile, readdir } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -23,9 +23,7 @@ function rx(token) {
   return new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "iu");
 }
 
-const files = (await readdir(dir))
-  .filter((f) => f.startsWith("g3-") && f.endsWith(".json"))
-  .sort();
+const files = (await readdir(dir)).filter((f) => f.startsWith("g3-") && f.endsWith(".json")).sort();
 
 const prose = [];
 const phase = [];

@@ -16,11 +16,7 @@
     "route": "build",
     "allowedTools": ["read_files", "apply_patch", "shell", "npm_test_required"],
     "forbiddenTools": ["git_push", "npm_publish", "external_publish", "payment", "user_contact"],
-    "requiredEvidence": [
-      "red_green_tests",
-      "skill_or_workflow_signal",
-      "real_turn_boundaries"
-    ],
+    "requiredEvidence": ["red_green_tests", "skill_or_workflow_signal", "real_turn_boundaries"],
     "forbiddenEvidenceRequirements": ["DONE_VERIFIED", "growth"],
     "stopPolicy": "require_build_evidence",
     "runtimeSchema": "runtime_native",

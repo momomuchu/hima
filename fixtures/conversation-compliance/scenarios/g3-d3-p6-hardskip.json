@@ -21,7 +21,11 @@
       "preset": "P6",
       "cycle": "discovery",
       "window": [3, 4],
-      "hardSet": ["technical-analysis-discovery", "specification-requirements", "schema-driven-development"],
+      "hardSet": [
+        "technical-analysis-discovery",
+        "specification-requirements",
+        "schema-driven-development"
+      ],
       "canaryKind": "hard_stage_removed",
       "removedStage": "technical-analysis-discovery",
       "stageHardness": "HARD",

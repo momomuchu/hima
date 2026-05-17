@@ -3,7 +3,10 @@
   "kind": "advisory",
   "description": "Non-preset single-stage window [1→1]: idea-pmf only. Tests the parametric single-stage path via window form (distinct from P16 which uses scope:<rule>).",
   "turns": [
-    { "role": "user", "text": "Activate window:1..1. Run only the idea-pmf stage. Log a problem, evaluate the evidence gate, and stop. Do NOT proceed past the window stop." }
+    {
+      "role": "user",
+      "text": "Activate window:1..1. Run only the idea-pmf stage. Log a problem, evaluate the evidence gate, and stop. Do NOT proceed past the window stop."
+    }
   ],
   "expected": {
     "route": "advisory",

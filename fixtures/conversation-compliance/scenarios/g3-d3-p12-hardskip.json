@@ -32,7 +32,17 @@
       "preset": "P12",
       "cycle": "build-to-ship",
       "window": [8, 9],
-      "hardSet": ["code-quality-maintainability", "concurrency", "error-handling", "observability", "performance", "web-mobile-platform", "production-reliability-devops", "testing", "feature-delivery"],
+      "hardSet": [
+        "code-quality-maintainability",
+        "concurrency",
+        "error-handling",
+        "observability",
+        "performance",
+        "web-mobile-platform",
+        "production-reliability-devops",
+        "testing",
+        "feature-delivery"
+      ],
       "canaryKind": "hard_stage_removed",
       "removedStage": "production-reliability-devops",
       "stageHardness": "HARD",

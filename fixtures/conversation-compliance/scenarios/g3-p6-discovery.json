@@ -25,10 +25,7 @@
     "stopPolicy": "allow_plan_stop",
     "runtimeSchema": "runtime_native",
     "requiresContinuity": true,
-    "requiredPhases": [
-      "analysis-discovery",
-      "specification"
-    ],
+    "requiredPhases": ["analysis-discovery", "specification"],
     "requiredRuntimeSignals": ["skill"]
   }
 }
