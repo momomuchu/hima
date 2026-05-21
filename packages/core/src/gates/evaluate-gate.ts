@@ -7,19 +7,35 @@ import { getAllowedWriteZones, isAllowedWriteTarget } from "../policy/write-zone
 import { assessRuntimeBinding } from "../runtime/runtime-bindings.js";
 import type { CurrentRiskFile } from "../schemas/current-risk.schema.js";
 import type { GateEvent } from "../schemas/gate-event.schema.js";
-import type { RunSetFile, SubagentRunRecord } from "../schemas/run-set.schema.js";
+import type {
+  GateDecisionRecord,
+  RunSetFile,
+  SubagentRunRecord,
+} from "../schemas/run-set.schema.js";
 import type { PlanningStateFile } from "../schemas/state.schema.js";
 import { evaluateAiSlopCleaner } from "../security/ai-slop-cleaner.js";
 import { evaluateAntiBypassClause } from "../security/anti-bypass-clause.js";
 import { evaluateHardLimits } from "../security/hard-limits.js";
 import { scanPromptInjectionText } from "../security/prompt-injection-scan.js";
 import { redactUnknown } from "../security/redaction.js";
-import type { FinalState, GateDecision, OperatingMode, RiskClass } from "../types/canonical.js";
+import type {
+  FinalState,
+  GateDecision,
+  OperatingMode,
+  QualityDimension,
+  RiskClass,
+} from "../types/canonical.js";
 import { compareRiskClass, isRiskClass, MACRO_CYCLES, riskAtLeast } from "../types/canonical.js";
+import { classifyToolName } from "./action-signal.js";
+// BEH-000 — import behaviors index to trigger registration of all 12 descriptors
+import "../behaviors/index.js";
+import { evaluateBehaviorsWithOverrides } from "./behavior-registry.js";
+import { normalizePath } from "./canonical-path.js";
 import {
   type CompactionCriticalState,
   evaluateCompactionContinuity,
 } from "./compaction-continuity.js";
+import { buildGateDecisionRecord } from "./gate-decision-record.js";
 import { getPolicyEventBlockers } from "./policy-event-blockers.js";
 
 export type GateViolationType =
@@ -42,13 +58,35 @@ export type GateViolationType =
   | "RUNTIME_BINDING_UNAVAILABLE"
   | "UNRESOLVED_POLICY_VIOLATION"
   | "INVALID_PHASE_TRANSITION"
-  | "PRE_BUILD_DISCIPLINE";
+  | "PRE_BUILD_DISCIPLINE"
+  // BEH-030 — subagent spawn missing required budget/failurePolicy fields
+  | "SUBAGENT_CONTRACT_INCOMPLETE"
+  // BEH-031 — no watcher subagent registered for H/C risk class
+  | "WATCHER_NOT_REGISTERED"
+  // BEH-032 — in-band kill switch: run transitioning to CANCELLED
+  | "CYCLE_ABORT"
+  // BEH-W4 — behavior override rejected: run risk class is at or above behavior risk_floor
+  | "OVERRIDE_FORBIDDEN_FOR_RISK_CLASS"
+  // BEH-W4 — behavior override rejected: riskFloorOverride would lower the floor
+  | "OVERRIDE_FORBIDDEN_FLOOR_REDUCTION";
 
 export interface GateEvaluationContext {
   projectRoot: string;
   state: PlanningStateFile;
   currentRisk: CurrentRiskFile;
   runSet: RunSetFile;
+  /** BEH-010 — set of canonical file paths read via the Read tool in this session.
+   *  Populated by the post_tool handler on every successful Read call.
+   *  Used by the pre_tool handler to enforce read-before-write. Optional so that
+   *  existing call-sites that do not yet populate it remain type-safe. */
+  sessionReadSet?: ReadonlySet<string>;
+  /**
+   * BEH-010 H1 — map from canonical read path to the content hash recorded at
+   * read time. Used to detect whether the on-disk file has changed since the
+   * session read, preventing blind overwrites of mutated content.
+   * Populated alongside sessionReadSet by handle-hook.ts.
+   */
+  sessionReadHashMap?: ReadonlyMap<string, string>;
 }
 
 export interface GateResult {
@@ -57,6 +95,8 @@ export interface GateResult {
   reason: string;
   contextInjection?: string;
   violationType?: GateViolationType;
+  /** BEH-021 — quality dimension of the violation, used for per-dimension retry policy. */
+  qualityDimension?: QualityDimension;
   finalState?: FinalState;
   missingEvidenceItems?: string[];
   evidenceAnchors?: readonly string[];
@@ -68,6 +108,24 @@ export interface GateResult {
     readonly resolvableByEvidence: boolean;
   };
   subagentRecord?: SubagentRunRecord;
+  /**
+   * BEH-032 — abort report to persist to run-set.json#/abortReports[].
+   * Carried from the kill-switch behavior verdict through handle-hook.ts
+   * which writes it via the updateRunSet callback (m4 fix).
+   */
+  abortReport?: {
+    readonly runId: string;
+    readonly ts: string;
+    readonly triggeredBy: "human" | "gate" | "policy";
+    readonly reason: string;
+    readonly lastActionSignals: unknown[];
+  };
+  /**
+   * BEH-W4 — Structured gate-decision records for every behavior evaluated
+   * during this gate invocation. Persisted by handle-hook.ts into run-set.json#/events.
+   * One record per behavior, plus one for the gate-level result itself.
+   */
+  gateDecisionRecords?: readonly GateDecisionRecord[];
 }
 
 interface SessionStartSnapshot {
@@ -88,6 +146,114 @@ interface SessionStartSnapshot {
 
 const DEFAULT_DENIED_SUBAGENT_TOOLS = ["todowrite", "task"] as const;
 
+// ── Behavior-verdict merge helper (BEH-W4 override-aware) ────────────────────
+/**
+ * Runs the registered behaviors for the gate with override support and merges
+ * the highest-severity behavior verdict into the gate result.
+ *
+ * Also builds per-behavior GateDecisionRecords and attaches them to the result
+ * for handle-hook.ts to persist into run-set.json#/events.
+ *
+ * Precedence (highest wins): block > warn > allow (existing result).
+ * An existing block is never downgraded by a behavior verdict.
+ */
+function mergeWithBehaviorVerdict(
+  gateResult: GateResult,
+  context: GateEvaluationContext,
+  event: GateEvent,
+): GateResult {
+  const { perBehavior, netVerdict } = evaluateBehaviorsWithOverrides(context, event);
+
+  // Build per-behavior GateDecisionRecords (one per evaluated behavior).
+  const behaviorRecords: GateDecisionRecord[] = perBehavior.map(
+    ({ behaviorId, verdict, overrideResolution }) => {
+      // For disabled behaviors (skip=true, no forbiddenReason) the verdict is null.
+      // We still emit a record with verdict=allow and overrideMode=disabled.
+      const syntheticResult: GateResult =
+        verdict === null && overrideResolution.skip && !overrideResolution.forbiddenReason
+          ? {
+              decision: "allow",
+              gateType: gateResult.gateType,
+              reason: `BEH-W4: ${behaviorId} skipped — disabled by behaviorOverride`,
+            }
+          : verdict !== null
+            ? {
+                decision: verdict.decision,
+                gateType: gateResult.gateType,
+                reason: verdict.reason,
+                violationType: verdict.violationType,
+                finalState: verdict.finalState,
+                qualityDimension: verdict.qualityDimension,
+              }
+            : {
+                decision: "allow",
+                gateType: gateResult.gateType,
+                reason: `${behaviorId} abstained`,
+              };
+
+      return buildGateDecisionRecord({
+        context,
+        event,
+        result: syntheticResult,
+        behaviorId,
+        overrideResolution,
+      });
+    },
+  );
+
+  // Build the gate-level record (for structural gate checks not tied to a behavior).
+  const gateLevelRecord = buildGateDecisionRecord({
+    context,
+    event,
+    result: gateResult,
+    behaviorId: null,
+  });
+
+  const allRecords: GateDecisionRecord[] = [gateLevelRecord, ...behaviorRecords];
+
+  // Existing block already takes precedence — skip behavior-driven block.
+  if (gateResult.decision === "block") {
+    return { ...gateResult, gateDecisionRecords: allRecords };
+  }
+
+  if (!netVerdict) {
+    return { ...gateResult, gateDecisionRecords: allRecords };
+  }
+
+  // Behavior wants to block — replace result with behavior verdict.
+  if (netVerdict.decision === "block") {
+    return {
+      decision: "block",
+      gateType: gateResult.gateType,
+      reason: netVerdict.reason,
+      violationType: netVerdict.violationType,
+      finalState: netVerdict.finalState,
+      qualityDimension: netVerdict.qualityDimension,
+      contextInjection: gateResult.contextInjection,
+      // BEH-032 m4: carry abortReport from behavior verdict so handle-hook can persist it
+      ...(netVerdict.abortReport ? { abortReport: netVerdict.abortReport } : {}),
+      gateDecisionRecords: allRecords,
+    };
+  }
+
+  // Behavior warns and gate already allows — upgrade to warn.
+  if (netVerdict.decision === "warn" && gateResult.decision === "allow") {
+    return {
+      ...gateResult,
+      decision: "warn",
+      reason: netVerdict.reason,
+      violationType: netVerdict.violationType,
+      finalState: netVerdict.finalState ?? gateResult.finalState,
+      qualityDimension: netVerdict.qualityDimension,
+      gateDecisionRecords: allRecords,
+    };
+  }
+
+  // Behavior warns and gate already warns — keep gate's reason (first warn wins).
+  return { ...gateResult, gateDecisionRecords: allRecords };
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 // ── Mode-axis helpers (M0/M2/M3) ───────────────────────────────────────────
 // M0: "bypass" (legacy) OR "full-bypass" (explicit) → full-bypass semantics.
 // Safety law (GOAL-3 §10.2): HARD gates and getPolicyEventBlockers always
@@ -101,7 +267,7 @@ function isCheckpointMode(mode: OperatingMode): boolean {
   return mode === "checkpoint";
 }
 
-function isExplicitMode(mode: OperatingMode): boolean {
+function _isExplicitMode(mode: OperatingMode): boolean {
   return mode === "explicit";
 }
 // ────────────────────────────────────────────────────────────────────────────
@@ -172,32 +338,43 @@ function evaluateDestructiveOp(
 // ────────────────────────────────────────────────────────────────────────────
 
 export function evaluateGate(context: GateEvaluationContext, event: GateEvent): GateResult {
+  let result: GateResult;
   switch (event.gateType) {
     case "session_start":
-      return evaluateSessionStart(context, event);
+      result = evaluateSessionStart(context, event);
+      break;
     case "user_prompt":
-      return evaluateUserPrompt(context, event);
+      result = evaluateUserPrompt(context, event);
+      break;
     case "pre_tool":
-      return evaluatePreTool(context, event);
+      result = evaluatePreTool(context, event);
+      break;
     case "post_tool":
-      return evaluatePostTool(context, event);
+      result = evaluatePostTool(context, event);
+      break;
     case "pre_compact":
-      return evaluatePreCompact(context, event);
+      result = evaluatePreCompact(context, event);
+      break;
     case "post_compact":
-      return evaluatePostCompact(context, event);
+      result = evaluatePostCompact(context, event);
+      break;
     case "stop":
-      return evaluateStop(context, event);
+      result = evaluateStop(context, event);
+      break;
     case "subagent_start":
-      return evaluateSubagentStart(context, event);
+      result = evaluateSubagentStart(context, event);
+      break;
     case "subagent_stop":
-      return evaluateSubagentStop(context, event);
+      result = evaluateSubagentStop(context, event);
+      break;
     default:
-      return {
+      result = {
         decision: "allow",
         gateType: event.gateType,
         reason: `${event.gateType} allowed by baseline policy`,
       };
   }
+  return mergeWithBehaviorVerdict(result, context, event);
 }
 
 function evaluateSessionStart(context: GateEvaluationContext, event: GateEvent): GateResult {
@@ -514,7 +691,16 @@ function evaluatePostTool(context: GateEvaluationContext, event: GateEvent): Gat
   const writeEvent = isWriteEvent(event);
   const targets = writeEvent ? readTargetPaths(event) : [];
 
-  if (containsPlaintextSecret(combinedText)) {
+  // BEH-000 action-gate: only WRITE_MUTATION and EXECUTE_SIDE_EFFECT qualify.
+  // READ_ONLY tools (Read, Glob, Grep) surface secrets from existing file content
+  // as observational output — the secret is not being written/executed, so no
+  // violation occurs. META_CONTROL tools (Task, Agent) are orchestration signals,
+  // not data writes. A real plaintext secret in a Write/Edit/Bash payload MUST
+  // still fire; this gate does not weaken that case.
+  const secretToolClass = classifyToolName(event.toolName ?? "");
+  const secretCheckQualifies =
+    secretToolClass === "WRITE_MUTATION" || secretToolClass === "EXECUTE_SIDE_EFFECT";
+  if (secretCheckQualifies && containsPlaintextSecret(combinedText)) {
     return {
       decision: "warn",
       gateType: event.gateType,
@@ -564,9 +750,19 @@ function evaluatePostTool(context: GateEvaluationContext, event: GateEvent): Gat
     }
   }
 
+  // BEH-000: pass qualifyingWriteOccurred based on tool semantic class.
+  // READ_ONLY tools (Read, Glob, Grep) do not qualify — the keyword in their
+  // output text is observational prose, not an action signal.
+  // META_CONTROL tools (Task, Agent, TodoWrite) do not qualify — orchestration
+  // calls are not writes and previously caused false positives on the slop guard.
+  // Only WRITE_MUTATION and EXECUTE_SIDE_EFFECT qualify (M3 fix).
+  const toolSemanticClass = classifyToolName(event.toolName ?? "");
+  const qualifyingAction =
+    toolSemanticClass === "WRITE_MUTATION" || toolSemanticClass === "EXECUTE_SIDE_EFFECT";
   const slopCleanup = evaluateAiSlopCleaner({
     gateType: event.gateType,
     parts: [event.toolInput, event.toolOutput, event.metadata],
+    qualifyingWriteOccurred: qualifyingAction,
   });
 
   if (slopCleanup.cleanupTriggered && !slopCleanup.accepted) {
@@ -1016,9 +1212,13 @@ function evaluateSubagentStop(context: GateEvaluationContext, event: GateEvent):
     };
   }
 
+  // BEH-000: any completed subagent is a qualifying action — the subagent ran
+  // and produced output. Only a pure Read-tool event (which subagent_stop is
+  // never) would be non-qualifying. Pass true unconditionally.
   const slopCleanup = evaluateAiSlopCleaner({
     gateType: "subagent_stop",
     parts: [event.toolOutput, event.metadata, subagentRecord.metadata],
+    qualifyingWriteOccurred: true,
   });
 
   if (slopCleanup.cleanupTriggered && !slopCleanup.accepted) {
@@ -1413,14 +1613,6 @@ function isExistingProjectDeliverable(projectRoot: string, deliverable: string):
 function isPathInsideRoot(root: string, candidate: string): boolean {
   const relative = path.relative(root, candidate);
   return relative.length === 0 || (!relative.startsWith("..") && !path.isAbsolute(relative));
-}
-
-function normalizePath(value: string): string {
-  return value
-    .replaceAll("\\", "/")
-    .replace(/^\/([a-z])\//i, "$1:/")
-    .replace(/^\.\/+/, "")
-    .toLowerCase();
 }
 
 function normalizeTargetForPolicy(value: string, projectRoot: string): string {

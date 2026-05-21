@@ -18,6 +18,25 @@ export interface AiSlopCleanerFinding {
 export interface AiSlopCleanerInput {
   readonly gateType?: GateType;
   readonly parts: readonly unknown[];
+  /**
+   * BEH-000 — Action-signal guard.
+   *
+   * When provided and false, the cleanup trigger is suppressed even if the
+   * keyword pattern matches in the text of `parts`. This closes the false-positive
+   * trap: an agent that merely *discusses* cleanup work in output text does not
+   * trigger the enforcement unless a qualifying file-write action actually occurred.
+   *
+   * Callers that know a WRITE_MUTATION action was performed for cleanup work must
+   * set this to true. Callers that cannot determine write status should omit the
+   * field (undefined), which preserves the legacy keyword-only path for backwards
+   * compatibility in contexts where no ActionSignal is available (e.g. subagent_stop
+   * without write evidence in metadata).
+   *
+   * The inverse guarantee is preserved: a real qualifying write WITH keyword AND
+   * without evidence still fires (qualifyingWriteOccurred=true + keyword present +
+   * missing evidence → violation).
+   */
+  readonly qualifyingWriteOccurred?: boolean;
 }
 
 export interface AiSlopCleanerEvaluation {
@@ -38,7 +57,15 @@ const REGRESSION_EVIDENCE_PATTERN =
 
 export function evaluateAiSlopCleaner(input: AiSlopCleanerInput): AiSlopCleanerEvaluation {
   const haystack = input.parts.map(stringifyUnknown).filter(Boolean).join("\n");
-  const cleanupTriggered = CLEANUP_TRIGGER_PATTERN.test(haystack);
+  const keywordPresent = CLEANUP_TRIGGER_PATTERN.test(haystack);
+
+  // BEH-000 action-signal guard: keyword in output text alone is not sufficient
+  // to trigger enforcement when the caller explicitly signals no write occurred.
+  // qualifyingWriteOccurred=false → suppress trigger regardless of keyword.
+  // qualifyingWriteOccurred=true  → keyword + write → trigger (genuine case).
+  // qualifyingWriteOccurred=undefined → legacy path: keyword alone triggers
+  //   (preserves backwards compat for call sites without ActionSignal context).
+  const cleanupTriggered = keywordPresent && input.qualifyingWriteOccurred !== false;
 
   if (!cleanupTriggered) {
     return {

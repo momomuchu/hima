@@ -588,6 +588,37 @@ describe("evaluateGate", () => {
     expect(result.violationType).toBe("SECRET_IN_PLAINTEXT");
   });
 
+  it("does NOT fire SECRET_IN_PLAINTEXT when secret pattern appears in Read tool output (READ_ONLY action)", () => {
+    // A Read tool returning file content that discusses secrets is observational —
+    // the secret is not being written or executed, so no violation should fire.
+    const result = evaluateGate(context(), {
+      gateType: "post_tool",
+      toolName: "Read",
+      toolInput: { file_path: "/project/docs/security-review.md" },
+      toolOutput:
+        "This document discusses secret patterns like sk-abcdefghijklmnopqrstuvwxyz123456 for reference.",
+    });
+
+    expect(result.decision).toBe("allow");
+    expect(result.violationType).toBeUndefined();
+  });
+
+  it("fires SECRET_IN_PLAINTEXT when secret pattern appears in Write tool input (WRITE_MUTATION action)", () => {
+    // A Write tool whose content field contains a real secret MUST still block.
+    const result = evaluateGate(context(), {
+      gateType: "post_tool",
+      toolName: "Write",
+      toolInput: {
+        file_path: "/project/config.env",
+        content: "API_KEY=sk-abcdefghijklmnopqrstuvwxyz123456",
+      },
+      toolOutput: "File written successfully.",
+    });
+
+    expect(result.decision).toBe("warn");
+    expect(result.violationType).toBe("SECRET_IN_PLAINTEXT");
+  });
+
   it("blocks DONE_VERIFIED in post_tool output before evidence is sufficient", () => {
     const result = evaluateGate(context(), {
       gateType: "post_tool",
@@ -1089,6 +1120,7 @@ claim-bearing: true
           scope: ["src/gates/evaluate-gate.ts"],
           depth: 1,
           expectedEvidenceKeys: ["subagent_output"],
+          budget: { maxTurns: 20 },
         },
       },
     );
@@ -1182,6 +1214,7 @@ claim-bearing: true
           expectedEvidenceKeys: ["subagent_output"],
           requestedTools: ["task"],
           allowedTools: ["task"],
+          budget: { maxTurns: 20 },
         },
       },
     );

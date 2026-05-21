@@ -1044,6 +1044,7 @@ claim-bearing: true
       depth: 1,
       expected_evidence_keys: ["subagent_output"],
       expected_deliverables: ["docs/subagent-token-ghp_abcdefghijklmnopqrstuvwxyz123456.md"],
+      budget: { maxTurns: 20 },
     });
     const project = await readPlanningProject(root);
     const eventsLog = await readEventLog(root);
@@ -1103,6 +1104,7 @@ claim-bearing: true
         scope: [".planning/01-discovery/notes.md"],
         depth: 1,
         expected_evidence_keys: ["subagent_output"],
+        budget: { maxTurns: 20 },
       },
       { dryRun: true },
     );

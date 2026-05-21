@@ -298,10 +298,115 @@ const init = defineCommand({
   },
 });
 
-const status = defineCommand({
+const _status = defineCommand({
   meta: {
     name: "status",
     description: "Show current harness state",
+  },
+  args: {
+    root: rootArg,
+    json: {
+      type: "boolean",
+      description: "Print JSON",
+      default: false,
+    },
+  },
+  async run({ args }) {
+    const result = await getStatus(args.root);
+
+    if (args.json) {
+      console.log(JSON.stringify(result, null, 2));
+      return;
+    }
+
+    console.log(formatStatusHuman(result));
+  },
+});
+
+// BEH-W4 — Gate-decision observability read surface
+// harness status gates [--verbose] [--id GATE-xxx] [--trace] [--json]
+const statusGates = defineCommand({
+  meta: {
+    name: "gates",
+    description: "Show gate-decision records for the current run (BEH-W4 observability)",
+  },
+  args: {
+    root: rootArg,
+    verbose: {
+      type: "boolean",
+      description: "Expand all allow decisions (default: collapse to count)",
+      default: false,
+    },
+    id: {
+      type: "string",
+      description: "Show full detail for a specific gate decision event id",
+      required: false,
+    },
+    trace: {
+      type: "boolean",
+      description: "Chronological trace of all gate decisions",
+      default: false,
+    },
+    json: {
+      type: "boolean",
+      description: "Print JSON",
+      default: false,
+    },
+  },
+  async run({ args }) {
+    const project = await readPlanningProject(args.root);
+    const runId = project.state.run_id;
+    const events = project.runSet.events;
+
+    // Filter to GATE_DECISION events for this run.
+    const gateEvents = events.filter(
+      (ev) =>
+        ev.type === "GATE_DECISION" &&
+        ev.payload &&
+        (ev.payload as Record<string, unknown>).runId === runId,
+    );
+
+    if (args.json) {
+      console.log(
+        JSON.stringify(
+          {
+            runId,
+            phase: project.state.phase,
+            subPhase: project.state.sub_phase,
+            riskClass: project.currentRisk.risk_class,
+            total: gateEvents.length,
+            events: gateEvents,
+          },
+          null,
+          2,
+        ),
+      );
+      return;
+    }
+
+    // Detail view: single decision by id.
+    if (typeof args.id === "string" && args.id.length > 0) {
+      const match = gateEvents.find((ev) => ev.id === args.id);
+      if (!match) {
+        console.log(`No gate decision found with id: ${args.id}`);
+        process.exitCode = 1;
+        return;
+      }
+      console.log(formatGateDecisionDetail(match));
+      return;
+    }
+
+    console.log(formatGatesHuman(runId, project, gateEvents, args.verbose, args.trace));
+  },
+});
+
+const statusCommand = defineCommand({
+  meta: {
+    name: "status",
+    description: "Show harness state and gate-decision observability",
+  },
+  subCommands: {
+    gates: statusGates,
   },
   args: {
     root: rootArg,
@@ -2171,7 +2276,7 @@ const main = defineCommand({
   },
   subCommands: {
     init,
-    status,
+    status: statusCommand,
     convergence,
     close,
     hook,
@@ -3955,6 +4060,119 @@ export function formatStatusHuman(result: Awaited<ReturnType<typeof getStatus>>)
     `Evidence   : ${result.evidenceCount}`,
     `Blockers   : ${blockers}`,
   ].join("\n");
+}
+
+// ── BEH-W4 gate-decision formatting ──────────────────────────────────────────
+
+function formatGatesHuman(
+  runId: string,
+  project: Awaited<ReturnType<typeof readPlanningProject>>,
+  gateEvents: Awaited<ReturnType<typeof readPlanningProject>>["runSet"]["events"],
+  verbose: boolean,
+  trace: boolean,
+): string {
+  const total = gateEvents.length;
+  const blocks = gateEvents.filter((ev) => ev.decision === "block").length;
+  const warns = gateEvents.filter((ev) => ev.decision === "warn").length;
+  const allows = gateEvents.filter((ev) => ev.decision === "allow").length;
+
+  const lines: string[] = [
+    `Run: ${runId}  Phase: ${project.state.phase}/${project.state.sub_phase}  Risk: ${project.currentRisk.risk_class}  Mode: ${project.state.mode}`,
+    "",
+    `Gate decisions (${total} total: ${allows} allow, ${warns} warn, ${blocks} block)`,
+    "",
+  ];
+
+  const displayEvents =
+    trace || verbose ? gateEvents : gateEvents.filter((ev) => ev.decision !== "allow");
+
+  for (const ev of displayEvents) {
+    const payload = (ev.payload ?? {}) as Record<string, unknown>;
+    const behaviorId = typeof payload.behaviorId === "string" ? payload.behaviorId : null;
+    const violationType = typeof payload.violationType === "string" ? payload.violationType : "";
+    const overrideActive = payload.overrideActive === true;
+    const overrideMode = typeof payload.overrideMode === "string" ? payload.overrideMode : "";
+    const gateType = typeof payload.gateType === "string" ? payload.gateType : (ev.gateType ?? "");
+    const ts = ev.ts ? new Date(ev.ts).toLocaleTimeString() : "";
+
+    const verdictLabel =
+      ev.decision === "block" ? "BLOCK" : ev.decision === "warn" ? "warn " : "allow";
+    const behLabel = behaviorId ?? "gate";
+    const overrideLabel = overrideActive ? ` [override:${overrideMode || "active"}]` : "";
+
+    lines.push(
+      `  ${verdictLabel}  ${ts}  ${gateType}   ${behLabel}  ${violationType}${overrideLabel}`,
+    );
+
+    if (ev.decision === "block" || verbose) {
+      const why = typeof payload.why === "string" ? payload.why : (ev.reason ?? "");
+      if (why) lines.push(`         ${why.slice(0, 200)}`);
+
+      const resolution = Array.isArray(payload.resolution) ? (payload.resolution as string[]) : [];
+      for (const step of resolution) {
+        lines.push(`         → ${step}`);
+      }
+
+      if (ev.decision === "block") {
+        lines.push(`         → harness status gates --id ${ev.id} for full detail`);
+      }
+    }
+  }
+
+  if (!verbose && !trace && allows > 0) {
+    lines.push(`  ... (${allows} allows — use --verbose to expand)`);
+  }
+
+  return lines.join("\n");
+}
+
+function formatGateDecisionDetail(
+  ev: Awaited<ReturnType<typeof readPlanningProject>>["runSet"]["events"][number],
+): string {
+  const payload = (ev.payload ?? {}) as Record<string, unknown>;
+  const lines: string[] = [
+    `Gate Decision: ${ev.id}`,
+    `Gate:          ${payload.gateType ?? ev.gateType ?? ""}`,
+    `Behavior:      ${payload.behaviorId ?? "none"}`,
+    `Classifier:    ${payload.classifierMethod ?? ""}`,
+    `Verdict:       ${ev.decision}`,
+    `Violation:     ${payload.violationType ?? "none"}`,
+    `Risk class:    ${payload.riskClass ?? ""}`,
+    `Phase:         ${payload.phase ?? ""}/${payload.subPhase ?? ""}`,
+    `Override:      ${payload.overrideActive ? `active (mode=${payload.overrideMode ?? "?"})` : "none"}`,
+    "",
+    `Why: ${payload.why ?? ev.reason ?? ""}`,
+    "",
+  ];
+
+  const signalsRead = Array.isArray(payload.signalsRead)
+    ? (payload.signalsRead as Array<Record<string, unknown>>)
+    : [];
+  if (signalsRead.length > 0) {
+    lines.push("Signals:");
+    for (const sig of signalsRead) {
+      const deciding = sig.deciding ? "[deciding]" : "[context] ";
+      lines.push(`  ${deciding} ${sig.channel}  → ${sig.summary}`);
+    }
+    lines.push("");
+  }
+
+  const evidenceRefs = Array.isArray(payload.evidenceRefs)
+    ? (payload.evidenceRefs as string[])
+    : [];
+  if (evidenceRefs.length > 0) {
+    lines.push(`Evidence: ${evidenceRefs.join(", ")}`);
+  }
+
+  const resolution = Array.isArray(payload.resolution) ? (payload.resolution as string[]) : [];
+  if (resolution.length > 0) {
+    lines.push("Resolve:");
+    for (let i = 0; i < resolution.length; i++) {
+      lines.push(`  ${i + 1}. ${resolution[i]}`);
+    }
+  }
+
+  return lines.join("\n");
 }
 
 export function formatEnterDevelopmentHuman(

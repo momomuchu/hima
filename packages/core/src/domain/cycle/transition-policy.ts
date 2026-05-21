@@ -1,3 +1,4 @@
+import { hasReviewerEvidence } from "../../behaviors/beh-020-critic-gate.js";
 import {
   evaluateDorDodTransition,
   type GovernanceEvaluation,
@@ -10,7 +11,9 @@ import {
   type PlanningPosition,
   validatePlanningTransition,
 } from "../../state-machine/subphases.js";
+import { readPlanningProject } from "../../storage/planning-store.js";
 import type { MacroCycle, SubPhase } from "../../types/canonical.js";
+import { riskAtLeast } from "../../types/canonical.js";
 import { HarnessError } from "../../types/errors.js";
 
 export interface TransitionRequest {
@@ -135,6 +138,38 @@ export async function evaluateTransitionGovernance(
 ): Promise<GovernanceEvaluation> {
   const current = currentPlanningPosition(snapshot);
   const target = resolveTransitionTarget(snapshot, request);
+
+  // BEH-020 — Verify-to-Capitalize transition guard (risk M+).
+  // A reviewer subagent evidence record is required in the run-set before the
+  // build/Capitalize sub-phase may begin. This guard fires before DoR/DoD so
+  // the reviewer-evidence violation surfaces with a specific error message.
+  if (
+    current.phase === "build" &&
+    current.subPhase === "Verify" &&
+    target.phase === "build" &&
+    target.subPhase === "Capitalize"
+  ) {
+    // Read the full project to access current risk class and evidence.
+    const project = await readPlanningProject(projectRoot);
+    if (riskAtLeast(project.currentRisk.risk_class, "M")) {
+      const context = {
+        projectRoot,
+        state: project.state,
+        currentRisk: project.currentRisk,
+        runSet: project.runSet,
+      };
+      if (!hasReviewerEvidence(context)) {
+        throw new HarnessError(
+          "TRANSITION_BLOCKED",
+          "BEH-020: Verify-to-Capitalize transition blocked — no reviewer subagent evidence " +
+            `found in run-set.json#/evidence for risk class ${project.currentRisk.risk_class}. ` +
+            "A reviewer subagent must produce an APPROVED or CHANGES_REQUIRED record " +
+            "before the build/Capitalize sub-phase may begin.",
+          { current, target, behavior: "BEH-020" },
+        );
+      }
+    }
+  }
 
   if (current.phase === target.phase) {
     return {
