@@ -44,6 +44,8 @@ export function normalizeGatePayload(gateType: GateType, payload: unknown): Gate
       deniedTools: record.deniedTools ?? record.denied_tools,
       parentDeniedTools: record.parentDeniedTools ?? record.parent_denied_tools,
       sessionDeniedTools: record.sessionDeniedTools ?? record.session_denied_tools,
+      budget: record.budget,
+      failurePolicy: record.failurePolicy ?? record.failure_policy,
     }),
   );
 

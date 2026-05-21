@@ -131,3 +131,40 @@ export const RUNTIME_BINDING_STATUSES = [
 
 export type RuntimeBindingStatusValue = (typeof RUNTIME_BINDING_STATUSES)[number];
 export const MISSING_RUNTIME_BINDING_STATUS = "missing" satisfies RuntimeBindingStatusValue;
+
+// BEH-031 — watcher role added to the subagent role vocabulary.
+export const SUBAGENT_ROLES = [
+  "executor",
+  "reviewer",
+  "observer",
+  "watcher",
+] as const;
+
+// BEH-013 — epistemic origin of a claim written into the Evidence Set.
+export const CLAIM_SOURCES = [
+  "verified",
+  "inferred",
+  "external",
+  "training",
+] as const;
+
+// BEH-023 — three-value completion status on EvidenceRecord items.
+export const COMPLETION_STATUSES = [
+  "DONE_VERIFIED",
+  "DONE_UNTESTED",
+  "ATTEMPTED_UNCONFIRMED",
+] as const;
+
+// BEH-021 — quality dimension used to classify gate violations for per-dimension retry policy.
+export const QUALITY_DIMENSIONS = [
+  "security",
+  "tests",
+  "review",
+  "evidence",
+  "suppression",
+] as const;
+
+export type QualityDimension = (typeof QUALITY_DIMENSIONS)[number];
+
+// BEH-030 — failure policy actions for subagent contract fields.
+export const FAILURE_POLICY_ACTIONS = ["gap", "retry", "block"] as const;
