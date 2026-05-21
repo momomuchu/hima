@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "suite": "swe-bench-verified",
+  "status": "executed",
+  "instanceId": "swe-verified-fixture-executed-invalid",
+  "runtimeTarget": "codex",
+  "createdAt": "2026-05-14T23:59:00.000Z"
+}

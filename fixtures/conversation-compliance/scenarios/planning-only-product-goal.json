@@ -1,0 +1,21 @@
+{
+  "id": "planning-only-product-goal",
+  "kind": "plan",
+  "description": "The user asks for a goal/spec and explicitly excludes implementation.",
+  "turns": [
+    {
+      "role": "user",
+      "text": "Create a goal/spec for testing all conversation scenarios. Do not implement the runner yet."
+    }
+  ],
+  "expected": {
+    "route": "plan",
+    "allowedTools": ["read_files"],
+    "forbiddenTools": ["apply_patch", "npm_test_required", "git_commit"],
+    "requiredEvidence": ["plan_artifact_or_plan_response"],
+    "forbiddenEvidenceRequirements": ["ci_green", "sast_clean", "secrets_clean", "DONE_VERIFIED"],
+    "stopPolicy": "allow_plan_stop",
+    "runtimeSchema": "runtime_native",
+    "requiresContinuity": false
+  }
+}

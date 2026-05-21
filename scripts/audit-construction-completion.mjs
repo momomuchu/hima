@@ -50,6 +50,15 @@ const handleHookTest = await readRequiredText(handleHookTestPath);
 
 const ledger = parseLedger(coverageAudit);
 const openRows = Array.from(complete.matchAll(/^- \[ \] (?<row>.+)$/gmu));
+const cycle96Blocked =
+  /^cycle-id:\s*cycle-96-external-authorization-required\s*$/m.test(shortTerm) &&
+  /^status:\s*BLOCKED\s*$/m.test(shortTerm);
+const cycle97Active =
+  /^cycle-id:\s*cycle-97-behavior-system\s*$/m.test(shortTerm) &&
+  /^status:\s*ACTIVE\s*$/m.test(shortTerm);
+// Construction ledger is externally blocked whenever the 36 open rows remain in the master checklist.
+// This flag anchors anti-fake-completion protection to the ledger, not to a specific cycle-id.
+const constructionExternallyBlocked = openRows.length === 36;
 const openRowTexts = openRows.map((match) => match.groups?.row ?? "");
 const coverageMap = extractCoverageMap(coverageAudit);
 const coverageRowSum = Array.from(coverageMap.values()).reduce((sum, entry) => sum + entry.rows, 0);
@@ -163,9 +172,6 @@ const externalBlockers = [
 const externalBlockerListChecks = buildExternalBlockerListChecks();
 const openRowExternalBlockerChecks = buildOpenRowExternalBlockerChecks(openRowChecklist);
 
-const cycle96Blocked =
-  /^cycle-id:\s*cycle-96-external-authorization-required\s*$/m.test(shortTerm) &&
-  /^status:\s*BLOCKED\s*$/m.test(shortTerm);
 const completionArtifactAbsenceChecks = buildCompletionArtifactAbsenceChecks(pathStatus);
 
 if (ledger.total !== 155) {
@@ -340,14 +346,18 @@ for (const entry of completionArtifactAbsenceChecks) {
   }
 }
 
-if (!cycle96Blocked) {
-  issues.push(`${shortTermPath}: expected active Cycle 96 BLOCKED state`);
+if (!cycle96Blocked && !cycle97Active) {
+  issues.push(
+    `${shortTermPath}: expected cycle-97-behavior-system ACTIVE or cycle-96-external-authorization-required BLOCKED — the construction ledger (119/155, 36 open rows) remains externally blocked`,
+  );
 }
 
-if (cycle96Blocked) {
+if (constructionExternallyBlocked) {
   for (const entry of pathStatus) {
     if (blockedForbiddenEvidencePaths.includes(entry.path) && entry.exists) {
-      issues.push(`${entry.path}: must be absent while Cycle 96 is BLOCKED`);
+      issues.push(
+        `${entry.path}: must be absent while the construction ledger has 36 open externally-blocked rows`,
+      );
     }
   }
 }
@@ -384,6 +394,8 @@ const audit = {
     id: extractFrontmatterValue(shortTerm, "cycle-id"),
     status: extractFrontmatterValue(shortTerm, "status"),
     cycle96Blocked,
+    cycle97Active,
+    constructionExternallyBlocked,
   },
   promptToArtifactChecklist: [
     {
@@ -554,9 +566,9 @@ const audit = {
       result: issues.length === 0 ? "pass" : "fail",
     },
     {
-      requirement: "Current cycle cannot close from proxy local artifacts",
-      evidence: `${shortTermPath} ${cycle96Blocked ? "is Cycle 96 BLOCKED" : "is not Cycle 96 BLOCKED"}`,
-      result: cycle96Blocked ? "blocked" : "fail",
+      requirement: "Current cycle cannot close construction goal from proxy local artifacts",
+      evidence: `${shortTermPath} ${cycle97Active ? "is Cycle 97 ACTIVE (local build lane)" : cycle96Blocked ? "is Cycle 96 BLOCKED" : "is neither Cycle 97 ACTIVE nor Cycle 96 BLOCKED"}; construction ledger has ${openRows.length} open externally-blocked rows`,
+      result: cycle97Active || cycle96Blocked ? "blocked" : "fail",
     },
     ...pathStatus.map((entry) => ({
       requirement: `Required completion artifact: ${entry.path}`,
@@ -1334,8 +1346,12 @@ async function buildPartialH3EvidenceChecks() {
 }
 
 function buildStaleClaimChecks() {
+  // When cycle-97 is active, SHORT-TERM-GOAL.md contains cycle-97 content which may reference
+  // cycle-96 historically but does not make construction-completion claims; skip it here.
+  // The construction-ledger truth surfaces (completePath, coverageAuditPath, archivePath) are
+  // still checked — they anchor the anti-fake protection to COMPLETE-CONSTRUCTION-GOAL.md.
   const docs = [
-    { path: shortTermPath, content: shortTerm },
+    ...(cycle97Active ? [] : [{ path: shortTermPath, content: shortTerm }]),
     { path: completePath, content: complete },
     { path: coverageAuditPath, content: coverageAudit },
     { path: archivePath, content: archive },
@@ -1748,11 +1764,18 @@ function buildStaleClaimChecks() {
 }
 
 function buildNextAllowedBranchChecks() {
-  const specs = [
-    {
-      path: shortTermPath,
-      content: shortTerm,
-      requiredBranches: [
+  // Cycle-97 is a local build lane; its next-steps are behavior-system waves, not external auth packets.
+  // Cycle-96 next-branch terms remain required in the cycle-96-BLOCKED-2026-05-15.md archive.
+  const shortTermRequiredBranches = cycle97Active
+    ? [
+        "W0 — Foundation",
+        "W1 — Epistemic",
+        "W2 — Enforcement teeth",
+        "W3 — Delegation & watcher",
+        "`prompt_pattern` classifier hardening",
+        "Resume cycle-96 external-authorization packets",
+      ]
+    : [
         "Real macOS environment access, or explicit authorization to run the prepared manual CI workflow.",
         "Runtime/model sessions | Target runtime, credentials, cost scope, transcript retention, and stop conditions for Claude/Codex/Hermes.",
         "Real user-home install | Explicit write permission for `~/.hima`, backup path, restore proof, dry-run path match, and rollback stop condition.",
@@ -1761,7 +1784,13 @@ function buildNextAllowedBranchChecks() {
         "Beta/users | Contact permission, storage/privacy boundary, survey template, and acceptance/falsifier criteria",
         "Public release/payment/launch | GitHub/npm/hosting/Stripe/public-post authorization and rollback/incident boundaries",
         "the master goal is intentionally rescoped with a new claim-bearing decision",
-      ],
+      ];
+
+  const specs = [
+    {
+      path: shortTermPath,
+      content: shortTerm,
+      requiredBranches: shortTermRequiredBranches,
     },
     {
       path: archivePath,
@@ -2015,11 +2044,22 @@ function buildArchiveVerificationEvidenceChecks() {
 }
 
 function buildShortTermDoneCriteriaChecks() {
-  const requiredDoneCriteria = [
-    "This cycle cannot reach DONE through local code or docs alone.",
-    "It reaches DONE only when one\nauthorization packet is explicitly provided and the corresponding real evidence is produced and\nverified, or the master goal is intentionally rescoped with a new claim-bearing decision.",
-    "Cycle 96 is marked DONE from local proxy artifacts without the external/environment evidence named above.",
-  ];
+  // Cycle-97 has its own DONE criteria anchored to behavior-system deliverables.
+  // Cycle-96 criteria remain checked when cycle-96 is still the active short-term goal.
+  const requiredDoneCriteria = cycle97Active
+    ? [
+        "13/13 behaviors implemented + verified",
+        "BEH-000 regression proof",
+        "Zero classifier scans output text by keyword",
+        "Spec 12 ACCEPTED",
+        "Any behavior is marked IMPLEMENTED without a passing block/warn test",
+        "cycle-97 is marked DONE while spec 12 still carries an open RED CARD",
+      ]
+    : [
+        "This cycle cannot reach DONE through local code or docs alone.",
+        "It reaches DONE only when one\nauthorization packet is explicitly provided and the corresponding real evidence is produced and\nverified, or the master goal is intentionally rescoped with a new claim-bearing decision.",
+        "Cycle 96 is marked DONE from local proxy artifacts without the external/environment evidence named above.",
+      ];
 
   return requiredDoneCriteria.map((criterion) => ({
     path: shortTermPath,
@@ -2029,6 +2069,21 @@ function buildShortTermDoneCriteriaChecks() {
 }
 
 function buildShortTermBlockerSummaryChecks() {
+  // Cycle-97 is a local build lane — no external authorization blockers.
+  // When cycle-96 is active, its external blockers must remain present.
+  if (cycle97Active) {
+    const requiredCycle97Terms = [
+      "BEH-000 Action-Signal Classification",
+      "behavior system",
+      "docs/conception/12-behaviors-catalog-spec.md",
+    ];
+    return requiredCycle97Terms.map((term) => ({
+      path: shortTermPath,
+      requirement: `must preserve Cycle 97 scope term: ${term}`,
+      result: shortTerm.includes(term) ? "pass" : "fail",
+    }));
+  }
+
   const requiredBlockerTerms = [
     "real macOS or authorized CI",
     "real runtime/model sessions",
@@ -2209,8 +2264,9 @@ function buildRuntimeFalsifiesGateChecks() {
 
 function extractFalsifiesBlocks(content) {
   const blocks = [];
+  // Also accepts YAML block-scalar continuation lines (deeper-indented lines after "field: >")
   const blockPattern =
-    /^Falsifies-If:\s*\r?\n(?<body>(?:[ \t]+(?:kill-condition|checkpoint-date|evidence-anchor|on-fail):[^\r\n]*(?:\r?\n|$))+)/gmu;
+    /^Falsifies-If:\s*\r?\n(?<body>(?:[ \t]+(?:(?:kill-condition|checkpoint-date|evidence-anchor|on-fail):[^\r\n]*|[ \t]+[^\r\n]+)(?:\r?\n|$))+)/gmu;
 
   for (const match of content.matchAll(blockPattern)) {
     blocks.push(match.groups?.body ?? "");
@@ -2225,9 +2281,12 @@ function extractFalsifiesField(block, field) {
 }
 
 function normalizeEvidenceAnchorPath(anchor) {
+  // Handle backtick-quoted paths, § section references, and + -joined multi-path anchors.
+  // Always return the first resolvable path segment.
   return anchor
     .replace(/^`(?<path>[^`]+)`.*$/u, "$<path>")
     .split(/\s+§\s+/u)[0]
+    .split(/\s+\+\s+/u)[0]
     .trim();
 }
 
@@ -2259,8 +2318,9 @@ function buildExternalBlockerListChecks() {
 function buildCompletionArtifactAbsenceChecks(entries) {
   return entries.map((entry) => ({
     path: entry.path,
-    requirement: "required completion artifact must be absent while Cycle 96 is BLOCKED",
-    result: cycle96Blocked && entry.exists ? "fail" : "pass",
+    requirement:
+      "required completion artifact must be absent while construction ledger has 36 open externally-blocked rows",
+    result: constructionExternallyBlocked && entry.exists ? "fail" : "pass",
   }));
 }
 
@@ -2281,8 +2341,9 @@ function buildStatusBlockerChecks(completionEvidencePresent, baseIssueCount) {
     },
     {
       path: shortTermPath,
-      requirement: "Cycle 96 BLOCKED must keep completion status blocked",
-      result: cycle96Blocked && completionEvidencePresent ? "fail" : "pass",
+      requirement:
+        "36 open externally-blocked construction rows must keep completion status blocked",
+      result: constructionExternallyBlocked && completionEvidencePresent ? "fail" : "pass",
     },
     {
       path: "scripts/audit-construction-completion.mjs",

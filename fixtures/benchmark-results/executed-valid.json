@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "suite": "swe-bench-verified",
+  "status": "executed",
+  "instanceId": "swe-verified-fixture-executed-valid",
+  "runtimeTarget": "codex",
+  "createdAt": "2026-05-14T23:59:00.000Z",
+  "baselineTranscriptPath": "fixtures/benchmark-results/evidence/executed-valid/baseline-transcript.log",
+  "governedTranscriptPath": "fixtures/benchmark-results/evidence/executed-valid/governed-transcript.log",
+  "testsBeforeAfterPath": "fixtures/benchmark-results/evidence/executed-valid/tests-before-after.txt",
+  "himaEvidencePath": "fixtures/benchmark-results/evidence/executed-valid/hima-events.jsonl",
+  "wallClockOverheadMs": 0,
+  "costAccounting": {
+    "zeroCostReason": "Synthetic validator fixture; no SWE-bench, runtime, model, or API session was executed."
+  }
+}

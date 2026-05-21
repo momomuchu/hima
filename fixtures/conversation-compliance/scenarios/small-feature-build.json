@@ -1,0 +1,21 @@
+{
+  "id": "small-feature-build",
+  "kind": "build",
+  "description": "A real implementation request where RED/GREEN evidence is required.",
+  "turns": [
+    {
+      "role": "user",
+      "text": "Read TASK.md. Implement clamp(value, min, max), including RangeError when min > max. Run npm test and stop only after it passes."
+    }
+  ],
+  "expected": {
+    "route": "build",
+    "allowedTools": ["read_files", "apply_patch", "shell", "npm_test_required"],
+    "forbiddenTools": ["external_publish", "payment", "user_contact"],
+    "requiredEvidence": ["red_green_tests"],
+    "forbiddenEvidenceRequirements": [],
+    "stopPolicy": "require_build_evidence",
+    "runtimeSchema": "runtime_native",
+    "requiresContinuity": false
+  }
+}

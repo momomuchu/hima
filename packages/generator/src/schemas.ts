@@ -43,9 +43,7 @@ const GateType = z.enum(GATE_TYPES);
 const RiskClass = z.enum(RISK_CLASSES);
 const OperatingMode = z.enum(OPERATING_MODES);
 
-const NonBlank = z
-  .string()
-  .refine((v) => v.trim().length > 0, "Expected a non-blank string.");
+const NonBlank = z.string().refine((v) => v.trim().length > 0, "Expected a non-blank string.");
 const NonBlankArray = z.array(NonBlank);
 
 // ---- SkillCatalogEntry mirror ------------------------------------------
@@ -87,14 +85,8 @@ const KebabCase = z
 const Semver = z
   .string()
   .min(1)
-  .regex(
-    /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/u,
-    "Expected semantic version.",
-  );
-const OneLine = NonBlank.refine(
-  (v) => !/[\r\n]/u.test(v),
-  "Expected a single-line string.",
-);
+  .regex(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/u, "Expected semantic version.");
+const OneLine = NonBlank.refine((v) => !/[\r\n]/u.test(v), "Expected a single-line string.");
 
 export const SkillFrontmatterSchema = z
   .object({

@@ -17,45 +17,58 @@ const masterLooksCycle96Blocked =
   complete.includes("- [ ] H3 install tested on Linux + macOS + Windows") &&
   complete.includes("- [ ] I6 `docs/goals/archive/v1.0-LAUNCH-2026-08-01.md` opening snapshot");
 
-if (!/^cycle-id:\s*cycle-96-external-authorization-required\s*$/m.test(shortTerm)) {
+const isCycle97Active =
+  /^cycle-id:\s*cycle-97-behavior-system\s*$/m.test(shortTerm) &&
+  /^status:\s*ACTIVE\s*$/m.test(shortTerm);
+
+const isCycle96Blocked =
+  /^cycle-id:\s*cycle-96-external-authorization-required\s*$/m.test(shortTerm) &&
+  /^status:\s*BLOCKED\s*$/m.test(shortTerm);
+
+if (!isCycle97Active && !isCycle96Blocked) {
   if (!masterLooksCycle96Blocked) {
     process.exit(0);
   }
 
   issues.push(
-    `${shortTermPath}: cycle-id must remain cycle-96-external-authorization-required while the master ledger still has the Cycle 96 blocked shape`,
+    `${shortTermPath}: cycle-id must be cycle-97-behavior-system (ACTIVE) or cycle-96-external-authorization-required (BLOCKED) while the master construction ledger still has 36 open rows`,
   );
 }
 
-if (!/^status:\s*BLOCKED\s*$/m.test(shortTerm)) {
-  issues.push(
-    `${shortTermPath}: Cycle 96 must remain status: BLOCKED until real external evidence or a claim-bearing rescope updates this guard`,
-  );
-}
+const requiredShortTermBoundaries = isCycle97Active
+  ? [
+      "BEH-000 Action-Signal Classification",
+      "13/13 behaviors implemented",
+      "docs/conception/12-behaviors-catalog-spec.md",
+      "packages/core/src/gates/",
+      "packages/core/test/",
+      ".planning/behavior-system/",
+    ]
+  : [
+      "This cycle cannot reach DONE through local code or docs alone.",
+      "authorization packet is explicitly provided",
+      "the corresponding real evidence is produced",
+      "the master goal is intentionally rescoped",
+      "docs/goals/h3-macos-authorization-packet.md",
+      "docs/goals/evidence/h3-install-macos.md",
+      "docs/goals/master-goal-rescope-decision-packet.md",
+      "Real macOS environment access",
+    ];
 
-const requiredShortTermBoundaries = [
-  "This cycle cannot reach DONE through local code or docs alone.",
-  "authorization packet is explicitly provided",
-  "the corresponding real evidence is produced",
-  "the master goal is intentionally rescoped",
-  "docs/goals/h3-macos-authorization-packet.md",
-  "docs/goals/evidence/h3-install-macos.md",
-  "docs/goals/master-goal-rescope-decision-packet.md",
-  "Real macOS environment access",
-];
+const boundaryLabel = isCycle97Active
+  ? "Cycle 97 behavior-system boundary"
+  : "Cycle 96 external-evidence boundary";
 
 for (const boundary of requiredShortTermBoundaries) {
   if (!shortTerm.includes(boundary)) {
-    issues.push(
-      `${shortTermPath}: missing required Cycle 96 external-evidence boundary: ${boundary}`,
-    );
+    issues.push(`${shortTermPath}: missing required ${boundaryLabel}: ${boundary}`);
   }
 }
 
 if (!/\bFalsifies-If:\s*\n/u.test(shortTerm)) {
   issues.push(`${shortTermPath}: missing Falsifies-If block`);
 }
-if (!/local proxy artifacts/u.test(shortTerm)) {
+if (!isCycle97Active && !/local proxy artifacts/u.test(shortTerm)) {
   issues.push(`${shortTermPath}: missing local-proxy DONE falsifier`);
 }
 
@@ -194,7 +207,6 @@ for (const check of forbiddenCompletePatterns) {
 }
 
 const staleClaimDocs = new Map([
-  [shortTermPath, shortTerm],
   [completePath, complete],
   ["docs/goals/external-authorization-packet-coverage-audit.md", undefined],
   ["docs/goals/archive/cycle-96-BLOCKED-2026-05-15.md", undefined],
@@ -592,7 +604,6 @@ for (const [staleClaimPath, knownContent] of staleClaimDocs) {
 }
 
 const rescopeEnactedClaimDocs = new Map([
-  [shortTermPath, shortTerm],
   [completePath, complete],
   ["docs/goals/external-authorization-packet-coverage-audit.md", undefined],
   ["docs/goals/archive/cycle-96-BLOCKED-2026-05-15.md", undefined],
@@ -961,10 +972,23 @@ for (const term of requiredArchiveBlockedStateTerms) {
   }
 }
 
+// Verify the cycle-96 supersede handoff archive created when cycle-97 was promoted.
+const handoffArchivePath = "docs/goals/archive/cycle-96-BLOCKED-2026-05-20.md";
+const handoffArchive = await readRequiredText(handoffArchivePath);
+if (!/^status:\s*BLOCKED\s*$/m.test(handoffArchive)) {
+  issues.push(`${handoffArchivePath}: missing status: BLOCKED`);
+}
+if (/status:\s*DONE/iu.test(handoffArchive)) {
+  issues.push(`${handoffArchivePath}: must not be marked DONE`);
+}
+if (!handoffArchive.includes("Superseded 2026-05-20 by cycle-97")) {
+  issues.push(`${handoffArchivePath}: missing supersede note for cycle-97`);
+}
+
 if (issues.length > 0) {
   console.error("Construction blocked-state guard failed.");
   console.error(
-    "Cycle 96 is still BLOCKED, so packet/prep/rescope coverage must not be promoted to evidence.",
+    "The construction ledger (119/155, 36 open rows) remains externally blocked — packet/prep/rescope coverage must not be promoted to evidence.",
   );
   console.error("");
 

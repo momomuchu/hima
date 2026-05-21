@@ -1,0 +1,72 @@
+{
+  "id": "full-product-cycle-real-session",
+  "kind": "full_cycle",
+  "description": "A long-form product conversation that moves from ideation to research, planning, implementation, and verification while exposing runtime skills, hooks, subagent routing, and workflow recommendations.",
+  "durationProfile": {
+    "targetMinutes": 60,
+    "minimumTurns": 8,
+    "pace": "sequential_stop_then_follow_up"
+  },
+  "turns": [
+    {
+      "role": "user",
+      "text": "I want to test a complete HIMA conversation, not just a unit test. Start by clarifying how you will avoid treating pure discussion as a build task."
+    },
+    {
+      "role": "user",
+      "text": "Now take this product idea: a tool that finds strong insights inside YouTube and TikTok videos. Critique it like a product advisor, no code yet."
+    },
+    {
+      "role": "user",
+      "text": "Research-style turn: identify what evidence would be needed before building. Do not invent current facts; separate evidence, inference, assumptions, and risk."
+    },
+    {
+      "role": "user",
+      "text": "Plan the first executable slice. I want the plan to mention the HIMA phase cycle and which skills or role-specialized agents should be used."
+    },
+    {
+      "role": "user",
+      "text": "Now implement a tiny fixture feature only: add a deterministic insightScore(viewCount, likeCount, commentCount) function with tests in the workspace."
+    },
+    {
+      "role": "user",
+      "text": "Run the relevant tests, fix failures, and report the RED/GREEN evidence. This is the first turn where build evidence is allowed."
+    },
+    {
+      "role": "user",
+      "text": "Review your own result. Did hooks run, did you use or decline skills correctly, and did subagents activate only where useful?"
+    },
+    {
+      "role": "user",
+      "text": "Final follow-up after stop: summarize PASS, FAIL, or BLOCKED evidence and do not claim DONE_VERIFIED for the early no-code turns."
+    }
+  ],
+  "expected": {
+    "route": "build",
+    "allowedTools": ["read_files", "apply_patch", "shell", "npm_test_required", "web_search"],
+    "forbiddenTools": [
+      "git_commit",
+      "git_push",
+      "npm_publish",
+      "external_publish",
+      "payment",
+      "user_contact"
+    ],
+    "requiredEvidence": [
+      "red_green_tests",
+      "skill_or_workflow_signal",
+      "hook_activation_signal",
+      "subagent_signal",
+      "recommendation_signal",
+      "development_cycle_signal",
+      "real_turn_boundaries"
+    ],
+    "forbiddenEvidenceRequirements": [],
+    "stopPolicy": "require_build_evidence",
+    "runtimeSchema": "runtime_native",
+    "requiresContinuity": true,
+    "requiredPhases": ["chat", "advisory", "research", "plan", "build", "verify", "review"],
+    "noBuildBeforeTurn": 5,
+    "requiredRuntimeSignals": ["skill", "hook", "subagent", "recommendation", "development_cycle"]
+  }
+}

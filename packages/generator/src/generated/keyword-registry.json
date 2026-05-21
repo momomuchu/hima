@@ -20,10 +20,7 @@
   },
   {
     "skillId": "api-design",
-    "keywords": [
-      "design this api",
-      "how should i design this api"
-    ],
+    "keywords": ["design this api", "how should i design this api"],
     "forcedInvoke": true,
     "stage": "architecture"
   },
@@ -105,12 +102,7 @@
   },
   {
     "skillId": "concurrency-distributed-correctness",
-    "keywords": [
-      "race condition",
-      "double submit",
-      "this transaction",
-      "isolation level"
-    ],
+    "keywords": ["race condition", "double submit", "this transaction", "isolation level"],
     "forcedInvoke": false,
     "stage": "UNKNOWN"
   },
@@ -179,10 +171,7 @@
   },
   {
     "skillId": "error-handling-resilience",
-    "keywords": [
-      "how should this fail?",
-      "what happens when this call fails?"
-    ],
+    "keywords": ["how should this fail?", "what happens when this call fails?"],
     "forcedInvoke": false,
     "stage": "UNKNOWN"
   },
@@ -418,11 +407,7 @@
   },
   {
     "skillId": "schema-driven-development",
-    "keywords": [
-      "schema-first",
-      "schema first approach",
-      "should i be schema-first?"
-    ],
+    "keywords": ["schema-first", "schema first approach", "should i be schema-first?"],
     "forcedInvoke": true,
     "stage": "specification"
   },
@@ -466,11 +451,7 @@
   },
   {
     "skillId": "spec-driven-development",
-    "keywords": [
-      "write a spec for this change",
-      "spec this out",
-      "i need a spec before we build"
-    ],
+    "keywords": ["write a spec for this change", "spec this out", "i need a spec before we build"],
     "forcedInvoke": false,
     "stage": "UNKNOWN"
   },
@@ -533,9 +514,7 @@
   },
   {
     "skillId": "ux-research-product-experience",
-    "keywords": [
-      "user intent"
-    ],
+    "keywords": ["user intent"],
     "forcedInvoke": true,
     "stage": "design-ux"
   },

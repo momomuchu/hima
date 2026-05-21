@@ -75,6 +75,12 @@ importers:
         specifier: ^4.4.2
         version: 4.4.2
 
+  packages/generator:
+    dependencies:
+      zod:
+        specifier: ^4.4.2
+        version: 4.4.2
+
   packages/mcp-server:
     dependencies:
       '@harness/adapter-claude':

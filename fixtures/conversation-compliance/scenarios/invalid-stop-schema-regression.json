@@ -1,0 +1,21 @@
+{
+  "id": "invalid-stop-schema-regression",
+  "kind": "chat",
+  "description": "A no-code conversation that reaches Stop must not emit runtime-invalid Stop hook JSON.",
+  "turns": [
+    {
+      "role": "user",
+      "text": "Just explain the difference between talking, planning, and building in this runtime. No files."
+    }
+  ],
+  "expected": {
+    "route": "chat",
+    "allowedTools": [],
+    "forbiddenTools": ["apply_patch", "npm_test_required", "git_commit"],
+    "requiredEvidence": [],
+    "forbiddenEvidenceRequirements": ["ci_green", "sast_clean", "secrets_clean", "DONE_VERIFIED"],
+    "stopPolicy": "allow_no_code_stop",
+    "runtimeSchema": "runtime_native",
+    "requiresContinuity": false
+  }
+}

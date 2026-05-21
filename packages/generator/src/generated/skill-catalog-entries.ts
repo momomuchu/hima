@@ -5,11 +5,12 @@ import type { SkillCatalogEntry } from "@harness/core";
 
 export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
   {
-    "id": "ai-ml-product-engineering",
-    "title": "AI/ML Product Engineering",
-    "purpose": "Use when Codex needs to design, implement, review, or evaluate AI/ML/LLM product features, including AI product fit, LLM/RAG architecture, eval plans, prompt regression, dataset quality, fine-tuning decisions, inference cost and latency, mo",
-    "activation": {
-      "macroCycles": [
+    id: "ai-ml-product-engineering",
+    title: "AI/ML Product Engineering",
+    purpose:
+      "Use when Codex needs to design, implement, review, or evaluate AI/ML/LLM product features, including AI product fit, LLM/RAG architecture, eval plans, prompt regression, dataset quality, fine-tuning decisions, inference cost and latency, mo",
+    activation: {
+      macroCycles: [
         "discovery",
         "cadrage",
         "conception",
@@ -17,25 +18,12 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "validation",
         "release",
         "run",
-        "learning"
+        "learning",
       ],
-      "gateTypes": [
-        "user_prompt",
-        "session_start"
-      ],
-      "riskClasses": [
-        "T",
-        "L",
-        "M",
-        "H",
-        "C"
-      ],
-      "operatingModes": [
-        "bypass",
-        "auto",
-        "pairing"
-      ],
-      "keywords": [
+      gateTypes: ["user_prompt", "session_start"],
+      riskClasses: ["T", "L", "M", "H", "C"],
+      operatingModes: ["bypass", "auto", "pairing"],
+      keywords: [
         "llm",
         "rag",
         "eval",
@@ -47,11 +35,11 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "guardrails",
         "ai trust",
         "evals",
-        "vector search"
+        "vector search",
       ],
-      "auto": true
+      auto: true,
     },
-    "owns": [
+    owns: [
       "AI/ML product fit decisions",
       "LLM/RAG architecture decisions",
       "eval plan decisions",
@@ -61,24 +49,24 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
       "hallucination/guardrails decisions",
       "AI trust UX decisions",
       "fine-tuning decisions",
-      "AI monitoring/drift decisions"
+      "AI monitoring/drift decisions",
     ],
-    "outOfScope": [
+    outOfScope: [
       "general system architecture",
       "UX research and product flows",
       "secure SDLC/privacy",
-      "product analytics instrumentation"
+      "product analytics instrumentation",
     ],
-    "evidenceProduced": [],
-    "hookRefs": [],
-    "subagentRefs": []
+    evidenceProduced: [],
+    hookRefs: [],
+    subagentRefs: [],
   },
   {
-    "id": "api-design",
-    "title": "Skill: API Design",
-    "purpose": "machine-readable error types)",
-    "activation": {
-      "macroCycles": [
+    id: "api-design",
+    title: "Skill: API Design",
+    purpose: "machine-readable error types)",
+    activation: {
+      macroCycles: [
         "discovery",
         "cadrage",
         "conception",
@@ -86,31 +74,15 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "validation",
         "release",
         "run",
-        "learning"
+        "learning",
       ],
-      "gateTypes": [
-        "user_prompt",
-        "session_start"
-      ],
-      "riskClasses": [
-        "T",
-        "L",
-        "M",
-        "H",
-        "C"
-      ],
-      "operatingModes": [
-        "bypass",
-        "auto",
-        "pairing"
-      ],
-      "keywords": [
-        "design this api",
-        "how should i design this api"
-      ],
-      "auto": true
+      gateTypes: ["user_prompt", "session_start"],
+      riskClasses: ["T", "L", "M", "H", "C"],
+      operatingModes: ["bypass", "auto", "pairing"],
+      keywords: ["design this api", "how should i design this api"],
+      auto: true,
     },
-    "owns": [
+    owns: [
       "API style selection (REST / GraphQL / gRPC / tRPC) and when each is wrong",
       "API-first workflow — design the contract before the code",
       "Resource modeling and URI design (nouns, collections, sub-resources, naming conventions)",
@@ -130,26 +102,26 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
       "RFC 8594",
       "breaking-change classification",
       "Webhook design (delivery guarantees, retry with backoff, HMAC signing, consumer idempotency)",
-      "API as a product (DX signals, docs-as-tests, changelog, versioned SDK alignment)"
+      "API as a product (DX signals, docs-as-tests, changelog, versioned SDK alignment)",
     ],
-    "outOfScope": [
+    outOfScope: [
       "PRD / acceptance criteria / NFR layer for APIs ch.06",
       "System architecture / service boundaries / inter-service topology ch.03",
       "Authentication / authorization (OAuth 2, JWT, API keys, mTLS)",
       "Code-level function/type API ergonomics",
       "Generated-client / OpenAPI codegen quality",
-      "Throughput / latency tuning (caching, CDN, connection pooling)"
+      "Throughput / latency tuning (caching, CDN, connection pooling)",
     ],
-    "evidenceProduced": [],
-    "hookRefs": [],
-    "subagentRefs": []
+    evidenceProduced: [],
+    hookRefs: [],
+    subagentRefs: [],
   },
   {
-    "id": "architecture-system-design",
-    "title": "Architecture and System Design",
-    "purpose": "Use this book when deciding or reviewing:",
-    "activation": {
-      "macroCycles": [
+    id: "architecture-system-design",
+    title: "Architecture and System Design",
+    purpose: "Use this book when deciding or reviewing:",
+    activation: {
+      macroCycles: [
         "discovery",
         "cadrage",
         "conception",
@@ -157,25 +129,12 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "validation",
         "release",
         "run",
-        "learning"
+        "learning",
       ],
-      "gateTypes": [
-        "user_prompt",
-        "session_start"
-      ],
-      "riskClasses": [
-        "T",
-        "L",
-        "M",
-        "H",
-        "C"
-      ],
-      "operatingModes": [
-        "bypass",
-        "auto",
-        "pairing"
-      ],
-      "keywords": [
+      gateTypes: ["user_prompt", "session_start"],
+      riskClasses: ["T", "L", "M", "H", "C"],
+      operatingModes: ["bypass", "auto", "pairing"],
+      keywords: [
         "architecture",
         "system design",
         "decompose services",
@@ -185,35 +144,35 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "service boundary",
         "monolith",
         "microservices",
-        "adr"
+        "adr",
       ],
-      "auto": true
+      auto: true,
     },
-    "owns": [
+    owns: [
       "system architecture decisions",
       "service decomposition decisions",
       "data flow decisions",
       "scalability tradeoff decisions",
       "API design decisions",
       "integration topology decisions",
-      "tech stack selection decisions"
+      "tech stack selection decisions",
     ],
-    "outOfScope": [
+    outOfScope: [
       "code maintainability and refactoring",
       "cloud/IaC/landing zone",
       "database schema/query design",
-      "AI/LLM architecture specifics"
+      "AI/LLM architecture specifics",
     ],
-    "evidenceProduced": [],
-    "hookRefs": [],
-    "subagentRefs": []
+    evidenceProduced: [],
+    hookRefs: [],
+    subagentRefs: [],
   },
   {
-    "id": "brand-marketing-communications",
-    "title": "Skill: Brand, Marketing and Communications",
-    "purpose": "→ `10-growth/growth-distribution-excellence-book`",
-    "activation": {
-      "macroCycles": [
+    id: "brand-marketing-communications",
+    title: "Skill: Brand, Marketing and Communications",
+    purpose: "→ `10-growth/growth-distribution-excellence-book`",
+    activation: {
+      macroCycles: [
         "discovery",
         "cadrage",
         "conception",
@@ -221,25 +180,12 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "validation",
         "release",
         "run",
-        "learning"
+        "learning",
       ],
-      "gateTypes": [
-        "user_prompt",
-        "session_start"
-      ],
-      "riskClasses": [
-        "T",
-        "L",
-        "M",
-        "H",
-        "C"
-      ],
-      "operatingModes": [
-        "bypass",
-        "auto",
-        "pairing"
-      ],
-      "keywords": [
+      gateTypes: ["user_prompt", "session_start"],
+      riskClasses: ["T", "L", "M", "H", "C"],
+      operatingModes: ["bypass", "auto", "pairing"],
+      keywords: [
         "positioning",
         "how should we position",
         "what do we stand for",
@@ -254,26 +200,23 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "content strategy",
         "founder brand",
         "ai slop",
-        "ehrenberg-bass"
+        "ehrenberg-bass",
       ],
-      "auto": true
+      auto: true,
     },
-    "owns": [
-      "Skill: Brand, Marketing and Communications decisions"
-    ],
-    "outOfScope": [
-      "out-of-discipline decisions"
-    ],
-    "evidenceProduced": [],
-    "hookRefs": [],
-    "subagentRefs": []
+    owns: ["Skill: Brand, Marketing and Communications decisions"],
+    outOfScope: ["out-of-discipline decisions"],
+    evidenceProduced: [],
+    hookRefs: [],
+    subagentRefs: [],
   },
   {
-    "id": "cloud-platform-infrastructure",
-    "title": "Cloud Platform Infrastructure",
-    "purpose": "Guide a solo founder through cloud/platform decisions: provider choice, hosting model, IAM, networking, IaC, environments, cost, resilience, observability primitives, and AI workload infrastructure.",
-    "activation": {
-      "macroCycles": [
+    id: "cloud-platform-infrastructure",
+    title: "Cloud Platform Infrastructure",
+    purpose:
+      "Guide a solo founder through cloud/platform decisions: provider choice, hosting model, IAM, networking, IaC, environments, cost, resilience, observability primitives, and AI workload infrastructure.",
+    activation: {
+      macroCycles: [
         "discovery",
         "cadrage",
         "conception",
@@ -281,25 +224,12 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "validation",
         "release",
         "run",
-        "learning"
+        "learning",
       ],
-      "gateTypes": [
-        "user_prompt",
-        "session_start"
-      ],
-      "riskClasses": [
-        "T",
-        "L",
-        "M",
-        "H",
-        "C"
-      ],
-      "operatingModes": [
-        "bypass",
-        "auto",
-        "pairing"
-      ],
-      "keywords": [
+      gateTypes: ["user_prompt", "session_start"],
+      riskClasses: ["T", "L", "M", "H", "C"],
+      operatingModes: ["bypass", "auto", "pairing"],
+      keywords: [
         "cloud",
         "aws",
         "gcp",
@@ -312,35 +242,36 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "environment strategy",
         "cloud cost",
         "vpc",
-        "managed service"
+        "managed service",
       ],
-      "auto": true
+      auto: true,
     },
-    "owns": [
+    owns: [
       "cloud landing zone decisions",
       "IAM/network topology decisions",
       "IaC decisions",
       "managed service selection decisions",
       "environment strategy decisions",
       "cost-resilience tradeoffs",
-      "cloud provider choice decisions"
+      "cloud provider choice decisions",
     ],
-    "outOfScope": [
+    outOfScope: [
       "runtime reliability/SLO",
       "database storage choices",
       "secure SDLC controls",
-      "system architecture"
+      "system architecture",
     ],
-    "evidenceProduced": [],
-    "hookRefs": [],
-    "subagentRefs": []
+    evidenceProduced: [],
+    hookRefs: [],
+    subagentRefs: [],
   },
   {
-    "id": "code-quality-maintainability",
-    "title": "2026-05-17 skill note — Shotgun Surgery / Divergent Change",
-    "purpose": "When a user asks about Shotgun Surgery, Divergent Change, scattered changes, ripple effects, co-change, broad PRs, logical coupling, Move Function, Split Phase, Inline Function, Extract Class, AI boundary cleanup or whether to split/consoli",
-    "activation": {
-      "macroCycles": [
+    id: "code-quality-maintainability",
+    title: "2026-05-17 skill note — Shotgun Surgery / Divergent Change",
+    purpose:
+      "When a user asks about Shotgun Surgery, Divergent Change, scattered changes, ripple effects, co-change, broad PRs, logical coupling, Move Function, Split Phase, Inline Function, Extract Class, AI boundary cleanup or whether to split/consoli",
+    activation: {
+      macroCycles: [
         "discovery",
         "cadrage",
         "conception",
@@ -348,25 +279,12 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "validation",
         "release",
         "run",
-        "learning"
+        "learning",
       ],
-      "gateTypes": [
-        "user_prompt",
-        "session_start"
-      ],
-      "riskClasses": [
-        "T",
-        "L",
-        "M",
-        "H",
-        "C"
-      ],
-      "operatingModes": [
-        "bypass",
-        "auto",
-        "pairing"
-      ],
-      "keywords": [
+      gateTypes: ["user_prompt", "session_start"],
+      riskClasses: ["T", "L", "M", "H", "C"],
+      operatingModes: ["bypass", "auto", "pairing"],
+      keywords: [
         "refactor",
         "technical debt",
         "code review",
@@ -376,35 +294,36 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "code smell",
         "readability",
         "dead code",
-        "cognitive complexity"
+        "cognitive complexity",
       ],
-      "auto": true
+      auto: true,
     },
-    "owns": [
+    owns: [
       "code readability decisions",
       "refactoring decisions",
       "technical debt decisions",
       "dependency upgrade decisions",
       "documentation decisions",
       "code review decisions",
-      "maintainability scoring decisions"
+      "maintainability scoring decisions",
     ],
-    "outOfScope": [
+    outOfScope: [
       "test strategy and release confidence",
       "system architecture",
       "developer productivity tooling",
-      "performance/SLO"
+      "performance/SLO",
     ],
-    "evidenceProduced": [],
-    "hookRefs": [],
-    "subagentRefs": []
+    evidenceProduced: [],
+    hookRefs: [],
+    subagentRefs: [],
   },
   {
-    "id": "concurrency-distributed-correctness",
-    "title": "Skill: Concurrency & Distributed Correctness",
-    "purpose": "level selection and anomaly mapping; optimistic concurrency control (version columns,",
-    "activation": {
-      "macroCycles": [
+    id: "concurrency-distributed-correctness",
+    title: "Skill: Concurrency & Distributed Correctness",
+    purpose:
+      "level selection and anomaly mapping; optimistic concurrency control (version columns,",
+    activation: {
+      macroCycles: [
         "discovery",
         "cadrage",
         "conception",
@@ -412,49 +331,30 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "validation",
         "release",
         "run",
-        "learning"
+        "learning",
       ],
-      "gateTypes": [
-        "user_prompt",
-        "session_start"
-      ],
-      "riskClasses": [
-        "T",
-        "L",
-        "M",
-        "H",
-        "C"
-      ],
-      "operatingModes": [
-        "bypass",
-        "auto",
-        "pairing"
-      ],
-      "keywords": [
-        "race condition",
-        "double submit",
-        "this transaction",
-        "isolation level"
-      ],
-      "auto": true
+      gateTypes: ["user_prompt", "session_start"],
+      riskClasses: ["T", "L", "M", "H", "C"],
+      operatingModes: ["bypass", "auto", "pairing"],
+      keywords: ["race condition", "double submit", "this transaction", "isolation level"],
+      auto: true,
     },
-    "owns": [
+    owns: [
       "race condition and double-submit prevention decisions",
-      "database transaction isolation"
+      "database transaction isolation",
     ],
-    "outOfScope": [
-      "- retry / circuit breaker / timeout / exponential backoff"
-    ],
-    "evidenceProduced": [],
-    "hookRefs": [],
-    "subagentRefs": []
+    outOfScope: ["- retry / circuit breaker / timeout / exponential backoff"],
+    evidenceProduced: [],
+    hookRefs: [],
+    subagentRefs: [],
   },
   {
-    "id": "database-storage-performance",
-    "title": "Database Storage Performance",
-    "purpose": "Use this book when deciding or reviewing database/storage choices, schema/index/query design, migrations, backups, restore readiness, caching, multitenancy, performance troubleshooting, or vector/RAG storage.",
-    "activation": {
-      "macroCycles": [
+    id: "database-storage-performance",
+    title: "Database Storage Performance",
+    purpose:
+      "Use this book when deciding or reviewing database/storage choices, schema/index/query design, migrations, backups, restore readiness, caching, multitenancy, performance troubleshooting, or vector/RAG storage.",
+    activation: {
+      macroCycles: [
         "discovery",
         "cadrage",
         "conception",
@@ -462,25 +362,12 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "validation",
         "release",
         "run",
-        "learning"
+        "learning",
       ],
-      "gateTypes": [
-        "user_prompt",
-        "session_start"
-      ],
-      "riskClasses": [
-        "T",
-        "L",
-        "M",
-        "H",
-        "C"
-      ],
-      "operatingModes": [
-        "bypass",
-        "auto",
-        "pairing"
-      ],
-      "keywords": [
+      gateTypes: ["user_prompt", "session_start"],
+      riskClasses: ["T", "L", "M", "H", "C"],
+      operatingModes: ["bypass", "auto", "pairing"],
+      keywords: [
         "database",
         "schema",
         "index",
@@ -493,11 +380,11 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "caching",
         "n+1",
         "storage choice",
-        "sharding"
+        "sharding",
       ],
-      "auto": true
+      auto: true,
     },
-    "owns": [
+    owns: [
       "database/storage choice decisions",
       "schema design decisions",
       "index/query optimization decisions",
@@ -505,24 +392,25 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
       "backup/restore decisions",
       "caching decisions",
       "multitenancy storage decisions",
-      "vector/RAG storage decisions"
+      "vector/RAG storage decisions",
     ],
-    "outOfScope": [
+    outOfScope: [
       "cloud infrastructure/managed DB provisioning",
       "system architecture",
       "AI/RAG orchestration logic",
-      "observability/SLO"
+      "observability/SLO",
     ],
-    "evidenceProduced": [],
-    "hookRefs": [],
-    "subagentRefs": []
+    evidenceProduced: [],
+    hookRefs: [],
+    subagentRefs: [],
   },
   {
-    "id": "developer-productivity-tooling",
-    "title": "Skill: Developer Productivity & Tooling",
-    "purpose": "(custom CLI, script, generator, template, or nothing); build and test cycle-time performance;",
-    "activation": {
-      "macroCycles": [
+    id: "developer-productivity-tooling",
+    title: "Skill: Developer Productivity & Tooling",
+    purpose:
+      "(custom CLI, script, generator, template, or nothing); build and test cycle-time performance;",
+    activation: {
+      macroCycles: [
         "discovery",
         "cadrage",
         "conception",
@@ -530,25 +418,12 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "validation",
         "release",
         "run",
-        "learning"
+        "learning",
       ],
-      "gateTypes": [
-        "user_prompt",
-        "session_start"
-      ],
-      "riskClasses": [
-        "T",
-        "L",
-        "M",
-        "H",
-        "C"
-      ],
-      "operatingModes": [
-        "bypass",
-        "auto",
-        "pairing"
-      ],
-      "keywords": [
+      gateTypes: ["user_prompt", "session_start"],
+      riskClasses: ["T", "L", "M", "H", "C"],
+      operatingModes: ["bypass", "auto", "pairing"],
+      keywords: [
         "local dev loop",
         "dev loop",
         "developer experience",
@@ -562,26 +437,23 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "developer productivity",
         "onboarding",
         "dependency cache",
-        "automation opportunity"
+        "automation opportunity",
       ],
-      "auto": true
+      auto: true,
     },
-    "owns": [
-      "Skill: Developer Productivity & Tooling decisions"
-    ],
-    "outOfScope": [
-      "out-of-discipline decisions"
-    ],
-    "evidenceProduced": [],
-    "hookRefs": [],
-    "subagentRefs": []
+    owns: ["Skill: Developer Productivity & Tooling decisions"],
+    outOfScope: ["out-of-discipline decisions"],
+    evidenceProduced: [],
+    hookRefs: [],
+    subagentRefs: [],
   },
   {
-    "id": "domain-modeling-ddd",
-    "title": "Skill: Domain Modeling / DDD",
-    "purpose": "maintaining); subdomain identification (core / supporting / generic, and distillation);",
-    "activation": {
-      "macroCycles": [
+    id: "domain-modeling-ddd",
+    title: "Skill: Domain Modeling / DDD",
+    purpose:
+      "maintaining); subdomain identification (core / supporting / generic, and distillation);",
+    activation: {
+      macroCycles: [
         "discovery",
         "cadrage",
         "conception",
@@ -589,25 +461,12 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "validation",
         "release",
         "run",
-        "learning"
+        "learning",
       ],
-      "gateTypes": [
-        "user_prompt",
-        "session_start"
-      ],
-      "riskClasses": [
-        "T",
-        "L",
-        "M",
-        "H",
-        "C"
-      ],
-      "operatingModes": [
-        "bypass",
-        "auto",
-        "pairing"
-      ],
-      "keywords": [
+      gateTypes: ["user_prompt", "session_start"],
+      riskClasses: ["T", "L", "M", "H", "C"],
+      operatingModes: ["bypass", "auto", "pairing"],
+      keywords: [
         "model the domain",
         "bounded context",
         "aggregate design",
@@ -622,26 +481,22 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "anti-corruption layer",
         "domain event",
         "repository pattern",
-        "where should the consistency boundary be"
+        "where should the consistency boundary be",
       ],
-      "auto": true
+      auto: true,
     },
-    "owns": [
-      "Skill: Domain Modeling / DDD decisions"
-    ],
-    "outOfScope": [
-      "out-of-discipline decisions"
-    ],
-    "evidenceProduced": [],
-    "hookRefs": [],
-    "subagentRefs": []
+    owns: ["Skill: Domain Modeling / DDD decisions"],
+    outOfScope: ["out-of-discipline decisions"],
+    evidenceProduced: [],
+    hookRefs: [],
+    subagentRefs: [],
   },
   {
-    "id": "error-handling-resilience",
-    "title": "Skill: Error Handling & Resilience",
-    "purpose": "Invoke this skill when the user asks any of the following (or close variants):",
-    "activation": {
-      "macroCycles": [
+    id: "error-handling-resilience",
+    title: "Skill: Error Handling & Resilience",
+    purpose: "Invoke this skill when the user asks any of the following (or close variants):",
+    activation: {
+      macroCycles: [
         "discovery",
         "cadrage",
         "conception",
@@ -649,31 +504,15 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "validation",
         "release",
         "run",
-        "learning"
+        "learning",
       ],
-      "gateTypes": [
-        "user_prompt",
-        "session_start"
-      ],
-      "riskClasses": [
-        "T",
-        "L",
-        "M",
-        "H",
-        "C"
-      ],
-      "operatingModes": [
-        "bypass",
-        "auto",
-        "pairing"
-      ],
-      "keywords": [
-        "how should this fail?",
-        "what happens when this call fails?"
-      ],
-      "auto": true
+      gateTypes: ["user_prompt", "session_start"],
+      riskClasses: ["T", "L", "M", "H", "C"],
+      operatingModes: ["bypass", "auto", "pairing"],
+      keywords: ["how should this fail?", "what happens when this call fails?"],
+      auto: true,
     },
-    "owns": [
+    owns: [
       "Error typology: programmer error vs. operational error vs. expected domain error",
       "Result/Either types vs. exceptions — when each",
       "per language/framework",
@@ -707,21 +546,20 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
       "log-level decision rules",
       "what to redact",
       "User-facing error messaging: public message vs. private diagnostic split",
-      "Fail-loud vs. fail-silent: the decision rule for when silent degradation is acceptable"
+      "Fail-loud vs. fail-silent: the decision rule for when silent degradation is acceptable",
     ],
-    "outOfScope": [
-      "out-of-discipline decisions"
-    ],
-    "evidenceProduced": [],
-    "hookRefs": [],
-    "subagentRefs": []
+    outOfScope: ["out-of-discipline decisions"],
+    evidenceProduced: [],
+    hookRefs: [],
+    subagentRefs: [],
   },
   {
-    "id": "growth-distribution",
-    "title": "Growth Distribution",
-    "purpose": "Use this skill when a solo founder needs to select, test, measure or repair distribution channels for a web, mobile, SaaS or AI product.",
-    "activation": {
-      "macroCycles": [
+    id: "growth-distribution",
+    title: "Growth Distribution",
+    purpose:
+      "Use this skill when a solo founder needs to select, test, measure or repair distribution channels for a web, mobile, SaaS or AI product.",
+    activation: {
+      macroCycles: [
         "discovery",
         "cadrage",
         "conception",
@@ -729,25 +567,12 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "validation",
         "release",
         "run",
-        "learning"
+        "learning",
       ],
-      "gateTypes": [
-        "user_prompt",
-        "session_start"
-      ],
-      "riskClasses": [
-        "T",
-        "L",
-        "M",
-        "H",
-        "C"
-      ],
-      "operatingModes": [
-        "bypass",
-        "auto",
-        "pairing"
-      ],
-      "keywords": [
+      gateTypes: ["user_prompt", "session_start"],
+      riskClasses: ["T", "L", "M", "H", "C"],
+      operatingModes: ["bypass", "auto", "pairing"],
+      keywords: [
         "growth",
         "channel",
         "acquisition",
@@ -759,34 +584,35 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "growth loop",
         "cac",
         "payback period",
-        "channel testing"
+        "channel testing",
       ],
-      "auto": true
+      auto: true,
     },
-    "owns": [
+    owns: [
       "channel selection decisions",
       "acquisition channel testing decisions",
       "distribution strategy decisions",
       "viral/referral mechanics decisions",
       "paid/organic channel mix decisions",
-      "growth model decisions"
+      "growth model decisions",
     ],
-    "outOfScope": [
+    outOfScope: [
       "SEO/content organic growth",
       "brand/PR/narrative",
       "sales pipeline",
-      "activation/onboarding"
+      "activation/onboarding",
     ],
-    "evidenceProduced": [],
-    "hookRefs": [],
-    "subagentRefs": []
+    evidenceProduced: [],
+    hookRefs: [],
+    subagentRefs: [],
   },
   {
-    "id": "idea-sourcing",
-    "title": "Idea Sourcing and Opportunity Discovery",
-    "purpose": "Idea sourcing and opportunity discovery for solo founders. Find, filter, and pipeline startup/product ideas before committing to validation. AUTO-INVOQUER when: 'find an idea', 'idea generation', 'looking for ideas', 'what should I build',",
-    "activation": {
-      "macroCycles": [
+    id: "idea-sourcing",
+    title: "Idea Sourcing and Opportunity Discovery",
+    purpose:
+      "Idea sourcing and opportunity discovery for solo founders. Find, filter, and pipeline startup/product ideas before committing to validation. AUTO-INVOQUER when: 'find an idea', 'idea generation', 'looking for ideas', 'what should I build',",
+    activation: {
+      macroCycles: [
         "discovery",
         "cadrage",
         "conception",
@@ -794,25 +620,12 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "validation",
         "release",
         "run",
-        "learning"
+        "learning",
       ],
-      "gateTypes": [
-        "user_prompt",
-        "session_start"
-      ],
-      "riskClasses": [
-        "T",
-        "L",
-        "M",
-        "H",
-        "C"
-      ],
-      "operatingModes": [
-        "bypass",
-        "auto",
-        "pairing"
-      ],
-      "keywords": [
+      gateTypes: ["user_prompt", "session_start"],
+      riskClasses: ["T", "L", "M", "H", "C"],
+      operatingModes: ["bypass", "auto", "pairing"],
+      keywords: [
         "find an idea",
         "idea generation",
         "looking for ideas",
@@ -827,34 +640,35 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "explore opportunities",
         "looking for opportunities",
         "explore startup ideas",
-        "i don"
+        "i don",
       ],
-      "auto": true
+      auto: true,
     },
-    "owns": [
+    owns: [
       "problem identification decisions",
       "trend scanning decisions",
       "ICP pain-mining decisions",
       "idea pre-filtering decisions",
       "idea pipeline decisions",
-      "personal-advantage mapping decisions"
+      "personal-advantage mapping decisions",
     ],
-    "outOfScope": [
+    outOfScope: [
       "PMF scoring and validation",
       "product strategy after idea is chosen",
       "positioning and messaging",
-      "customer discovery interviews"
+      "customer discovery interviews",
     ],
-    "evidenceProduced": [],
-    "hookRefs": [],
-    "subagentRefs": []
+    evidenceProduced: [],
+    hookRefs: [],
+    subagentRefs: [],
   },
   {
-    "id": "idea-to-pmf",
-    "title": "Idea-to-PMF",
-    "purpose": "Research-backed idea-to-product-market-fit workflow for solo developers. Use when Codex needs to assess a startup/product idea, design customer discovery, grade PMF evidence, choose MVP scope, test willingness-to-pay, plan validation experi",
-    "activation": {
-      "macroCycles": [
+    id: "idea-to-pmf",
+    title: "Idea-to-PMF",
+    purpose:
+      "Research-backed idea-to-product-market-fit workflow for solo developers. Use when Codex needs to assess a startup/product idea, design customer discovery, grade PMF evidence, choose MVP scope, test willingness-to-pay, plan validation experi",
+    activation: {
+      macroCycles: [
         "discovery",
         "cadrage",
         "conception",
@@ -862,25 +676,12 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "validation",
         "release",
         "run",
-        "learning"
+        "learning",
       ],
-      "gateTypes": [
-        "user_prompt",
-        "session_start"
-      ],
-      "riskClasses": [
-        "T",
-        "L",
-        "M",
-        "H",
-        "C"
-      ],
-      "operatingModes": [
-        "bypass",
-        "auto",
-        "pairing"
-      ],
-      "keywords": [
+      gateTypes: ["user_prompt", "session_start"],
+      riskClasses: ["T", "L", "M", "H", "C"],
+      operatingModes: ["bypass", "auto", "pairing"],
+      keywords: [
         "pmf",
         "idea validation",
         "customer discovery",
@@ -890,35 +691,36 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "startup idea",
         "market validation",
         "early traction",
-        "product-market fit"
+        "product-market fit",
       ],
-      "auto": true
+      auto: true,
     },
-    "owns": [
+    owns: [
       "idea validation decisions",
       "customer discovery decisions",
       "PMF evidence decisions",
       "MVP scope decisions",
       "willingness-to-pay decisions",
       "build/pivot/kill decisions",
-      "early PMF metric decisions"
+      "early PMF metric decisions",
     ],
-    "outOfScope": [
+    outOfScope: [
       "product strategy after PMF",
       "positioning/messaging",
       "growth channels",
-      "business strategy"
+      "business strategy",
     ],
-    "evidenceProduced": [],
-    "hookRefs": [],
-    "subagentRefs": []
+    evidenceProduced: [],
+    hookRefs: [],
+    subagentRefs: [],
   },
   {
-    "id": "integration-automation",
-    "title": "Skill: Integration and Automation",
-    "purpose": "at-least-once, exactly-once semantics); idempotency key strategies; retry budget design, exponential",
-    "activation": {
-      "macroCycles": [
+    id: "integration-automation",
+    title: "Skill: Integration and Automation",
+    purpose:
+      "at-least-once, exactly-once semantics); idempotency key strategies; retry budget design, exponential",
+    activation: {
+      macroCycles: [
         "discovery",
         "cadrage",
         "conception",
@@ -926,25 +728,12 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "validation",
         "release",
         "run",
-        "learning"
+        "learning",
       ],
-      "gateTypes": [
-        "user_prompt",
-        "session_start"
-      ],
-      "riskClasses": [
-        "T",
-        "L",
-        "M",
-        "H",
-        "C"
-      ],
-      "operatingModes": [
-        "bypass",
-        "auto",
-        "pairing"
-      ],
-      "keywords": [
+      gateTypes: ["user_prompt", "session_start"],
+      riskClasses: ["T", "L", "M", "H", "C"],
+      operatingModes: ["bypass", "auto", "pairing"],
+      keywords: [
         "webhook",
         "webhook delivery",
         "webhook signature",
@@ -959,26 +748,23 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "contract test",
         "sandbox testing",
         "polling vs webhook",
-        "cloudevents"
+        "cloudevents",
       ],
-      "auto": true
+      auto: true,
     },
-    "owns": [
-      "Skill: Integration and Automation decisions"
-    ],
-    "outOfScope": [
-      "out-of-discipline decisions"
-    ],
-    "evidenceProduced": [],
-    "hookRefs": [],
-    "subagentRefs": []
+    owns: ["Skill: Integration and Automation decisions"],
+    outOfScope: ["out-of-discipline decisions"],
+    evidenceProduced: [],
+    hookRefs: [],
+    subagentRefs: [],
   },
   {
-    "id": "metrics-analytics-data",
-    "title": "Metrics Analytics Data",
-    "purpose": "Use this skill when a solo founder needs decision-grade measurement: event taxonomy, metric definitions, funnels, cohorts, experimentation metrics, dashboards, data quality checks, privacy-aware analytics and AI eval dataset readiness.",
-    "activation": {
-      "macroCycles": [
+    id: "metrics-analytics-data",
+    title: "Metrics Analytics Data",
+    purpose:
+      "Use this skill when a solo founder needs decision-grade measurement: event taxonomy, metric definitions, funnels, cohorts, experimentation metrics, dashboards, data quality checks, privacy-aware analytics and AI eval dataset readiness.",
+    activation: {
+      macroCycles: [
         "discovery",
         "cadrage",
         "conception",
@@ -986,25 +772,12 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "validation",
         "release",
         "run",
-        "learning"
+        "learning",
       ],
-      "gateTypes": [
-        "user_prompt",
-        "session_start"
-      ],
-      "riskClasses": [
-        "T",
-        "L",
-        "M",
-        "H",
-        "C"
-      ],
-      "operatingModes": [
-        "bypass",
-        "auto",
-        "pairing"
-      ],
-      "keywords": [
+      gateTypes: ["user_prompt", "session_start"],
+      riskClasses: ["T", "L", "M", "H", "C"],
+      operatingModes: ["bypass", "auto", "pairing"],
+      keywords: [
         "analytics",
         "event tracking",
         "metric definition",
@@ -1015,35 +788,36 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "north star metric",
         "instrumentation",
         "attribution",
-        "event taxonomy"
+        "event taxonomy",
       ],
-      "auto": true
+      auto: true,
     },
-    "owns": [
+    owns: [
       "event taxonomy decisions",
       "analytics instrumentation decisions",
       "dashboard design decisions",
       "metric definition decisions",
       "experiment data decisions",
       "data quality decisions",
-      "product analytics decisions"
+      "product analytics decisions",
     ],
-    "outOfScope": [
+    outOfScope: [
       "financial/SaaS metrics",
       "growth channel attribution",
       "AI/ML model metrics",
-      "production monitoring/SLO"
+      "production monitoring/SLO",
     ],
-    "evidenceProduced": [],
-    "hookRefs": [],
-    "subagentRefs": []
+    evidenceProduced: [],
+    hookRefs: [],
+    subagentRefs: [],
   },
   {
-    "id": "observability",
-    "title": "Skill: Observability",
-    "purpose": "PII/PCI/HIPAA/GDPR redaction; distributed tracing with OpenTelemetry and W3C Trace Context;",
-    "activation": {
-      "macroCycles": [
+    id: "observability",
+    title: "Skill: Observability",
+    purpose:
+      "PII/PCI/HIPAA/GDPR redaction; distributed tracing with OpenTelemetry and W3C Trace Context;",
+    activation: {
+      macroCycles: [
         "discovery",
         "cadrage",
         "conception",
@@ -1051,25 +825,12 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "validation",
         "release",
         "run",
-        "learning"
+        "learning",
       ],
-      "gateTypes": [
-        "user_prompt",
-        "session_start"
-      ],
-      "riskClasses": [
-        "T",
-        "L",
-        "M",
-        "H",
-        "C"
-      ],
-      "operatingModes": [
-        "bypass",
-        "auto",
-        "pairing"
-      ],
-      "keywords": [
+      gateTypes: ["user_prompt", "session_start"],
+      riskClasses: ["T", "L", "M", "H", "C"],
+      operatingModes: ["bypass", "auto", "pairing"],
+      keywords: [
         "what should i log",
         "structured logging",
         "add a trace",
@@ -1082,26 +843,22 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "pii in logs",
         "sampling",
         "dashboard design",
-        "telemetry cost"
+        "telemetry cost",
       ],
-      "auto": true
+      auto: true,
     },
-    "owns": [
-      "Skill: Observability decisions"
-    ],
-    "outOfScope": [
-      "out-of-discipline decisions"
-    ],
-    "evidenceProduced": [],
-    "hookRefs": [],
-    "subagentRefs": []
+    owns: ["Skill: Observability decisions"],
+    outOfScope: ["out-of-discipline decisions"],
+    evidenceProduced: [],
+    hookRefs: [],
+    subagentRefs: [],
   },
   {
-    "id": "performance-engineering",
-    "title": "Skill: Performance Engineering",
-    "purpose": "React/Next.js perf patterns)",
-    "activation": {
-      "macroCycles": [
+    id: "performance-engineering",
+    title: "Skill: Performance Engineering",
+    purpose: "React/Next.js perf patterns)",
+    activation: {
+      macroCycles: [
         "discovery",
         "cadrage",
         "conception",
@@ -1109,25 +866,12 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "validation",
         "release",
         "run",
-        "learning"
+        "learning",
       ],
-      "gateTypes": [
-        "user_prompt",
-        "session_start"
-      ],
-      "riskClasses": [
-        "T",
-        "L",
-        "M",
-        "H",
-        "C"
-      ],
-      "operatingModes": [
-        "bypass",
-        "auto",
-        "pairing"
-      ],
-      "keywords": [
+      gateTypes: ["user_prompt", "session_start"],
+      riskClasses: ["T", "L", "M", "H", "C"],
+      operatingModes: ["bypass", "auto", "pairing"],
+      keywords: [
         "the app is slow",
         "page load is bad",
         "this query is slow",
@@ -1139,26 +883,23 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "core web vitals",
         "performance budget",
         "render thrash",
-        "use method"
+        "use method",
       ],
-      "auto": true
+      auto: true,
     },
-    "owns": [
-      "Skill: Performance Engineering decisions"
-    ],
-    "outOfScope": [
-      "out-of-discipline decisions"
-    ],
-    "evidenceProduced": [],
-    "hookRefs": [],
-    "subagentRefs": []
+    owns: ["Skill: Performance Engineering decisions"],
+    outOfScope: ["out-of-discipline decisions"],
+    evidenceProduced: [],
+    hookRefs: [],
+    subagentRefs: [],
   },
   {
-    "id": "positioning-messaging-category",
-    "title": "Positioning Messaging Category",
-    "purpose": "Use this skill when a founder needs to decide how a product should be understood before writing copy, building a landing page, launching SEO/ASO, selling, pricing or repositioning.",
-    "activation": {
-      "macroCycles": [
+    id: "positioning-messaging-category",
+    title: "Positioning Messaging Category",
+    purpose:
+      "Use this skill when a founder needs to decide how a product should be understood before writing copy, building a landing page, launching SEO/ASO, selling, pricing or repositioning.",
+    activation: {
+      macroCycles: [
         "discovery",
         "cadrage",
         "conception",
@@ -1166,25 +907,12 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "validation",
         "release",
         "run",
-        "learning"
+        "learning",
       ],
-      "gateTypes": [
-        "user_prompt",
-        "session_start"
-      ],
-      "riskClasses": [
-        "T",
-        "L",
-        "M",
-        "H",
-        "C"
-      ],
-      "operatingModes": [
-        "bypass",
-        "auto",
-        "pairing"
-      ],
-      "keywords": [
+      gateTypes: ["user_prompt", "session_start"],
+      riskClasses: ["T", "L", "M", "H", "C"],
+      operatingModes: ["bypass", "auto", "pairing"],
+      keywords: [
         "positioning",
         "messaging",
         "category design",
@@ -1195,35 +923,35 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "gtm",
         "who is this for",
         "why us",
-        "market category"
+        "market category",
       ],
-      "auto": true
+      auto: true,
     },
-    "owns": [
+    owns: [
       "category framing decisions",
       "ICP disqualification decisions",
       "competitive alternatives decisions",
       "differentiator decisions",
       "message hierarchy decisions",
       "proof claim decisions",
-      "GTM positioning handoff decisions"
+      "GTM positioning handoff decisions",
     ],
-    "outOfScope": [
+    outOfScope: [
       "brand voice/narrative/PR",
       "SEO keyword strategy",
       "sales discovery scripts",
-      "product vision/bet selection"
+      "product vision/bet selection",
     ],
-    "evidenceProduced": [],
-    "hookRefs": [],
-    "subagentRefs": []
+    evidenceProduced: [],
+    hookRefs: [],
+    subagentRefs: [],
   },
   {
-    "id": "product-goal-sprint-alignment",
-    "title": "Skill: Product Goal Sprint Alignment",
-    "purpose": "Pull these from their owner books before writing a single line:",
-    "activation": {
-      "macroCycles": [
+    id: "product-goal-sprint-alignment",
+    title: "Skill: Product Goal Sprint Alignment",
+    purpose: "Pull these from their owner books before writing a single line:",
+    activation: {
+      macroCycles: [
         "discovery",
         "cadrage",
         "conception",
@@ -1231,25 +959,12 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "validation",
         "release",
         "run",
-        "learning"
+        "learning",
       ],
-      "gateTypes": [
-        "user_prompt",
-        "session_start"
-      ],
-      "riskClasses": [
-        "T",
-        "L",
-        "M",
-        "H",
-        "C"
-      ],
-      "operatingModes": [
-        "bypass",
-        "auto",
-        "pairing"
-      ],
-      "keywords": [
+      gateTypes: ["user_prompt", "session_start"],
+      riskClasses: ["T", "L", "M", "H", "C"],
+      operatingModes: ["bypass", "auto", "pairing"],
+      keywords: [
         "sprint audit",
         "aligned?",
         "is this on roadmap?",
@@ -1261,34 +976,35 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "scope creep",
         "agent governance",
         "can the agent decide this?",
-        "pivot signal"
+        "pivot signal",
       ],
-      "auto": true
+      auto: true,
     },
-    "owns": [
+    owns: [
       "Product Constitution authoring",
       "sprint alignment auditing",
       "ICP coherence gating",
       "scope guard",
       "product decision governance",
-      "pivot detection"
+      "pivot detection",
     ],
-    "outOfScope": [
+    outOfScope: [
       "Writing the original vision ()",
       "brand voice creation ()",
       "sprint process management and agent delivery orchestration ()",
-      "feature spec writing ()"
+      "feature spec writing ()",
     ],
-    "evidenceProduced": [],
-    "hookRefs": [],
-    "subagentRefs": []
+    evidenceProduced: [],
+    hookRefs: [],
+    subagentRefs: [],
   },
   {
-    "id": "product-strategy",
-    "title": "Product Strategy",
-    "purpose": "Use this skill when a solo founder needs to turn validated opportunities into a product strategy, roadmap, bet portfolio, product principles or strategy review.",
-    "activation": {
-      "macroCycles": [
+    id: "product-strategy",
+    title: "Product Strategy",
+    purpose:
+      "Use this skill when a solo founder needs to turn validated opportunities into a product strategy, roadmap, bet portfolio, product principles or strategy review.",
+    activation: {
+      macroCycles: [
         "discovery",
         "cadrage",
         "conception",
@@ -1296,25 +1012,12 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "validation",
         "release",
         "run",
-        "learning"
+        "learning",
       ],
-      "gateTypes": [
-        "user_prompt",
-        "session_start"
-      ],
-      "riskClasses": [
-        "T",
-        "L",
-        "M",
-        "H",
-        "C"
-      ],
-      "operatingModes": [
-        "bypass",
-        "auto",
-        "pairing"
-      ],
-      "keywords": [
+      gateTypes: ["user_prompt", "session_start"],
+      riskClasses: ["T", "L", "M", "H", "C"],
+      operatingModes: ["bypass", "auto", "pairing"],
+      keywords: [
         "product strategy",
         "roadmap",
         "product vision",
@@ -1324,34 +1027,34 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "kill condition",
         "product principles",
         "now-next-later",
-        "product portfolio"
+        "product portfolio",
       ],
-      "auto": true
+      auto: true,
     },
-    "owns": [
+    owns: [
       "product vision decisions",
       "bet portfolio decisions",
       "roadmap prioritization decisions",
       "product principle decisions",
       "product review decisions",
-      "kill condition decisions"
+      "kill condition decisions",
     ],
-    "outOfScope": [
+    outOfScope: [
       "business strategy/transformation",
       "PMF validation",
       "sprint alignment/ICP gate",
-      "feature specs"
+      "feature specs",
     ],
-    "evidenceProduced": [],
-    "hookRefs": [],
-    "subagentRefs": []
+    evidenceProduced: [],
+    hookRefs: [],
+    subagentRefs: [],
   },
   {
-    "id": "production-reliability-devops",
-    "title": "Production Reliability DevOps",
-    "purpose": "Pause and require explicit human decision before proceeding when:",
-    "activation": {
-      "macroCycles": [
+    id: "production-reliability-devops",
+    title: "Production Reliability DevOps",
+    purpose: "Pause and require explicit human decision before proceeding when:",
+    activation: {
+      macroCycles: [
         "discovery",
         "cadrage",
         "conception",
@@ -1359,25 +1062,12 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "validation",
         "release",
         "run",
-        "learning"
+        "learning",
       ],
-      "gateTypes": [
-        "user_prompt",
-        "session_start"
-      ],
-      "riskClasses": [
-        "T",
-        "L",
-        "M",
-        "H",
-        "C"
-      ],
-      "operatingModes": [
-        "bypass",
-        "auto",
-        "pairing"
-      ],
-      "keywords": [
+      gateTypes: ["user_prompt", "session_start"],
+      riskClasses: ["T", "L", "M", "H", "C"],
+      operatingModes: ["bypass", "auto", "pairing"],
+      keywords: [
         "slo",
         "incident",
         "on-call",
@@ -1390,35 +1080,31 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "postmortem",
         "ci/cd",
         "sli",
-        "dora metrics"
+        "dora metrics",
       ],
-      "auto": true
+      auto: true,
     },
-    "owns": [
+    owns: [
       "SLI/SLO/error budget decisions",
       "incident management decisions",
       "observability decisions",
       "CI/CD pipeline decisions",
       "deployment risk decisions",
       "on-call decisions",
-      "reliability investment decisions"
+      "reliability investment decisions",
     ],
-    "outOfScope": [
-      "cloud infrastructure/IaC",
-      "secure SDLC",
-      "database performance",
-      "code quality"
-    ],
-    "evidenceProduced": [],
-    "hookRefs": [],
-    "subagentRefs": []
+    outOfScope: ["cloud infrastructure/IaC", "secure SDLC", "database performance", "code quality"],
+    evidenceProduced: [],
+    hookRefs: [],
+    subagentRefs: [],
   },
   {
-    "id": "quality-engineering",
-    "title": "Quality Engineering",
-    "purpose": "Use this skill when deciding or implementing testing, QA, CI gates, release readiness, defect triage, flaky test handling, non-functional quality checks, or AI/LLM evals for web, mobile, SaaS, API, data, or AI features.",
-    "activation": {
-      "macroCycles": [
+    id: "quality-engineering",
+    title: "Quality Engineering",
+    purpose:
+      "Use this skill when deciding or implementing testing, QA, CI gates, release readiness, defect triage, flaky test handling, non-functional quality checks, or AI/LLM evals for web, mobile, SaaS, API, data, or AI features.",
+    activation: {
+      macroCycles: [
         "discovery",
         "cadrage",
         "conception",
@@ -1426,25 +1112,12 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "validation",
         "release",
         "run",
-        "learning"
+        "learning",
       ],
-      "gateTypes": [
-        "user_prompt",
-        "session_start"
-      ],
-      "riskClasses": [
-        "T",
-        "L",
-        "M",
-        "H",
-        "C"
-      ],
-      "operatingModes": [
-        "bypass",
-        "auto",
-        "pairing"
-      ],
-      "keywords": [
+      gateTypes: ["user_prompt", "session_start"],
+      riskClasses: ["T", "L", "M", "H", "C"],
+      operatingModes: ["bypass", "auto", "pairing"],
+      keywords: [
         "test",
         "quality gate",
         "release confidence",
@@ -1456,35 +1129,36 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "shift-left",
         "qa",
         "test strategy",
-        "tdd"
+        "tdd",
       ],
-      "auto": true
+      auto: true,
     },
-    "owns": [
+    owns: [
       "test strategy decisions",
       "release gate decisions",
       "flaky test decisions",
       "test coverage decisions",
       "shift-left quality decisions",
       "CI quality gate decisions",
-      "release confidence decisions"
+      "release confidence decisions",
     ],
-    "outOfScope": [
+    outOfScope: [
       "code maintainability",
       "security testing",
       "authorized pentest",
-      "production SLO"
+      "production SLO",
     ],
-    "evidenceProduced": [],
-    "hookRefs": [],
-    "subagentRefs": []
+    evidenceProduced: [],
+    hookRefs: [],
+    subagentRefs: [],
   },
   {
-    "id": "schema-driven-development",
-    "title": "Skill: Schema-Driven Development (schema-first / contract-first)",
-    "purpose": "Thrift, OpenAPI Specification, GraphQL SDL, TypeSpec, Cap'n Proto — selection decision tree",
-    "activation": {
-      "macroCycles": [
+    id: "schema-driven-development",
+    title: "Skill: Schema-Driven Development (schema-first / contract-first)",
+    purpose:
+      "Thrift, OpenAPI Specification, GraphQL SDL, TypeSpec, Cap'n Proto — selection decision tree",
+    activation: {
+      macroCycles: [
         "discovery",
         "cadrage",
         "conception",
@@ -1492,32 +1166,15 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "validation",
         "release",
         "run",
-        "learning"
+        "learning",
       ],
-      "gateTypes": [
-        "user_prompt",
-        "session_start"
-      ],
-      "riskClasses": [
-        "T",
-        "L",
-        "M",
-        "H",
-        "C"
-      ],
-      "operatingModes": [
-        "bypass",
-        "auto",
-        "pairing"
-      ],
-      "keywords": [
-        "schema-first",
-        "schema first approach",
-        "should i be schema-first?"
-      ],
-      "auto": true
+      gateTypes: ["user_prompt", "session_start"],
+      riskClasses: ["T", "L", "M", "H", "C"],
+      operatingModes: ["bypass", "auto", "pairing"],
+      keywords: ["schema-first", "schema first approach", "should i be schema-first?"],
+      auto: true,
     },
-    "owns": [
+    owns: [
       "Schema-first vs. code-first decision: when each",
       "trade-offs",
       "migration path from code-first",
@@ -1528,7 +1185,7 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
       "Codegen pipelines: schema → types / clients / server stubs / validators / docs / DB",
       "Schema evolution and compatibility: backward / forward / full compatibility rules",
       "safe",
-      "Validation at the boundary: \"parse",
+      'Validation at the boundary: "parse',
       "don't validate\" (Alexis King 2019)",
       "validate at the",
       "Single source of truth for types across frontend / backend / DB / docs",
@@ -1541,21 +1198,20 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
       "DRY-across-the-stack discipline: one schema",
       "zero hand-written type duplication",
       "Schema-driven anti-patterns: code-first drift",
-      "hand-rolled validators at every layer"
+      "hand-rolled validators at every layer",
     ],
-    "outOfScope": [
-      "out-of-discipline decisions"
-    ],
-    "evidenceProduced": [],
-    "hookRefs": [],
-    "subagentRefs": []
+    outOfScope: ["out-of-discipline decisions"],
+    evidenceProduced: [],
+    hookRefs: [],
+    subagentRefs: [],
   },
   {
-    "id": "seo-content-organic-growth",
-    "title": "SEO Content Organic Growth",
-    "purpose": "Research-backed SEO/content organic growth operating system for solo founders building web, mobile, SaaS and AI products.",
-    "activation": {
-      "macroCycles": [
+    id: "seo-content-organic-growth",
+    title: "SEO Content Organic Growth",
+    purpose:
+      "Research-backed SEO/content organic growth operating system for solo founders building web, mobile, SaaS and AI products.",
+    activation: {
+      macroCycles: [
         "discovery",
         "cadrage",
         "conception",
@@ -1563,25 +1219,12 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "validation",
         "release",
         "run",
-        "learning"
+        "learning",
       ],
-      "gateTypes": [
-        "user_prompt",
-        "session_start"
-      ],
-      "riskClasses": [
-        "T",
-        "L",
-        "M",
-        "H",
-        "C"
-      ],
-      "operatingModes": [
-        "bypass",
-        "auto",
-        "pairing"
-      ],
-      "keywords": [
+      gateTypes: ["user_prompt", "session_start"],
+      riskClasses: ["T", "L", "M", "H", "C"],
+      operatingModes: ["bypass", "auto", "pairing"],
+      keywords: [
         "seo",
         "content brief",
         "keyword",
@@ -1593,35 +1236,36 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "core web vitals",
         "crawl",
         "index",
-        "content strategy"
+        "content strategy",
       ],
-      "auto": true
+      auto: true,
     },
-    "owns": [
+    owns: [
       "search intent decisions",
       "technical SEO decisions",
       "content brief decisions",
       "topic cluster decisions",
       "internal linking decisions",
       "schema markup decisions",
-      "qualified organic measurement decisions"
+      "qualified organic measurement decisions",
     ],
-    "outOfScope": [
+    outOfScope: [
       "brand/PR/narrative",
       "paid acquisition channels",
       "positioning/ICP",
-      "lifecycle/activation copy"
+      "lifecycle/activation copy",
     ],
-    "evidenceProduced": [],
-    "hookRefs": [],
-    "subagentRefs": []
+    evidenceProduced: [],
+    hookRefs: [],
+    subagentRefs: [],
   },
   {
-    "id": "software-delivery-governance",
-    "title": "Skill: Software Delivery Governance",
-    "purpose": "Choose exactly one delivery mode from `DECISION-TREES.md` Tree 1: sprint, Kanban flow, Shape Up appetite, incident response or discovery spike.",
-    "activation": {
-      "macroCycles": [
+    id: "software-delivery-governance",
+    title: "Skill: Software Delivery Governance",
+    purpose:
+      "Choose exactly one delivery mode from `DECISION-TREES.md` Tree 1: sprint, Kanban flow, Shape Up appetite, incident response or discovery spike.",
+    activation: {
+      macroCycles: [
         "discovery",
         "cadrage",
         "conception",
@@ -1629,25 +1273,12 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "validation",
         "release",
         "run",
-        "learning"
+        "learning",
       ],
-      "gateTypes": [
-        "user_prompt",
-        "session_start"
-      ],
-      "riskClasses": [
-        "T",
-        "L",
-        "M",
-        "H",
-        "C"
-      ],
-      "operatingModes": [
-        "bypass",
-        "auto",
-        "pairing"
-      ],
-      "keywords": [
+      gateTypes: ["user_prompt", "session_start"],
+      riskClasses: ["T", "L", "M", "H", "C"],
+      operatingModes: ["bypass", "auto", "pairing"],
+      keywords: [
         "run the sprint",
         "govern the agents",
         "software delivery governance",
@@ -1659,38 +1290,39 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "can we merge",
         "sprint review evidence",
         "retro and next sprint",
-        "150 sprint loop"
+        "150 sprint loop",
       ],
-      "auto": true
+      auto: true,
     },
-    "owns": [
+    owns: [
       "software delivery governance decisions",
       "MOA/MOE role and decision-rights decisions",
       "sprint intake/readiness decisions",
       "agent execution control decisions",
       "delivery evidence gate decisions",
       "release/change-control routing decisions",
-      "retrospective improvement decisions"
+      "retrospective improvement decisions",
     ],
-    "outOfScope": [
+    outOfScope: [
       "product vision or ICP decisions -> and",
       "feature requirement semantics ->",
       "architecture approval ->",
       "test adequacy ->",
       "code maintainability judgment ->",
       "production incident/SLO ownership ->",
-      "non-software SOP/change adoption ->"
+      "non-software SOP/change adoption ->",
     ],
-    "evidenceProduced": [],
-    "hookRefs": [],
-    "subagentRefs": []
+    evidenceProduced: [],
+    hookRefs: [],
+    subagentRefs: [],
   },
   {
-    "id": "spec-driven-development",
-    "title": "Skill: Spec-Driven Development",
-    "purpose": "(feature / fix / improvement / refactor); the spec → plan → tasks → implement → verify",
-    "activation": {
-      "macroCycles": [
+    id: "spec-driven-development",
+    title: "Skill: Spec-Driven Development",
+    purpose:
+      "(feature / fix / improvement / refactor); the spec → plan → tasks → implement → verify",
+    activation: {
+      macroCycles: [
         "discovery",
         "cadrage",
         "conception",
@@ -1698,48 +1330,27 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "validation",
         "release",
         "run",
-        "learning"
+        "learning",
       ],
-      "gateTypes": [
-        "user_prompt",
-        "session_start"
-      ],
-      "riskClasses": [
-        "T",
-        "L",
-        "M",
-        "H",
-        "C"
-      ],
-      "operatingModes": [
-        "bypass",
-        "auto",
-        "pairing"
-      ],
-      "keywords": [
-        "write a spec for this change",
-        "spec this out",
-        "i need a spec before we build"
-      ],
-      "auto": true
+      gateTypes: ["user_prompt", "session_start"],
+      riskClasses: ["T", "L", "M", "H", "C"],
+      operatingModes: ["bypass", "auto", "pairing"],
+      keywords: ["write a spec for this change", "spec this out", "i need a spec before we build"],
+      auto: true,
     },
-    "owns": [
-      "spec-first vs. code-first decision by change type",
-      "spec granularity thresholds"
-    ],
-    "outOfScope": [
-      "| Topic | Routes to |"
-    ],
-    "evidenceProduced": [],
-    "hookRefs": [],
-    "subagentRefs": []
+    owns: ["spec-first vs. code-first decision by change type", "spec granularity thresholds"],
+    outOfScope: ["| Topic | Routes to |"],
+    evidenceProduced: [],
+    hookRefs: [],
+    subagentRefs: [],
   },
   {
-    "id": "specification-requirements",
-    "title": "Specification Requirements",
-    "purpose": "Use this skill when a product intent, feature request, PRD, ticket, AI feature idea or implementation handoff needs to become buildable and testable.",
-    "activation": {
-      "macroCycles": [
+    id: "specification-requirements",
+    title: "Specification Requirements",
+    purpose:
+      "Use this skill when a product intent, feature request, PRD, ticket, AI feature idea or implementation handoff needs to become buildable and testable.",
+    activation: {
+      macroCycles: [
         "discovery",
         "cadrage",
         "conception",
@@ -1747,25 +1358,12 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "validation",
         "release",
         "run",
-        "learning"
+        "learning",
       ],
-      "gateTypes": [
-        "user_prompt",
-        "session_start"
-      ],
-      "riskClasses": [
-        "T",
-        "L",
-        "M",
-        "H",
-        "C"
-      ],
-      "operatingModes": [
-        "bypass",
-        "auto",
-        "pairing"
-      ],
-      "keywords": [
+      gateTypes: ["user_prompt", "session_start"],
+      riskClasses: ["T", "L", "M", "H", "C"],
+      operatingModes: ["bypass", "auto", "pairing"],
+      keywords: [
         "spec",
         "prd",
         "requirements",
@@ -1776,34 +1374,35 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "definition of done",
         "buildable",
         "implementation handoff",
-        "ticket"
+        "ticket",
       ],
-      "auto": true
+      auto: true,
     },
-    "owns": [
+    owns: [
       "product intent formalization decisions",
       "PRD/spec decisions",
       "acceptance criteria decisions",
       "feature scope decisions",
       "AI feature spec decisions",
-      "implementation handoff decisions"
+      "implementation handoff decisions",
     ],
-    "outOfScope": [
+    outOfScope: [
       "product strategy/bet selection",
       "UX flows/research",
       "technical feasibility",
-      "sprint governance"
+      "sprint governance",
     ],
-    "evidenceProduced": [],
-    "hookRefs": [],
-    "subagentRefs": []
+    evidenceProduced: [],
+    hookRefs: [],
+    subagentRefs: [],
   },
   {
-    "id": "technical-analysis-discovery",
-    "title": "Technical Analysis Discovery",
-    "purpose": "Use this skill when a coding task needs pre-implementation discovery: current-state comparison, codebase mapping, impact analysis, dependency/API evaluation, feasibility spike design, migration readiness, or analysis-to-plan handoff.",
-    "activation": {
-      "macroCycles": [
+    id: "technical-analysis-discovery",
+    title: "Technical Analysis Discovery",
+    purpose:
+      "Use this skill when a coding task needs pre-implementation discovery: current-state comparison, codebase mapping, impact analysis, dependency/API evaluation, feasibility spike design, migration readiness, or analysis-to-plan handoff.",
+    activation: {
+      macroCycles: [
         "discovery",
         "cadrage",
         "conception",
@@ -1811,25 +1410,12 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "validation",
         "release",
         "run",
-        "learning"
+        "learning",
       ],
-      "gateTypes": [
-        "user_prompt",
-        "session_start"
-      ],
-      "riskClasses": [
-        "T",
-        "L",
-        "M",
-        "H",
-        "C"
-      ],
-      "operatingModes": [
-        "bypass",
-        "auto",
-        "pairing"
-      ],
-      "keywords": [
+      gateTypes: ["user_prompt", "session_start"],
+      riskClasses: ["T", "L", "M", "H", "C"],
+      operatingModes: ["bypass", "auto", "pairing"],
+      keywords: [
         "impact analysis",
         "codebase mapping",
         "feasibility",
@@ -1839,35 +1425,36 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "discovery",
         "pre-implementation",
         "technical analysis",
-        "blast radius"
+        "blast radius",
       ],
-      "auto": true
+      auto: true,
     },
-    "owns": [
+    owns: [
       "current-state comparative analysis decisions",
       "codebase mapping decisions",
       "impact analysis decisions",
       "dependency/API evaluation decisions",
       "feasibility spike decisions",
       "migration readiness decisions",
-      "analysis-to-plan handoff decisions"
+      "analysis-to-plan handoff decisions",
     ],
-    "outOfScope": [
+    outOfScope: [
       "system architecture decisions",
       "feature spec",
       "build/buy/integrate",
-      "sprint planning"
+      "sprint planning",
     ],
-    "evidenceProduced": [],
-    "hookRefs": [],
-    "subagentRefs": []
+    evidenceProduced: [],
+    hookRefs: [],
+    subagentRefs: [],
   },
   {
-    "id": "ui-knowledge",
-    "title": "UI/UX",
-    "purpose": "Use this skill as the compact execution surface for the UI knowledge excellence book.",
-    "activation": {
-      "macroCycles": [
+    id: "ui-knowledge",
+    title: "UI/UX",
+    purpose:
+      "Use this skill as the compact execution surface for the UI knowledge excellence book.",
+    activation: {
+      macroCycles: [
         "discovery",
         "cadrage",
         "conception",
@@ -1875,25 +1462,12 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "validation",
         "release",
         "run",
-        "learning"
+        "learning",
       ],
-      "gateTypes": [
-        "user_prompt",
-        "session_start"
-      ],
-      "riskClasses": [
-        "T",
-        "L",
-        "M",
-        "H",
-        "C"
-      ],
-      "operatingModes": [
-        "bypass",
-        "auto",
-        "pairing"
-      ],
-      "keywords": [
+      gateTypes: ["user_prompt", "session_start"],
+      riskClasses: ["T", "L", "M", "H", "C"],
+      operatingModes: ["bypass", "auto", "pairing"],
+      keywords: [
         "ux",
         "landing page",
         "interface polish",
@@ -1908,26 +1482,23 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "motion",
         "forms",
         "navigation",
-        "frontend presentation quality"
+        "frontend presentation quality",
       ],
-      "auto": true
+      auto: true,
     },
-    "owns": [
-      "UI/UX decisions"
-    ],
-    "outOfScope": [
-      "out-of-discipline decisions"
-    ],
-    "evidenceProduced": [],
-    "hookRefs": [],
-    "subagentRefs": []
+    owns: ["UI/UX decisions"],
+    outOfScope: ["out-of-discipline decisions"],
+    evidenceProduced: [],
+    hookRefs: [],
+    subagentRefs: [],
   },
   {
-    "id": "ux-research-product-experience",
-    "title": "UX Research and Product Experience",
-    "purpose": "Research-backed UX research and product experience workflow for web, mobile, SaaS, marketplaces, dashboards, forms, settings, support-heavy products, and AI products. Use when Codex needs to plan or audit user research, usability tests, rec",
-    "activation": {
-      "macroCycles": [
+    id: "ux-research-product-experience",
+    title: "UX Research and Product Experience",
+    purpose:
+      "Research-backed UX research and product experience workflow for web, mobile, SaaS, marketplaces, dashboards, forms, settings, support-heavy products, and AI products. Use when Codex needs to plan or audit user research, usability tests, rec",
+    activation: {
+      macroCycles: [
         "discovery",
         "cadrage",
         "conception",
@@ -1935,30 +1506,15 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "validation",
         "release",
         "run",
-        "learning"
+        "learning",
       ],
-      "gateTypes": [
-        "user_prompt",
-        "session_start"
-      ],
-      "riskClasses": [
-        "T",
-        "L",
-        "M",
-        "H",
-        "C"
-      ],
-      "operatingModes": [
-        "bypass",
-        "auto",
-        "pairing"
-      ],
-      "keywords": [
-        "user intent"
-      ],
-      "auto": true
+      gateTypes: ["user_prompt", "session_start"],
+      riskClasses: ["T", "L", "M", "H", "C"],
+      operatingModes: ["bypass", "auto", "pairing"],
+      keywords: ["user intent"],
+      auto: true,
     },
-    "owns": [
+    owns: [
       "UX research decisions",
       "product-experience decisions",
       "usability test decisions",
@@ -1968,24 +1524,24 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
       "accessibility-as-experience decisions",
       "AI trust/control UX decisions",
       "UX metric decisions",
-      "support-feedback synthesis decisions"
+      "support-feedback synthesis decisions",
     ],
-    "outOfScope": [
+    outOfScope: [
       "visual UI craft and component styling -> local",
       "PMF and customer discovery before product concept ->",
       "implementation architecture ->",
-      "test automation/release gates ->"
+      "test automation/release gates ->",
     ],
-    "evidenceProduced": [],
-    "hookRefs": [],
-    "subagentRefs": []
+    evidenceProduced: [],
+    hookRefs: [],
+    subagentRefs: [],
   },
   {
-    "id": "web-mobile-platform",
-    "title": "Web Mobile Platform",
-    "purpose": "Invoke this skill when:",
-    "activation": {
-      "macroCycles": [
+    id: "web-mobile-platform",
+    title: "Web Mobile Platform",
+    purpose: "Invoke this skill when:",
+    activation: {
+      macroCycles: [
         "discovery",
         "cadrage",
         "conception",
@@ -1993,25 +1549,12 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "validation",
         "release",
         "run",
-        "learning"
+        "learning",
       ],
-      "gateTypes": [
-        "user_prompt",
-        "session_start"
-      ],
-      "riskClasses": [
-        "T",
-        "L",
-        "M",
-        "H",
-        "C"
-      ],
-      "operatingModes": [
-        "bypass",
-        "auto",
-        "pairing"
-      ],
-      "keywords": [
+      gateTypes: ["user_prompt", "session_start"],
+      riskClasses: ["T", "L", "M", "H", "C"],
+      operatingModes: ["bypass", "auto", "pairing"],
+      keywords: [
         "app store",
         "google play",
         "mobile release",
@@ -2022,27 +1565,22 @@ export const GENERATED_SKILL_ENTRIES: readonly SkillCatalogEntry[] = [
         "push notifications",
         "mobile ci",
         "web platform",
-        "app store review"
+        "app store review",
       ],
-      "auto": true
+      auto: true,
     },
-    "owns": [
+    owns: [
       "app store delivery decisions",
       "platform-specific API decisions",
       "mobile release decisions",
       "web platform decisions",
       "PWA decisions",
       "store compliance decisions",
-      "platform capability decisions"
+      "platform capability decisions",
     ],
-    "outOfScope": [
-      "cloud/infrastructure",
-      "mobile UX flows",
-      "production reliability",
-      "security"
-    ],
-    "evidenceProduced": [],
-    "hookRefs": [],
-    "subagentRefs": []
-  }
+    outOfScope: ["cloud/infrastructure", "mobile UX flows", "production reliability", "security"],
+    evidenceProduced: [],
+    hookRefs: [],
+    subagentRefs: [],
+  },
 ] as const;
