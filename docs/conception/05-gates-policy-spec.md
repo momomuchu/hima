@@ -24,7 +24,7 @@
 
 ## 1. Catalogue des gates
 
-Sept `GateType` canoniques constituent le noyau portable du RMS. Chaque gate a une sémantique RMS stable ; le binding vers la primitive native (hook Claude, hook Codex, wrapper shell) est délégué au Runtime Binding Set. Les noms natifs tels que `PreToolUse` ou `pre_tool_call` sont des événements d'adaptateur externes, pas des valeurs canoniques de `GateType`.
+Neuf `GateType` canoniques constituent le noyau portable du RMS. Chaque gate a une sémantique RMS stable ; le binding vers la primitive native (hook Claude, hook Codex, wrapper shell) est délégué au Runtime Binding Set. Les noms natifs tels que `PreToolUse` ou `pre_tool_call` sont des événements d'adaptateur externes, pas des valeurs canoniques de `GateType`.
 
 | GateType | Événement déclencheur | Peut bloquer l'action courante | Peut injecter contexte | Peut exiger preuve | Peut signaler violation |
 |---|---|:---:|:---:|:---:|:---:|
@@ -32,6 +32,8 @@ Sept `GateType` canoniques constituent le noyau portable du RMS. Chaque gate a u
 | `user_prompt` | Réception d'un prompt utilisateur | oui | oui | non | oui |
 | `pre_tool` | Avant exécution de tout outil | oui | oui | non | oui |
 | `post_tool` | Après exécution de tout outil | non | oui | oui | oui |
+| `pre_compact` | Avant compaction du contexte | oui | oui | non | oui |
+| `post_compact` | Après restauration du contexte compacté | non | oui | non | oui |
 | `stop` | Tentative de fin de run | oui | non | oui | oui |
 | `subagent_start` | Avant lancement d'un sous-agent | oui | oui | oui | oui |
 | `subagent_stop` | Fin d'un sous-agent | oui | non | oui | oui |
@@ -66,9 +68,25 @@ Sept `GateType` canoniques constituent le noyau portable du RMS. Chaque gate a u
 
 - **Primitive native** : `PostToolUse` (Claude), `PostToolUse` (Codex), `post_tool_call` plugin hook (Hermes)
 - **Peut bloquer** : non pour l'action déjà exécutée — peut bloquer une finalisation future, forcer une route de correction, ou durcir l'état du run si le résultat contient un pattern interdit
-- **Peut injecter contexte** : oui — ajoute le résultat normalisé dans l'Evidence Set
-- **Peut exiger preuve** : oui — peut déclencher une collecte d'évidence automatique (diff produit, commande lancée)
+- **Peut injecter contexte** : oui — persiste un événement de gate redigé et des références `evidenceAnchors`, sans ajouter de preuve acceptée
+- **Peut exiger preuve** : oui — peut signaler qu'une preuve ou un ADR est requis ; ne collecte ni n'accepte automatiquement la preuve
 - **Peut signaler violation** : oui — signale pattern interdit, écriture hors-zone effectuée, secret détecté
+
+#### `pre_compact`
+
+- **Primitive native** : `PreCompact` (Claude), `PreCompact` (Codex), `pre_compact` plugin hook (Hermes)
+- **Peut bloquer** : oui — bloque/fail-closed si l'état planning requis est absent avant compaction
+- **Peut injecter contexte** : oui — injecte un snapshot borné et redigé de la route, du risque, des gates actives et du contexte de reprise
+- **Peut exiger preuve** : non — prépare la continuité de contexte, sans finaliser le run
+- **Peut signaler violation** : oui — signale état illisible ou contexte de compaction incohérent
+
+#### `post_compact`
+
+- **Primitive native** : `PostCompact` (Claude), `PostCompact` (Codex), `post_compact` plugin hook (Hermes)
+- **Peut bloquer** : non pour la compaction déjà effectuée — peut bloquer la suite du run si la route restaurée diverge sous M/H/C
+- **Peut injecter contexte** : oui — réinjecte le contexte de route/risk courant après compaction
+- **Peut exiger preuve** : non — vérifie la continuité plutôt que la suffisance de preuve
+- **Peut signaler violation** : oui — signale mismatch run/phase/subphase/mode/risk fourni par le runtime
 
 #### `stop`
 
@@ -80,8 +98,8 @@ Sept `GateType` canoniques constituent le noyau portable du RMS. Chaque gate a u
 
 #### `subagent_start`
 
-- **Primitive native** : `SubagentStart` ou wrapper de spawn (Claude), wrapper de spawn si le harness possède le lancement (Codex), `subagent_start` plugin hook ou `agent:start` gateway hook (Hermes)
-- **Peut bloquer** : oui — refuse un sous-agent hors scope, trop profond, sans contrat de preuve, ou non autorisé pour la classe de risque
+- **Primitive native** : `SubagentStart` ou wrapper de spawn (Claude), aucun hook natif pour les lancements non maîtrisés Codex, aucun hook natif dans le profil exécutable Hermes v0.1
+- **Peut bloquer** : selon capacité runtime — oui pour Claude, oui pour Codex seulement quand le harness possède le spawn, non pour les lancements non interceptables ; Hermes reste `supported=false` dans `runtime-profiles.ts`
 - **Peut injecter contexte** : oui — transmet au sous-agent le scope autorisé, les fichiers accessibles, la classe de risque et les preuves attendues
 - **Peut exiger preuve** : oui — enregistre le contrat de preuve attendu avant lancement
 - **Peut signaler violation** : oui — signale lancement non autorisé, profondeur dépassée, scope absent
@@ -89,10 +107,14 @@ Sept `GateType` canoniques constituent le noyau portable du RMS. Chaque gate a u
 #### `subagent_stop`
 
 - **Primitive native** : `SubagentStop` (Claude), no equivalent (Codex), `subagent_stop` plugin hook (Hermes)
-- **Peut bloquer** : oui — bloque si le sous-agent n'a pas produit les preuves requises
+- **Peut bloquer** : selon capacité runtime — oui pour Claude ; non pour Codex ; Hermes expose un événement observable mais non bloquant (`canBlock=false`)
 - **Peut injecter contexte** : non — stop est terminal
 - **Peut exiger preuve** : oui — le résultat d'un sous-agent doit remonter dans `.planning/run-set.json`
-- **Peut signaler violation** : oui — signale sous-agent sans trace, résultat non versé dans l'Evidence Set
+- **Peut signaler violation** : oui — signale sous-agent sans trace, résultat non versé dans l'Evidence Set, ou livrable déclaré absent
+
+**Note Cycle 75 drift** : this section follows the executable profile in
+`packages/core/src/runtime/runtime-profiles.ts`. Future Hermes plugin or gateway support remains a
+candidate extension until it appears in that profile with accepted runtime proof.
 
 ---
 
@@ -124,7 +146,15 @@ Violation de zone : `HARD_BLOCK` pour H/C, `WARN` pour T/L/M avec enregistrement
 | Bypass de gate explicite (`--no-verify`, override forcé) | Signature de commande | Marque violation, bloque `stop` si H/C |
 | Écriture hors-zone effectuée malgré `pre_tool` | Diff de fichiers touchés | Marque violation, bloque `stop` si H/C, `WARN` si T/L |
 | Migration DB sans expand/contract documenté | Nom de fichier dans `migrations/` sans ADR lié | Marque le run `BLOCKED_POLICY`, bloque `stop` toutes classes |
+| Assertion-bearing artifact sans bloc `Falsifies-If:` | Path dans `docs/business-model/` (hors `research-*`/`verification-*`), `docs/decisions/`, ou frontmatter `claim-bearing: true` ; absence du bloc dans le corps post-écriture | Marque le run `BLOCKED_POLICY`, bloque `stop` toutes classes (voir §8.4) |
 | `DONE_VERIFIED` avant Evidence Set suffisant | Texte dans output agent | Bloque `stop` toutes classes |
+
+Les violations critiques détectées après action sont persistées dans le payload `GATE_EVALUATED`
+sous `policyEvent` avec `source: "post_tool"`, `status: "unresolved"`, `severity: "critical"`,
+le type de violation, et `resolvableByEvidence` lorsque des preuves acceptées ultérieures peuvent
+lever le blocage. Les fichiers Markdown claim-bearing avec un `Falsifies-If` valide exposent aussi
+leurs références sous `evidenceAnchors`; ces références ne créent jamais de preuve acceptée par
+elles-mêmes.
 
 ### 2.3 `stop` — suffisance de l'Evidence Set
 
@@ -136,15 +166,28 @@ Pas de DONE_VERIFIED sans Evidence Set suffisant.
 
 Un Evidence Set insuffisant produit un final state `DONE_WITH_GAPS` (autorisé si les gaps sont documentés) ou `BLOCKED_POLICY` (si un item obligatoire est absent).
 
-### 2.4 `subagent_stop` — traçabilité des résultats de sous-agents
-
 ### 2.4 `subagent_start` — autorisation du scope de sous-agent
 
-`subagent_start` autorise le lancement d'un sous-agent avant exécution. Il enregistre dans `.planning/run-set.json` l'identité prévue, le scope de fichiers, la profondeur, la tâche, et le contrat de preuve que `subagent_stop` devra valider.
+`subagent_start` autorise le lancement d'un sous-agent avant exécution. Il exige un `agentId`,
+une tâche explicite, un scope de fichiers, une profondeur portable (`depth <= 1`) et un contrat de
+preuve (`expectedEvidenceKeys` ou livrables attendus). Si le lancement déclare une classe de risque
+inférieure à la route courante, la gate bloque avec `CLASS_UNDERESTIMATED`. Si le scope sort des
+zones autorisées pour la sous-phase courante, la gate bloque avec `FORBIDDEN_WRITE_ZONE`.
+
+Quand la gate autorise le lancement, le runtime persiste un événement redigé et un enregistrement
+`runSet.subagents[]` en statut `requested`. Cet enregistrement capture le scope, les livrables
+attendus, la tâche et les clés d'évidence attendues ; il ne crée pas d'évidence acceptée dans
+`runSet.evidence`. `subagent_stop` reste responsable de valider la trace réelle et les livrables.
 
 ### 2.5 `subagent_stop` — traçabilité des résultats de sous-agents
 
 Tout résultat de sous-agent doit être versé explicitement dans `.planning/run-set.json`. Un sous-agent qui termine sans trace visible est une violation : son résultat devient une mémoire implicite invisible, incompatible avec le principe de traçabilité du RMS.
+
+Si le run-set déclare des livrables pour le sous-agent, `subagent_stop` vérifie aussi que
+chaque chemin déclaré existe sous la racine projet. Un chemin vide, absolu, qui sort de la
+racine projet, ou un fichier absent produit `SUBAGENT_DELIVERABLES_MISSING` et bloque la gate.
+Le hook peut recevoir les mêmes chemins via `deliverables`, `expectedDeliverables`, ou
+`expected_deliverables`, mais le run-set reste la surface d'autorité.
 
 ---
 
@@ -327,9 +370,11 @@ M violations → WARN si première occurrence, HARD_BLOCK si récidive dans le m
 | Evidence Set insuffisant au stop | WARN | WARN | BLOCK | BLOCK | BLOCK |
 | Migration DB sans ADR/expand-contract | BLOCK | BLOCK | BLOCK | BLOCK | BLOCK |
 | Sous-agent sans trace dans Evidence Set | WARN | WARN | WARN | BLOCK | BLOCK |
+| Livrable déclaré de sous-agent absent | BLOCK | BLOCK | BLOCK | BLOCK | BLOCK |
 | Validation humaine absente avant merge | — | — | WARN | BLOCK | BLOCK |
 | Signal de forçage ignoré (classe sous-estimée) | — | WARN | WARN | BLOCK | BLOCK |
 | Pattern interdit dans output (DONE sans preuve) | BLOCK | BLOCK | BLOCK | BLOCK | BLOCK |
+| Assertion-bearing artifact sans `Falsifies-If:` | BLOCK | BLOCK | BLOCK | BLOCK | BLOCK |
 
 ### 5.3 Comportement sur WARN
 
@@ -368,6 +413,8 @@ Un gate individuel peut être contourné uniquement dans les cas suivants :
 | `pre_tool` | T/L uniquement | Mode bypass actif + pas de signal de forçage | Oui — `.planning/run-set.json` |
 | `post_tool` (secrets) | jamais | — | — |
 | `post_tool` (autres) | T/L uniquement | Mode bypass actif | Oui — `.planning/run-set.json` |
+| `pre_compact` | jamais | La continuité de contexte doit être capturée avant compaction | — |
+| `post_compact` | jamais | La continuité de route/run doit être vérifiée après compaction | — |
 | `stop` | jamais | L'Evidence Set reste toujours évalué | — |
 | `subagent_start` | jamais | Tout lancement de sous-agent doit être autorisé | — |
 | `subagent_stop` | jamais | Toute trace de sous-agent doit remonter | — |
@@ -395,7 +442,8 @@ H/C ne supportent pas `HUMAN_OVERRIDE` — seul un gate bloque définitivement.
 | WARN count > seuil | 5 WARNs par run | Escalade automatique vers développeur + événement dans `.planning/run-set.json` |
 | Promotion de classe détectée | Signal de forçage découvert en cours de run | Pause PR + re-classification + log dans `escalation_history` |
 | Evidence Set insuffisant au stop | Tout item obligatoire absent | Blocage stop + description des items manquants |
-| Sous-agent sans trace | Tout subagent_stop sans evidence | BLOCK + message explicite |
+| Sous-agent sans trace | Tout subagent_stop sans evidence | WARN sous H, BLOCK en H/C |
+| Livrable sous-agent absent | Tout deliverable déclaré absent ou hors racine projet | BLOCK + chemin explicite |
 | Secret détecté | Toute occurrence | BLOCK immédiat + alert développeur |
 
 ### 7.2 Qui est notifié
@@ -518,8 +566,53 @@ Un sous-agent doit verser dans `.planning/run-set.json` au minimum :
 - Son `agentId` et `runId` parent
 - La tâche accomplie (description en 1 ligne)
 - Les fichiers modifiés (liste)
+- Les livrables déclarés, quand la tâche en promet
 - Le résultat de vérification (commande lancée + exit code)
 - Les décisions prises (si revieweur ou threat-modeler)
+
+### 8.4 Bloc `Falsifies-If:` pour artefacts à assertions
+
+Les artefacts qui portent des assertions externes — claims publics, bets stratégiques, conclusions d'analyse, décisions architecturales — doivent inclure un bloc `Falsifies-If:` à proximité de chaque assertion. Cette règle bascule la documentation en gouvernance : sans falsifieur explicite, une assertion n'est pas un engagement, c'est une opinion.
+
+**Périmètre — fichiers concernés** :
+- `docs/business-model/*.md` (sauf `research-*` et `verification-*` qui sont déjà fact-anchored)
+- `docs/decisions/*.md` (tous les ADR)
+- Tout fichier hors de ces paths portant en frontmatter `claim-bearing: true`
+
+**Format du bloc** :
+
+```yaml
+Falsifies-If:
+  kill-condition: <métrique observable, événement, ou état futur qui invalide l'assertion>
+  checkpoint-date: <YYYY-MM-DD — date à laquelle le falsifieur doit être ré-évalué>
+  evidence-anchor: <référence file:line ou URL vers la donnée qui démontre ou réfute l'assertion>
+  on-fail: <action requise si la kill-condition se réalise : pivot / amend / retract>
+```
+
+**Exemple** — pour une assertion comme « le harness occupe un gap qu'aucun produit ne comble » :
+
+```yaml
+Falsifies-If:
+  kill-condition: Apparition d'un produit avec ≥3 des 4 traits (session-scoped risk classification + evidence-based gates + multi-runtime portability + compliance artifact generation) en GA, avant 2026-12-31
+  checkpoint-date: 2026-09-01
+  evidence-anchor: docs/business-model/verification-02-competitive-matrix.md:20
+  on-fail: amend positioning — moat narrows to "depth of integrated quality discipline" only
+```
+
+**Validation par le gate `post_tool`** : à chaque écriture dans un fichier du périmètre, le gate parse le contenu pour la présence d'au moins un bloc `Falsifies-If:` valide (kill-condition + checkpoint-date + evidence-anchor non vides, on-fail présent). Absence ou bloc incomplet → violation `MISSING_FALSIFIES_IF` → blocage de `stop`. Détection minimale : présence littérale de la chaîne `Falsifies-If:` suivie des 4 champs nommés dans le fichier post-écriture.
+
+**Resolve check obligatoire sur `evidence-anchor`** : lorsque l'ancre pointe vers le dépôt local, le gate vérifie syntaxiquement que la cible existe. Pour `path/to/file.md`, le fichier doit exister. Pour `path/to/file.md:20` ou `path/to/file.md:20-30`, le fichier doit exister et la ligne ou plage doit être incluse dans la longueur réelle du fichier. Pour une référence de section (`path/to/file.md §8.4`), le fichier doit exister et la section doit être retrouvée par recherche textuelle. Une ancre locale qui ne résout pas vers du contenu réel est traitée comme `MISSING_FALSIFIES_IF`, car elle rend le falsifieur non vérifiable.
+
+**Évaluation par le gate `stop`** : le `stop` du run vérifie que toutes les `checkpoint-date` passées dans les fichiers du périmètre ont été ré-évaluées (preuve = commit récent ≤ 30 jours sur le fichier OU entrée dans `.planning/run-set.json` de type `falsifies_if_review`). Une date passée sans ré-évaluation → `WARN` (T/L), `BLOCK` (M/H/C).
+
+**Anti-patterns** :
+- Bloc présent mais champ `kill-condition` vide ou tautologique ("si on échoue", "si ça ne marche pas") → `MISSING_FALSIFIES_IF`
+- `checkpoint-date` en futur indéfini (>12 mois sans étape intermédiaire) → `WARN`
+- `evidence-anchor` local inexistant, ligne hors plage, ou section introuvable → `MISSING_FALSIFIES_IF`
+- `evidence-anchor` pointant vers une référence externe non-versionnée (URL marketing, blog, tweet) → `WARN`
+- `on-fail` = "we'll figure it out" ou équivalent non actionnable → `WARN`
+
+**Rationale** : cette règle est la couche de gouvernance qui empêche le harness lui-même de produire ses propres claims non falsifiables. Sans elle, la promesse "evidence-based completion" du harness s'arrête à la frontière de ses propres documents stratégiques — incohérence rédhibitoire pour un produit qui vend la discipline d'evidence.
 
 ---
 
@@ -569,7 +662,7 @@ gates:
       hermes: { primitive: plugin_hook, event: pre_tool_call }
 
   post_tool:
-    description: "Détecte les patterns interdits et collecte les preuves"
+    description: "Détecte les patterns interdits et signale les preuves requises sans les collecter ni les accepter automatiquement"
     canBlock: false
     canBlockFutureFinalization: true
     canInjectContext: true
@@ -592,7 +685,7 @@ gates:
       hermes: { primitive: plugin_hook, event: on_session_end }
 
   subagent_start:
-    description: "Autorise le scope d'un sous-agent avant lancement"
+    description: "Autorise un sous-agent avant lancement avec agent, tâche, scope, profondeur et contrat de preuve explicites"
     canBlock: true
     canInjectContext: true
     canRequireEvidence: true
@@ -603,7 +696,7 @@ gates:
       hermes: { primitive: plugin_hook, event: subagent_start }
 
   subagent_stop:
-    description: "Vérifie que le résultat du sous-agent est versé dans l'Evidence Set"
+    description: "Vérifie que le résultat du sous-agent est versé dans l'Evidence Set et que ses livrables déclarés existent"
     canBlock: true
     canInjectContext: false
     canRequireEvidence: true
@@ -786,6 +879,8 @@ export type GateType =
   | "user_prompt"
   | "pre_tool"
   | "post_tool"
+  | "pre_compact"
+  | "post_compact"
   | "stop"
   | "subagent_start"
   | "subagent_stop";
@@ -838,6 +933,7 @@ export type ViolationType =
   | "CLASS_UNDERESTIMATED"
   | "MISSING_AIPD"
   | "MISSING_INDEPENDENT_AUDIT"
+  | "MISSING_FALSIFIES_IF"
   | "INVALID_PHASE_TRANSITION";
 
 export interface RunContext {
@@ -947,6 +1043,12 @@ export function evaluateGate(
 
     case "post_tool":
       return evaluatePostTool(context, event, policy);
+
+    case "pre_compact":
+      return evaluatePreCompact(context, event, policy);
+
+    case "post_compact":
+      return evaluatePostCompact(context, event, policy);
 
     case "stop":
       return evaluateStop(context, event, policy);

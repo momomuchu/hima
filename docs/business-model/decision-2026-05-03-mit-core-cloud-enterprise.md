@@ -57,3 +57,9 @@ Paid surfaces should be additive, maintained, hosted, or organizational:
 ## Directive
 
 Future pricing and packaging decisions must preserve the local MIT core as a useful product, not a demo. Monetization should sell convenience, maintained advanced value, cloud operations, team governance, and enterprise trust.
+
+Falsifies-If:
+  kill-condition: A future legal, distribution, or monetization decision replaces MIT core or makes the local core a demo.
+  checkpoint-date: 2026-06-14
+  evidence-anchor: docs/business-model/decision-2026-05-03-mit-core-cloud-enterprise.md
+  on-fail: Reopen the decision and update all license, packaging, and public-positioning surfaces.

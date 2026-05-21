@@ -13,21 +13,39 @@ Skills are the primary portable primitive of the harness. Each skill is a `SKILL
 describing a reusable workflow invocable by the runtime agent or user. Skills map to RMS
 "procedures" — documented, semi-stable operations that cross platform boundaries unchanged.
 
+### 1.1 Executable routing surface
+
+The markdown catalog is mirrored by an executable registry in `packages/core/src/catalogs/`.
+The runtime uses two deterministic structures before any token-spending classification:
+
+- `keyword-registry.ts` flattens every skill activation keyword from the operational catalog
+  into typed entries with `skillId`, `priority`, `macroCycles`, `gateTypes`, `riskClasses`,
+  `operatingModes`, and `source`.
+- `router-cascade.ts` resolves route selection in this order: regex override, current-state
+  route, keyword registry match, then LLM fallback descriptor.
+
+The fallback descriptor must be explicit: `tier = "llm_fallback"`, `skillId = null`,
+`tokenSpendingRequired = true`, and `candidateSkillIds` populated from the operational
+catalog. Regex, state, and keyword tiers must emit router event payloads with
+`tokenSpendingRequired = false`.
+
 | # | Skill name | Cycle(s) | Trigger keyword(s) | Risk classes | Portable |
 |---|-----------|----------|--------------------|--------------|---------|
-| 1 | `hima-enter` | All | `hima`, `enter`, `development mode`, `governed development` | T L M H C | Yes |
-| 2 | `classify-risk` | All | `classify`, `risk`, any new intent | T L M H C | Yes |
+| 1 | `hima-enter` | All | `hima`, `enter`, `start development`, `development mode`, `mode developpement`, `governed development` | T L M H C | Yes |
+| 2 | `classify-risk` | All | `classify`, `risk`, `intent` | T L M H C | Yes |
 | 3 | `propose-change` | All | `propose`, `change`, `feature`, `fix` | T L M H C | Yes |
-| 4 | `transition-phase` | All | `advance`, `next cycle`, `promote` | T L M H C | Yes |
-| 5 | `status` | All | `status`, `where are we`, `état` | T L M H C | Yes |
-| 6 | `discovery-validate` | 01-Discovery | `discovery`, `problem`, `validate idea` | M H C | Yes |
-| 7 | `cadrage-dor` | 02-Cadrage | `cadrage`, `dor`, `scope`, `definition of ready` | M H C | Yes |
-| 8 | `conception-adr` | 03-Conception | `conception`, `adr`, `architecture`, `design` | M H C | Yes |
-| 9 | `build-inner-loop` | 04-Build | `build`, `tdd`, `implement`, `code` | L M H C | Yes |
-| 10 | `validation-report` | 05-Validation | `validation`, `test report`, `go/no-go` | M H C | Yes |
-| 11 | `release-plan` | 06-Release | `release`, `deploy`, `rollout` | M H C | Yes |
-| 12 | `run-monitor` | 07-Run | `run`, `monitor`, `slo`, `alert` | T L M H C | Yes |
-| 13 | `learning-retro` | 08-learning | `retro`, `retrospective`, `learning` | T L M H C | Yes |
+| 4 | `transition-phase` | All | `advance`, `next cycle`, `promote`, `transition` | M H C | Yes |
+| 5 | `status` | All | `status`, `where are we`, `etat` | T L M H C | Yes |
+| 6 | `gate-policy` | All | `gate`, `policy`, `guard` | T L M H C | Yes |
+| 7 | `bind-runtime` | All | `runtime`, `binding`, `adapter`, `hook` | T L M H C | Yes |
+| 8 | `build-inner-loop` | 04-Build | `build`, `tdd`, `implement`, `code` | L M H C | Yes |
+| 9 | `validate-evidence` | 05-Validation, 06-Release, 07-Run, 08-learning | `evidence`, `verify`, `validation`, `done` | T L M H C | Yes |
+| 10 | `run-monitor` | 07-Run | `run`, `monitor`, `slo`, `alert` | T L M H C | Yes |
+| 11 | `close-run` | All | `close`, `final`, `finish` | T L M H C | Yes |
+
+This table tracks the executable operational catalog used by `getKeywordRegistry()`.
+Lifecycle skill sketches later in this document are design backlog unless they appear in
+the table above.
 
 **Portability tier**: All skills are Tier 1 — same SKILL.md format across all runtimes.
 Install paths differ per platform adapter (see §5).
@@ -408,14 +426,16 @@ Auto: session_start hook
 
 ---
 
-## 3. Cycle-Specific Skills
+## 3. Legacy Lifecycle Skill Drafts
 
-These skills activate only within their designated cycle. All are skipped for T risk class;
-L applies only where noted.
+This section is retained as design backlog from the earlier conception draft. These entries
+do not participate in executable routing unless promoted into `operational-catalog.ts` and
+the inventory table in §1. Treat the current executable skills in §1.1 and §1 as the runtime
+authority.
 
 ---
 
-### 3.1 `discovery-validate` — Cycle 01
+### 3.1 Legacy draft: `discovery-validate` — Cycle 01
 
 **Purpose**: Validate a problem hypothesis using one of three modes before the harness
 commits resources to Cadrage.
@@ -463,7 +483,7 @@ Cycle: 01-Discovery
 
 ---
 
-### 3.2 `cadrage-dor` — Cycle 02
+### 3.2 Legacy draft: `cadrage-dor` — Cycle 02
 
 **Purpose**: Produce a complete DoR (Definition of Ready) for the Conception cycle.
 The DoR is the Conception entry gate — Conception cannot start without it.
@@ -509,7 +529,7 @@ Cycle: 02-Cadrage
 
 ---
 
-### 3.3 `conception-adr` — Cycle 03
+### 3.3 Legacy draft: `conception-adr` — Cycle 03
 
 **Purpose**: Produce architectural decision records (MADR 4.0), C4 diagrams, threat model
 (STRIDE), and API contracts. Evidence Set for the build entry GateType.
@@ -597,7 +617,7 @@ Cycle: 04-Build
 
 ---
 
-### 3.5 `validation-report` — Cycle 05
+### 3.5 Legacy draft: `validation-report` — Cycle 05
 
 **Purpose**: Produce a Go/No-Go/Go-with-reservations validation report based on
 risk-based testing matrix and ENF thresholds from the DoR.
@@ -639,7 +659,7 @@ Cycle: 05-Validation
 
 ---
 
-### 3.6 `release-plan` — Cycle 06
+### 3.6 Legacy draft: `release-plan` — Cycle 06
 
 **Purpose**: Produce a release plan: SemVer bump, deployment strategy, rollback plan,
 smoke tests, feature flags, post-deploy monitoring window.
@@ -723,7 +743,7 @@ Cycle: 07-Run, also cross-cycle on alert keywords
 
 ---
 
-### 3.8 `learning-retro` — Cycle 08
+### 3.8 Legacy draft: `learning-retro` — Cycle 08
 
 **Purpose**: Run a structured retrospective using PDCA/Kaizen + Kolb cycle, produce
 harness delta (rule changes to propagate), and archive DORA metrics.
@@ -815,7 +835,7 @@ Cycle: <cycle name(s) or "All">
 
 ## 5. Skill Portability Notes
 
-All 13 skills are Tier 1 portable: same SKILL.md content, different install paths.
+All executable skills listed in §1 are Tier 1 portable: same SKILL.md content, different install paths.
 Platform adapters handle path resolution — the skill author writes once.
 
 ### 5.1 Claude Code (`adapter-claude/`)
@@ -850,27 +870,28 @@ Platform adapters handle path resolution — the skill author writes once.
 - Same SKILL.md format, Hermes-specific front matter may be appended as YAML block
 - Trigger keywords mapped to Hermes intent router
 
-### 5.4 Monorepo source of truth
+### 5.4 Executable source of truth
+
+The executable source of truth is `packages/core/src/catalogs/operational-catalog.ts`.
+`packages/core/src/catalogs/artifact-generation.ts` renders managed catalog artifacts into:
 
 ```
-packages/artifacts/skills/
-├── hima-enter/SKILL.md
-├── classify-risk/SKILL.md
-├── propose-change/SKILL.md
-├── transition-phase/SKILL.md
-├── status/SKILL.md
-├── discovery-validate/SKILL.md
-├── cadrage-dor/SKILL.md
-├── conception-adr/SKILL.md
-├── build-inner-loop/SKILL.md
-├── validation-report/SKILL.md
-├── release-plan/SKILL.md
-├── run-monitor/SKILL.md
-└── learning-retro/SKILL.md
+artifacts/
+├── skills/<skill-name>/SKILL.md
+├── hooks/<hook-id>.md
+└── subagents/<subagent-id>.md
 ```
 
-Install scripts per adapter symlink or copy from this source. Never edit adapter copies
-directly — always edit the monorepo source and re-run `harness skill sync`.
+Platform artifact installation then maps managed catalog artifacts under the selected platform
+directory as `skills/<id>/SKILL.md`, `hooks/<id>.md`, and `agents/<id>.md` via
+`packages/core/src/install/artifact-paths.ts`.
+
+Separate HIMA skill installation uses scoped `.hima/skills/<name>/SKILL.md` paths through
+`packages/core/src/install/skills-install.ts`. Repo-local fixtures under `fixtures/hima-skills/`
+exercise this resolver; they are not real user-home installs.
+
+Never edit generated adapter/platform copies directly. Change the operational catalog or the
+specific HIMA skill source and regenerate/install through the CLI/MCP surfaces.
 
 ---
 
@@ -885,29 +906,25 @@ Legend: **M** = Mandatory (required, blocks cycle exit if absent) | **O** = Opti
 | `propose-change` | M | M | M | M | M |
 | `transition-phase` | – | – | M | M | M |
 | `status` | M | M | M | M | M |
-| `discovery-validate` | – | – | M | M | M |
-| `cadrage-dor` | – | – | M | M | M |
-| `conception-adr` | – | – | M | M | M |
+| `gate-policy` | M | M | M | M | M |
+| `bind-runtime` | M | M | M | M | M |
 | `build-inner-loop` | – | M | M | M | M |
-| `validation-report` | – | – | M | M | M |
-| `release-plan` | – | – | O | M | M |
+| `validate-evidence` | M | M | M | M | M |
 | `run-monitor` | O | O | M | M | M |
-| `learning-retro` | – | O | M | M | M |
+| `close-run` | M | M | M | M | M |
 
 **Notes**:
 - `transition-phase` is skipped for T/L: auto-advance with no gate check
 - `build-inner-loop` is M for L: lightweight TDD still applies (no test-engineer agent, self-sufficient)
-- `release-plan` is O for M: recommended but not blocking if deploy is trivial (single-file, zero infra)
 - `run-monitor` is O for T/L: anomaly monitoring is valuable but not cycle-blocking
-- `learning-retro` is O for L: encouraged, not required (full retro reserved for M+)
-- `discovery-validate`, `cadrage-dor`, `conception-adr`, `validation-report` are all hard-skipped for T/L — overhead exceeds value
+- `gate-policy`, `bind-runtime`, `validate-evidence`, and `close-run` are always present because they protect routing, runtime binding, proof, and finalization.
 
 **Full pipeline path by risk**
 
 | Risk | Active skills |
 |------|--------------|
-| T | hima-enter → classify-risk → propose-change → status (+ run-monitor optional) |
-| L | hima-enter → classify-risk → propose-change → build-inner-loop → status (+ run-monitor, retro optional) |
-| M | hima-enter → full 12-skill execution pipeline. release-plan optional. |
-| H | hima-enter → full 12-skill execution pipeline. Pairing mode on classify-risk, propose-change, discovery-validate, conception-adr, validation-report, release-plan. |
-| C | hima-enter → full 12-skill execution pipeline. Pairing mode everywhere. Stakeholder sign-off tokens required at conception-adr and release-plan. |
+| T | hima-enter → classify-risk → propose-change → gate-policy → bind-runtime → validate-evidence → close-run → status (+ run-monitor optional) |
+| L | T path + build-inner-loop (+ run-monitor optional) |
+| M | hima-enter → classify-risk → propose-change → transition-phase → gate-policy → bind-runtime → build-inner-loop → validate-evidence → run-monitor → close-run → status |
+| H | M path in pairing mode for classification, proposal, validation, and close. |
+| C | M path in pairing mode everywhere. Stakeholder sign-off tokens remain required where governance policy demands them. |

@@ -5,6 +5,12 @@
 > **Date** : 2026-05-03
 > **Sources** : `checkpoint-implementation.md` §7.2 + §9.1.6 · `rms-runtime-sets-v1-draft.md` · `quality-model.md` · `harness-state-machine.md`
 
+> **Cycle 75 drift note** : the module map below is the original conception contract. The current
+> package barrel is `packages/core/src/index.ts`; its reviewed export inventory is
+> `docs/excellence-application/05-architecture/stream-h-api-stability-review.md` plus
+> `docs/goals/h2-api-row-reconciliation.md`. `@harness/core` remains private, version `0.0.0`, and
+> `UNLICENSED`, so this document is not npm/public v1 API compatibility evidence.
+
 ---
 
 ## Sommaire

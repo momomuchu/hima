@@ -33,3 +33,9 @@ already been secured.
 - Local runtime state such as `.omc/`, `.omx/`, `.planning/` and `.claude/`
   should stay ignored.
 - Public release requires a separate visibility decision.
+
+Falsifies-If:
+  kill-condition: The project name, repository identity, or private-first release boundary changes without a superseding ADR.
+  checkpoint-date: 2026-06-14
+  evidence-anchor: docs/decisions/0001-project-identity.md
+  on-fail: Create a superseding project-identity ADR and update README, metadata, and release boundaries.

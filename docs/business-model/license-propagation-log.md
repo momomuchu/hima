@@ -80,3 +80,9 @@ These are historical research documents. Their AGPL content is factual analysis 
 All remaining AGPL references are either (a) in comparison tables showing AGPL as a rejected alternative, (b) in "Rejected" sections, (c) in historical analysis annotated as resolved/moot, or (d) in unmodified research reports.
 
 No reference suggests AGPL is the current or planned license for Pipeline Fractale.
+
+Falsifies-If:
+  kill-condition: A remaining AGPL reference is used as current licensing guidance or a new licensing decision supersedes the MIT-core decision.
+  checkpoint-date: 2026-06-14
+  evidence-anchor: docs/business-model/license-propagation-log.md
+  on-fail: Reopen the propagation log and correct the affected license surfaces before public release.

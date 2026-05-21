@@ -101,14 +101,14 @@ The real competitors are the coding agents themselves — the question is "why u
 | Quality discipline as rules | Tidy First S/B, complexity limits, policy-driven gates | No | No | ConfirmRisky policy [V02] | Auto-lint thin gates | No | Cascade Hooks [V02] | Verifier gate |
 | Session-persistent planning | `.planning/` artifacts, ADR, STATE.md | No | Persistent `/goal` workflows [V02] | Partial (workspace) | No | No | No | Living Specs |
 | Evidence-based completion | Evidence Set required before DONE_VERIFIED | No | No | Immutable event-sourced audit trail [V02] | No | No | No | No |
-| Multi-runtime portable | Claude Code, Codex, Hermes, extensible | Claude only | Codex only | Model-agnostic | Model-agnostic | Multi-model | Multi-model | macOS desktop only |
+| **Governance-portable across runtimes** (risk policy + compliance artifacts travel WITH the developer, not just the agent execution) — note: raw multi-runtime execution is now table-stakes per D1 (2026-05-14): Goose, OpenHands, Aider, Mastra, Microsoft AGT all support it | Claude Code, Codex, Hermes (first-party); Goose, Aider, Cline/Roo Code, Mastra, Windsurf (community-adapter slots) | Claude only | Codex only | Model-agnostic execution only — no policy portability | Model-agnostic execution only | Multi-model execution only | Multi-model execution only | macOS desktop only |
 | Open source | MIT core + commercial enterprise layer | Proprietary | Proprietary | MIT core + source-available enterprise | Apache 2.0 | Proprietary | Proprietary | Proprietary |
 | Compliance artifact generation | EU AI Act mapping from risk tiers | No | No | No | No | No | No | No |
 | Analytics / telemetry | Open-source, auditable | No | No | No | No | Proprietary | Proprietary | No |
 
-**Verified gap** [V02]: No product combines (1) session-scoped risk classification mapped to regulatory tiers, (2) evidence-based completion gates, (3) multi-runtime portability, and (4) compliance artifact generation. The gap is real but **narrower** than initially claimed — competitors have adopted individual harness primitives (skills, action-level risk, hooks). Pipeline Fractale's moat is the integrated quality discipline system, not any single feature.
+**Verified gap** [V02 + D1 2026-05-14, sharpened]: No **developer-terminal product** combines (1) session-scoped risk classification mapped to regulatory tiers, (2) evidence-based completion gates, (3) **governance-portable across runtimes** (raw multi-runtime *execution* is now table-stakes — 5 competitors have it per D1, so this is reframed: the differentiator is that hima's risk policy and compliance artifacts TRAVEL with the developer, not just the agent runtime), and (4) **developer-session-level EU AI Act evidence packs** (not infra-tier governance — Microsoft Agent Governance Toolkit scores 3.5/4 on these traits at the SDK middleware layer per D1, but generates artifacts at infra-tier, not at a developer's terminal coding session). At hima's exact tier (terminal coding companion), top competitor today = Augment Intent at 2.5/4 (D1). Pipeline Fractale's moat is the integrated quality discipline system AT THE DEVELOPER TERMINAL, not any single feature.
 
-**Buyer overlap note**: Cursor 3 (April 2026) added background agents and cross-platform triggers — the "different buyer" argument is weakening. Windsurf's Cascade Hooks are a meaningful governance layer. Compete on depth of quality governance, not on "they don't have hooks" [V02].
+**Buyer overlap note**: Cursor 3 (April 2026) added background agents and cross-platform triggers — the "different buyer" argument is weakening. Windsurf's Cascade Hooks are a meaningful governance layer. Microsoft AGT, while at a different tier today, must be monitored (2026-09-01 checkpoint per strategy-diagnosis.md §1) for any adapter into terminal-tier products. Compete on depth of quality governance + developer-session-tier specificity, not on "they don't have hooks" [V02, D1].
 
 Sources: [R05 §8], competitive deep-dives [R05 §4].
 
@@ -797,3 +797,9 @@ At $2,500/month fixed burn:
 ---
 
 *Document compiled 2026-05-03. All claims cite research reports [R01]-[R10]. All price points justified by market data. All tier features mapped to named skills, subagents, and CLI commands from specs 06/07/09.*
+
+Falsifies-If:
+  kill-condition: External market, pricing, licensing, or distribution evidence invalidates the proposal's named strategic recommendations before public use.
+  checkpoint-date: 2026-06-14
+  evidence-anchor: docs/business-model/business-model-proposal.md
+  on-fail: Amend or retract the affected business-model claim and update the claims register before public use.
