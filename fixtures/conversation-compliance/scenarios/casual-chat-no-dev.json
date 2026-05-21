@@ -1,0 +1,21 @@
+{
+  "id": "casual-chat-no-dev",
+  "kind": "chat",
+  "description": "A loose product idea conversation with no request for files, tests, or code.",
+  "turns": [
+    {
+      "role": "user",
+      "text": "Yo, I have a rough SaaS idea and I just want to talk it through. Do not code anything yet."
+    }
+  ],
+  "expected": {
+    "route": "chat",
+    "allowedTools": [],
+    "forbiddenTools": ["apply_patch", "shell", "npm_test_required", "git_commit"],
+    "requiredEvidence": [],
+    "forbiddenEvidenceRequirements": ["ci_green", "sast_clean", "secrets_clean", "DONE_VERIFIED"],
+    "stopPolicy": "allow_no_code_stop",
+    "runtimeSchema": "runtime_native",
+    "requiresContinuity": false
+  }
+}

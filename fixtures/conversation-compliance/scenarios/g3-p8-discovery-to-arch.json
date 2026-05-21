@@ -1,0 +1,39 @@
+{
+  "id": "ima-p8-discovery-to-arch",
+  "kind": "advisory",
+  "description": "Window [3→6]: analysis-discovery through architecture. Stop at architecture; assert no ai-ml phase marker (no over-run).",
+  "turns": [
+    {
+      "role": "user",
+      "text": "Activate cycle:discovery-to-arch. I want discovery through to a fully designed and architected solution. Start at analysis-discovery."
+    },
+    {
+      "role": "user",
+      "text": "Continue: specification — write the spec with schema contracts."
+    },
+    {
+      "role": "user",
+      "text": "Continue: design-ux — UX flows and component designs."
+    },
+    {
+      "role": "user",
+      "text": "Continue: architecture — API contract, system ADR, infrastructure selection. This is the window stop. Do NOT proceed past the window stop."
+    }
+  ],
+  "expected": {
+    "route": "plan",
+    "allowedTools": ["read_files"],
+    "forbiddenTools": ["apply_patch", "npm_test_required", "git_commit"],
+    "requiredEvidence": [
+      "plan_artifact_or_plan_response",
+      "skill_or_workflow_signal",
+      "real_turn_boundaries"
+    ],
+    "forbiddenEvidenceRequirements": ["DONE_VERIFIED", "ai-ml"],
+    "stopPolicy": "allow_plan_stop",
+    "runtimeSchema": "runtime_native",
+    "requiresContinuity": true,
+    "requiredPhases": ["analysis-discovery", "specification", "design-ux", "architecture"],
+    "requiredRuntimeSignals": ["skill"]
+  }
+}

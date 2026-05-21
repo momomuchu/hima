@@ -1,0 +1,31 @@
+{
+  "id": "ima-p6-discovery",
+  "kind": "plan",
+  "description": "Window [3→4]: analysis-discovery through specification. One-pass discovery to spec. Stop at specification; assert no design-ux phase marker.",
+  "turns": [
+    {
+      "role": "user",
+      "text": "Activate cycle:discovery. I have a scoped problem; I want technical discovery and a spec in one pass. Start at analysis-discovery."
+    },
+    {
+      "role": "user",
+      "text": "Continue: specification — write the spec with schema contracts. This is the window stop. Do NOT proceed past the window stop."
+    }
+  ],
+  "expected": {
+    "route": "plan",
+    "allowedTools": ["read_files"],
+    "forbiddenTools": ["apply_patch", "npm_test_required", "git_commit"],
+    "requiredEvidence": [
+      "plan_artifact_or_plan_response",
+      "skill_or_workflow_signal",
+      "real_turn_boundaries"
+    ],
+    "forbiddenEvidenceRequirements": ["DONE_VERIFIED", "design-ux"],
+    "stopPolicy": "allow_plan_stop",
+    "runtimeSchema": "runtime_native",
+    "requiresContinuity": true,
+    "requiredPhases": ["analysis-discovery", "specification"],
+    "requiredRuntimeSignals": ["skill"]
+  }
+}

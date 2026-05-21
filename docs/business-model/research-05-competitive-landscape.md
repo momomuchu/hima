@@ -78,6 +78,12 @@ CATEGORY A — Orchestration Frameworks (SDK/framework, no UI)
   LangChain / LangGraph    open-source + commercial cloud
   CrewAI                   open-source + commercial managed
   Microsoft Agent Framework (AutoGen + Semantic Kernel)  open-source
+  Microsoft Agent Governance Toolkit (AGT)               middleware SDK — 3.5/4 moat traits at INFRA layer (not developer-terminal tier);
+                                                         covers risk classification (continuous trust score), multi-runtime (20+ frameworks),
+                                                         compliance artifacts (EU AI Act + HIPAA + SOC2 + NIST AI RMF, cryptographic attestation).
+                                                         NOT a direct competitor today — but if MS ships an AGT adapter for Claude Code or
+                                                         Codex CLI, it becomes direct overnight. **MANDATORY MONITOR CHECKPOINT: 2026-09-01**
+                                                         per strategy-diagnosis.md §1 Falsifies-If. Source: docs/excellence-application/02-analysis-discovery/competitive-harness-scan.md (D1, 2026-05-14)
   Haystack by deepset      open-source + enterprise managed
 
 CATEGORY B — AI Coding Agents (terminal/IDE, human-in-the-loop)

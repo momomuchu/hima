@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "kind": "synthetic-runtime-parity-fixture",
+  "fixtureScope": "synthetic_not_real_runtime",
+  "runtimeTarget": "codex",
+  "sessionId": "synthetic-parity-cycle-40-drift",
+  "createdAt": "2026-05-14T23:59:00.000Z",
+  "governance": {
+    "riskClass": "M",
+    "operatingMode": "auto",
+    "macroCycle": "validation",
+    "subPhase": "Verify",
+    "activeGate": "post_tool",
+    "requiredEvidenceKeys": ["hook_decision", "command_output", "files_modified"],
+    "ledgerHashAlgorithm": "sha256",
+    "ledgerEntryKind": "governance_event",
+    "evidenceAnchorKind": "local_artifact_path"
+  },
+  "externalSessionsLaunched": false
+}

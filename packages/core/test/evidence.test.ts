@@ -6,11 +6,17 @@ import {
   addEvidence,
   type EvidenceItem,
   type EvidenceKey,
+  evaluateLayeredEvidenceGate,
   getAcceptedEvidenceKeys,
+  getEvidenceGateStage,
   initProject,
   isEvidenceSufficient,
+  LAYERED_EVIDENCE_GATE_STAGES,
   RISK_POLICY,
+  readEventLog,
+  readLedger,
   readPlanningProject,
+  verifyLedgerEntries,
 } from "../src/index.js";
 
 const now = "2026-05-03T00:00:00.000Z";
@@ -128,6 +134,104 @@ describe("evidence sufficiency", () => {
   });
 });
 
+describe("layered evidence gate", () => {
+  it("rejects missing layers without treating later layers as progression", () => {
+    const result = evaluateLayeredEvidenceGate([
+      layeredEvidence("eval_suite", "command_output"),
+      layeredEvidence("suite_promotion", "review_2_or_antagonist"),
+    ]);
+
+    expect(result.sufficient).toBe(false);
+    expect(result.readyForPromotion).toBe(false);
+    expect(result.completedStages).toEqual(["eval_suite"]);
+    expect(result.missingStages).toEqual(["held_out_split", "suite_promotion"]);
+    expect(result.stageResults[1]).toMatchObject({
+      stage: "held_out_split",
+      passed: false,
+      missingEvidenceKeys: [],
+    });
+    expect(result.stageResults[2]).toMatchObject({
+      stage: "suite_promotion",
+      passed: true,
+      blockedByPreviousStage: "held_out_split",
+    });
+  });
+
+  it("accepts ordered local layer progression with suite and promotion metadata", () => {
+    const result = evaluateLayeredEvidenceGate([
+      layeredEvidence("eval_suite", "command_output", {
+        suiteName: "local-regression",
+      }),
+      layeredEvidence("held_out_split", "integration_tests", {
+        suite_name: "local-regression",
+      }),
+      layeredEvidence("suite_promotion", "review_2_or_antagonist", {
+        promotionTarget: "candidate-suite-v2",
+      }),
+    ]);
+
+    expect(result).toMatchObject({
+      sufficient: true,
+      readyForPromotion: true,
+      completedStages: ["eval_suite", "held_out_split", "suite_promotion"],
+      missingStages: [],
+    });
+    expect(result.stageResults[0].suiteNames).toEqual(["local-regression"]);
+    expect(result.stageResults[1].suiteNames).toEqual(["local-regression"]);
+    expect(result.stageResults[2].promotionTargets).toEqual(["candidate-suite-v2"]);
+  });
+
+  it("supports per-layer required evidence keys", () => {
+    const result = evaluateLayeredEvidenceGate(
+      [
+        layeredEvidence("eval_suite", "command_output"),
+        layeredEvidence("held_out_split", "integration_tests"),
+        layeredEvidence("suite_promotion", "review_2_or_antagonist"),
+      ],
+      {
+        requiredEvidenceKeysByStage: {
+          eval_suite: ["ci_green"],
+        },
+      },
+    );
+
+    expect(result.sufficient).toBe(false);
+    expect(result.stageResults[0]).toMatchObject({
+      stage: "eval_suite",
+      passed: false,
+      missingEvidenceKeys: ["ci_green"],
+    });
+  });
+
+  it("ignores unaccepted, untrusted, and unmarked layer evidence", () => {
+    const result = evaluateLayeredEvidenceGate([
+      layeredEvidence("eval_suite", "command_output", {}, "candidate"),
+      {
+        ...layeredEvidence("held_out_split", "human_validation"),
+        source: "agent",
+      },
+      evidence("review_2_or_antagonist"),
+    ]);
+
+    expect(result.sufficient).toBe(false);
+    expect(result.completedStages).toEqual([]);
+    expect(result.missingStages).toEqual(["eval_suite", "held_out_split", "suite_promotion"]);
+  });
+
+  it("keeps the local layered gate catalog internally consistent", () => {
+    expect(new Set(LAYERED_EVIDENCE_GATE_STAGES).size).toBe(LAYERED_EVIDENCE_GATE_STAGES.length);
+    expect(LAYERED_EVIDENCE_GATE_STAGES).toEqual([
+      "eval_suite",
+      "held_out_split",
+      "suite_promotion",
+    ]);
+    expect(getEvidenceGateStage(layeredEvidence("eval_suite", "command_output"))).toBe(
+      "eval_suite",
+    );
+    expect(getEvidenceGateStage(evidence("command_output"))).toBeUndefined();
+  });
+});
+
 describe("addEvidence", () => {
   it.each([
     "human_validation",
@@ -201,9 +305,30 @@ describe("addEvidence", () => {
         metadata,
       });
       const project = await readPlanningProject(root);
+      const eventsLog = await readEventLog(root);
+      const ledger = await readLedger(root, project.runSet.runId);
 
       expect(item.metadata).toEqual(metadata);
       expect(project.runSet.evidence[0].metadata).toEqual(metadata);
+      expect(project.runSet.events[0]).toMatchObject({
+        id: `evidence-added-${item.id}`,
+        type: "EVIDENCE_ADDED",
+        payload: {
+          evidenceId: item.id,
+          key: "ci_green",
+          status: "accepted",
+        },
+      });
+      expect(eventsLog[0]).toMatchObject({
+        id: `evidence-added-${item.id}`,
+        type: "EvidenceAdded",
+        payload: {
+          owner: "Evidence",
+          legacyType: "EVIDENCE_ADDED",
+        },
+      });
+      expect(ledger[0].payload).toMatchObject({ type: "EVIDENCE_ADDED" });
+      expect(verifyLedgerEntries(ledger)).toBe(true);
     } finally {
       await rm(root, { recursive: true, force: true });
     }
@@ -226,4 +351,20 @@ function evidenceForRiskReplacing(
       ? trustedHumanEvidence(key)
       : evidence(key),
   );
+}
+
+function layeredEvidence(
+  stage: "eval_suite" | "held_out_split" | "suite_promotion",
+  key: EvidenceItem["key"],
+  metadata: Record<string, unknown> = {},
+  status: EvidenceItem["status"] = "accepted",
+): EvidenceItem {
+  return {
+    ...evidence(key, status),
+    id: `ev_${stage}_${key}`,
+    metadata: {
+      evidenceGateStage: stage,
+      ...metadata,
+    },
+  };
 }

@@ -1,3 +1,4 @@
+import { normalizePath } from "../gates/canonical-path.js";
 import type { SubPhase } from "../types/canonical.js";
 
 export const WRITE_ZONES_BY_SUB_PHASE: Readonly<Record<SubPhase, readonly string[]>> = {
@@ -59,8 +60,27 @@ function escapeRegExp(value: string): string {
 }
 
 function normalizeWriteTarget(value: string): string {
-  return value
-    .replaceAll("\\", "/")
-    .replace(/^\.\/+/, "")
-    .toLowerCase();
+  // First apply the canonical mechanical transforms (backslash, leading ./, lowercase).
+  const base = normalizePath(value).replace(/^\.\/+/, "");
+  // Then collapse dot-segments so that "src/../docs/x" cannot escape to "docs/x"
+  // and be matched against the "src/" zone. This mirrors the old pathSafeNormalize.
+  return collapseDotSegments(base);
+}
+
+function collapseDotSegments(value: string): string {
+  if (value.length === 0) return value;
+  const segments: string[] = [];
+  for (const segment of value.split("/")) {
+    if (segment.length === 0 || segment === ".") continue;
+    if (segment === "..") {
+      if (segments.length > 0 && segments.at(-1) !== "..") {
+        segments.pop();
+      } else {
+        segments.push(segment);
+      }
+    } else {
+      segments.push(segment);
+    }
+  }
+  return segments.join("/");
 }

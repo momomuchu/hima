@@ -40,4 +40,16 @@ describe("write-zone policy", () => {
       isAllowedWriteTarget("packages/core/nested/src/index.ts", WRITE_ZONES_BY_SUB_PHASE.Execute),
     ).toBe(false);
   });
+
+  it("rejects dot-segment escapes from otherwise allowed prefixes", () => {
+    expect(
+      isAllowedWriteTarget(
+        "packages/core/src/../../../../docs/escaped.md",
+        WRITE_ZONES_BY_SUB_PHASE.Execute,
+      ),
+    ).toBe(false);
+    expect(isAllowedWriteTarget("src/../docs/escaped.md", WRITE_ZONES_BY_SUB_PHASE.Execute)).toBe(
+      false,
+    );
+  });
 });

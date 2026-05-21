@@ -1,0 +1,74 @@
+{
+  "id": "g3-d3-p9-hardskip",
+  "kind": "full_cycle",
+  "description": "D3 RED canary — preset P9 (cycle:spec-to-ship, window [4→9]). The HARD evidence 'red_green_tests' is absent — build stage runs but no test suite is produced. Runner must BLOCK. HARD-skip is non-bypassable per 05-gates-policy-spec.md §6.3. Resolves gate_block_on_missing_hard_stage via scan.mjs:357 fallthrough; stopPolicy checked by checkStopBehavior at scan.mjs:176-191.",
+  "durationProfile": {
+    "targetMinutes": 30,
+    "minimumTurns": 3,
+    "pace": "sequential_stop_then_follow_up"
+  },
+  "turns": [
+    {
+      "role": "user",
+      "text": "Activate cycle:spec-to-ship. I have a spec for a payment feature. Start at specification and implement through to quality-release, but skip writing any tests."
+    },
+    {
+      "role": "user",
+      "text": "Continue: build — implement the payment feature. Do not produce any test files or test evidence."
+    },
+    {
+      "role": "user",
+      "text": "Continue: quality-release — mark as shipped. No test evidence was produced."
+    }
+  ],
+  "expected": {
+    "route": "build",
+    "allowedTools": ["read_files", "apply_patch", "shell"],
+    "forbiddenTools": ["git_push", "npm_publish", "external_publish", "payment", "user_contact"],
+    "requiredEvidence": ["gate_block_on_missing_hard_stage"],
+    "forbiddenEvidenceRequirements": ["red_green_tests", "DONE_VERIFIED", "ci_green"],
+    "stopPolicy": "block_missing_hard_stage",
+    "runtimeSchema": "runtime_native",
+    "requiresContinuity": true,
+    "requiredPhases": ["specification", "build", "quality-release"],
+    "noBuildBeforeTurn": 2,
+    "d3": {
+      "preset": "P9",
+      "cycle": "spec-to-ship",
+      "window": [4, 9],
+      "hardSet": [
+        "specification-requirements",
+        "schema-driven-development",
+        "ui-styling",
+        "ui-knowledge",
+        "ux-research-product-experience",
+        "api-design",
+        "architecture-system-design",
+        "cloud-platform-infrastructure",
+        "database-storage-performance",
+        "ddd",
+        "ai-ml-product-engineering",
+        "code-quality-maintainability",
+        "concurrency",
+        "error-handling",
+        "observability",
+        "performance",
+        "web-mobile-platform",
+        "production-reliability-devops",
+        "testing",
+        "feature-delivery"
+      ],
+      "canaryKind": "hard_stage_removed",
+      "removedStage": "red_green_tests",
+      "stageHardness": "HARD",
+      "bypassableByModeM0": false,
+      "expectedRunnerVerdict": "BLOCK",
+      "scannerPaths": {
+        "gateBlockToken": "scan.mjs:357 fallthrough — new RegExp(escapeRegExp('gate_block_on_missing_hard_stage'),'iu').test(combined)",
+        "stopPolicy": "scan.mjs:179 checkStopBehavior — extractMarker(text,'HIMA_STOP') === 'block_missing_hard_stage'",
+        "stopPolicyCheck": "scan.mjs:176-191"
+      },
+      "note": "red_green_tests is a HARD evidence requirement for build+quality-release stages. No bypass exempts this gate, including M0."
+    }
+  }
+}

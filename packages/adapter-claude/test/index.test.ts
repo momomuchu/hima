@@ -1,13 +1,15 @@
 import { link, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { GATE_TYPES, toHookCommand } from "@harness/core";
+import { GATE_TYPES, getRuntimeProfile, toHookCommand } from "@harness/core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   applyClaudeSettings,
   buildClaudeSettingsPreview,
+  getClaudeHookBindings,
   removeClaudeSettings,
 } from "../src/index.js";
+import { applyClaudeInstall, planClaudeInstall } from "../src/install.js";
 
 let tempRoot: string;
 
@@ -43,6 +45,98 @@ describe("buildClaudeSettingsPreview", () => {
 
     expect(previewGateTypes).toEqual([...GATE_TYPES]);
     expect(preview.markers).toEqual([]);
+  });
+
+  it("keeps every generated hook command aligned with the Claude runtime profile", () => {
+    const profile = getRuntimeProfile("claude");
+    const preview = buildClaudeSettingsPreview();
+
+    expect(preview.operations.map((operation) => operation.value)).toEqual(
+      GATE_TYPES.flatMap((gateType) => {
+        const hook = profile.hooks[gateType];
+
+        return hook.supported && hook.nativeEvent
+          ? [
+              {
+                gateType,
+                event: hook.nativeEvent,
+                matcher: "",
+                hooks: [{ type: "command", command: hook.command }],
+              },
+            ]
+          : [];
+      }),
+    );
+  });
+
+  it("ships a package-local system prompt with anti-bypass and evidence boundaries", async () => {
+    const prompt = await readFile(new URL("../src/system-prompt.md", import.meta.url), "utf8");
+
+    expect(prompt).toContain("Do not bypass HIMA");
+    expect(prompt).toContain(".planning/");
+    expect(prompt).toContain(".hima/state/");
+    expect(prompt).toContain("Claude Code");
+    expect(prompt).toContain("real-runtime E2E");
+  });
+
+  it("exposes hook bindings aligned with the Claude runtime profile", () => {
+    const profile = getRuntimeProfile("claude");
+    const bindings = getClaudeHookBindings();
+
+    expect(
+      bindings.map(({ target, gateType, nativeEvent, canBlock, supported, command }) => ({
+        target,
+        gateType,
+        nativeEvent,
+        canBlock,
+        supported,
+        command,
+      })),
+    ).toEqual(
+      GATE_TYPES.map((gateType) => {
+        const hook = profile.hooks[gateType];
+
+        return {
+          target: "claude",
+          gateType,
+          nativeEvent: hook.nativeEvent,
+          canBlock: hook.canBlock,
+          supported: hook.supported,
+          command: hook.command,
+        };
+      }),
+    );
+    expect(bindings.filter((binding) => binding.status === "unsupported")).toEqual([]);
+    expect(
+      bindings
+        .filter((binding) => binding.status === "degraded")
+        .map((binding) => binding.gateType),
+    ).toEqual(["session_start", "post_tool", "post_compact"]);
+  });
+
+  it("plans install wiring from prompt and hook-binding surfaces without writing", async () => {
+    const plan = planClaudeInstall({ root: tempRoot });
+
+    expect(plan.settingsFile).toBe(path.join(path.resolve(tempRoot), "settings.json"));
+    expect(plan.systemPromptFile).toContain(path.join("src", "system-prompt.md"));
+    expect(plan.hookBindings).toEqual(getClaudeHookBindings());
+    expect(plan.unsupportedHooks).toEqual([]);
+    expect(plan.degradedHooks.map((binding) => binding.gateType)).toEqual([
+      "session_start",
+      "post_tool",
+      "post_compact",
+    ]);
+    expect(plan.hooksPlanned).toBe(GATE_TYPES.length);
+    await expect(readFile(plan.settingsFile, "utf8")).rejects.toThrow();
+  });
+
+  it("applies settings through the install module while preserving plan metadata", async () => {
+    const result = await applyClaudeInstall({ root: tempRoot });
+
+    expect(result.hooksAdded).toBe(GATE_TYPES.length);
+    expect(result.settingsFile).toBe(path.join(tempRoot, "settings.json"));
+    expect(result.plan.systemPromptFile).toContain(path.join("src", "system-prompt.md"));
+    expect(result.plan.hookBindings).toHaveLength(GATE_TYPES.length);
   });
 
   it("applies settings.json hooks while preserving unrelated settings and hooks", async () => {

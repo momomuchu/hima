@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "suite": "swe-bench-verified",
+  "status": "blocked",
+  "instanceId": "swe-verified-fixture-blocked",
+  "runtimeTarget": "claude",
+  "createdAt": "2026-05-14T23:59:00.000Z",
+  "blockReason": "External runtime/model spend was not authorized for this fixture."
+}

@@ -142,7 +142,9 @@ operating modes. Those are policy constraints inside `auto`.
 
 ## 6. GateType
 
-PFV4 uses canonical gates as internal policy points.
+PFV4 uses canonical gates as internal policy points. The canonical set
+contains nine gates. This supersedes any prior document that listed seven;
+see `docs/decisions/0002-nine-canonical-gatetypes.md` for the resolution ADR.
 
 ```ts
 export type GateType =
@@ -150,6 +152,8 @@ export type GateType =
   | "user_prompt"
   | "pre_tool"
   | "post_tool"
+  | "pre_compact"
+  | "post_compact"
   | "stop"
   | "subagent_start"
   | "subagent_stop";
@@ -161,6 +165,8 @@ export type GateType =
 | `user_prompt` | Classify intent, set route, inject current constraints. | yes | yes | yes |
 | `pre_tool` | Authorize, scope, or enrich a tool call before it happens. | yes | yes | yes |
 | `post_tool` | Record output, detect drift, update evidence, schedule corrective action. It cannot undo the completed tool call. | no for the completed action; yes for future route/finalization | yes | yes |
+| `pre_compact` | Fail-closed guard before context compaction: snapshot the current route, risk class, active gates, and resume context. Blocks if required planning state is absent. Cannot be bypassed. | yes | yes | yes |
+| `post_compact` | Continuity verification after context restoration: re-injects current route/risk context and blocks the run if the restored state diverges from the pre-compaction snapshot under M/H/C. Cannot be bypassed. | no for the compaction already completed; yes for the continued run | yes | yes |
 | `stop` | Final verification before the agent/session may claim completion. | yes | no | yes |
 | `subagent_start` | Authorize and scope a spawned subagent before delegation. | yes | yes | yes |
 | `subagent_stop` | Ingest and validate subagent result/evidence. | yes for parent acceptance/finalization | no | yes |
@@ -188,6 +194,8 @@ Examples:
 | `UserPromptSubmit`, `pre_prompt`, `pre_llm` | `user_prompt` |
 | `PreToolUse`, `pre_tool_use`, `pre_tool_call` | `pre_tool` |
 | `PostToolUse`, `post_tool_use`, `post_tool_call` | `post_tool` |
+| `PreCompact`, `pre_compact` | `pre_compact` |
+| `PostCompact`, `post_compact` | `post_compact` |
 | `Stop`, `SessionEnd`, `on_session_end` | `stop` |
 | native subagent spawn / parent delegation wrapper | `subagent_start` |
 | `SubagentStop`, parent intake wrapper | `subagent_stop` |

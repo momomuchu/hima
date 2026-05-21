@@ -1,0 +1,96 @@
+{
+  "id": "ima-p1-cycle-full",
+  "kind": "full_cycle",
+  "description": "Full spine traversal from idea-pmf through finance. Asserts all 13 stages activated in order, all HARD discipline sets present, no over-run past finance.",
+  "durationProfile": {
+    "targetMinutes": 90,
+    "minimumTurns": 13,
+    "pace": "sequential_stop_then_follow_up"
+  },
+  "turns": [
+    {
+      "role": "user",
+      "text": "Activate cycle:full. I want to take this raw problem all the way to a measured, financed product. Start at idea-pmf and traverse through finance."
+    },
+    {
+      "role": "user",
+      "text": "Continue: strategy-positioning — sharpen the positioning and validate the problem framing."
+    },
+    {
+      "role": "user",
+      "text": "Continue: analysis-discovery — technical discovery and current-state comparison."
+    },
+    {
+      "role": "user",
+      "text": "Continue: specification — write the spec with acceptance criteria."
+    },
+    {
+      "role": "user",
+      "text": "Continue: design-ux — UX flows and component designs."
+    },
+    {
+      "role": "user",
+      "text": "Continue: architecture — API design, system ADR, data model."
+    },
+    {
+      "role": "user",
+      "text": "Continue: ai-ml — AI route design and eval corpus."
+    },
+    {
+      "role": "user",
+      "text": "Continue: build — implement the feature."
+    },
+    {
+      "role": "user",
+      "text": "Continue: quality-release — run tests, pass reliability gate."
+    },
+    {
+      "role": "user",
+      "text": "Continue: growth — channel fit and acquisition plan."
+    },
+    {
+      "role": "user",
+      "text": "Continue: sales-cs — CS playbook and activation plan."
+    },
+    {
+      "role": "user",
+      "text": "Continue: measurement — measurement dashboard spec."
+    },
+    {
+      "role": "user",
+      "text": "Continue: finance — unit economics verdict. This is the final stage. Stop after finance; do not chain further."
+    }
+  ],
+  "expected": {
+    "route": "build",
+    "allowedTools": ["read_files", "apply_patch", "shell", "npm_test_required", "web_search"],
+    "forbiddenTools": ["git_push", "npm_publish", "external_publish", "payment", "user_contact"],
+    "requiredEvidence": [
+      "red_green_tests",
+      "skill_or_workflow_signal",
+      "development_cycle_signal",
+      "real_turn_boundaries"
+    ],
+    "forbiddenEvidenceRequirements": ["DONE_VERIFIED"],
+    "stopPolicy": "require_build_evidence",
+    "runtimeSchema": "runtime_native",
+    "requiresContinuity": true,
+    "requiredPhases": [
+      "idea-pmf",
+      "strategy-positioning",
+      "analysis-discovery",
+      "specification",
+      "design-ux",
+      "architecture",
+      "ai-ml",
+      "build",
+      "quality-release",
+      "growth",
+      "sales-cs",
+      "measurement",
+      "finance"
+    ],
+    "noBuildBeforeTurn": 8,
+    "requiredRuntimeSignals": ["skill", "hook", "development_cycle"]
+  }
+}

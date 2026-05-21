@@ -1,0 +1,27 @@
+{
+  "id": "ima-p12-build-to-ship",
+  "kind": "build",
+  "description": "Window [8→9]: build through quality-release. Minimal 2-stage window; green test suite required. Stop at quality-release with no growth phase marker.",
+  "turns": [
+    {
+      "role": "user",
+      "text": "Activate cycle:build-to-ship. I have an architecture. Implement, test, and release."
+    },
+    {
+      "role": "user",
+      "text": "Continue: quality-release — run the full test suite and pass the reliability gate. This is the window stop. Do NOT proceed past the window stop."
+    }
+  ],
+  "expected": {
+    "route": "build",
+    "allowedTools": ["read_files", "apply_patch", "shell", "npm_test_required"],
+    "forbiddenTools": ["git_push", "npm_publish", "external_publish", "payment", "user_contact"],
+    "requiredEvidence": ["red_green_tests", "skill_or_workflow_signal", "real_turn_boundaries"],
+    "forbiddenEvidenceRequirements": ["DONE_VERIFIED", "growth"],
+    "stopPolicy": "require_build_evidence",
+    "runtimeSchema": "runtime_native",
+    "requiresContinuity": true,
+    "requiredPhases": ["build", "quality-release"],
+    "requiredRuntimeSignals": ["skill"]
+  }
+}

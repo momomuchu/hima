@@ -1,0 +1,25 @@
+{
+  "id": "async-follow-up-after-stop",
+  "kind": "advisory",
+  "description": "A follow-up turn after the assistant stops must keep context but reclassify from the latest user intent.",
+  "turns": [
+    {
+      "role": "user",
+      "text": "I want to brainstorm categories with high SaaS markup. No code yet."
+    },
+    {
+      "role": "user",
+      "text": "Now turn that into a deterministic test plan, but still do not implement."
+    }
+  ],
+  "expected": {
+    "route": "advisory",
+    "allowedTools": ["read_files"],
+    "forbiddenTools": ["apply_patch", "npm_test_required", "git_commit"],
+    "requiredEvidence": ["continuity_marker", "latest_turn_reclassification"],
+    "forbiddenEvidenceRequirements": ["ci_green", "sast_clean", "secrets_clean", "DONE_VERIFIED"],
+    "stopPolicy": "allow_no_code_stop",
+    "runtimeSchema": "runtime_native",
+    "requiresContinuity": true
+  }
+}

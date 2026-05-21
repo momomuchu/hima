@@ -1,0 +1,29 @@
+{
+  "id": "business-idea-price-disruption",
+  "kind": "research",
+  "description": "A multi-turn business idea discussion where pricing claims need sources but no code should be written.",
+  "turns": [
+    {
+      "role": "user",
+      "text": "I want to disrupt overpriced SaaS margins. Maybe start with cheap transactional email. Challenge the idea."
+    },
+    {
+      "role": "user",
+      "text": "Show proof for the pricing claims and compare Cloudflare Email, SES, and Resend. Still do not code."
+    },
+    {
+      "role": "user",
+      "text": "Find other categories where the markup is high, but keep this as research and strategy only."
+    }
+  ],
+  "expected": {
+    "route": "research",
+    "allowedTools": ["web_fetch", "web_search"],
+    "forbiddenTools": ["apply_patch", "npm_test_required", "git_commit"],
+    "requiredEvidence": ["source_links_when_prices_are_claimed"],
+    "forbiddenEvidenceRequirements": ["ci_green", "sast_clean", "secrets_clean", "DONE_VERIFIED"],
+    "stopPolicy": "allow_no_code_stop",
+    "runtimeSchema": "runtime_native",
+    "requiresContinuity": true
+  }
+}

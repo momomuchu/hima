@@ -1,0 +1,51 @@
+{
+  "id": "ima-d2-window-arch-to-measurement",
+  "kind": "full_cycle",
+  "description": "Non-preset window [6→12]: architecture through measurement. Tests a long build+GTM sub-window that skips both idea stages and the finance terminal.",
+  "durationProfile": {
+    "targetMinutes": 50,
+    "minimumTurns": 7,
+    "pace": "sequential_stop_then_follow_up"
+  },
+  "turns": [
+    {
+      "role": "user",
+      "text": "Activate window:6..12. Start at architecture and run through measurement. Stop at the window boundary."
+    },
+    { "role": "user", "text": "Continue: ai-ml." },
+    { "role": "user", "text": "Continue: build. First build-allowed turn." },
+    { "role": "user", "text": "Continue: quality-release." },
+    { "role": "user", "text": "Continue: growth." },
+    { "role": "user", "text": "Continue: sales-cs." },
+    {
+      "role": "user",
+      "text": "Continue: measurement. Window stop — do NOT proceed past the window stop."
+    }
+  ],
+  "expected": {
+    "route": "build",
+    "allowedTools": ["read_files", "apply_patch", "shell", "npm_test_required"],
+    "forbiddenTools": ["git_push", "npm_publish", "external_publish", "payment", "user_contact"],
+    "requiredEvidence": [
+      "red_green_tests",
+      "skill_or_workflow_signal",
+      "development_cycle_signal",
+      "real_turn_boundaries"
+    ],
+    "forbiddenEvidenceRequirements": ["DONE_VERIFIED", "finance"],
+    "stopPolicy": "require_build_evidence",
+    "runtimeSchema": "runtime_native",
+    "requiresContinuity": true,
+    "requiredPhases": [
+      "architecture",
+      "ai-ml",
+      "build",
+      "quality-release",
+      "growth",
+      "sales-cs",
+      "measurement"
+    ],
+    "noBuildBeforeTurn": 3,
+    "requiredRuntimeSignals": ["skill", "development_cycle"]
+  }
+}

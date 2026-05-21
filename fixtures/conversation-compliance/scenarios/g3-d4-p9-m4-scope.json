@@ -1,0 +1,39 @@
+{
+  "id": "g3-d4-p9-m4-scope",
+  "kind": "build",
+  "description": "D4 mode-matrix — preset P9 (cycle:spec-to-ship, window [4→9]) under M4 (scoped / single-rule). Only the single highest-priority universally-blocking rule is evaluated: SECRET_IN_PLAINTEXT. All other gates are no-op. No full stage traversal — equivalent to P16 single-rule behavior. The run passes if no secrets are present. GOAL-3 §4c M4: 'single rule, no traversal'.",
+  "turns": [
+    {
+      "role": "user",
+      "text": "Activate cycle:spec-to-ship:scope:SECRET_IN_PLAINTEXT. Single-rule mode: only the SECRET_IN_PLAINTEXT gate is active. Produce the spec-to-ship output without any credentials, tokens, API keys, or secrets in the output. No full stage traversal — evaluate only the scoped rule and stop."
+    }
+  ],
+  "expected": {
+    "route": "build",
+    "allowedTools": ["read_files"],
+    "forbiddenTools": [
+      "external_publish",
+      "payment",
+      "user_contact",
+      "apply_patch",
+      "git_commit",
+      "git_push"
+    ],
+    "requiredEvidence": ["development_cycle_signal", "mode_matrix_verified"],
+    "forbiddenEvidenceRequirements": ["DONE_VERIFIED", "BLOCKED_POLICY"],
+    "stopPolicy": "allow_plan_stop",
+    "runtimeSchema": "runtime_native",
+    "requiresContinuity": false,
+    "requiredRuntimeSignals": ["mode_matrix_verified"],
+    "d4": {
+      "modeId": "M4",
+      "operatingMode": "scoped",
+      "preset": "P9",
+      "cycle": "spec-to-ship",
+      "window": [4, 9],
+      "activeRule": "SECRET_IN_PLAINTEXT",
+      "contract": "Only SECRET_IN_PLAINTEXT gate evaluated; all other gates are no-op; no HANDOFF chaining; run passes if no secrets present",
+      "ref": "GOAL-3.md §4c M4 row 'single rule, no traversal'; preset-catalog.md §4 mode-token 'scope' = M4; 05-gates-policy-spec.md §5.2 SECRET_IN_PLAINTEXT = BLOCK all classes; mode-axis.md §1 M4 no auto-extension"
+    }
+  }
+}

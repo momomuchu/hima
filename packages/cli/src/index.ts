@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 import { existsSync } from "node:fs";
+import { access, readdir, readFile } from "node:fs/promises";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { applyClaudeSettings, removeClaudeSettings } from "@harness/adapter-claude";
-import { applyCodexHookConfig, removeCodexHookConfig } from "@harness/adapter-codex";
-import { applyHermesHookConfig, removeHermesHookConfig } from "@harness/adapter-hermes";
+import { applyClaudeInstall, removeClaudeInstall } from "@harness/adapter-claude/install";
+import { applyCodexInstall, removeCodexInstall } from "@harness/adapter-codex/install";
+import { applyHermesInstall, removeHermesInstall } from "@harness/adapter-hermes/install";
 import {
   type AddEvidenceInput,
   ARTIFACT_INSTALL_SELECTIONS,
@@ -13,6 +15,8 @@ import {
   addEvidence,
   applyRuntimeLifecycle,
   assessRouteRuntimeBindings,
+  type BenchmarkAuthorization,
+  type BenchmarkResult,
   bindRuntime,
   CATALOG_ARTIFACT_SELECTIONS,
   type CatalogArtifactSelection,
@@ -20,6 +24,7 @@ import {
   type ClassificationResult,
   type CloseRunResult,
   CONFIDENCE_LEVELS,
+  type CompliancePack,
   classifyRisk,
   closeRun,
   computeRuntimeProfileDigest,
@@ -54,11 +59,19 @@ import {
   inspectRuntime,
   installCatalogArtifacts,
   installPlatform,
+  type LocalSiemFixtureResult,
+  type LocalStressFixtureResult,
   MACRO_CYCLES,
   type MacroCycle,
   MISSING_RUNTIME_BINDING_STATUS,
   OPERATING_MODES,
   type OperatingMode,
+  parseBenchmarkAuthorization,
+  parseBenchmarkResult,
+  parseCompliancePack,
+  parseRuntimeParityAuthorization,
+  parseRuntimeParityFixture,
+  parseSiemIngestFixture,
   planArtifactInstall,
   planCatalogArtifacts,
   probeRuntime,
@@ -73,14 +86,19 @@ import {
   type RuntimeCapabilityStatus,
   type RuntimeHookCapabilityInput,
   RuntimeHooksInputSchema,
+  type RuntimeParityAuthorization,
+  type RuntimeParityFixture,
   type RuntimeProbeResult,
   readInstallManifest,
   readPlanningProject,
   repairRuntimeLifecycle,
   requestTransition,
   rollbackCatalogArtifacts,
+  runLocalSiemFixture,
+  runLocalStressFixture,
   SUB_PHASES,
   type SubPhase,
+  safeAtomicWriteFile,
   toHookCommand,
   uninstallRuntimeLifecycle,
   type WriteCatalogArtifactsResult,
@@ -121,6 +139,43 @@ type HookCommandOptions = {
 };
 type ApplyPlatformConfigResult = Awaited<ReturnType<typeof applyPlatformConfig>>;
 type RemovePlatformConfigResult = Awaited<ReturnType<typeof removePlatformConfig>>;
+type SelfTestRuntimeExecutionStatus = "blocked_by_design";
+type SelfTestTargetResult = {
+  target: InstallTarget;
+  install: {
+    status: "pass" | "fail";
+    hooksPlanned: number;
+    unsupportedHooks: GateType[];
+    degradedHooks: GateType[];
+    manifestWritten: boolean;
+  };
+  hookDryRun: {
+    status: "pass" | "fail";
+    decision: HookResponse["decision"];
+    gateType: GateType;
+  };
+  runtimeExecution: {
+    status: SelfTestRuntimeExecutionStatus;
+    reason: string;
+  };
+};
+type SelfTestResult = {
+  ok: boolean;
+  root: string;
+  externalRuntimeSessionsLaunched: false;
+  targets: SelfTestTargetResult[];
+};
+type BenchmarkPlanResult = {
+  ok: true;
+  suite: "swe-bench-verified";
+  requestedInstances: number;
+  executionMode: "dry_run_plan";
+  willLaunchExternalSessions: false;
+  requiresExplicitAuthorization: true;
+  plannedComparisons: string[];
+  requiredEvidence: string[];
+  status: "blocked_until_authorized";
+};
 type CatalogArtifactsPlan = {
   ok: boolean;
   kind: CatalogArtifactSelection;
@@ -243,10 +298,115 @@ const init = defineCommand({
   },
 });
 
-const status = defineCommand({
+const _status = defineCommand({
   meta: {
     name: "status",
     description: "Show current harness state",
+  },
+  args: {
+    root: rootArg,
+    json: {
+      type: "boolean",
+      description: "Print JSON",
+      default: false,
+    },
+  },
+  async run({ args }) {
+    const result = await getStatus(args.root);
+
+    if (args.json) {
+      console.log(JSON.stringify(result, null, 2));
+      return;
+    }
+
+    console.log(formatStatusHuman(result));
+  },
+});
+
+// BEH-W4 — Gate-decision observability read surface
+// harness status gates [--verbose] [--id GATE-xxx] [--trace] [--json]
+const statusGates = defineCommand({
+  meta: {
+    name: "gates",
+    description: "Show gate-decision records for the current run (BEH-W4 observability)",
+  },
+  args: {
+    root: rootArg,
+    verbose: {
+      type: "boolean",
+      description: "Expand all allow decisions (default: collapse to count)",
+      default: false,
+    },
+    id: {
+      type: "string",
+      description: "Show full detail for a specific gate decision event id",
+      required: false,
+    },
+    trace: {
+      type: "boolean",
+      description: "Chronological trace of all gate decisions",
+      default: false,
+    },
+    json: {
+      type: "boolean",
+      description: "Print JSON",
+      default: false,
+    },
+  },
+  async run({ args }) {
+    const project = await readPlanningProject(args.root);
+    const runId = project.state.run_id;
+    const events = project.runSet.events;
+
+    // Filter to GATE_DECISION events for this run.
+    const gateEvents = events.filter(
+      (ev) =>
+        ev.type === "GATE_DECISION" &&
+        ev.payload &&
+        (ev.payload as Record<string, unknown>).runId === runId,
+    );
+
+    if (args.json) {
+      console.log(
+        JSON.stringify(
+          {
+            runId,
+            phase: project.state.phase,
+            subPhase: project.state.sub_phase,
+            riskClass: project.currentRisk.risk_class,
+            total: gateEvents.length,
+            events: gateEvents,
+          },
+          null,
+          2,
+        ),
+      );
+      return;
+    }
+
+    // Detail view: single decision by id.
+    if (typeof args.id === "string" && args.id.length > 0) {
+      const match = gateEvents.find((ev) => ev.id === args.id);
+      if (!match) {
+        console.log(`No gate decision found with id: ${args.id}`);
+        process.exitCode = 1;
+        return;
+      }
+      console.log(formatGateDecisionDetail(match));
+      return;
+    }
+
+    console.log(formatGatesHuman(runId, project, gateEvents, args.verbose, args.trace));
+  },
+});
+
+const statusCommand = defineCommand({
+  meta: {
+    name: "status",
+    description: "Show harness state and gate-decision observability",
+  },
+  subCommands: {
+    gates: statusGates,
   },
   args: {
     root: rootArg,
@@ -678,6 +838,563 @@ const validate = defineCommand({
     if (!report.ok) {
       process.exitCode = 1;
     }
+  },
+});
+
+const selfTest = defineCommand({
+  meta: {
+    name: "self-test",
+    description: "Run deterministic local fixture/install/hook checks without model sessions",
+  },
+  args: {
+    root: rootArg,
+    target: {
+      type: "string",
+      description: "Runtime target to check, or all",
+      default: "all",
+    },
+    json: {
+      type: "boolean",
+      description: "Print JSON",
+      default: false,
+    },
+  },
+  async run({ args }) {
+    const result = await runLocalSelfTest({
+      root: args.root,
+      target: typeof args.target === "string" ? args.target : "all",
+    });
+
+    console.log(args.json ? JSON.stringify(result, null, 2) : formatSelfTestHuman(result));
+  },
+});
+
+const stressFixture = defineCommand({
+  meta: {
+    name: "stress-fixture",
+    description: "Run deterministic local transition/ledger stress checks without runtimes",
+  },
+  args: {
+    root: rootArg,
+    runId: {
+      type: "string",
+      description: "Local stress ledger run id",
+      default: "local-stress-fixture",
+    },
+    iterations: {
+      type: "string",
+      description: "Number of deterministic transition-like ledger entries",
+      default: "100",
+    },
+    json: {
+      type: "boolean",
+      description: "Print JSON",
+      default: false,
+    },
+  },
+  async run({ args }) {
+    const result = await runLocalStressFixture({
+      root: args.root,
+      runId: readOptionalString(args, "runId") ?? "local-stress-fixture",
+      iterations: parseOptionalInteger(args.iterations, "iterations") ?? 100,
+    });
+
+    console.log(args.json ? JSON.stringify(result, null, 2) : formatStressFixtureHuman(result));
+  },
+});
+
+const siemFixture = defineCommand({
+  meta: {
+    name: "siem-fixture",
+    description: "Write local SIEM-like ingest records without network transmission",
+  },
+  args: {
+    root: rootArg,
+    runId: {
+      type: "string",
+      description: "Local SIEM fixture run id",
+      default: "local-siem-fixture",
+    },
+    iterations: {
+      type: "string",
+      description: "Number of local ledger entries to normalize",
+      default: "10",
+    },
+    json: {
+      type: "boolean",
+      description: "Print JSON",
+      default: false,
+    },
+  },
+  async run({ args }) {
+    const result = await runLocalSiemFixture({
+      root: args.root,
+      runId: readOptionalString(args, "runId") ?? "local-siem-fixture",
+      iterations: parseOptionalInteger(args.iterations, "iterations") ?? 10,
+    });
+
+    console.log(args.json ? JSON.stringify(result, null, 2) : formatSiemFixtureHuman(result));
+  },
+});
+
+const benchmarkPlan = defineCommand({
+  meta: {
+    name: "plan",
+    description: "Plan a benchmark run without launching external sessions",
+  },
+  args: {
+    instances: {
+      type: "string",
+      description: "Requested SWE-bench Verified instance count",
+      default: "10",
+    },
+    json: {
+      type: "boolean",
+      description: "Print JSON",
+      default: false,
+    },
+  },
+  async run({ args }) {
+    const result = planBenchmarkRun({ instances: args.instances });
+
+    console.log(args.json ? JSON.stringify(result, null, 2) : formatBenchmarkPlanHuman(result));
+  },
+});
+
+const benchmarkValidate = defineCommand({
+  meta: {
+    name: "validate",
+    description: "Validate a benchmark result JSON file without executing benchmarks",
+  },
+  args: {
+    file: {
+      type: "positional",
+      description: "Benchmark result JSON file",
+      required: true,
+    },
+    json: {
+      type: "boolean",
+      description: "Print JSON",
+      default: false,
+    },
+  },
+  async run({ args }) {
+    const result = await validateBenchmarkResultFile(args.file);
+
+    console.log(
+      args.json ? JSON.stringify(result, null, 2) : formatBenchmarkValidationHuman(result),
+    );
+  },
+});
+
+const benchmarkWrite = defineCommand({
+  meta: {
+    name: "write",
+    description:
+      "Write a planned or blocked benchmark result artifact without executing benchmarks",
+  },
+  args: {
+    status: {
+      type: "enum",
+      options: ["planned", "blocked"],
+      description: "Benchmark result status to persist",
+      required: true,
+    },
+    instanceId: {
+      type: "string",
+      description: "SWE-bench Verified instance id",
+      required: true,
+    },
+    target: {
+      type: "string",
+      description: "Runtime target",
+      default: "codex",
+    },
+    blockReason: {
+      type: "string",
+      description: "Required when status is blocked",
+      required: false,
+    },
+    root: rootArg,
+    json: {
+      type: "boolean",
+      description: "Print JSON",
+      default: false,
+    },
+  },
+  async run({ args }) {
+    const result = await writeBenchmarkResultArtifact({
+      root: args.root,
+      status: args.status,
+      instanceId: readRequiredString(args, "instanceId"),
+      target: readOptionalString(args, "target") ?? "codex",
+      blockReason: readOptionalString(args, "blockReason"),
+    });
+
+    console.log(args.json ? JSON.stringify(result, null, 2) : formatBenchmarkWriteHuman(result));
+  },
+});
+
+const benchmarkAuthorizationWrite = defineCommand({
+  meta: {
+    name: "write",
+    description: "Write benchmark execution authorization state without executing benchmarks",
+  },
+  args: {
+    status: {
+      type: "enum",
+      options: ["blocked", "authorized"],
+      description: "Authorization status",
+      required: true,
+    },
+    instances: {
+      type: "string",
+      description: "Requested SWE-bench Verified instance count",
+      default: "10",
+    },
+    targets: {
+      type: "string",
+      description: "Comma-separated runtime targets",
+      default: "codex",
+    },
+    blockReason: {
+      type: "string",
+      description: "Required when status is blocked",
+      required: false,
+    },
+    authorizedBy: {
+      type: "string",
+      description: "Required when status is authorized",
+      required: false,
+    },
+    authorizationId: {
+      type: "string",
+      description: "Required when status is authorized",
+      required: false,
+    },
+    costBudgetUsd: {
+      type: "string",
+      description: "Required positive cost budget when status is authorized",
+      required: false,
+    },
+    credentialScope: {
+      type: "string",
+      description: "Required credential scope when status is authorized",
+      required: false,
+    },
+    evidenceRetentionPath: {
+      type: "string",
+      description: "Required evidence retention path when status is authorized",
+      required: false,
+    },
+    transcriptRetentionPath: {
+      type: "string",
+      description: "Required transcript retention path when status is authorized",
+      required: false,
+    },
+    root: rootArg,
+    json: {
+      type: "boolean",
+      description: "Print JSON",
+      default: false,
+    },
+  },
+  async run({ args }) {
+    const result = await writeBenchmarkAuthorizationArtifact({
+      root: args.root,
+      status: args.status,
+      instances: args.instances,
+      targets: readOptionalString(args, "targets") ?? "codex",
+      blockReason: readOptionalString(args, "blockReason"),
+      authorizedBy: readOptionalString(args, "authorizedBy"),
+      authorizationId: readOptionalString(args, "authorizationId"),
+      costBudgetUsd: args.costBudgetUsd,
+      credentialScope: readOptionalString(args, "credentialScope"),
+      evidenceRetentionPath: readOptionalString(args, "evidenceRetentionPath"),
+      transcriptRetentionPath: readOptionalString(args, "transcriptRetentionPath"),
+    });
+
+    console.log(
+      args.json ? JSON.stringify(result, null, 2) : formatBenchmarkAuthorizationWriteHuman(result),
+    );
+  },
+});
+
+const benchmarkAuthorizationValidate = defineCommand({
+  meta: {
+    name: "validate",
+    description: "Validate benchmark execution authorization without executing benchmarks",
+  },
+  args: {
+    file: {
+      type: "positional",
+      description: "Benchmark authorization JSON file",
+      required: true,
+    },
+    json: {
+      type: "boolean",
+      description: "Print JSON",
+      default: false,
+    },
+  },
+  async run({ args }) {
+    const result = await validateBenchmarkAuthorizationFile(args.file);
+
+    console.log(
+      args.json
+        ? JSON.stringify(result, null, 2)
+        : formatBenchmarkAuthorizationValidationHuman(result),
+    );
+  },
+});
+
+const benchmarkAuthorization = defineCommand({
+  meta: {
+    name: "authorization",
+    description: "Benchmark execution authorization namespace",
+  },
+  subCommands: {
+    validate: benchmarkAuthorizationValidate,
+    write: benchmarkAuthorizationWrite,
+  },
+});
+
+const benchmarkExecutionPreflight = defineCommand({
+  meta: {
+    name: "execution-preflight",
+    description: "Check whether benchmark execution is explicitly authorized",
+  },
+  args: {
+    authorizationFile: {
+      type: "string",
+      description: "Benchmark authorization artifact path",
+      required: false,
+    },
+    root: rootArg,
+    json: {
+      type: "boolean",
+      description: "Print JSON",
+      default: false,
+    },
+  },
+  async run({ args }) {
+    const result = await checkBenchmarkExecutionPreflight({
+      root: args.root,
+      authorizationFile: readOptionalString(args, "authorizationFile"),
+    });
+
+    console.log(
+      args.json ? JSON.stringify(result, null, 2) : formatBenchmarkExecutionPreflightHuman(result),
+    );
+  },
+});
+
+const benchmark = defineCommand({
+  meta: {
+    name: "benchmark",
+    description: "Benchmark planning namespace",
+  },
+  subCommands: {
+    authorization: benchmarkAuthorization,
+    "execution-preflight": benchmarkExecutionPreflight,
+    plan: benchmarkPlan,
+    validate: benchmarkValidate,
+    write: benchmarkWrite,
+  },
+});
+
+const compliancePackValidate = defineCommand({
+  meta: {
+    name: "validate",
+    description: "Validate a developer-session compliance pack without executing runtimes",
+  },
+  args: {
+    file: {
+      type: "positional",
+      description: "Compliance pack JSON file",
+      required: true,
+    },
+    json: {
+      type: "boolean",
+      description: "Print JSON",
+      default: false,
+    },
+  },
+  async run({ args }) {
+    const result = await validateCompliancePackFile(args.file);
+
+    console.log(
+      args.json ? JSON.stringify(result, null, 2) : formatCompliancePackValidationHuman(result),
+    );
+  },
+});
+
+const compliancePackWrite = defineCommand({
+  meta: {
+    name: "write",
+    description: "Write a draft or blocked compliance pack without executing runtimes",
+  },
+  args: {
+    status: {
+      type: "enum",
+      options: ["draft", "blocked"],
+      description: "Compliance pack status to persist",
+      required: true,
+    },
+    sessionId: {
+      type: "string",
+      description: "Developer session id",
+      required: true,
+    },
+    target: {
+      type: "string",
+      description: "Runtime target",
+      default: "codex",
+    },
+    riskClassificationPath: {
+      type: "string",
+      description: "Risk classification evidence path",
+      required: false,
+    },
+    runSetPath: {
+      type: "string",
+      description: "Run-set evidence path",
+      required: false,
+    },
+    ledgerPath: {
+      type: "string",
+      description: "Hash-chained ledger evidence path",
+      required: false,
+    },
+    runtimeEvidencePath: {
+      type: "string",
+      description: "Runtime session evidence path",
+      required: false,
+    },
+    blockReason: {
+      type: "string",
+      description: "Required when status is blocked",
+      required: false,
+    },
+    unavailableEvidence: {
+      type: "string",
+      description: "Comma-separated unavailable evidence keys for blocked packs",
+      required: false,
+    },
+    root: rootArg,
+    json: {
+      type: "boolean",
+      description: "Print JSON",
+      default: false,
+    },
+  },
+  async run({ args }) {
+    const result = await writeCompliancePackArtifact({
+      root: args.root,
+      status: args.status,
+      sessionId: readRequiredString(args, "sessionId"),
+      target: readOptionalString(args, "target") ?? "codex",
+      riskClassificationPath: readOptionalString(args, "riskClassificationPath"),
+      runSetPath: readOptionalString(args, "runSetPath"),
+      ledgerPath: readOptionalString(args, "ledgerPath"),
+      runtimeEvidencePath: readOptionalString(args, "runtimeEvidencePath"),
+      blockReason: readOptionalString(args, "blockReason"),
+      unavailableEvidence: readOptionalString(args, "unavailableEvidence"),
+    });
+
+    console.log(
+      args.json ? JSON.stringify(result, null, 2) : formatCompliancePackWriteHuman(result),
+    );
+  },
+});
+
+const compliancePackAssemble = defineCommand({
+  meta: {
+    name: "assemble",
+    description: "Assemble a compliance pack after verifying local evidence references",
+  },
+  args: {
+    sessionId: {
+      type: "string",
+      description: "Developer session id",
+      required: true,
+    },
+    target: {
+      type: "string",
+      description: "Runtime target",
+      default: "codex",
+    },
+    riskClassificationPath: {
+      type: "string",
+      description: "Risk classification evidence path",
+      required: true,
+    },
+    runSetPath: {
+      type: "string",
+      description: "Run-set evidence path",
+      required: true,
+    },
+    ledgerPath: {
+      type: "string",
+      description: "Hash-chained ledger evidence path",
+      required: true,
+    },
+    runtimeEvidencePath: {
+      type: "string",
+      description: "Runtime session evidence path",
+      required: true,
+    },
+    benchmarkResultPath: {
+      type: "string",
+      description: "Benchmark result evidence path",
+      required: true,
+    },
+    complianceMappingPath: {
+      type: "string",
+      description: "Compliance mapping evidence path",
+      required: true,
+    },
+    siemFixturePath: {
+      type: "string",
+      description: "Local SIEM fixture evidence path",
+      required: true,
+    },
+    root: rootArg,
+    json: {
+      type: "boolean",
+      description: "Print JSON",
+      default: false,
+    },
+  },
+  async run({ args }) {
+    const result = await assembleCompliancePackArtifact({
+      root: args.root,
+      sessionId: readRequiredString(args, "sessionId"),
+      target: readOptionalString(args, "target") ?? "codex",
+      riskClassificationPath: readRequiredString(args, "riskClassificationPath"),
+      runSetPath: readRequiredString(args, "runSetPath"),
+      ledgerPath: readRequiredString(args, "ledgerPath"),
+      runtimeEvidencePath: readRequiredString(args, "runtimeEvidencePath"),
+      benchmarkResultPath: readRequiredString(args, "benchmarkResultPath"),
+      complianceMappingPath: readRequiredString(args, "complianceMappingPath"),
+      siemFixturePath: readRequiredString(args, "siemFixturePath"),
+    });
+
+    console.log(
+      args.json ? JSON.stringify(result, null, 2) : formatCompliancePackAssembleHuman(result),
+    );
+  },
+});
+
+const compliancePack = defineCommand({
+  meta: {
+    name: "compliance-pack",
+    description: "Developer-session compliance pack namespace",
+  },
+  subCommands: {
+    assemble: compliancePackAssemble,
+    validate: compliancePackValidate,
+    write: compliancePackWrite,
   },
 });
 
@@ -1340,6 +2057,200 @@ const runtimeAssessRoute = defineCommand({
   },
 });
 
+const runtimeParityFixtureValidate = defineCommand({
+  meta: {
+    name: "parity-fixture-validate",
+    description: "Validate synthetic cross-runtime governance parity fixtures",
+  },
+  args: {
+    fixturesDir: {
+      type: "string",
+      description: "Directory containing synthetic runtime parity fixture JSON files",
+      default: path.join("fixtures", "runtime-parity", "synthetic"),
+    },
+    root: rootArg,
+    json: {
+      type: "boolean",
+      description: "Print JSON",
+      default: false,
+    },
+  },
+  async run({ args }) {
+    const result = await validateRuntimeParityFixtures({
+      root: args.root,
+      fixturesDir:
+        readOptionalString(args, "fixturesDir") ??
+        path.join("fixtures", "runtime-parity", "synthetic"),
+    });
+
+    console.log(
+      args.json ? JSON.stringify(result, null, 2) : formatRuntimeParityFixturesHuman(result),
+    );
+
+    if (!result.ok) {
+      process.exitCode = 1;
+    }
+  },
+});
+
+const runtimeParityAuthorizationWrite = defineCommand({
+  meta: {
+    name: "write",
+    description: "Write real-runtime parity authorization state without executing runtimes",
+  },
+  args: {
+    status: {
+      type: "enum",
+      options: ["blocked", "authorized"],
+      description: "Authorization status",
+      required: true,
+    },
+    scenarioId: {
+      type: "string",
+      description: "Runtime parity scenario id",
+      default: "small-feature",
+    },
+    targets: {
+      type: "string",
+      description: "Comma-separated runtime targets",
+      default: "claude,codex,hermes",
+    },
+    blockReason: {
+      type: "string",
+      description: "Required when status is blocked",
+      required: false,
+    },
+    authorizedBy: {
+      type: "string",
+      description: "Required when status is authorized",
+      required: false,
+    },
+    authorizationId: {
+      type: "string",
+      description: "Required when status is authorized",
+      required: false,
+    },
+    costBudgetUsd: {
+      type: "string",
+      description: "Required positive cost budget when status is authorized",
+      required: false,
+    },
+    credentialScope: {
+      type: "string",
+      description: "Required credential scope when status is authorized",
+      required: false,
+    },
+    evidenceRetentionPath: {
+      type: "string",
+      description: "Required evidence retention path when status is authorized",
+      required: false,
+    },
+    transcriptRetentionPath: {
+      type: "string",
+      description: "Required transcript retention path when status is authorized",
+      required: false,
+    },
+    root: rootArg,
+    json: {
+      type: "boolean",
+      description: "Print JSON",
+      default: false,
+    },
+  },
+  async run({ args }) {
+    const result = await writeRuntimeParityAuthorizationArtifact({
+      root: args.root,
+      status: args.status,
+      scenarioId: readOptionalString(args, "scenarioId") ?? "small-feature",
+      targets: readOptionalString(args, "targets") ?? "claude,codex,hermes",
+      blockReason: readOptionalString(args, "blockReason"),
+      authorizedBy: readOptionalString(args, "authorizedBy"),
+      authorizationId: readOptionalString(args, "authorizationId"),
+      costBudgetUsd: args.costBudgetUsd,
+      credentialScope: readOptionalString(args, "credentialScope"),
+      evidenceRetentionPath: readOptionalString(args, "evidenceRetentionPath"),
+      transcriptRetentionPath: readOptionalString(args, "transcriptRetentionPath"),
+    });
+
+    console.log(
+      args.json
+        ? JSON.stringify(result, null, 2)
+        : formatRuntimeParityAuthorizationWriteHuman(result),
+    );
+  },
+});
+
+const runtimeParityAuthorizationValidate = defineCommand({
+  meta: {
+    name: "validate",
+    description: "Validate real-runtime parity authorization without executing runtimes",
+  },
+  args: {
+    file: {
+      type: "positional",
+      description: "Runtime parity authorization JSON file",
+      required: true,
+    },
+    json: {
+      type: "boolean",
+      description: "Print JSON",
+      default: false,
+    },
+  },
+  async run({ args }) {
+    const result = await validateRuntimeParityAuthorizationFile(args.file);
+
+    console.log(
+      args.json
+        ? JSON.stringify(result, null, 2)
+        : formatRuntimeParityAuthorizationValidationHuman(result),
+    );
+  },
+});
+
+const runtimeParityAuthorization = defineCommand({
+  meta: {
+    name: "parity-authorization",
+    description: "Real-runtime parity authorization namespace",
+  },
+  subCommands: {
+    validate: runtimeParityAuthorizationValidate,
+    write: runtimeParityAuthorizationWrite,
+  },
+});
+
+const runtimeParityExecutionPreflight = defineCommand({
+  meta: {
+    name: "parity-execution-preflight",
+    description: "Check whether real-runtime parity execution is explicitly authorized",
+  },
+  args: {
+    authorizationFile: {
+      type: "string",
+      description: "Runtime parity authorization artifact path",
+      required: false,
+    },
+    root: rootArg,
+    json: {
+      type: "boolean",
+      description: "Print JSON",
+      default: false,
+    },
+  },
+  async run({ args }) {
+    const result = await checkRuntimeParityExecutionPreflight({
+      root: args.root,
+      authorizationFile: readOptionalString(args, "authorizationFile"),
+    });
+
+    console.log(
+      args.json
+        ? JSON.stringify(result, null, 2)
+        : formatRuntimeParityExecutionPreflightHuman(result),
+    );
+  },
+});
+
 const runtime = defineCommand({
   meta: {
     name: "runtime",
@@ -1351,6 +2262,9 @@ const runtime = defineCommand({
     bind: runtimeBind,
     probe: runtimeProbe,
     "assess-route": runtimeAssessRoute,
+    "parity-authorization": runtimeParityAuthorization,
+    "parity-execution-preflight": runtimeParityExecutionPreflight,
+    "parity-fixture-validate": runtimeParityFixtureValidate,
   },
 });
 
@@ -1362,7 +2276,7 @@ const main = defineCommand({
   },
   subCommands: {
     init,
-    status,
+    status: statusCommand,
     convergence,
     close,
     hook,
@@ -1372,6 +2286,11 @@ const main = defineCommand({
     risk,
     doctor,
     validate,
+    "self-test": selfTest,
+    "siem-fixture": siemFixture,
+    "stress-fixture": stressFixture,
+    benchmark,
+    "compliance-pack": compliancePack,
     install,
     catalog,
     artifacts,
@@ -2159,14 +3078,14 @@ export async function applyPlatformConfig(
   | { target: "hermes"; configFile: string; hooksAdded: number; pluginAdded: boolean }
 > {
   if (target === "codex") {
-    return applyCodexHookConfig({ root: platformDirectory, ...options });
+    return applyCodexInstall({ root: platformDirectory, ...options });
   }
 
   if (target === "claude") {
-    return applyClaudeSettings({ root: platformDirectory, ...options });
+    return applyClaudeInstall({ root: platformDirectory, ...options });
   }
 
-  return applyHermesHookConfig({ root: platformDirectory, ...options });
+  return applyHermesInstall({ root: platformDirectory, ...options });
 }
 
 export async function removePlatformConfig(
@@ -2179,14 +3098,14 @@ export async function removePlatformConfig(
   | { target: "hermes"; configFile: string; hooksRemoved: number; pluginRemoved: boolean }
 > {
   if (target === "codex") {
-    return removeCodexHookConfig({ root: platformDirectory, ...options });
+    return removeCodexInstall({ root: platformDirectory, ...options });
   }
 
   if (target === "claude") {
-    return removeClaudeSettings({ root: platformDirectory, ...options });
+    return removeClaudeInstall({ root: platformDirectory, ...options });
   }
 
-  return removeHermesHookConfig({ root: platformDirectory, ...options });
+  return removeHermesInstall({ root: platformDirectory, ...options });
 }
 
 function countSupportedManifestHooks(manifest: InstallManifest): number {
@@ -2297,6 +3216,838 @@ export async function createDoctorReport(
   };
 }
 
+export async function runLocalSelfTest(options: {
+  root: string;
+  target?: string;
+}): Promise<SelfTestResult> {
+  const targets =
+    options.target === undefined || options.target === "all"
+      ? [...INSTALL_TARGETS]
+      : [parseInstallTarget(options.target)];
+  const results: SelfTestTargetResult[] = [];
+
+  for (const target of targets) {
+    const installResult = await installPlatform({
+      projectRoot: options.root,
+      target,
+      dryRun: true,
+      writeManifest: false,
+    });
+    const hookResult = await handleHook(options.root, "post_tool", {}, { dryRun: true });
+    const bindings = getRuntimeHookProfiles(target);
+    const unsupportedHooks = bindings
+      .filter((binding) => !binding.supported)
+      .map((binding) => binding.gateType);
+    const degradedHooks = bindings
+      .filter((binding) => binding.supported && !binding.canBlock)
+      .map((binding) => binding.gateType);
+
+    results.push({
+      target,
+      install: {
+        status:
+          installResult.plannedActions.some((action) => action.kind === "register_hook") &&
+          !installResult.manifestWritten
+            ? "pass"
+            : "fail",
+        hooksPlanned: installResult.plannedActions.filter(
+          (action) => action.kind === "register_hook" && action.supported !== false,
+        ).length,
+        unsupportedHooks,
+        degradedHooks,
+        manifestWritten: installResult.manifestWritten,
+      },
+      hookDryRun: {
+        status: hookResult.gateType === "post_tool" ? "pass" : "fail",
+        decision: hookResult.decision,
+        gateType: hookResult.gateType,
+      },
+      runtimeExecution: {
+        status: "blocked_by_design",
+        reason:
+          "self-test is local only and never launches Claude, Codex, Hermes, or paid model sessions",
+      },
+    });
+  }
+
+  return {
+    ok: results.every(
+      (result) => result.install.status === "pass" && result.hookDryRun.status === "pass",
+    ),
+    root: options.root,
+    externalRuntimeSessionsLaunched: false,
+    targets: results,
+  };
+}
+
+export function planBenchmarkRun(options: { instances?: unknown } = {}): BenchmarkPlanResult {
+  const requestedInstances = parseBenchmarkInstanceCount(options.instances);
+
+  return {
+    ok: true,
+    suite: "swe-bench-verified",
+    requestedInstances,
+    executionMode: "dry_run_plan",
+    willLaunchExternalSessions: false,
+    requiresExplicitAuthorization: true,
+    plannedComparisons: [
+      "baseline_without_hima_governance",
+      "governed_with_hima_hooks_and_evidence",
+    ],
+    requiredEvidence: [
+      "runtime_version",
+      "fixture_or_instance_id",
+      "baseline_transcript",
+      "governed_transcript",
+      "tests_before_after",
+      "hima_events_or_ledger",
+      "wall_clock_overhead",
+      "token_or_cost_accounting",
+    ],
+    status: "blocked_until_authorized",
+  };
+}
+
+export async function validateBenchmarkResultFile(filePath: string): Promise<{
+  ok: true;
+  file: string;
+  suite: "swe-bench-verified";
+  status: "planned" | "blocked" | "executed";
+  instanceId: string;
+  runtimeTarget: string;
+  externalSessionsLaunched: false;
+}> {
+  const parsed = parseBenchmarkResult(JSON.parse(await readFile(filePath, "utf8")));
+
+  return {
+    ok: true,
+    file: filePath,
+    suite: parsed.suite,
+    status: parsed.status,
+    instanceId: parsed.instanceId,
+    runtimeTarget: parsed.runtimeTarget,
+    externalSessionsLaunched: false,
+  };
+}
+
+export type BenchmarkWriteResult = {
+  ok: true;
+  file: string;
+  result: BenchmarkResult;
+  externalSessionsLaunched: false;
+};
+
+export async function writeBenchmarkResultArtifact(options: {
+  root: string;
+  status: unknown;
+  instanceId: string;
+  target: string;
+  blockReason?: string;
+  createdAt?: string;
+}): Promise<BenchmarkWriteResult> {
+  const status = parseBenchmarkWritableStatus(options.status);
+  const runtimeTarget = parseInstallTarget(options.target);
+  const instanceId = parseBenchmarkInstanceId(options.instanceId);
+  const result = parseBenchmarkResult({
+    schemaVersion: 1,
+    suite: "swe-bench-verified",
+    status,
+    instanceId,
+    runtimeTarget,
+    createdAt: options.createdAt ?? new Date().toISOString(),
+    ...(status === "blocked" ? { blockReason: options.blockReason } : {}),
+  });
+  const file = path.join(
+    path.resolve(options.root),
+    ".planning",
+    "benchmarks",
+    "swe-bench-verified",
+    runtimeTarget,
+    `${instanceId}.${status}.json`,
+  );
+
+  await safeAtomicWriteFile(
+    path.resolve(options.root),
+    file,
+    `${JSON.stringify(result, null, 2)}\n`,
+  );
+
+  return {
+    ok: true,
+    file,
+    result,
+    externalSessionsLaunched: false,
+  };
+}
+
+export async function validateBenchmarkAuthorizationFile(filePath: string): Promise<{
+  ok: true;
+  file: string;
+  suite: "swe-bench-verified";
+  status: "blocked" | "authorized";
+  requestedInstances: number;
+  runtimeTargets: string[];
+  executionAllowed: boolean;
+  externalSessionsLaunched: false;
+}> {
+  const parsed = parseBenchmarkAuthorization(JSON.parse(await readFile(filePath, "utf8")));
+
+  return {
+    ok: true,
+    file: filePath,
+    suite: parsed.suite,
+    status: parsed.status,
+    requestedInstances: parsed.requestedInstances,
+    runtimeTargets: parsed.runtimeTargets,
+    executionAllowed: parsed.status === "authorized",
+    externalSessionsLaunched: false,
+  };
+}
+
+export type BenchmarkAuthorizationWriteResult = {
+  ok: true;
+  file: string;
+  authorization: BenchmarkAuthorization;
+  executionAllowed: boolean;
+  externalSessionsLaunched: false;
+};
+
+export async function writeBenchmarkAuthorizationArtifact(options: {
+  root: string;
+  status: unknown;
+  instances?: unknown;
+  targets?: string;
+  blockReason?: string;
+  authorizedBy?: string;
+  authorizationId?: string;
+  costBudgetUsd?: unknown;
+  credentialScope?: string;
+  evidenceRetentionPath?: string;
+  transcriptRetentionPath?: string;
+  createdAt?: string;
+}): Promise<BenchmarkAuthorizationWriteResult> {
+  const root = path.resolve(options.root);
+  const status = parseBenchmarkAuthorizationStatus(options.status);
+  const authorization = parseBenchmarkAuthorization({
+    schemaVersion: 1,
+    suite: "swe-bench-verified",
+    status,
+    requestedInstances: parseBenchmarkInstanceCount(options.instances),
+    runtimeTargets: parseBenchmarkAuthorizationTargets(options.targets ?? "codex"),
+    createdAt: options.createdAt ?? new Date().toISOString(),
+    authorizationBoundary: "explicit_authorization_required_before_execution",
+    ...(status === "blocked"
+      ? { blockReason: options.blockReason }
+      : {
+          authorizedBy: options.authorizedBy,
+          authorizationId: options.authorizationId,
+          costBudgetUsd: parseOptionalPositiveNumber(options.costBudgetUsd, "costBudgetUsd"),
+          credentialScope: options.credentialScope,
+          evidenceRetentionPath: options.evidenceRetentionPath,
+          transcriptRetentionPath: options.transcriptRetentionPath,
+        }),
+  });
+  const file = path.join(
+    root,
+    ".planning",
+    "benchmarks",
+    "swe-bench-verified",
+    "authorization.json",
+  );
+
+  await safeAtomicWriteFile(root, file, `${JSON.stringify(authorization, null, 2)}\n`);
+
+  return {
+    ok: true,
+    file,
+    authorization,
+    executionAllowed: authorization.status === "authorized",
+    externalSessionsLaunched: false,
+  };
+}
+
+export async function checkBenchmarkExecutionPreflight(options: {
+  root: string;
+  authorizationFile?: string;
+}): Promise<{
+  ok: true;
+  authorizationFile: string;
+  status: "absent" | "blocked" | "authorized";
+  executionAllowed: boolean;
+  reason: string;
+  externalSessionsLaunched: false;
+}> {
+  const root = path.resolve(options.root);
+  const authorizationFile =
+    options.authorizationFile ??
+    path.join(root, ".planning", "benchmarks", "swe-bench-verified", "authorization.json");
+
+  try {
+    const validation = await validateBenchmarkAuthorizationFile(authorizationFile);
+    return {
+      ok: true,
+      authorizationFile,
+      status: validation.status,
+      executionAllowed: validation.executionAllowed,
+      reason: validation.executionAllowed
+        ? "benchmark execution is explicitly authorized"
+        : "benchmark execution is blocked by authorization artifact",
+      externalSessionsLaunched: false,
+    };
+  } catch (error) {
+    if (isNodeErrorWithCode(error, "ENOENT")) {
+      return {
+        ok: true,
+        authorizationFile,
+        status: "absent",
+        executionAllowed: false,
+        reason: "benchmark execution authorization artifact is absent",
+        externalSessionsLaunched: false,
+      };
+    }
+
+    throw error;
+  }
+}
+
+export async function validateRuntimeParityAuthorizationFile(filePath: string): Promise<{
+  ok: true;
+  file: string;
+  kind: "real-runtime-parity-authorization";
+  status: "blocked" | "authorized";
+  scenarioId: string;
+  runtimeTargets: string[];
+  executionAllowed: boolean;
+  externalSessionsLaunched: false;
+}> {
+  const parsed = parseRuntimeParityAuthorization(JSON.parse(await readFile(filePath, "utf8")));
+
+  return {
+    ok: true,
+    file: filePath,
+    kind: parsed.kind,
+    status: parsed.status,
+    scenarioId: parsed.scenarioId,
+    runtimeTargets: parsed.runtimeTargets,
+    executionAllowed: parsed.status === "authorized",
+    externalSessionsLaunched: false,
+  };
+}
+
+export type RuntimeParityAuthorizationWriteResult = {
+  ok: true;
+  file: string;
+  authorization: RuntimeParityAuthorization;
+  executionAllowed: boolean;
+  externalSessionsLaunched: false;
+};
+
+export async function writeRuntimeParityAuthorizationArtifact(options: {
+  root: string;
+  status: unknown;
+  scenarioId: string;
+  targets?: string;
+  blockReason?: string;
+  authorizedBy?: string;
+  authorizationId?: string;
+  costBudgetUsd?: unknown;
+  credentialScope?: string;
+  evidenceRetentionPath?: string;
+  transcriptRetentionPath?: string;
+  createdAt?: string;
+}): Promise<RuntimeParityAuthorizationWriteResult> {
+  const root = path.resolve(options.root);
+  const status = parseRuntimeParityAuthorizationStatus(options.status);
+  const authorization = parseRuntimeParityAuthorization({
+    schemaVersion: 1,
+    kind: "real-runtime-parity-authorization",
+    status,
+    scenarioId: parseRuntimeParityScenarioId(options.scenarioId),
+    runtimeTargets: parseRuntimeTargets(options.targets ?? "claude,codex,hermes"),
+    createdAt: options.createdAt ?? new Date().toISOString(),
+    authorizationBoundary: "explicit_authorization_required_before_real_runtime_parity_execution",
+    ...(status === "blocked"
+      ? { blockReason: options.blockReason }
+      : {
+          authorizedBy: options.authorizedBy,
+          authorizationId: options.authorizationId,
+          costBudgetUsd: parseOptionalPositiveNumber(options.costBudgetUsd, "costBudgetUsd"),
+          credentialScope: options.credentialScope,
+          evidenceRetentionPath: options.evidenceRetentionPath,
+          transcriptRetentionPath: options.transcriptRetentionPath,
+        }),
+  });
+  const file = path.join(root, ".planning", "runtime-parity", "authorization.json");
+
+  await safeAtomicWriteFile(root, file, `${JSON.stringify(authorization, null, 2)}\n`);
+
+  return {
+    ok: true,
+    file,
+    authorization,
+    executionAllowed: authorization.status === "authorized",
+    externalSessionsLaunched: false,
+  };
+}
+
+export async function checkRuntimeParityExecutionPreflight(options: {
+  root: string;
+  authorizationFile?: string;
+}): Promise<{
+  ok: true;
+  authorizationFile: string;
+  status: "absent" | "blocked" | "authorized";
+  executionAllowed: boolean;
+  reason: string;
+  externalSessionsLaunched: false;
+}> {
+  const root = path.resolve(options.root);
+  const authorizationFile =
+    options.authorizationFile ??
+    path.join(root, ".planning", "runtime-parity", "authorization.json");
+
+  try {
+    const validation = await validateRuntimeParityAuthorizationFile(authorizationFile);
+    return {
+      ok: true,
+      authorizationFile,
+      status: validation.status,
+      executionAllowed: validation.executionAllowed,
+      reason: validation.executionAllowed
+        ? "real runtime parity execution is explicitly authorized"
+        : "real runtime parity execution is blocked by authorization artifact",
+      externalSessionsLaunched: false,
+    };
+  } catch (error) {
+    if (isNodeErrorWithCode(error, "ENOENT")) {
+      return {
+        ok: true,
+        authorizationFile,
+        status: "absent",
+        executionAllowed: false,
+        reason: "real runtime parity authorization artifact is absent",
+        externalSessionsLaunched: false,
+      };
+    }
+
+    throw error;
+  }
+}
+
+export async function validateCompliancePackFile(filePath: string): Promise<{
+  ok: true;
+  file: string;
+  kind: "developer-session-compliance-pack";
+  status: "draft" | "blocked" | "assembled";
+  sessionId: string;
+  runtimeTarget: string;
+  claimBoundary: "evidence_pack_not_compliance_certification";
+  externalSessionsLaunched: false;
+}> {
+  const parsed = parseCompliancePack(JSON.parse(await readFile(filePath, "utf8")));
+
+  return {
+    ok: true,
+    file: filePath,
+    kind: parsed.kind,
+    status: parsed.status,
+    sessionId: parsed.sessionId,
+    runtimeTarget: parsed.runtimeTarget,
+    claimBoundary: parsed.claimBoundary,
+    externalSessionsLaunched: false,
+  };
+}
+
+export type CompliancePackWriteResult = {
+  ok: true;
+  file: string;
+  pack: CompliancePack;
+  externalSessionsLaunched: false;
+};
+
+export async function writeCompliancePackArtifact(options: {
+  root: string;
+  status: unknown;
+  sessionId: string;
+  target: string;
+  riskClassificationPath?: string;
+  runSetPath?: string;
+  ledgerPath?: string;
+  runtimeEvidencePath?: string;
+  blockReason?: string;
+  unavailableEvidence?: string;
+  createdAt?: string;
+}): Promise<CompliancePackWriteResult> {
+  const status = parseCompliancePackWritableStatus(options.status);
+  const runtimeTarget = parseInstallTarget(options.target);
+  const sessionId = parseCompliancePackSessionId(options.sessionId);
+  const pack = parseCompliancePack({
+    schemaVersion: 1,
+    kind: "developer-session-compliance-pack",
+    status,
+    sessionId,
+    runtimeTarget,
+    createdAt: options.createdAt ?? new Date().toISOString(),
+    claimBoundary: "evidence_pack_not_compliance_certification",
+    ...(status === "blocked"
+      ? {
+          blockReason: options.blockReason,
+          unavailableEvidence: parseComplianceUnavailableEvidence(options.unavailableEvidence),
+        }
+      : {
+          evidenceReferences: {
+            riskClassificationPath: options.riskClassificationPath,
+            runSetPath: options.runSetPath,
+            ledgerPath: options.ledgerPath,
+            runtimeEvidencePath: options.runtimeEvidencePath,
+          },
+        }),
+  });
+  const file = path.join(
+    path.resolve(options.root),
+    ".planning",
+    "compliance-packs",
+    `${sessionId}.${status}.json`,
+  );
+
+  await safeAtomicWriteFile(path.resolve(options.root), file, `${JSON.stringify(pack, null, 2)}\n`);
+
+  return {
+    ok: true,
+    file,
+    pack,
+    externalSessionsLaunched: false,
+  };
+}
+
+export type CompliancePackAssembleResult = CompliancePackWriteResult & {
+  verifiedEvidencePaths: string[];
+};
+
+export async function assembleCompliancePackArtifact(options: {
+  root: string;
+  sessionId: string;
+  target: string;
+  riskClassificationPath: string;
+  runSetPath: string;
+  ledgerPath: string;
+  runtimeEvidencePath: string;
+  benchmarkResultPath: string;
+  complianceMappingPath: string;
+  siemFixturePath: string;
+  createdAt?: string;
+}): Promise<CompliancePackAssembleResult> {
+  const root = path.resolve(options.root);
+  const runtimeTarget = parseInstallTarget(options.target);
+  const sessionId = parseCompliancePackSessionId(options.sessionId);
+  const evidenceReferences = {
+    riskClassificationPath: options.riskClassificationPath,
+    runSetPath: options.runSetPath,
+    ledgerPath: options.ledgerPath,
+    runtimeEvidencePath: options.runtimeEvidencePath,
+    benchmarkResultPath: options.benchmarkResultPath,
+    complianceMappingPath: options.complianceMappingPath,
+    siemFixturePath: options.siemFixturePath,
+  };
+  const verifiedEvidencePaths = await verifyComplianceEvidenceReferences(root, evidenceReferences);
+  await verifyComplianceSiemFixtureReference(root, options.siemFixturePath);
+  const pack = parseCompliancePack({
+    schemaVersion: 1,
+    kind: "developer-session-compliance-pack",
+    status: "assembled",
+    sessionId,
+    runtimeTarget,
+    createdAt: options.createdAt ?? new Date().toISOString(),
+    claimBoundary: "evidence_pack_not_compliance_certification",
+    evidenceReferences,
+  });
+  const file = path.join(root, ".planning", "compliance-packs", `${sessionId}.assembled.json`);
+
+  await safeAtomicWriteFile(root, file, `${JSON.stringify(pack, null, 2)}\n`);
+
+  return {
+    ok: true,
+    file,
+    pack,
+    verifiedEvidencePaths,
+    externalSessionsLaunched: false,
+  };
+}
+
+export type RuntimeParityFixtureValidationResult = {
+  ok: boolean;
+  parity: "pass" | "fail";
+  fixtureScope: "synthetic_not_real_runtime";
+  fixturesDir: string;
+  expectedTargets: string[];
+  observedTargets: string[];
+  checkedFixtures: string[];
+  errors: string[];
+  externalSessionsLaunched: false;
+};
+
+export async function validateRuntimeParityFixtures(options: {
+  root: string;
+  fixturesDir: string;
+}): Promise<RuntimeParityFixtureValidationResult> {
+  const root = path.resolve(options.root);
+  const fixturesDir = path.resolve(root, options.fixturesDir);
+  const errors: string[] = [];
+  const fixtures: RuntimeParityFixture[] = [];
+  const checkedFixtures: string[] = [];
+
+  let fileNames: string[];
+  try {
+    const entries = await readdir(fixturesDir, { withFileTypes: true });
+    fileNames = entries
+      .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
+      .map((entry) => entry.name)
+      .sort();
+  } catch (error) {
+    return {
+      ok: false,
+      parity: "fail",
+      fixtureScope: "synthetic_not_real_runtime",
+      fixturesDir,
+      expectedTargets: [...RUNTIME_TARGETS],
+      observedTargets: [],
+      checkedFixtures: [],
+      errors: [`Unable to read runtime parity fixture directory: ${describeError(error)}`],
+      externalSessionsLaunched: false,
+    };
+  }
+
+  for (const fileName of fileNames) {
+    const file = path.join(fixturesDir, fileName);
+    const relativeFile = path.relative(root, file);
+    checkedFixtures.push(relativeFile);
+
+    try {
+      fixtures.push(parseRuntimeParityFixture(JSON.parse(await readFile(file, "utf8"))));
+    } catch (error) {
+      errors.push(`${relativeFile}: ${describeError(error)}`);
+    }
+  }
+
+  const byTarget = new Map<string, RuntimeParityFixture>();
+  for (const fixture of fixtures) {
+    if (byTarget.has(fixture.runtimeTarget)) {
+      errors.push(`Duplicate runtime parity fixture for target ${fixture.runtimeTarget}.`);
+      continue;
+    }
+
+    byTarget.set(fixture.runtimeTarget, fixture);
+  }
+
+  for (const target of RUNTIME_TARGETS) {
+    if (!byTarget.has(target)) {
+      errors.push(`Missing runtime parity fixture for target ${target}.`);
+    }
+  }
+
+  const referenceTarget = RUNTIME_TARGETS.find((target) => byTarget.has(target));
+  const referenceGovernance =
+    referenceTarget === undefined ? undefined : byTarget.get(referenceTarget)?.governance;
+  const referenceGovernanceDigest =
+    referenceGovernance === undefined ? undefined : stableJson(referenceGovernance);
+
+  for (const target of RUNTIME_TARGETS) {
+    const fixture = byTarget.get(target);
+    if (fixture === undefined || referenceGovernanceDigest === undefined) {
+      continue;
+    }
+
+    if (stableJson(fixture.governance) !== referenceGovernanceDigest) {
+      errors.push(
+        `Governance parity mismatch for target ${target}; synthetic fixture shape differs from ${referenceTarget}.`,
+      );
+    }
+  }
+
+  return {
+    ok: errors.length === 0,
+    parity: errors.length === 0 ? "pass" : "fail",
+    fixtureScope: "synthetic_not_real_runtime",
+    fixturesDir,
+    expectedTargets: [...RUNTIME_TARGETS],
+    observedTargets: [...byTarget.keys()].sort(),
+    checkedFixtures,
+    errors,
+    externalSessionsLaunched: false,
+  };
+}
+
+function parseBenchmarkInstanceCount(input: unknown): number {
+  const parsed = Number.parseInt(String(input ?? "10"), 10);
+
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 20) {
+    throw new Error("instances must be an integer between 1 and 20.");
+  }
+
+  return parsed;
+}
+
+function parseBenchmarkWritableStatus(input: unknown): "planned" | "blocked" {
+  if (input === "planned" || input === "blocked") {
+    return input;
+  }
+
+  throw new Error("benchmark write status must be planned or blocked.");
+}
+
+function parseBenchmarkAuthorizationStatus(input: unknown): "blocked" | "authorized" {
+  if (input === "blocked" || input === "authorized") {
+    return input;
+  }
+
+  throw new Error("benchmark authorization status must be blocked or authorized.");
+}
+
+function parseRuntimeParityAuthorizationStatus(input: unknown): "blocked" | "authorized" {
+  if (input === "blocked" || input === "authorized") {
+    return input;
+  }
+
+  throw new Error("runtime parity authorization status must be blocked or authorized.");
+}
+
+function parseBenchmarkAuthorizationTargets(input: string): string[] {
+  return parseRuntimeTargets(input);
+}
+
+function parseRuntimeTargets(input: string): string[] {
+  const targets = input
+    .split(",")
+    .map((target) => target.trim())
+    .filter((target) => target.length > 0);
+
+  if (targets.length === 0) {
+    throw new Error("targets must include at least one runtime target.");
+  }
+
+  for (const target of targets) {
+    parseInstallTarget(target);
+  }
+
+  return targets;
+}
+
+function parseRuntimeParityScenarioId(input: string): string {
+  const normalized = input.trim();
+  if (/^[A-Za-z0-9._-]+$/u.test(normalized)) {
+    return normalized;
+  }
+
+  throw new Error(
+    "runtime parity scenarioId may contain only letters, numbers, dot, underscore, or dash.",
+  );
+}
+
+function parseBenchmarkInstanceId(input: string): string {
+  const normalized = input.trim();
+  if (/^[A-Za-z0-9._-]+$/u.test(normalized)) {
+    return normalized;
+  }
+
+  throw new Error(
+    "benchmark instanceId may contain only letters, numbers, dot, underscore, or dash.",
+  );
+}
+
+function parseCompliancePackWritableStatus(input: unknown): "draft" | "blocked" {
+  if (input === "draft" || input === "blocked") {
+    return input;
+  }
+
+  throw new Error("compliance pack write status must be draft or blocked.");
+}
+
+function parseCompliancePackSessionId(input: string): string {
+  const normalized = input.trim();
+  if (/^[A-Za-z0-9._-]+$/u.test(normalized)) {
+    return normalized;
+  }
+
+  throw new Error(
+    "compliance pack sessionId may contain only letters, numbers, dot, underscore, or dash.",
+  );
+}
+
+function parseComplianceUnavailableEvidence(input: string | undefined): string[] {
+  const parsed = input
+    ?.split(",")
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+
+  return parsed && parsed.length > 0
+    ? parsed
+    : ["runtime-session-evidence", "benchmark-result", "compliance-mapping"];
+}
+
+async function verifyComplianceEvidenceReferences(
+  root: string,
+  references: Record<string, string>,
+): Promise<string[]> {
+  const verified: string[] = [];
+
+  for (const [name, referencePath] of Object.entries(references)) {
+    const absolutePath = resolveComplianceEvidencePath(root, referencePath, name);
+
+    try {
+      await access(absolutePath);
+    } catch (error) {
+      if (isNodeErrorWithCode(error, "ENOENT")) {
+        throw new Error(`Missing compliance pack evidence reference ${name}: ${referencePath}`);
+      }
+
+      throw error;
+    }
+
+    verified.push(referencePath);
+  }
+
+  return verified;
+}
+
+function resolveComplianceEvidencePath(root: string, referencePath: string, name: string): string {
+  if (path.isAbsolute(referencePath)) {
+    throw new Error(`Compliance pack evidence reference ${name} must be relative to root.`);
+  }
+
+  const absolutePath = path.resolve(root, referencePath);
+  const relativePath = path.relative(root, absolutePath);
+
+  if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+    throw new Error(`Compliance pack evidence reference ${name} must stay inside root.`);
+  }
+
+  return absolutePath;
+}
+
+async function verifyComplianceSiemFixtureReference(
+  root: string,
+  siemFixturePath: string,
+): Promise<void> {
+  const absolutePath = resolveComplianceEvidencePath(root, siemFixturePath, "siemFixturePath");
+
+  try {
+    parseSiemIngestFixture(JSON.parse(await readFile(absolutePath, "utf8")));
+  } catch (error) {
+    throw new Error(
+      `Invalid compliance pack SIEM fixture reference siemFixturePath: ${describeError(error)}`,
+    );
+  }
+}
+
+function isNodeErrorWithCode(error: unknown, code: string): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { readonly code?: unknown }).code === code
+  );
+}
+
 export function formatStatusHuman(result: Awaited<ReturnType<typeof getStatus>>): string {
   const blockers = result.blockers.length === 0 ? "none" : result.blockers.join(", ");
 
@@ -2309,6 +4060,119 @@ export function formatStatusHuman(result: Awaited<ReturnType<typeof getStatus>>)
     `Evidence   : ${result.evidenceCount}`,
     `Blockers   : ${blockers}`,
   ].join("\n");
+}
+
+// ── BEH-W4 gate-decision formatting ──────────────────────────────────────────
+
+function formatGatesHuman(
+  runId: string,
+  project: Awaited<ReturnType<typeof readPlanningProject>>,
+  gateEvents: Awaited<ReturnType<typeof readPlanningProject>>["runSet"]["events"],
+  verbose: boolean,
+  trace: boolean,
+): string {
+  const total = gateEvents.length;
+  const blocks = gateEvents.filter((ev) => ev.decision === "block").length;
+  const warns = gateEvents.filter((ev) => ev.decision === "warn").length;
+  const allows = gateEvents.filter((ev) => ev.decision === "allow").length;
+
+  const lines: string[] = [
+    `Run: ${runId}  Phase: ${project.state.phase}/${project.state.sub_phase}  Risk: ${project.currentRisk.risk_class}  Mode: ${project.state.mode}`,
+    "",
+    `Gate decisions (${total} total: ${allows} allow, ${warns} warn, ${blocks} block)`,
+    "",
+  ];
+
+  const displayEvents =
+    trace || verbose ? gateEvents : gateEvents.filter((ev) => ev.decision !== "allow");
+
+  for (const ev of displayEvents) {
+    const payload = (ev.payload ?? {}) as Record<string, unknown>;
+    const behaviorId = typeof payload.behaviorId === "string" ? payload.behaviorId : null;
+    const violationType = typeof payload.violationType === "string" ? payload.violationType : "";
+    const overrideActive = payload.overrideActive === true;
+    const overrideMode = typeof payload.overrideMode === "string" ? payload.overrideMode : "";
+    const gateType = typeof payload.gateType === "string" ? payload.gateType : (ev.gateType ?? "");
+    const ts = ev.ts ? new Date(ev.ts).toLocaleTimeString() : "";
+
+    const verdictLabel =
+      ev.decision === "block" ? "BLOCK" : ev.decision === "warn" ? "warn " : "allow";
+    const behLabel = behaviorId ?? "gate";
+    const overrideLabel = overrideActive ? ` [override:${overrideMode || "active"}]` : "";
+
+    lines.push(
+      `  ${verdictLabel}  ${ts}  ${gateType}   ${behLabel}  ${violationType}${overrideLabel}`,
+    );
+
+    if (ev.decision === "block" || verbose) {
+      const why = typeof payload.why === "string" ? payload.why : (ev.reason ?? "");
+      if (why) lines.push(`         ${why.slice(0, 200)}`);
+
+      const resolution = Array.isArray(payload.resolution) ? (payload.resolution as string[]) : [];
+      for (const step of resolution) {
+        lines.push(`         → ${step}`);
+      }
+
+      if (ev.decision === "block") {
+        lines.push(`         → harness status gates --id ${ev.id} for full detail`);
+      }
+    }
+  }
+
+  if (!verbose && !trace && allows > 0) {
+    lines.push(`  ... (${allows} allows — use --verbose to expand)`);
+  }
+
+  return lines.join("\n");
+}
+
+function formatGateDecisionDetail(
+  ev: Awaited<ReturnType<typeof readPlanningProject>>["runSet"]["events"][number],
+): string {
+  const payload = (ev.payload ?? {}) as Record<string, unknown>;
+  const lines: string[] = [
+    `Gate Decision: ${ev.id}`,
+    `Gate:          ${payload.gateType ?? ev.gateType ?? ""}`,
+    `Behavior:      ${payload.behaviorId ?? "none"}`,
+    `Classifier:    ${payload.classifierMethod ?? ""}`,
+    `Verdict:       ${ev.decision}`,
+    `Violation:     ${payload.violationType ?? "none"}`,
+    `Risk class:    ${payload.riskClass ?? ""}`,
+    `Phase:         ${payload.phase ?? ""}/${payload.subPhase ?? ""}`,
+    `Override:      ${payload.overrideActive ? `active (mode=${payload.overrideMode ?? "?"})` : "none"}`,
+    "",
+    `Why: ${payload.why ?? ev.reason ?? ""}`,
+    "",
+  ];
+
+  const signalsRead = Array.isArray(payload.signalsRead)
+    ? (payload.signalsRead as Array<Record<string, unknown>>)
+    : [];
+  if (signalsRead.length > 0) {
+    lines.push("Signals:");
+    for (const sig of signalsRead) {
+      const deciding = sig.deciding ? "[deciding]" : "[context] ";
+      lines.push(`  ${deciding} ${sig.channel}  → ${sig.summary}`);
+    }
+    lines.push("");
+  }
+
+  const evidenceRefs = Array.isArray(payload.evidenceRefs)
+    ? (payload.evidenceRefs as string[])
+    : [];
+  if (evidenceRefs.length > 0) {
+    lines.push(`Evidence: ${evidenceRefs.join(", ")}`);
+  }
+
+  const resolution = Array.isArray(payload.resolution) ? (payload.resolution as string[]) : [];
+  if (resolution.length > 0) {
+    lines.push("Resolve:");
+    for (let i = 0; i < resolution.length; i++) {
+      lines.push(`  ${i + 1}. ${resolution[i]}`);
+    }
+  }
+
+  return lines.join("\n");
 }
 
 export function formatEnterDevelopmentHuman(
@@ -2417,6 +4281,213 @@ export function formatInstallHuman(result: InstallPlatformResult): string {
   return lines.join("\n");
 }
 
+export function formatSelfTestHuman(result: SelfTestResult): string {
+  return [
+    "Local self-test",
+    `Root                         : ${result.root}`,
+    `External runtime sessions    : ${result.externalRuntimeSessionsLaunched ? "launched" : "not launched"}`,
+    `Overall                      : ${result.ok ? "pass" : "fail"}`,
+    "",
+    ...result.targets.flatMap((target) => [
+      `${target.target}: install=${target.install.status}, hooks=${target.install.hooksPlanned}, hookDryRun=${target.hookDryRun.status}, runtime=${target.runtimeExecution.status}`,
+    ]),
+  ].join("\n");
+}
+
+export function formatStressFixtureHuman(result: LocalStressFixtureResult): string {
+  return [
+    "Local stress fixture",
+    `Run id                       : ${result.runId}`,
+    `Iterations                   : ${result.iterations}`,
+    `Ledger entries               : ${result.ledgerEntries}`,
+    `Ledger valid                 : ${result.validation.ledgerValid ? "yes" : "no"}`,
+    `Sequence valid               : ${result.validation.sequenceValid ? "yes" : "no"}`,
+    `Transition order valid       : ${result.validation.transitionOrderValid ? "yes" : "no"}`,
+    `Drift detected              : ${result.driftDetected ? "yes" : "no"}`,
+    `External sessions            : not launched`,
+    `Overall                      : ${result.ok ? "pass" : "fail"}`,
+  ].join("\n");
+}
+
+export function formatSiemFixtureHuman(result: LocalSiemFixtureResult): string {
+  return [
+    "Local SIEM ingest fixture",
+    `Run id                       : ${result.runId}`,
+    `Fixture file                 : ${result.fixtureFile}`,
+    `Records                      : ${result.records}`,
+    `Ledger valid                 : ${result.ledgerValid ? "yes" : "no"}`,
+    `External transmissions       : not sent`,
+    `External sessions            : not launched`,
+    `Overall                      : ${result.ok ? "pass" : "fail"}`,
+  ].join("\n");
+}
+
+export function formatBenchmarkPlanHuman(result: BenchmarkPlanResult): string {
+  return [
+    "Benchmark plan",
+    `Suite                        : ${result.suite}`,
+    `Requested instances          : ${result.requestedInstances}`,
+    `Execution mode               : ${result.executionMode}`,
+    `External sessions            : ${result.willLaunchExternalSessions ? "will launch" : "not launched"}`,
+    `Status                       : ${result.status}`,
+    `Requires authorization       : ${result.requiresExplicitAuthorization ? "yes" : "no"}`,
+  ].join("\n");
+}
+
+export function formatBenchmarkValidationHuman(
+  result: Awaited<ReturnType<typeof validateBenchmarkResultFile>>,
+): string {
+  return [
+    "Benchmark result validation",
+    `File                         : ${result.file}`,
+    `Suite                        : ${result.suite}`,
+    `Status                       : ${result.status}`,
+    `Instance                     : ${result.instanceId}`,
+    `Runtime target               : ${result.runtimeTarget}`,
+    `External sessions            : ${result.externalSessionsLaunched ? "launched" : "not launched"}`,
+  ].join("\n");
+}
+
+export function formatBenchmarkWriteHuman(result: BenchmarkWriteResult): string {
+  return [
+    "Benchmark result written",
+    `File                         : ${result.file}`,
+    `Suite                        : ${result.result.suite}`,
+    `Status                       : ${result.result.status}`,
+    `Instance                     : ${result.result.instanceId}`,
+    `Runtime target               : ${result.result.runtimeTarget}`,
+    `External sessions            : ${result.externalSessionsLaunched ? "launched" : "not launched"}`,
+  ].join("\n");
+}
+
+export function formatBenchmarkAuthorizationValidationHuman(
+  result: Awaited<ReturnType<typeof validateBenchmarkAuthorizationFile>>,
+): string {
+  return [
+    "Benchmark authorization validation",
+    `File                         : ${result.file}`,
+    `Suite                        : ${result.suite}`,
+    `Status                       : ${result.status}`,
+    `Requested instances          : ${result.requestedInstances}`,
+    `Runtime targets              : ${result.runtimeTargets.join(", ")}`,
+    `Execution allowed            : ${result.executionAllowed ? "yes" : "no"}`,
+    `External sessions            : ${result.externalSessionsLaunched ? "launched" : "not launched"}`,
+  ].join("\n");
+}
+
+export function formatBenchmarkAuthorizationWriteHuman(
+  result: BenchmarkAuthorizationWriteResult,
+): string {
+  return [
+    "Benchmark authorization written",
+    `File                         : ${result.file}`,
+    `Suite                        : ${result.authorization.suite}`,
+    `Status                       : ${result.authorization.status}`,
+    `Requested instances          : ${result.authorization.requestedInstances}`,
+    `Runtime targets              : ${result.authorization.runtimeTargets.join(", ")}`,
+    `Execution allowed            : ${result.executionAllowed ? "yes" : "no"}`,
+    `External sessions            : ${result.externalSessionsLaunched ? "launched" : "not launched"}`,
+  ].join("\n");
+}
+
+export function formatBenchmarkExecutionPreflightHuman(
+  result: Awaited<ReturnType<typeof checkBenchmarkExecutionPreflight>>,
+): string {
+  return [
+    "Benchmark execution preflight",
+    `Authorization file            : ${result.authorizationFile}`,
+    `Status                       : ${result.status}`,
+    `Execution allowed            : ${result.executionAllowed ? "yes" : "no"}`,
+    `Reason                       : ${result.reason}`,
+    `External sessions            : ${result.externalSessionsLaunched ? "launched" : "not launched"}`,
+  ].join("\n");
+}
+
+export function formatRuntimeParityAuthorizationValidationHuman(
+  result: Awaited<ReturnType<typeof validateRuntimeParityAuthorizationFile>>,
+): string {
+  return [
+    "Runtime parity authorization validation",
+    `File                         : ${result.file}`,
+    `Kind                         : ${result.kind}`,
+    `Status                       : ${result.status}`,
+    `Scenario                     : ${result.scenarioId}`,
+    `Runtime targets              : ${result.runtimeTargets.join(", ")}`,
+    `Execution allowed            : ${result.executionAllowed ? "yes" : "no"}`,
+    `External sessions            : ${result.externalSessionsLaunched ? "launched" : "not launched"}`,
+  ].join("\n");
+}
+
+export function formatRuntimeParityAuthorizationWriteHuman(
+  result: RuntimeParityAuthorizationWriteResult,
+): string {
+  return [
+    "Runtime parity authorization written",
+    `File                         : ${result.file}`,
+    `Kind                         : ${result.authorization.kind}`,
+    `Status                       : ${result.authorization.status}`,
+    `Scenario                     : ${result.authorization.scenarioId}`,
+    `Runtime targets              : ${result.authorization.runtimeTargets.join(", ")}`,
+    `Execution allowed            : ${result.executionAllowed ? "yes" : "no"}`,
+    `External sessions            : ${result.externalSessionsLaunched ? "launched" : "not launched"}`,
+  ].join("\n");
+}
+
+export function formatRuntimeParityExecutionPreflightHuman(
+  result: Awaited<ReturnType<typeof checkRuntimeParityExecutionPreflight>>,
+): string {
+  return [
+    "Runtime parity execution preflight",
+    `Authorization file            : ${result.authorizationFile}`,
+    `Status                       : ${result.status}`,
+    `Execution allowed            : ${result.executionAllowed ? "yes" : "no"}`,
+    `Reason                       : ${result.reason}`,
+    `External sessions            : ${result.externalSessionsLaunched ? "launched" : "not launched"}`,
+  ].join("\n");
+}
+
+export function formatCompliancePackValidationHuman(
+  result: Awaited<ReturnType<typeof validateCompliancePackFile>>,
+): string {
+  return [
+    "Compliance pack validation",
+    `File                         : ${result.file}`,
+    `Kind                         : ${result.kind}`,
+    `Status                       : ${result.status}`,
+    `Session                      : ${result.sessionId}`,
+    `Runtime target               : ${result.runtimeTarget}`,
+    `Claim boundary               : ${result.claimBoundary}`,
+    `External sessions            : ${result.externalSessionsLaunched ? "launched" : "not launched"}`,
+  ].join("\n");
+}
+
+export function formatCompliancePackWriteHuman(result: CompliancePackWriteResult): string {
+  return [
+    "Compliance pack written",
+    `File                         : ${result.file}`,
+    `Kind                         : ${result.pack.kind}`,
+    `Status                       : ${result.pack.status}`,
+    `Session                      : ${result.pack.sessionId}`,
+    `Runtime target               : ${result.pack.runtimeTarget}`,
+    `Claim boundary               : ${result.pack.claimBoundary}`,
+    `External sessions            : ${result.externalSessionsLaunched ? "launched" : "not launched"}`,
+  ].join("\n");
+}
+
+export function formatCompliancePackAssembleHuman(result: CompliancePackAssembleResult): string {
+  return [
+    "Compliance pack assembled",
+    `File                         : ${result.file}`,
+    `Kind                         : ${result.pack.kind}`,
+    `Status                       : ${result.pack.status}`,
+    `Session                      : ${result.pack.sessionId}`,
+    `Runtime target               : ${result.pack.runtimeTarget}`,
+    `Claim boundary               : ${result.pack.claimBoundary}`,
+    `Verified evidence references : ${result.verifiedEvidencePaths.length}`,
+    `External sessions            : ${result.externalSessionsLaunched ? "launched" : "not launched"}`,
+  ].join("\n");
+}
+
 export function formatApplyPlatformConfigHuman(result: ApplyPlatformConfigResult): string {
   const configFile = "settingsFile" in result ? result.settingsFile : result.configFile;
 
@@ -2501,6 +4572,21 @@ export function formatRuntimeProbeHuman(result: RuntimeProbeResult): string {
     `Registered hooks : ${result.registeredHooks.length}`,
     `Missing hooks    : ${result.missingHooks.length}`,
     `Native gates     : ${result.bindings ? nativeCount : "not bound"}`,
+  ].join("\n");
+}
+
+export function formatRuntimeParityFixturesHuman(
+  result: RuntimeParityFixtureValidationResult,
+): string {
+  return [
+    "Runtime parity fixtures",
+    `Parity                      : ${result.parity}`,
+    `Fixture scope               : ${result.fixtureScope}`,
+    `Expected targets            : ${result.expectedTargets.join(", ")}`,
+    `Observed targets            : ${result.observedTargets.join(", ") || "none"}`,
+    `Checked fixtures            : ${result.checkedFixtures.length}`,
+    `External sessions           : not launched`,
+    `Errors                      : ${result.errors.length === 0 ? "none" : result.errors.join("\n                              ")}`,
   ].join("\n");
 }
 
@@ -2647,6 +4733,22 @@ function parseOptionalPercent(input: unknown, name: string): number | undefined 
   return value;
 }
 
+function parseOptionalPositiveNumber(input: unknown, name: string): number | undefined {
+  if (input === undefined || input === null || input === "") {
+    return undefined;
+  }
+
+  const value =
+    typeof input === "number"
+      ? input
+      : parseStrictNumericString(input, name, /^[-+]?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)$/);
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new Error(`${name} must be a positive number.`);
+  }
+
+  return value;
+}
+
 function readRequiredString(args: Record<string, unknown>, name: string): string {
   const value = args[name];
   if (typeof value !== "string" || value.trim().length === 0) {
@@ -2694,6 +4796,22 @@ function parseStrictNumericString(input: unknown, name: string, pattern: RegExp)
   }
 
   return Number(normalized);
+}
+
+function stableJson(input: unknown): string {
+  if (Array.isArray(input)) {
+    return `[${input.map(stableJson).join(",")}]`;
+  }
+
+  if (input !== null && typeof input === "object") {
+    const entries = Object.entries(input as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, value]) => `${JSON.stringify(key)}:${stableJson(value)}`);
+
+    return `{${entries.join(",")}}`;
+  }
+
+  return JSON.stringify(input);
 }
 
 function describeError(error: unknown): string {

@@ -1,0 +1,57 @@
+name: H3 Install Matrix Transcript
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  h3-install-matrix:
+    name: H3 install transcript (${{ matrix.os_label }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os_label: linux
+            runner: ubuntu-latest
+          - os_label: macos
+            runner: macos-latest
+          - os_label: windows
+            runner: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Enable Corepack
+        shell: pwsh
+        run: corepack enable
+
+      - name: Install dependencies
+        shell: pwsh
+        run: corepack pnpm install --frozen-lockfile
+
+      - name: Generate H3 transcript
+        shell: pwsh
+        run: ./scripts/h3-install-matrix-transcript.ps1 -OsLabel '${{ matrix.os_label }}' -OutputPath 'artifacts/h3-install-${{ matrix.os_label }}.md'
+
+      - name: Upload H3 transcript artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: h3-install-${{ matrix.os_label }}
+          path: artifacts/h3-install-${{ matrix.os_label }}.md
+          if-no-files-found: error

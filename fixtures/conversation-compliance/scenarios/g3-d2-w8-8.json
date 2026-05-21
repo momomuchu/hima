@@ -1,0 +1,23 @@
+{
+  "id": "ima-d2-window-build-only",
+  "kind": "build",
+  "description": "Non-preset single-stage window [8→8]: build only, via window form. Distinct from P16 (scoped rule) — this activates the full build stage's HARD set, not a single rule.",
+  "turns": [
+    {
+      "role": "user",
+      "text": "Activate window:8..8. Run only the build stage. Implement the feature. Do NOT proceed past the window stop."
+    }
+  ],
+  "expected": {
+    "route": "build",
+    "allowedTools": ["read_files", "apply_patch", "shell", "npm_test_required"],
+    "forbiddenTools": ["git_push", "npm_publish", "external_publish", "payment", "user_contact"],
+    "requiredEvidence": ["red_green_tests", "skill_or_workflow_signal"],
+    "forbiddenEvidenceRequirements": ["DONE_VERIFIED", "quality-release"],
+    "stopPolicy": "require_build_evidence",
+    "runtimeSchema": "runtime_native",
+    "requiresContinuity": false,
+    "requiredPhases": ["build"],
+    "requiredRuntimeSignals": ["skill"]
+  }
+}

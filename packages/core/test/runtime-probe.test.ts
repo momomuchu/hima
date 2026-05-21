@@ -285,7 +285,7 @@ ${codexPreToolConfig().trimStart()}
     });
   });
 
-  it("keeps Codex hooks non-native when codex_hooks feature flag is missing", async () => {
+  it("keeps Codex hooks non-native when hooks feature flag is missing", async () => {
     await initPlanningProject(root);
     await writeCodexConfig(`
 [[hooks.PreToolUse]]
@@ -313,11 +313,11 @@ command = "${toHookCommand("pre_tool", "codex")}"
     expect(proof).toBeUndefined();
   });
 
-  it("keeps Codex hooks non-native when codex_hooks feature flag is false", async () => {
+  it("keeps Codex hooks non-native when hooks feature flag is false", async () => {
     await initPlanningProject(root);
     await writeCodexConfig(`
 [features]
-codex_hooks = false
+hooks = false
 
 [[hooks.PreToolUse]]
 
@@ -354,7 +354,7 @@ async function writeCodexConfig(content: string): Promise<void> {
 function codexPreToolConfig(command = toHookCommand("pre_tool", "codex")): string {
   return `
 [features]
-codex_hooks = true
+hooks = true
 
 [[hooks.PreToolUse]]
 

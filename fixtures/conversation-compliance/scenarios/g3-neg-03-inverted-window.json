@@ -1,0 +1,45 @@
+{
+  "id": "g3-neg-03-inverted-window",
+  "kind": "advisory",
+  "description": "NEG-03 — /window:9..3 where stop < start (inverted range). Invalid-by-construction. Asserts [HIMA_ERROR:INVALID_WINDOW_RANGE] is emitted and no spine stage opens. The engine must never auto-swap or silently normalise the range.",
+  "turns": [
+    {
+      "role": "user",
+      "text": "Activate window:9..3. Run from stage 9 back to stage 3."
+    }
+  ],
+  "expected": {
+    "route": "advisory",
+    "allowedTools": ["read_files"],
+    "forbiddenTools": ["apply_patch", "npm_test_required", "git_commit", "git_push"],
+    "requiredEvidence": ["HIMA_ERROR:INVALID_WINDOW_RANGE"],
+    "forbiddenEvidenceRequirements": [
+      "HIMA_PHASE:idea-pmf",
+      "HIMA_PHASE:strategy-positioning",
+      "HIMA_PHASE:analysis-discovery",
+      "HIMA_PHASE:specification",
+      "HIMA_PHASE:design-ux",
+      "HIMA_PHASE:architecture",
+      "HIMA_PHASE:ai-ml",
+      "HIMA_PHASE:build",
+      "HIMA_PHASE:quality-release",
+      "HIMA_PHASE:growth",
+      "HIMA_PHASE:sales-cs",
+      "HIMA_PHASE:measurement",
+      "HIMA_PHASE:finance",
+      "DONE_VERIFIED"
+    ],
+    "stopPolicy": "allow_no_code_stop",
+    "runtimeSchema": "runtime_native",
+    "requiresContinuity": false,
+    "requiredPhases": [],
+    "requiredRuntimeSignals": [],
+    "neg": {
+      "scenario": "NEG-03",
+      "type": "explicit-rejection",
+      "invariant": "window:S..E where E < S is structurally invalid. Must emit [HIMA_ERROR:INVALID_WINDOW_RANGE]. Auto-normalising to window:3..9 is a silent-substitution defect (core.md §3: 'visible error > silent substitution').",
+      "expectedBehavior": "[HIMA_ERROR:INVALID_WINDOW_RANGE] in transcript. Zero spine stages open.",
+      "ref": "GOAL-3.md §3 window validation — start ≤ stop invariant; core.md §3 no silent fallbacks"
+    }
+  }
+}

@@ -1,0 +1,5 @@
+Synthetic fixture only.
+
+before: not run
+after: not run
+

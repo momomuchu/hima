@@ -1,0 +1,45 @@
+{
+  "id": "g3-neg-01-ambiguous-prompt",
+  "kind": "advisory",
+  "description": "NEG-01 — ambiguous prompt with no IMA activation token. Asserts the engine does NOT silently enter any spine stage. No [HIMA_PHASE:*] marker must appear; the response must stay in plain advisory mode without opening a cycle window.",
+  "turns": [
+    {
+      "role": "user",
+      "text": "Can you help me think through a product idea and maybe some strategy? I want to explore architecture too. Just talk me through it."
+    }
+  ],
+  "expected": {
+    "route": "advisory",
+    "allowedTools": ["read_files", "web_search"],
+    "forbiddenTools": ["apply_patch", "npm_test_required", "git_commit", "git_push"],
+    "requiredEvidence": ["plan_artifact_or_plan_response"],
+    "forbiddenEvidenceRequirements": [
+      "HIMA_PHASE:idea-pmf",
+      "HIMA_PHASE:strategy-positioning",
+      "HIMA_PHASE:analysis-discovery",
+      "HIMA_PHASE:specification",
+      "HIMA_PHASE:design-ux",
+      "HIMA_PHASE:architecture",
+      "HIMA_PHASE:ai-ml",
+      "HIMA_PHASE:build",
+      "HIMA_PHASE:quality-release",
+      "HIMA_PHASE:growth",
+      "HIMA_PHASE:sales-cs",
+      "HIMA_PHASE:measurement",
+      "HIMA_PHASE:finance",
+      "DONE_VERIFIED"
+    ],
+    "stopPolicy": "allow_no_code_stop",
+    "runtimeSchema": "runtime_native",
+    "requiresContinuity": false,
+    "requiredPhases": [],
+    "requiredRuntimeSignals": [],
+    "neg": {
+      "scenario": "NEG-01",
+      "type": "wrong-window-no-fire",
+      "invariant": "Ambiguous conversational request with no cycle:/window:/scope: token must NOT trigger IMA activation. No [HIMA_PHASE:*] marker permitted in transcript.",
+      "expectedBehavior": "Plain advisory response. Engine idles; no spine stage opens.",
+      "ref": "GOAL-3.md §3 activation-token rule — only explicit cycle:|window:|scope: tokens trigger IMA"
+    }
+  }
+}

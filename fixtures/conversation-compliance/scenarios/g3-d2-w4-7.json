@@ -1,0 +1,30 @@
+{
+  "id": "ima-d2-window-spec-to-aiml",
+  "kind": "advisory",
+  "description": "Non-preset window [4→7]: specification through ai-ml. Tests parametric activation for a 4-stage sub-window that spans two preset boundaries (P9 starts at 4, P13 starts at 7) but is itself unnamed.",
+  "turns": [
+    {
+      "role": "user",
+      "text": "Activate window:4..7. Start at specification, run through design-ux, architecture, and stop at ai-ml. Do NOT proceed past the window stop."
+    },
+    { "role": "user", "text": "Continue: design-ux." },
+    { "role": "user", "text": "Continue: architecture." },
+    { "role": "user", "text": "Continue: ai-ml. Window stop — do NOT chain past the window stop." }
+  ],
+  "expected": {
+    "route": "plan",
+    "allowedTools": ["read_files"],
+    "forbiddenTools": ["apply_patch", "npm_test_required", "git_commit"],
+    "requiredEvidence": [
+      "plan_artifact_or_plan_response",
+      "skill_or_workflow_signal",
+      "real_turn_boundaries"
+    ],
+    "forbiddenEvidenceRequirements": ["DONE_VERIFIED", "HIMA_PHASE:build"],
+    "stopPolicy": "allow_plan_stop",
+    "runtimeSchema": "runtime_native",
+    "requiresContinuity": true,
+    "requiredPhases": ["specification", "design-ux", "architecture", "ai-ml"],
+    "requiredRuntimeSignals": ["skill"]
+  }
+}

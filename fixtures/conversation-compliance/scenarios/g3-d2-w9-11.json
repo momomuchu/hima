@@ -1,0 +1,29 @@
+{
+  "id": "ima-d2-window-qr-to-sales",
+  "kind": "advisory",
+  "description": "Non-preset window [9→11]: quality-release through sales-cs. Tests a post-ship, pre-measurement window that is unnamed in P1–P16.",
+  "turns": [
+    {
+      "role": "user",
+      "text": "Activate window:9..11. Start at quality-release, then growth, then sales-cs. Stop at the window boundary."
+    },
+    { "role": "user", "text": "Continue: growth." },
+    { "role": "user", "text": "Continue: sales-cs. Window stop." }
+  ],
+  "expected": {
+    "route": "advisory",
+    "allowedTools": ["read_files", "web_search"],
+    "forbiddenTools": ["apply_patch", "npm_test_required", "git_commit"],
+    "requiredEvidence": [
+      "plan_artifact_or_plan_response",
+      "skill_or_workflow_signal",
+      "real_turn_boundaries"
+    ],
+    "forbiddenEvidenceRequirements": ["DONE_VERIFIED", "measurement"],
+    "stopPolicy": "allow_plan_stop",
+    "runtimeSchema": "runtime_native",
+    "requiresContinuity": true,
+    "requiredPhases": ["quality-release", "growth", "sales-cs"],
+    "requiredRuntimeSignals": ["skill"]
+  }
+}

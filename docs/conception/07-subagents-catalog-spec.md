@@ -864,5 +864,10 @@ artifacts/
 
 ---
 
-*Produit en phase Conception — à utiliser comme référence pour l'implémentation de `packages/core/src/subagents/` et des artefacts dans `artifacts/subagents/`.*
-*Prochaine étape : implémenter les fichiers de définition concrets dans `artifacts/subagents/` (Étape 2 MVP — Claude Code uniquement).*
+*Note Cycle 75 drift* : the executable subagent catalog source is now
+`packages/core/src/catalogs/operational-catalog.ts`, rendered by
+`packages/core/src/catalogs/artifact-generation.ts` into managed `artifacts/subagents/<id>.md`
+files. Runtime enforcement still depends on the adapter capability profile: Claude has native
+subagent start/stop events, Codex lacks unmanaged subagent hooks, and Hermes exposes
+`subagent_stop` as observable/non-blocking while `subagent_start` is unsupported in the executable
+MVP profile.

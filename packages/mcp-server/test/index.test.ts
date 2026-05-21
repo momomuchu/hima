@@ -27,7 +27,7 @@ import {
   writePlanningProject,
 } from "@harness/core";
 import { describe, expect, it } from "vitest";
-import { dispatchRequest, getMcpToolSurface } from "../src/index.js";
+import { dispatchRequest, getMcpNamespacePolicySurface, getMcpToolSurface } from "../src/index.js";
 
 type JsonObject = Record<string, unknown>;
 const MCP_ARTIFACT_SELECTIONS = ["all", "skills", "hooks", "subagents"];
@@ -166,6 +166,10 @@ describe("MCP JSON-RPC surface", () => {
         "rms.runtime_digest",
         "rms.evaluate_convergence",
         "rms.close_run",
+        "hima_evaluate_completion",
+        "hima_classify_risk",
+        "hima_record_evidence",
+        "hima_query_compliance",
         "harness:get_state",
         "harness:get_risk_class",
         "harness:evaluate_gate",
@@ -389,6 +393,45 @@ describe("MCP executable surface contract", () => {
     }
   });
 
+  it("keeps every listed tool inside the explicit namespace policy", async () => {
+    const policySurface = getMcpNamespacePolicySurface();
+    const policyToolNames = policySurface.map((entry) => entry.toolName);
+    const listedToolNames = getMcpToolSurface().map((entry) => entry.name);
+
+    expect(policyToolNames).toEqual(listedToolNames);
+    expect(new Set(policyToolNames).size).toBe(policyToolNames.length);
+    expect(policySurface.filter((entry) => entry.namespace === "rms")).toHaveLength(23);
+    expect(
+      policySurface
+        .filter((entry) => entry.namespace === "hima_governance")
+        .map((entry) => entry.toolName),
+    ).toEqual([
+      "hima_evaluate_completion",
+      "hima_classify_risk",
+      "hima_record_evidence",
+      "hima_query_compliance",
+    ]);
+    expect(
+      policySurface
+        .filter((entry) => entry.namespace === "harness_compatibility")
+        .every((entry) => entry.status === "compatibility"),
+    ).toBe(true);
+  });
+
+  it.each([
+    "evil.evaluate",
+    "rms.hima_query_compliance",
+    "hima_unknown",
+    "harness:hima_query_compliance",
+  ])("rejects tool name %s outside the namespace policy", async (toolName) => {
+    const response = await callTool(toolName);
+
+    expect(response.isError).toBe(true);
+    expect(structuredContent(response).error).toBe(
+      `MCP tool is outside the namespace policy: ${toolName}`,
+    );
+  });
+
   it("keeps every listed tool wired to an execution handler", async () => {
     for (const entry of getMcpToolSurface()) {
       const response = structuredContent(await callTool(entry.name, {}));
@@ -467,6 +510,139 @@ describe("RMS MCP tools", () => {
         riskClass: "T",
         bypassAllowed: true,
       });
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("exposes HIMA governance tools as thin MCP wrappers", async () => {
+    const root = await mkMcpProjectRoot("hima-mcp-tools-");
+
+    try {
+      await initProject(root);
+
+      expect(
+        structuredContent(
+          await callTool("hima_classify_risk", {
+            files: ["src/auth/session.ts"],
+            labels: [],
+            changeType: "feature",
+          }),
+        ),
+      ).toMatchObject({
+        riskClass: "H",
+      });
+
+      expect(
+        structuredContent(
+          await callTool("hima_record_evidence", {
+            root,
+            summary: "hima external agent evidence token=ghp_abcdefghijklmnopqrstuvwxyz123456",
+          }),
+        ),
+      ).toMatchObject({
+        recorded: true,
+        evidence: {
+          key: DEFAULT_EVIDENCE_KEY,
+          source: "agent",
+          summary: "hima external agent evidence token=[REDACTED]",
+        },
+      });
+
+      const completion = structuredContent(
+        await callTool("hima_evaluate_completion", {
+          root,
+        }),
+      );
+
+      expect(completion).toMatchObject({
+        runId: expect.any(String),
+        riskClass: "T",
+        evidence: {
+          sufficient: expect.any(Boolean),
+        },
+        convergence: {
+          status: expect.any(String),
+        },
+        completion: {
+          ready: expect.any(Boolean),
+        },
+      });
+
+      const compliance = structuredContent(
+        await callTool("hima_query_compliance", {
+          root,
+        }),
+      );
+
+      expect(compliance).toMatchObject({
+        runId: expect.any(String),
+        riskClass: "T",
+        evidence: {
+          sufficient: expect.any(Boolean),
+        },
+        ledger: {
+          exists: true,
+          verified: true,
+          entryCount: expect.any(Number),
+          lastSequence: expect.any(Number),
+          lastEventHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+        },
+      });
+      expect(asObject(compliance.ledger).entryCount as number).toBeGreaterThan(0);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps HIMA compliance and evidence tools confined to the MCP server project root", async () => {
+    const outside = await mkdtemp(path.join(tmpdir(), "hima-mcp-outside-"));
+
+    try {
+      const compliance = await callTool("hima_query_compliance", {
+        root: outside,
+      });
+      const evidence = await callTool("hima_record_evidence", {
+        root: outside,
+        summary: "outside evidence",
+      });
+
+      expect(compliance.isError).toBe(true);
+      expect(structuredContent(compliance).error).toContain(
+        "MCP project root must stay inside the project root",
+      );
+      expect(evidence.isError).toBe(true);
+      expect(structuredContent(evidence).error).toContain(
+        "MCP project root must stay inside the project root",
+      );
+    } finally {
+      await rm(outside, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects traversal-shaped run ids before reading HIMA compliance ledger paths", async () => {
+    const root = await mkMcpProjectRoot("hima-mcp-ledger-traversal-");
+
+    try {
+      await initProject(root);
+      const project = await readPlanningProject(root);
+
+      await writePlanningProject(root, {
+        ...project,
+        runSet: {
+          ...project.runSet,
+          runId: "..\\..\\outside",
+        },
+      });
+
+      const response = await callTool("hima_query_compliance", {
+        root,
+      });
+
+      expect(response.isError).toBe(true);
+      expect(structuredContent(response).error).toContain(
+        "HIMA compliance ledger path must stay inside the project root",
+      );
     } finally {
       await rm(root, { recursive: true, force: true });
     }
@@ -856,7 +1032,7 @@ describe("RMS MCP tools", () => {
         path.join(platformDirectory, "config.toml"),
         [
           "[features]",
-          "codex_hooks = true",
+          "hooks = true",
           "",
           "[[hooks.PreToolUse]]",
           "",
@@ -903,7 +1079,7 @@ describe("RMS MCP tools", () => {
         path.join(platformDirectory, "config.toml"),
         [
           "[features]",
-          "codex_hooks = true",
+          "hooks = true",
           "",
           "[[hooks.PreToolUse]]",
           "",

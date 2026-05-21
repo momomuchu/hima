@@ -5,10 +5,15 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   appendRunEvent,
   CurrentRiskFileSchema,
+  getEventsLogPath,
+  getLedgerPath,
   getPlanningPaths,
   initPlanningProject,
   RunSetFileSchema,
+  readEventLog,
+  readLedger,
   readPlanningProject,
+  verifyLedgerEntries,
   writePlanningProject,
 } from "../src/index.js";
 
@@ -38,7 +43,7 @@ describe("planning store", () => {
     expect(read.runSet.route.phase).toBe("discovery");
   });
 
-  it("stores run events inside the canonical run-set file without sidecar logs", async () => {
+  it("stores run events in run-set and append-only audit logs", async () => {
     await initPlanningProject(root);
 
     await appendRunEvent(root, {
@@ -59,9 +64,20 @@ describe("planning store", () => {
     const paths = getPlanningPaths(root);
     const planningEntries = await readdir(paths.planningDir);
     const read = await readPlanningProject(root);
+    const eventsLog = await readEventLog(root);
+    const ledger = await readLedger(root, read.runSet.runId);
 
     expect(planningEntries.sort()).toEqual(["current-risk.yaml", "run-set.json", "state.yaml"]);
     expect(read.runSet.events.map((event) => event.id)).toEqual(["event-1", "event-2"]);
+    expect(getEventsLogPath(root)).toMatch(/\.hima[\\/]state[\\/]events\.jsonl$/);
+    expect(getLedgerPath(root, read.runSet.runId)).toMatch(
+      /\.hima[\\/]state[\\/]ledger[\\/].+\.jsonl$/,
+    );
+    expect(eventsLog.map((event) => event.id)).toEqual(["event-1", "event-2"]);
+    expect(
+      ledger.map((event) => event.payload).map((payload) => (payload as { id: string }).id),
+    ).toEqual(["event-1", "event-2"]);
+    expect(verifyLedgerEntries(ledger)).toBe(true);
   });
 
   it("preserves opaque RMS set payloads while validating the typed run-set envelope", async () => {

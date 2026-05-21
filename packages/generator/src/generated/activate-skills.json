@@ -1,0 +1,577 @@
+[
+  {
+    "frontmatter": {
+      "name": "activate-full",
+      "version": "1.0.0",
+      "type": "task",
+      "triggers": [
+        "cycle:full",
+        "take this raw problem all the way to a measured, financed product"
+      ],
+      "expected_outputs": ["shipped product + growth + CS + measurement + unit economics"],
+      "requires_tools": [],
+      "fallback_for_toolsets": [],
+      "description": "Structural activation of the full dev-cycle window (spine 1-13)."
+    },
+    "presetId": "P1",
+    "window": {
+      "start": 1,
+      "stop": 13
+    },
+    "mode": "auto",
+    "hardSets": [
+      "/ai-ml-product-engineering",
+      "/code-quality-maintainability",
+      "/concurrency",
+      "/ddd",
+      "/observability",
+      "/product-strategy",
+      "activation-retention",
+      "ai-ml-product-engineering",
+      "api-design",
+      "architecture-system-design",
+      "cloud-platform-infrastructure",
+      "code-quality-maintainability",
+      "concurrency",
+      "customer-success",
+      "database-storage-performance",
+      "error-handling",
+      "feature-delivery",
+      "growth-distribution",
+      "idea-sourcing",
+      "idea-to-pmf",
+      "metrics-analytics",
+      "observability",
+      "performance",
+      "positioning-messaging-category",
+      "product-goal-sprint-alignment",
+      "product-strategy",
+      "production-reliability-devops",
+      "saas-finance",
+      "sales-revenue",
+      "schema-driven-development",
+      "seo-content",
+      "specification-requirements",
+      "technical-analysis-discovery",
+      "testing",
+      "ui-knowledge",
+      "ui-styling",
+      "ux-research-product-experience",
+      "web-mobile-platform"
+    ],
+    "body": "<!-- HIMA:SKILL-ARTIFACT name=activate-full source=consommable-generator -->\n# Activate: full (P1)\n\n## Activation\n- Window: spine [1 -> 13]\n- Invocation: `/cycle:full[:mode]` (default mode: auto)\n\n## Ownership\n- Owns: deterministic structural activation of the full chain-window.\n- Out of scope: deciding the verdict (the windowed disciplines do that).\n\n## Forced disciplines (HARD — non-skippable, even in bypass)\n- /ai-ml-product-engineering\n- /code-quality-maintainability\n- /concurrency\n- /ddd\n- /observability\n- /product-strategy\n- activation-retention\n- ai-ml-product-engineering\n- api-design\n- architecture-system-design\n- cloud-platform-infrastructure\n- code-quality-maintainability\n- concurrency\n- customer-success\n- database-storage-performance\n- error-handling\n- feature-delivery\n- growth-distribution\n- idea-sourcing\n- idea-to-pmf\n- metrics-analytics\n- observability\n- performance\n- positioning-messaging-category\n- product-goal-sprint-alignment\n- product-strategy\n- production-reliability-devops\n- saas-finance\n- sales-revenue\n- schema-driven-development\n- seo-content\n- specification-requirements\n- technical-analysis-discovery\n- testing\n- ui-knowledge\n- ui-styling\n- ux-research-product-experience\n- web-mobile-platform\n\nIntent seed: \"I want to take this raw problem all the way to a measured, financed product\". Output at stop: shipped product + growth + CS + measurement + unit economics.\nTraverse NEXT-STAGE transitively, bounded by the window stop; a skipped\nHARD discipline BLOCKs the run in every mode (GOAL-3 v3 §4c, authoritative)."
+  },
+  {
+    "frontmatter": {
+      "name": "activate-product-discovery",
+      "version": "1.0.0",
+      "type": "task",
+      "triggers": [
+        "cycle:product-discovery",
+        "go from raw problem to a written spec ready for design and build"
+      ],
+      "expected_outputs": ["validated SPEC.md"],
+      "requires_tools": [],
+      "fallback_for_toolsets": [],
+      "description": "Structural activation of the product-discovery dev-cycle window (spine 1-4)."
+    },
+    "presetId": "P2",
+    "window": {
+      "start": 1,
+      "stop": 4
+    },
+    "mode": "auto",
+    "hardSets": [
+      "/product-strategy",
+      "idea-sourcing",
+      "idea-to-pmf",
+      "positioning-messaging-category",
+      "product-goal-sprint-alignment",
+      "product-strategy",
+      "schema-driven-development",
+      "specification-requirements",
+      "technical-analysis-discovery"
+    ],
+    "body": "<!-- HIMA:SKILL-ARTIFACT name=activate-product-discovery source=consommable-generator -->\n# Activate: product-discovery (P2)\n\n## Activation\n- Window: spine [1 -> 4]\n- Invocation: `/cycle:product-discovery[:mode]` (default mode: auto)\n\n## Ownership\n- Owns: deterministic structural activation of the product-discovery chain-window.\n- Out of scope: deciding the verdict (the windowed disciplines do that).\n\n## Forced disciplines (HARD — non-skippable, even in bypass)\n- /product-strategy\n- idea-sourcing\n- idea-to-pmf\n- positioning-messaging-category\n- product-goal-sprint-alignment\n- product-strategy\n- schema-driven-development\n- specification-requirements\n- technical-analysis-discovery\n\nIntent seed: \"I want to go from raw problem to a written spec ready for design and build\". Output at stop: validated SPEC.md.\nTraverse NEXT-STAGE transitively, bounded by the window stop; a skipped\nHARD discipline BLOCKs the run in every mode (GOAL-3 v3 §4c, authoritative)."
+  },
+  {
+    "frontmatter": {
+      "name": "activate-idea-to-design",
+      "version": "1.0.0",
+      "type": "task",
+      "triggers": [
+        "cycle:idea-to-design",
+        "go from idea to a validated UX design ready for architecture"
+      ],
+      "expected_outputs": ["spec + UX flows + designs + usability evidence"],
+      "requires_tools": [],
+      "fallback_for_toolsets": [],
+      "description": "Structural activation of the idea-to-design dev-cycle window (spine 1-5)."
+    },
+    "presetId": "P3",
+    "window": {
+      "start": 1,
+      "stop": 5
+    },
+    "mode": "auto",
+    "hardSets": [
+      "/product-strategy",
+      "idea-sourcing",
+      "idea-to-pmf",
+      "positioning-messaging-category",
+      "product-goal-sprint-alignment",
+      "product-strategy",
+      "schema-driven-development",
+      "specification-requirements",
+      "technical-analysis-discovery",
+      "ui-knowledge",
+      "ui-styling",
+      "ux-research-product-experience"
+    ],
+    "body": "<!-- HIMA:SKILL-ARTIFACT name=activate-idea-to-design source=consommable-generator -->\n# Activate: idea-to-design (P3)\n\n## Activation\n- Window: spine [1 -> 5]\n- Invocation: `/cycle:idea-to-design[:mode]` (default mode: auto)\n\n## Ownership\n- Owns: deterministic structural activation of the idea-to-design chain-window.\n- Out of scope: deciding the verdict (the windowed disciplines do that).\n\n## Forced disciplines (HARD — non-skippable, even in bypass)\n- /product-strategy\n- idea-sourcing\n- idea-to-pmf\n- positioning-messaging-category\n- product-goal-sprint-alignment\n- product-strategy\n- schema-driven-development\n- specification-requirements\n- technical-analysis-discovery\n- ui-knowledge\n- ui-styling\n- ux-research-product-experience\n\nIntent seed: \"I want to go from idea to a validated UX design ready for architecture\". Output at stop: spec + UX flows + designs + usability evidence.\nTraverse NEXT-STAGE transitively, bounded by the window stop; a skipped\nHARD discipline BLOCKs the run in every mode (GOAL-3 v3 §4c, authoritative)."
+  },
+  {
+    "frontmatter": {
+      "name": "activate-idea-to-arch",
+      "version": "1.0.0",
+      "type": "task",
+      "triggers": [
+        "cycle:idea-to-arch",
+        "go from idea to an architecture decision record ready for implementation"
+      ],
+      "expected_outputs": ["spec + UX + ADR + data model"],
+      "requires_tools": [],
+      "fallback_for_toolsets": [],
+      "description": "Structural activation of the idea-to-arch dev-cycle window (spine 1-6)."
+    },
+    "presetId": "P4",
+    "window": {
+      "start": 1,
+      "stop": 6
+    },
+    "mode": "auto",
+    "hardSets": [
+      "/ddd",
+      "/product-strategy",
+      "api-design",
+      "architecture-system-design",
+      "cloud-platform-infrastructure",
+      "database-storage-performance",
+      "idea-sourcing",
+      "idea-to-pmf",
+      "positioning-messaging-category",
+      "product-goal-sprint-alignment",
+      "product-strategy",
+      "schema-driven-development",
+      "specification-requirements",
+      "technical-analysis-discovery",
+      "ui-knowledge",
+      "ui-styling",
+      "ux-research-product-experience"
+    ],
+    "body": "<!-- HIMA:SKILL-ARTIFACT name=activate-idea-to-arch source=consommable-generator -->\n# Activate: idea-to-arch (P4)\n\n## Activation\n- Window: spine [1 -> 6]\n- Invocation: `/cycle:idea-to-arch[:mode]` (default mode: auto)\n\n## Ownership\n- Owns: deterministic structural activation of the idea-to-arch chain-window.\n- Out of scope: deciding the verdict (the windowed disciplines do that).\n\n## Forced disciplines (HARD — non-skippable, even in bypass)\n- /ddd\n- /product-strategy\n- api-design\n- architecture-system-design\n- cloud-platform-infrastructure\n- database-storage-performance\n- idea-sourcing\n- idea-to-pmf\n- positioning-messaging-category\n- product-goal-sprint-alignment\n- product-strategy\n- schema-driven-development\n- specification-requirements\n- technical-analysis-discovery\n- ui-knowledge\n- ui-styling\n- ux-research-product-experience\n\nIntent seed: \"I want to go from idea to an architecture decision record ready for implementation\". Output at stop: spec + UX + ADR + data model.\nTraverse NEXT-STAGE transitively, bounded by the window stop; a skipped\nHARD discipline BLOCKs the run in every mode (GOAL-3 v3 §4c, authoritative)."
+  },
+  {
+    "frontmatter": {
+      "name": "activate-strategy",
+      "version": "1.0.0",
+      "type": "task",
+      "triggers": [
+        "cycle:strategy",
+        "sharpen positioning and run technical discovery on an existing problem"
+      ],
+      "expected_outputs": ["positioning memo + discovery report"],
+      "requires_tools": [],
+      "fallback_for_toolsets": [],
+      "description": "Structural activation of the strategy dev-cycle window (spine 2-3)."
+    },
+    "presetId": "P5",
+    "window": {
+      "start": 2,
+      "stop": 3
+    },
+    "mode": "auto",
+    "hardSets": [
+      "/product-strategy",
+      "positioning-messaging-category",
+      "product-goal-sprint-alignment",
+      "product-strategy",
+      "technical-analysis-discovery"
+    ],
+    "body": "<!-- HIMA:SKILL-ARTIFACT name=activate-strategy source=consommable-generator -->\n# Activate: strategy (P5)\n\n## Activation\n- Window: spine [2 -> 3]\n- Invocation: `/cycle:strategy[:mode]` (default mode: auto)\n\n## Ownership\n- Owns: deterministic structural activation of the strategy chain-window.\n- Out of scope: deciding the verdict (the windowed disciplines do that).\n\n## Forced disciplines (HARD — non-skippable, even in bypass)\n- /product-strategy\n- positioning-messaging-category\n- product-goal-sprint-alignment\n- product-strategy\n- technical-analysis-discovery\n\nIntent seed: \"I want to sharpen positioning and run technical discovery on an existing problem\". Output at stop: positioning memo + discovery report.\nTraverse NEXT-STAGE transitively, bounded by the window stop; a skipped\nHARD discipline BLOCKs the run in every mode (GOAL-3 v3 §4c, authoritative)."
+  },
+  {
+    "frontmatter": {
+      "name": "activate-discovery",
+      "version": "1.0.0",
+      "type": "task",
+      "triggers": [
+        "cycle:discovery",
+        "technical discovery and a spec in one pass for a scoped problem"
+      ],
+      "expected_outputs": ["analysis report + SPEC.md"],
+      "requires_tools": [],
+      "fallback_for_toolsets": [],
+      "description": "Structural activation of the discovery dev-cycle window (spine 3-4)."
+    },
+    "presetId": "P6",
+    "window": {
+      "start": 3,
+      "stop": 4
+    },
+    "mode": "auto",
+    "hardSets": [
+      "schema-driven-development",
+      "specification-requirements",
+      "technical-analysis-discovery"
+    ],
+    "body": "<!-- HIMA:SKILL-ARTIFACT name=activate-discovery source=consommable-generator -->\n# Activate: discovery (P6)\n\n## Activation\n- Window: spine [3 -> 4]\n- Invocation: `/cycle:discovery[:mode]` (default mode: auto)\n\n## Ownership\n- Owns: deterministic structural activation of the discovery chain-window.\n- Out of scope: deciding the verdict (the windowed disciplines do that).\n\n## Forced disciplines (HARD — non-skippable, even in bypass)\n- schema-driven-development\n- specification-requirements\n- technical-analysis-discovery\n\nIntent seed: \"I want to technical discovery and a spec in one pass for a scoped problem\". Output at stop: analysis report + SPEC.md.\nTraverse NEXT-STAGE transitively, bounded by the window stop; a skipped\nHARD discipline BLOCKs the run in every mode (GOAL-3 v3 §4c, authoritative)."
+  },
+  {
+    "frontmatter": {
+      "name": "activate-discovery-to-design",
+      "version": "1.0.0",
+      "type": "task",
+      "triggers": [
+        "cycle:discovery-to-design",
+        "turn a scoped discovery into a spec and UX-complete design"
+      ],
+      "expected_outputs": ["discovery + spec + UX flows"],
+      "requires_tools": [],
+      "fallback_for_toolsets": [],
+      "description": "Structural activation of the discovery-to-design dev-cycle window (spine 3-5)."
+    },
+    "presetId": "P7",
+    "window": {
+      "start": 3,
+      "stop": 5
+    },
+    "mode": "auto",
+    "hardSets": [
+      "schema-driven-development",
+      "specification-requirements",
+      "technical-analysis-discovery",
+      "ui-knowledge",
+      "ui-styling",
+      "ux-research-product-experience"
+    ],
+    "body": "<!-- HIMA:SKILL-ARTIFACT name=activate-discovery-to-design source=consommable-generator -->\n# Activate: discovery-to-design (P7)\n\n## Activation\n- Window: spine [3 -> 5]\n- Invocation: `/cycle:discovery-to-design[:mode]` (default mode: auto)\n\n## Ownership\n- Owns: deterministic structural activation of the discovery-to-design chain-window.\n- Out of scope: deciding the verdict (the windowed disciplines do that).\n\n## Forced disciplines (HARD — non-skippable, even in bypass)\n- schema-driven-development\n- specification-requirements\n- technical-analysis-discovery\n- ui-knowledge\n- ui-styling\n- ux-research-product-experience\n\nIntent seed: \"I want to turn a scoped discovery into a spec and UX-complete design\". Output at stop: discovery + spec + UX flows.\nTraverse NEXT-STAGE transitively, bounded by the window stop; a skipped\nHARD discipline BLOCKs the run in every mode (GOAL-3 v3 §4c, authoritative)."
+  },
+  {
+    "frontmatter": {
+      "name": "activate-discovery-to-arch",
+      "version": "1.0.0",
+      "type": "task",
+      "triggers": [
+        "cycle:discovery-to-arch",
+        "discovery through to a fully designed and architected solution"
+      ],
+      "expected_outputs": ["discovery + spec + UX + ADR"],
+      "requires_tools": [],
+      "fallback_for_toolsets": [],
+      "description": "Structural activation of the discovery-to-arch dev-cycle window (spine 3-6)."
+    },
+    "presetId": "P8",
+    "window": {
+      "start": 3,
+      "stop": 6
+    },
+    "mode": "auto",
+    "hardSets": [
+      "/ddd",
+      "api-design",
+      "architecture-system-design",
+      "cloud-platform-infrastructure",
+      "database-storage-performance",
+      "schema-driven-development",
+      "specification-requirements",
+      "technical-analysis-discovery",
+      "ui-knowledge",
+      "ui-styling",
+      "ux-research-product-experience"
+    ],
+    "body": "<!-- HIMA:SKILL-ARTIFACT name=activate-discovery-to-arch source=consommable-generator -->\n# Activate: discovery-to-arch (P8)\n\n## Activation\n- Window: spine [3 -> 6]\n- Invocation: `/cycle:discovery-to-arch[:mode]` (default mode: auto)\n\n## Ownership\n- Owns: deterministic structural activation of the discovery-to-arch chain-window.\n- Out of scope: deciding the verdict (the windowed disciplines do that).\n\n## Forced disciplines (HARD — non-skippable, even in bypass)\n- /ddd\n- api-design\n- architecture-system-design\n- cloud-platform-infrastructure\n- database-storage-performance\n- schema-driven-development\n- specification-requirements\n- technical-analysis-discovery\n- ui-knowledge\n- ui-styling\n- ux-research-product-experience\n\nIntent seed: \"I want to discovery through to a fully designed and architected solution\". Output at stop: discovery + spec + UX + ADR.\nTraverse NEXT-STAGE transitively, bounded by the window stop; a skipped\nHARD discipline BLOCKs the run in every mode (GOAL-3 v3 §4c, authoritative)."
+  },
+  {
+    "frontmatter": {
+      "name": "activate-spec-to-ship",
+      "version": "1.0.0",
+      "type": "task",
+      "triggers": ["cycle:spec-to-ship", "design, architect, build, and ship an existing spec"],
+      "expected_outputs": ["deployed tested production build"],
+      "requires_tools": [],
+      "fallback_for_toolsets": [],
+      "description": "Structural activation of the spec-to-ship dev-cycle window (spine 4-9)."
+    },
+    "presetId": "P9",
+    "window": {
+      "start": 4,
+      "stop": 9
+    },
+    "mode": "auto",
+    "hardSets": [
+      "/ai-ml-product-engineering",
+      "/code-quality-maintainability",
+      "/concurrency",
+      "/ddd",
+      "/observability",
+      "ai-ml-product-engineering",
+      "api-design",
+      "architecture-system-design",
+      "cloud-platform-infrastructure",
+      "code-quality-maintainability",
+      "concurrency",
+      "database-storage-performance",
+      "error-handling",
+      "feature-delivery",
+      "observability",
+      "performance",
+      "production-reliability-devops",
+      "schema-driven-development",
+      "specification-requirements",
+      "technical-analysis-discovery",
+      "testing",
+      "ui-knowledge",
+      "ui-styling",
+      "ux-research-product-experience",
+      "web-mobile-platform"
+    ],
+    "body": "<!-- HIMA:SKILL-ARTIFACT name=activate-spec-to-ship source=consommable-generator -->\n# Activate: spec-to-ship (P9)\n\n## Activation\n- Window: spine [4 -> 9]\n- Invocation: `/cycle:spec-to-ship[:mode]` (default mode: auto)\n\n## Ownership\n- Owns: deterministic structural activation of the spec-to-ship chain-window.\n- Out of scope: deciding the verdict (the windowed disciplines do that).\n\n## Forced disciplines (HARD — non-skippable, even in bypass)\n- /ai-ml-product-engineering\n- /code-quality-maintainability\n- /concurrency\n- /ddd\n- /observability\n- ai-ml-product-engineering\n- api-design\n- architecture-system-design\n- cloud-platform-infrastructure\n- code-quality-maintainability\n- concurrency\n- database-storage-performance\n- error-handling\n- feature-delivery\n- observability\n- performance\n- production-reliability-devops\n- schema-driven-development\n- specification-requirements\n- technical-analysis-discovery\n- testing\n- ui-knowledge\n- ui-styling\n- ux-research-product-experience\n- web-mobile-platform\n\nIntent seed: \"I want to design, architect, build, and ship an existing spec\". Output at stop: deployed tested production build.\nTraverse NEXT-STAGE transitively, bounded by the window stop; a skipped\nHARD discipline BLOCKs the run in every mode (GOAL-3 v3 §4c, authoritative)."
+  },
+  {
+    "frontmatter": {
+      "name": "activate-design-only",
+      "version": "1.0.0",
+      "type": "task",
+      "triggers": [
+        "cycle:design-only",
+        "UX flows, component designs, and usability validation only"
+      ],
+      "expected_outputs": ["validated UX flows + component specs"],
+      "requires_tools": [],
+      "fallback_for_toolsets": [],
+      "description": "Structural activation of the design-only dev-cycle window (spine 5-5)."
+    },
+    "presetId": "P10",
+    "window": {
+      "start": 5,
+      "stop": 5
+    },
+    "mode": "auto",
+    "hardSets": ["ui-knowledge", "ui-styling", "ux-research-product-experience"],
+    "body": "<!-- HIMA:SKILL-ARTIFACT name=activate-design-only source=consommable-generator -->\n# Activate: design-only (P10)\n\n## Activation\n- Window: spine [5 -> 5]\n- Invocation: `/cycle:design-only[:mode]` (default mode: auto)\n\n## Ownership\n- Owns: deterministic structural activation of the design-only chain-window.\n- Out of scope: deciding the verdict (the windowed disciplines do that).\n\n## Forced disciplines (HARD — non-skippable, even in bypass)\n- ui-knowledge\n- ui-styling\n- ux-research-product-experience\n\nIntent seed: \"I want to UX flows, component designs, and usability validation only\". Output at stop: validated UX flows + component specs.\nTraverse NEXT-STAGE transitively, bounded by the window stop; a skipped\nHARD discipline BLOCKs the run in every mode (GOAL-3 v3 §4c, authoritative)."
+  },
+  {
+    "frontmatter": {
+      "name": "activate-arch-to-ship",
+      "version": "1.0.0",
+      "type": "task",
+      "triggers": ["cycle:arch-to-ship", "architect, implement, and ship a design to production"],
+      "expected_outputs": ["ADR + implemented + tested + deployed"],
+      "requires_tools": [],
+      "fallback_for_toolsets": [],
+      "description": "Structural activation of the arch-to-ship dev-cycle window (spine 6-9)."
+    },
+    "presetId": "P11",
+    "window": {
+      "start": 6,
+      "stop": 9
+    },
+    "mode": "auto",
+    "hardSets": [
+      "/ai-ml-product-engineering",
+      "/code-quality-maintainability",
+      "/concurrency",
+      "/ddd",
+      "/observability",
+      "ai-ml-product-engineering",
+      "api-design",
+      "architecture-system-design",
+      "cloud-platform-infrastructure",
+      "code-quality-maintainability",
+      "concurrency",
+      "database-storage-performance",
+      "error-handling",
+      "feature-delivery",
+      "observability",
+      "performance",
+      "production-reliability-devops",
+      "technical-analysis-discovery",
+      "testing",
+      "web-mobile-platform"
+    ],
+    "body": "<!-- HIMA:SKILL-ARTIFACT name=activate-arch-to-ship source=consommable-generator -->\n# Activate: arch-to-ship (P11)\n\n## Activation\n- Window: spine [6 -> 9]\n- Invocation: `/cycle:arch-to-ship[:mode]` (default mode: auto)\n\n## Ownership\n- Owns: deterministic structural activation of the arch-to-ship chain-window.\n- Out of scope: deciding the verdict (the windowed disciplines do that).\n\n## Forced disciplines (HARD — non-skippable, even in bypass)\n- /ai-ml-product-engineering\n- /code-quality-maintainability\n- /concurrency\n- /ddd\n- /observability\n- ai-ml-product-engineering\n- api-design\n- architecture-system-design\n- cloud-platform-infrastructure\n- code-quality-maintainability\n- concurrency\n- database-storage-performance\n- error-handling\n- feature-delivery\n- observability\n- performance\n- production-reliability-devops\n- technical-analysis-discovery\n- testing\n- web-mobile-platform\n\nIntent seed: \"I want to architect, implement, and ship a design to production\". Output at stop: ADR + implemented + tested + deployed.\nTraverse NEXT-STAGE transitively, bounded by the window stop; a skipped\nHARD discipline BLOCKs the run in every mode (GOAL-3 v3 §4c, authoritative)."
+  },
+  {
+    "frontmatter": {
+      "name": "activate-build-to-ship",
+      "version": "1.0.0",
+      "type": "task",
+      "triggers": ["cycle:build-to-ship", "implement, test, and release an existing architecture"],
+      "expected_outputs": ["green tests + deploy pipeline"],
+      "requires_tools": [],
+      "fallback_for_toolsets": [],
+      "description": "Structural activation of the build-to-ship dev-cycle window (spine 8-9)."
+    },
+    "presetId": "P12",
+    "window": {
+      "start": 8,
+      "stop": 9
+    },
+    "mode": "auto",
+    "hardSets": [
+      "/code-quality-maintainability",
+      "/concurrency",
+      "/observability",
+      "code-quality-maintainability",
+      "concurrency",
+      "error-handling",
+      "feature-delivery",
+      "observability",
+      "performance",
+      "production-reliability-devops",
+      "testing",
+      "web-mobile-platform"
+    ],
+    "body": "<!-- HIMA:SKILL-ARTIFACT name=activate-build-to-ship source=consommable-generator -->\n# Activate: build-to-ship (P12)\n\n## Activation\n- Window: spine [8 -> 9]\n- Invocation: `/cycle:build-to-ship[:mode]` (default mode: auto)\n\n## Ownership\n- Owns: deterministic structural activation of the build-to-ship chain-window.\n- Out of scope: deciding the verdict (the windowed disciplines do that).\n\n## Forced disciplines (HARD — non-skippable, even in bypass)\n- /code-quality-maintainability\n- /concurrency\n- /observability\n- code-quality-maintainability\n- concurrency\n- error-handling\n- feature-delivery\n- observability\n- performance\n- production-reliability-devops\n- testing\n- web-mobile-platform\n\nIntent seed: \"I want to implement, test, and release an existing architecture\". Output at stop: green tests + deploy pipeline.\nTraverse NEXT-STAGE transitively, bounded by the window stop; a skipped\nHARD discipline BLOCKs the run in every mode (GOAL-3 v3 §4c, authoritative)."
+  },
+  {
+    "frontmatter": {
+      "name": "activate-aiml-feature",
+      "version": "1.0.0",
+      "type": "task",
+      "triggers": ["cycle:aiml-feature", "design an AI/ML feature, implement it, and ship it"],
+      "expected_outputs": ["AI ADR + eval corpus + eval-gated release"],
+      "requires_tools": [],
+      "fallback_for_toolsets": [],
+      "description": "Structural activation of the aiml-feature dev-cycle window (spine 7-9)."
+    },
+    "presetId": "P13",
+    "window": {
+      "start": 7,
+      "stop": 9
+    },
+    "mode": "auto",
+    "hardSets": [
+      "/ai-ml-product-engineering",
+      "/code-quality-maintainability",
+      "/concurrency",
+      "/observability",
+      "ai-ml-product-engineering",
+      "code-quality-maintainability",
+      "concurrency",
+      "error-handling",
+      "feature-delivery",
+      "observability",
+      "performance",
+      "production-reliability-devops",
+      "testing",
+      "web-mobile-platform"
+    ],
+    "body": "<!-- HIMA:SKILL-ARTIFACT name=activate-aiml-feature source=consommable-generator -->\n# Activate: aiml-feature (P13)\n\n## Activation\n- Window: spine [7 -> 9]\n- Invocation: `/cycle:aiml-feature[:mode]` (default mode: auto)\n\n## Ownership\n- Owns: deterministic structural activation of the aiml-feature chain-window.\n- Out of scope: deciding the verdict (the windowed disciplines do that).\n\n## Forced disciplines (HARD — non-skippable, even in bypass)\n- /ai-ml-product-engineering\n- /code-quality-maintainability\n- /concurrency\n- /observability\n- ai-ml-product-engineering\n- code-quality-maintainability\n- concurrency\n- error-handling\n- feature-delivery\n- observability\n- performance\n- production-reliability-devops\n- testing\n- web-mobile-platform\n\nIntent seed: \"I want to design an AI/ML feature, implement it, and ship it\". Output at stop: AI ADR + eval corpus + eval-gated release.\nTraverse NEXT-STAGE transitively, bounded by the window stop; a skipped\nHARD discipline BLOCKs the run in every mode (GOAL-3 v3 §4c, authoritative)."
+  },
+  {
+    "frontmatter": {
+      "name": "activate-gtm",
+      "version": "1.0.0",
+      "type": "task",
+      "triggers": [
+        "cycle:gtm",
+        "acquire users, retain them, measure, validate unit economics for a shipped product"
+      ],
+      "expected_outputs": ["channel fit + CS playbook + dashboard + unit economics"],
+      "requires_tools": [],
+      "fallback_for_toolsets": [],
+      "description": "Structural activation of the gtm dev-cycle window (spine 10-13)."
+    },
+    "presetId": "P14",
+    "window": {
+      "start": 10,
+      "stop": 13
+    },
+    "mode": "auto",
+    "hardSets": [
+      "activation-retention",
+      "customer-success",
+      "growth-distribution",
+      "metrics-analytics",
+      "saas-finance",
+      "sales-revenue",
+      "seo-content"
+    ],
+    "body": "<!-- HIMA:SKILL-ARTIFACT name=activate-gtm source=consommable-generator -->\n# Activate: gtm (P14)\n\n## Activation\n- Window: spine [10 -> 13]\n- Invocation: `/cycle:gtm[:mode]` (default mode: auto)\n\n## Ownership\n- Owns: deterministic structural activation of the gtm chain-window.\n- Out of scope: deciding the verdict (the windowed disciplines do that).\n\n## Forced disciplines (HARD — non-skippable, even in bypass)\n- activation-retention\n- customer-success\n- growth-distribution\n- metrics-analytics\n- saas-finance\n- sales-revenue\n- seo-content\n\nIntent seed: \"I want to acquire users, retain them, measure, validate unit economics for a shipped product\". Output at stop: channel fit + CS playbook + dashboard + unit economics.\nTraverse NEXT-STAGE transitively, bounded by the window stop; a skipped\nHARD discipline BLOCKs the run in every mode (GOAL-3 v3 §4c, authoritative)."
+  },
+  {
+    "frontmatter": {
+      "name": "activate-have-idea-to-ship",
+      "version": "1.0.0",
+      "type": "task",
+      "triggers": [
+        "cycle:have-idea-to-ship",
+        "go straight from a formed idea with rough positioning to shipped product"
+      ],
+      "expected_outputs": ["positioned spec + UX + architecture + shipped build"],
+      "requires_tools": [],
+      "fallback_for_toolsets": [],
+      "description": "Structural activation of the have-idea-to-ship dev-cycle window (spine 2-9)."
+    },
+    "presetId": "P15",
+    "window": {
+      "start": 2,
+      "stop": 9
+    },
+    "mode": "auto",
+    "hardSets": [
+      "/ai-ml-product-engineering",
+      "/code-quality-maintainability",
+      "/concurrency",
+      "/ddd",
+      "/observability",
+      "/product-strategy",
+      "ai-ml-product-engineering",
+      "api-design",
+      "architecture-system-design",
+      "cloud-platform-infrastructure",
+      "code-quality-maintainability",
+      "concurrency",
+      "database-storage-performance",
+      "error-handling",
+      "feature-delivery",
+      "observability",
+      "performance",
+      "positioning-messaging-category",
+      "product-goal-sprint-alignment",
+      "product-strategy",
+      "production-reliability-devops",
+      "schema-driven-development",
+      "specification-requirements",
+      "technical-analysis-discovery",
+      "testing",
+      "ui-knowledge",
+      "ui-styling",
+      "ux-research-product-experience",
+      "web-mobile-platform"
+    ],
+    "body": "<!-- HIMA:SKILL-ARTIFACT name=activate-have-idea-to-ship source=consommable-generator -->\n# Activate: have-idea-to-ship (P15)\n\n## Activation\n- Window: spine [2 -> 9]\n- Invocation: `/cycle:have-idea-to-ship[:mode]` (default mode: auto)\n\n## Ownership\n- Owns: deterministic structural activation of the have-idea-to-ship chain-window.\n- Out of scope: deciding the verdict (the windowed disciplines do that).\n\n## Forced disciplines (HARD — non-skippable, even in bypass)\n- /ai-ml-product-engineering\n- /code-quality-maintainability\n- /concurrency\n- /ddd\n- /observability\n- /product-strategy\n- ai-ml-product-engineering\n- api-design\n- architecture-system-design\n- cloud-platform-infrastructure\n- code-quality-maintainability\n- concurrency\n- database-storage-performance\n- error-handling\n- feature-delivery\n- observability\n- performance\n- positioning-messaging-category\n- product-goal-sprint-alignment\n- product-strategy\n- production-reliability-devops\n- schema-driven-development\n- specification-requirements\n- technical-analysis-discovery\n- testing\n- ui-knowledge\n- ui-styling\n- ux-research-product-experience\n- web-mobile-platform\n\nIntent seed: \"I want to go straight from a formed idea with rough positioning to shipped product\". Output at stop: positioned spec + UX + architecture + shipped build.\nTraverse NEXT-STAGE transitively, bounded by the window stop; a skipped\nHARD discipline BLOCKs the run in every mode (GOAL-3 v3 §4c, authoritative)."
+  },
+  {
+    "frontmatter": {
+      "name": "activate-scope",
+      "version": "1.0.0",
+      "type": "task",
+      "triggers": ["cycle:scope", "fire exactly one decision rule for a narrow, targeted ask"],
+      "expected_outputs": ["single matched rule output, no traversal"],
+      "requires_tools": [],
+      "fallback_for_toolsets": [],
+      "description": "Structural activation of the scope dev-cycle window (spine 1-1)."
+    },
+    "presetId": "P16",
+    "window": {
+      "start": 1,
+      "stop": 1
+    },
+    "mode": "auto",
+    "hardSets": ["idea-sourcing", "idea-to-pmf"],
+    "body": "<!-- HIMA:SKILL-ARTIFACT name=activate-scope source=consommable-generator -->\n# Activate: scope (P16)\n\n## Activation\n- Window: spine [1 -> 1]\n- Invocation: `/cycle:scope[:mode]` (default mode: auto)\n\n## Ownership\n- Owns: deterministic structural activation of the scope chain-window.\n- Out of scope: deciding the verdict (the windowed disciplines do that).\n\n## Forced disciplines (HARD — non-skippable, even in bypass)\n- idea-sourcing\n- idea-to-pmf\n\nIntent seed: \"I want to fire exactly one decision rule for a narrow, targeted ask\". Output at stop: single matched rule output, no traversal.\nTraverse NEXT-STAGE transitively, bounded by the window stop; a skipped\nHARD discipline BLOCKs the run in every mode (GOAL-3 v3 §4c, authoritative)."
+  }
+]

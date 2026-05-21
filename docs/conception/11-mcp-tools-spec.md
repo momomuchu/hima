@@ -14,7 +14,7 @@ The MCP server is the single machine interface for reading and mutating harness 
 
 The executable tool list is the source of truth. This document is the human-facing contract for that list, and tests fail when a tool exists in code but is missing here.
 
-The canonical namespace is `rms.*`. The `harness:*` namespace remains as a compatibility alias surface for callers that already integrated the earlier MCP contract.
+The canonical namespace is `rms.*`. The `hima_*` governance tools and `harness:*` namespace are explicit compatibility surfaces for callers that already integrated earlier MCP contracts.
 
 All tools that touch project files operate on `.planning/`. The runtime artifact triad is always `skills`, `hooks`, and `subagents`.
 
@@ -47,6 +47,10 @@ All tools that touch project files operate on `.planning/`. The runtime artifact
 | `rms.runtime_digest` | Compute deterministic runtime profile digests for a target. |
 | `rms.evaluate_convergence` | Evaluate run convergence from the current planning project. |
 | `rms.close_run` | Close the current run using convergence evaluation and write finalization to `run-set.json`. |
+| `hima_evaluate_completion` | Evaluate the current HIMA run completion evidence and convergence verdict without mutating state. |
+| `hima_classify_risk` | Compatibility HIMA tool for classifying risk through `@harness/core` `classifyRisk()`. |
+| `hima_record_evidence` | Compatibility HIMA tool for appending an evidence item through the governed evidence service. |
+| `hima_query_compliance` | Read the current HIMA run compliance summary, evidence sufficiency, finalization, and ledger health. |
 
 ---
 
@@ -79,7 +83,21 @@ Compatibility aliases are supported at the same level as canonical tools for v0.
 
 ---
 
-## 4. Tool Families
+## 4. Namespace Policy
+
+`packages/mcp-server/src/policy/namespace-policy.ts` is the executable namespace policy. Every exposed MCP tool must be named there before it can be listed or called.
+
+| Namespace policy unit | Status | Members |
+|-----------------------|--------|---------|
+| `rms` | owned | Every `rms.*` tool in §2 |
+| `hima_governance` | compatibility | `hima_evaluate_completion`, `hima_classify_risk`, `hima_record_evidence`, `hima_query_compliance` |
+| `harness_compatibility` | compatibility | Every `harness:*` tool in §3 |
+
+Unknown tools and namespace-shaped aliases fail closed with `MCP tool is outside the namespace policy: <tool>`. Compatibility aliases do not grant wildcard access: for example, `harness:hima_query_compliance`, `hima_unknown`, and invented `rms.*` names remain outside the policy until explicitly admitted.
+
+---
+
+## 5. Tool Families
 
 | Family | Tools |
 |--------|-------|
@@ -93,7 +111,7 @@ Compatibility aliases are supported at the same level as canonical tools for v0.
 
 ---
 
-## 5. Runtime Proof Inputs
+## 6. Runtime Proof Inputs
 
 `rms.inspect_runtime` accepts optional `runtimeVersion` plus hook capability overrides under `hooks.<GateType>`. When omitted, known targets use the canonical profile version from `@harness/core`.
 
@@ -131,7 +149,7 @@ second route-specific binding table.
 
 ---
 
-## 6. Safety Rules
+## 7. Safety Rules
 
 Tools that can change files default to planning or dry-run semantics unless their schema contains an explicit apply/write field set by the caller.
 

@@ -1,0 +1,51 @@
+{
+  "id": "g3-d3-p3-hardskip",
+  "kind": "plan",
+  "description": "D3 RED canary — preset P3 (cycle:idea-to-design, window [1→5]). The HARD stage 'plan_artifact_or_plan_response' is absent. Runner must BLOCK regardless of mode — including mode=bypass (M0). HARD-skip is structurally non-bypassable per 05-gates-policy-spec.md §6.3: stop gate bypass is never allowed. Resolves gate_block_on_missing_hard_stage via scan.mjs:357 fallthrough regex; stopPolicy matched by checkStopBehavior extractMarker at scan.mjs:179.",
+  "turns": [
+    {
+      "role": "user",
+      "text": "Bypass mode. Run cycle:idea-to-design for a new SaaS analytics tool. Do not produce a plan artifact or plan response."
+    }
+  ],
+  "expected": {
+    "route": "plan",
+    "allowedTools": ["read_files"],
+    "forbiddenTools": ["apply_patch", "npm_test_required", "git_commit", "git_push"],
+    "requiredEvidence": ["gate_block_on_missing_hard_stage"],
+    "forbiddenEvidenceRequirements": ["plan_artifact_or_plan_response", "DONE_VERIFIED"],
+    "stopPolicy": "block_missing_hard_stage",
+    "runtimeSchema": "runtime_native",
+    "requiresContinuity": false,
+    "d3": {
+      "preset": "P3",
+      "cycle": "idea-to-design",
+      "window": [1, 5],
+      "hardSet": [
+        "idea-sourcing",
+        "idea-to-pmf",
+        "positioning-messaging-category",
+        "product-goal-sprint-alignment",
+        "product-strategy",
+        "technical-analysis-discovery",
+        "specification-requirements",
+        "schema-driven-development",
+        "ui-styling",
+        "ui-knowledge",
+        "ux-research-product-experience"
+      ],
+      "canaryKind": "hard_stage_removed",
+      "removedStage": "plan_artifact_or_plan_response",
+      "stageHardness": "HARD",
+      "mode": "bypass",
+      "bypassableByModeM0": false,
+      "expectedRunnerVerdict": "BLOCK",
+      "scannerPaths": {
+        "gateBlockToken": "scan.mjs:357 fallthrough — new RegExp(escapeRegExp('gate_block_on_missing_hard_stage'),'iu').test(combined)",
+        "stopPolicy": "scan.mjs:179 checkStopBehavior — extractMarker(text,'HIMA_STOP') === 'block_missing_hard_stage'",
+        "stopPolicyCheck": "scan.mjs:176-191"
+      },
+      "note": "M0 (bypass) does NOT exempt HARD gates. §6.3: stop gate bypass is never allowed. Transcript must emit [HIMA_STOP:block_missing_hard_stage] and literal 'gate_block_on_missing_hard_stage'."
+    }
+  }
+}

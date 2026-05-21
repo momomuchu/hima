@@ -1,0 +1,73 @@
+{
+  "id": "g3-d5-p3-state-emit",
+  "kind": "full_cycle",
+  "description": "D5 state-inspection — preset P3 (cycle:idea-to-design, window [1→5]). Each turn must emit the full ImaState object {active_stage, window, mode, forced_disciplines, next_handoff, decision_owner}. Proves the harness is 'context injection over state' (GOAL-3 §0), not blind chaining. All 6 fields required every turn per GOAL-3 §5 D5 and §10.1 (IMA core).",
+  "durationProfile": {
+    "targetMinutes": 20,
+    "minimumTurns": 3,
+    "pace": "sequential_stop_then_follow_up"
+  },
+  "turns": [
+    {
+      "role": "user",
+      "text": "State inspection turn 1: activate cycle:idea-to-design, enter idea-pmf. Report the full ImaState object: active_stage, window, mode, forced_disciplines, next_handoff, and decision_owner."
+    },
+    {
+      "role": "user",
+      "text": "State inspection turn 2: advance to analysis-discovery. Report the updated full ImaState object with all 6 fields reflecting the new active stage and updated forced_disciplines."
+    },
+    {
+      "role": "user",
+      "text": "State inspection turn 3: advance to design-ux (window stop). Report the final ImaState object and confirm next_handoff is END (or architecture if chaining were enabled) and decision_owner is correctly set for the current risk class."
+    }
+  ],
+  "expected": {
+    "route": "plan",
+    "allowedTools": ["read_files"],
+    "forbiddenTools": [
+      "external_publish",
+      "payment",
+      "user_contact",
+      "git_commit",
+      "git_push",
+      "npm_publish"
+    ],
+    "requiredEvidence": [
+      "state_object_emitted_per_turn",
+      "real_turn_boundaries",
+      "plan_artifact_or_plan_response"
+    ],
+    "forbiddenEvidenceRequirements": ["DONE_VERIFIED", "BLOCKED_POLICY"],
+    "stopPolicy": "allow_plan_stop",
+    "runtimeSchema": "runtime_native",
+    "requiresContinuity": true,
+    "requiredPhases": ["idea-pmf", "analysis-discovery", "design-ux"],
+    "requiredRuntimeSignals": ["state_object_emitted_per_turn"],
+    "d5": {
+      "preset": "P3",
+      "cycle": "idea-to-design",
+      "window": [1, 5],
+      "stateObjectFields": [
+        "active_stage",
+        "window",
+        "mode",
+        "forced_disciplines",
+        "next_handoff",
+        "decision_owner"
+      ],
+      "evidenceToken": "state_object_emitted_per_turn",
+      "tokenResolution": "scan.mjs:357 fallthrough — new RegExp(escapeRegExp('state_object_emitted_per_turn'),'iu').test(combined)",
+      "perTurnMarker": "[HIMA_STATE:{...}] emitted after each [HIMA_SESSION_TURN_END:N]",
+      "runnerVerification": "checkEvidenceBurden (scan.mjs:132-147) + checkTurnBoundaries (scan.mjs:238-253) + checkRuntimeSignals (scan.mjs:216-225)",
+      "pfv4Refs": {
+        "active_stage": "01-state-machine-spec.md §9.2 macro_state+micro_state",
+        "window": "01-state-machine-spec.md §1.2 SubPhase enum; preset-catalog.md §2 P3 window [1→5]",
+        "mode": "01-state-machine-spec.md §9.2 mode field; GOAL-3.md §4c OperatingMode",
+        "forced_disciplines": "GOAL-3.md §10.1 RunContext.activeForceSignals; preset-catalog.md §2 P3 HARD disciplines",
+        "next_handoff": "01-state-machine-spec.md §3.1 transitions T008-T058; GOAL-3.md §4a NEXT-STAGE linear spine",
+        "decision_owner": "05-gates-policy-spec.md §4.1 humanValidationRequired flag; GOAL-3.md §4c decision authority column"
+      },
+      "ref": "GOAL-3.md §0 (IMA core = context injection over state); §5 D5; §10.1 locked decisions"
+    }
+  }
+}

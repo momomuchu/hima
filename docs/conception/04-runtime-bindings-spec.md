@@ -18,6 +18,8 @@ Each RMS abstract concept maps to a concrete primitive on each platform. When a 
 | **user_prompt** | `UserPromptSubmit` hook | `UserPromptSubmit` hook | `pre_llm_call` plugin hook (closest semantic match) |
 | **pre_tool** | `PreToolUse` hook | `PreToolUse` hook | `pre_tool_call` plugin/shell hook |
 | **post_tool** | `PostToolUse` hook | `PostToolUse` hook | `post_tool_call` plugin/shell hook |
+| **pre_compact** | `PreCompact` hook | `PreCompact` hook | `pre_compact` plugin/shell hook |
+| **post_compact** | `PostCompact` hook | `PostCompact` hook | `post_compact` plugin/shell hook |
 | **stop** | `Stop` hook | `Stop` hook | `on_session_end` + `on_session_finalize` plugin hooks |
 | **subagent_start** | `SubagentStart` hook | no native executable MVP hook | no native executable MVP hook |
 | **subagent_stop** | `SubagentStop` hook | no equivalent — `no-op` with capability flag `subagent_stop_hook: false` | `subagent_stop` plugin hook |
@@ -132,6 +134,8 @@ This table is the implementation-facing contract for runtime hook profiles. It i
 | `claude` | `user_prompt` | `UserPromptSubmit` | true | true | `harness hook user-prompt-submit --format claude` |
 | `claude` | `pre_tool` | `PreToolUse` | true | true | `harness hook pre-tool-use --format claude` |
 | `claude` | `post_tool` | `PostToolUse` | false | true | `harness hook post-tool-use --format claude` |
+| `claude` | `pre_compact` | `PreCompact` | true | true | `harness hook pre-compact --format claude` |
+| `claude` | `post_compact` | `PostCompact` | false | true | `harness hook post-compact --format claude` |
 | `claude` | `stop` | `Stop` | true | true | `harness hook stop --format claude` |
 | `claude` | `subagent_start` | `SubagentStart` | true | true | `harness hook subagent-start --format claude` |
 | `claude` | `subagent_stop` | `SubagentStop` | true | true | `harness hook subagent-stop --format claude` |
@@ -139,6 +143,8 @@ This table is the implementation-facing contract for runtime hook profiles. It i
 | `codex` | `user_prompt` | `UserPromptSubmit` | true | true | `harness hook user-prompt-submit --format codex` |
 | `codex` | `pre_tool` | `PreToolUse` | true | true | `harness hook pre-tool-use --format codex` |
 | `codex` | `post_tool` | `PostToolUse` | false | true | `harness hook post-tool-use --format codex` |
+| `codex` | `pre_compact` | `PreCompact` | true | true | `harness hook pre-compact --format codex` |
+| `codex` | `post_compact` | `PostCompact` | false | true | `harness hook post-compact --format codex` |
 | `codex` | `stop` | `Stop` | true | true | `harness hook stop --format codex` |
 | `codex` | `subagent_start` | null | false | false | `harness hook subagent-start --format codex` |
 | `codex` | `subagent_stop` | null | false | false | `harness hook subagent-stop --format codex` |
@@ -146,6 +152,8 @@ This table is the implementation-facing contract for runtime hook profiles. It i
 | `hermes` | `user_prompt` | `pre_llm_call` | true | true | `harness hook user-prompt-submit` |
 | `hermes` | `pre_tool` | `pre_tool_call` | true | true | `harness hook pre-tool-use` |
 | `hermes` | `post_tool` | `post_tool_call` | false | true | `harness hook post-tool-use` |
+| `hermes` | `pre_compact` | `pre_compact` | true | true | `harness hook pre-compact` |
+| `hermes` | `post_compact` | `post_compact` | false | true | `harness hook post-compact` |
 | `hermes` | `stop` | `on_session_end` | false | true | `harness hook stop` |
 | `hermes` | `subagent_start` | null | false | false | `harness hook subagent-start` |
 | `hermes` | `subagent_stop` | `subagent_stop` | false | true | `harness hook subagent-stop` |
@@ -865,6 +873,8 @@ Quick reference for `harness hook <GateType>` CLI argument to platform event nam
 | `user_prompt` | `UserPromptSubmit` | `UserPromptSubmit` | `pre_llm_call` |
 | `pre_tool` | `PreToolUse` | `PreToolUse` | `pre_tool_call` |
 | `post_tool` | `PostToolUse` | `PostToolUse` | `post_tool_call` |
+| `pre_compact` | `PreCompact` | `PreCompact` | `pre_compact` |
+| `post_compact` | `PostCompact` | `PostCompact` | `post_compact` |
 | `stop` | `Stop` | `Stop` | `on_session_end` |
 | `subagent_start` | `SubagentStart` | **(no-op for unmanaged launches)** | **(no-op in executable MVP profile)** |
 | `subagent_stop` | `SubagentStop` | **(no-op)** | `subagent_stop` |

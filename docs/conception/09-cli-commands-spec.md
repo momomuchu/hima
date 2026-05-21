@@ -35,6 +35,7 @@ All platform and artifact write paths are dry-run by default unless the command 
 | `harness` | Root binary and command namespace. | None |
 | `harness init` | Create the three canonical `.planning/` files. | Writes project state files |
 | `harness status` | Show current harness state. | None |
+| `harness status gates` | Show gate-decision records and per-behavior SLI snapshots. | None |
 | `harness convergence` | Evaluate convergence from `.planning/` state. | None |
 | `harness close` | Close the current run from convergence evaluation. | Writes run closure data |
 | `harness hook` | Evaluate a runtime hook event from JSON stdin. | Writes gate event unless `--dryRun` is set |
@@ -46,6 +47,21 @@ All platform and artifact write paths are dry-run by default unless the command 
 | `harness risk classify` | Classify a changeset risk level from pragmatic CLI flags. | None |
 | `harness doctor` | Validate local harness installation and `.planning/` state files. | None today; `--fix` is reserved |
 | `harness validate` | Machine-friendly read-only validation for project state. | None |
+| `harness self-test` | Run deterministic local fixture/install/hook checks without launching external model sessions. | None |
+| `harness siem-fixture` | Write local SIEM-like ingest records without network transmission. | `.planning/siem-fixtures/<runId>.json` |
+| `harness stress-fixture` | Run deterministic local transition/ledger stress checks without launching runtimes. | `.hima/state/ledger/<runId>.jsonl` |
+| `harness benchmark` | Benchmark planning namespace. | None |
+| `harness benchmark authorization` | Benchmark execution authorization namespace. | None |
+| `harness benchmark authorization validate` | Validate benchmark authorization JSON without executing benchmarks. | None |
+| `harness benchmark authorization write` | Write blocked or authorized benchmark execution state without executing benchmarks. | `.planning/benchmarks/swe-bench-verified/authorization.json` |
+| `harness benchmark execution-preflight` | Check whether benchmark execution is explicitly authorized. | None |
+| `harness benchmark plan` | Plan a benchmark run without launching external sessions. | None |
+| `harness benchmark validate` | Validate a benchmark result JSON file without executing benchmarks. | None |
+| `harness benchmark write` | Write a planned or blocked benchmark result artifact without executing benchmarks. | `.planning/benchmarks/` result JSON |
+| `harness compliance-pack` | Developer-session compliance pack namespace. | None |
+| `harness compliance-pack assemble` | Assemble a compliance pack only after local evidence references, including a local SIEM fixture, exist. | `.planning/compliance-packs/` assembled JSON |
+| `harness compliance-pack validate` | Validate a compliance pack JSON file without executing runtimes. | None |
+| `harness compliance-pack write` | Write a draft or blocked compliance pack without executing runtimes. | `.planning/compliance-packs/` result JSON |
 | `harness install` | Plan or write a safe platform install manifest. | Dry-run by default; `--writeManifest` and `--apply` write |
 | `harness catalog` | Inspect the operational catalog. | None |
 | `harness artifacts` | Plan or write catalog-driven operational artifacts. | Dry-run by default; `--apply` writes |
@@ -63,6 +79,11 @@ All platform and artifact write paths are dry-run by default unless the command 
 | `harness runtime bind` | Bind inspected runtime capabilities to required gates. | Writes runtime binding state |
 | `harness runtime probe` | Read target runtime config and persist core-minted runtime proofs. | Writes trusted runtime capability observation and optionally bindings |
 | `harness runtime assess-route` | Assess route-required runtime bindings from current `.planning/` state. | None |
+| `harness runtime parity-authorization` | Real-runtime parity authorization namespace. | None |
+| `harness runtime parity-authorization validate` | Validate real-runtime parity authorization without executing runtimes. | None |
+| `harness runtime parity-authorization write` | Write blocked or authorized real-runtime parity authorization state. | `.planning/runtime-parity/authorization.json` |
+| `harness runtime parity-execution-preflight` | Check whether real-runtime parity execution is explicitly authorized. | None |
+| `harness runtime parity-fixture-validate` | Validate synthetic cross-runtime governance parity fixtures. | None |
 
 ---
 
@@ -193,6 +214,41 @@ harness runtime assess-route [--root <path>] [--json]
 The command returns the convergence `RuntimeBindingHealth` read model with route context:
 `riskClass`, `activeTarget`, `healthy`, `requiredGates`, `assessments`, and `gaps`. It never writes
 bindings or route-specific gate rows.
+
+`harness runtime parity-authorization` records whether real Claude/Codex/Hermes parity execution is
+blocked or explicitly authorized. The write command persists a local authorization artifact:
+
+```bash
+harness runtime parity-authorization write --status blocked --scenarioId small-feature --targets claude,codex,hermes --blockReason "..." [--root <path>] [--json]
+harness runtime parity-authorization validate <file> [--json]
+```
+
+Authorized artifacts require `authorizedBy`, `authorizationId`, `costBudgetUsd`,
+`credentialScope`, `evidenceRetentionPath`, and `transcriptRetentionPath`. All three runtime targets
+are required for real parity authorization. The command never launches runtime/model sessions.
+
+`harness runtime parity-execution-preflight` fails closed when authorization is absent or blocked:
+
+```bash
+harness runtime parity-execution-preflight [--root <path>] [--authorizationFile <path>] [--json]
+```
+
+It returns `executionAllowed: false` unless the authorization artifact is explicitly authorized.
+Even when preflight allows execution, this command does not start Claude, Codex, Hermes, SWE-bench,
+or any model session.
+
+`harness runtime parity-fixture-validate` validates local synthetic fixtures for Claude, Codex, and
+Hermes governance shape parity.
+
+```bash
+harness runtime parity-fixture-validate [--root <path>] [--fixturesDir fixtures/runtime-parity/synthetic] [--json]
+```
+
+The command parses `synthetic-runtime-parity-fixture` JSON files, requires one fixture for each
+canonical runtime target, and compares the governance fields across targets. It fails when a target
+fixture is missing, a schema-required governance field is absent, or any target drifts from the
+reference governance shape. It never probes runtime config, launches model sessions, runs SWE-bench,
+or claims real runtime parity; the result reports `externalSessionsLaunched: false`.
 
 ---
 

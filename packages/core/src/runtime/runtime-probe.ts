@@ -368,7 +368,7 @@ function hasCodexHook(configText: string, gateType: GateType, managedCommand?: s
 
 function hasCodexHooksFeature(configText: string): boolean {
   const featuresBlock = matchTomlTableBlock(configText, "features");
-  return featuresBlock ? matchTomlBooleanValue(featuresBlock, "codex_hooks") === true : false;
+  return featuresBlock ? matchTomlBooleanValue(featuresBlock, "hooks") === true : false;
 }
 
 function hasClaudeHook(configText: string, gateType: GateType, managedCommand?: string): boolean {
