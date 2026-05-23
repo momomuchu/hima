@@ -9,16 +9,17 @@
 
 ## Reading Order for Newcomers
 
-1. **Start here** -- `hima/docs/decisions/0001-project-identity.md` (35 lines) -- project name and repo identity
-2. **Vision** -- `hima/docs/research-reports/rapport-discovery-cadrage.md` (579 lines) -- Discovery/Cadrage consolidated report
-3. **Checkpoint** -- `hima/docs/research-reports/checkpoint-implementation.md` (710 lines) -- end of Discovery, beginning of Conception
-4. **Cycle overview** -- `hima/docs/cycles/01-discovery/concepts-criteria.md` through `08-apprentissage` -- the 8-cycle model
-5. **Transversal pillars** -- `hima/docs/transversal/` -- risk, quality, state machine, cross-cutting activities
-6. **Sub-cycle fractal** -- `hima/docs/sub-cycle-fractal/seven-steps.md` -- the 7-step universal sub-cycle
-7. **Architecture** -- `harness-architecture/docs/architecture/ARCHITECTURE.md` (1458 lines) -- single source of truth
-8. **Conception specs** -- `hima/docs/conception/01-*.md` through `11-*.md` -- implementation-ready specifications
-9. **Business model** -- `hima/docs/business-model/business-model-proposal.md` then the decision file
-10. **Open questions** -- `hima/docs/conception/open-questions/` -- unresolved design decisions
+1. **Portable agent brain** -- `hima/docs/agent-brain/README.md` -- behavior brain, transcript ingest, goals, taste tests, and push guide
+2. **Start here** -- `hima/docs/decisions/0001-project-identity.md` (35 lines) -- project name and repo identity
+3. **Vision** -- `hima/docs/research-reports/rapport-discovery-cadrage.md` (579 lines) -- Discovery/Cadrage consolidated report
+4. **Checkpoint** -- `hima/docs/research-reports/checkpoint-implementation.md` (710 lines) -- end of Discovery, beginning of Conception
+5. **Cycle overview** -- `hima/docs/cycles/01-discovery/concepts-criteria.md` through `08-apprentissage` -- the 8-cycle model
+6. **Transversal pillars** -- `hima/docs/transversal/` -- risk, quality, state machine, cross-cutting activities
+7. **Sub-cycle fractal** -- `hima/docs/sub-cycle-fractal/seven-steps.md` -- the 7-step universal sub-cycle
+8. **Architecture** -- `harness-architecture/docs/architecture/ARCHITECTURE.md` (1458 lines) -- single source of truth
+9. **Conception specs** -- `hima/docs/conception/01-*.md` through `11-*.md` -- implementation-ready specifications
+10. **Business model** -- `hima/docs/business-model/business-model-proposal.md` then the decision file
+11. **Open questions** -- `hima/docs/conception/open-questions/` -- unresolved design decisions
 
 ---
 
