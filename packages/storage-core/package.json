@@ -1,0 +1,20 @@
+{
+  "name": "@hima/storage-core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "node ../../scripts/with-build-lock.mjs -- tsup src/index.ts --format esm --dts --sourcemap --clean",
+    "typecheck": "node ../../scripts/with-build-lock.mjs -- tsc --noEmit",
+    "test": "vitest run --root ../.. ../../packages/storage-core/test"
+  }
+}
