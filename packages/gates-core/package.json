@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "engines": { "node": ">=20" },
+  "dependencies": {
+    "@harness/core": "workspace:*"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
