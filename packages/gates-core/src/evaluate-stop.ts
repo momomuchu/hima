@@ -81,8 +81,8 @@ export function evaluateStop(
 
     if (
       policy.requiresHumanCheckpoint &&
-      sufficiency.missingEvidenceKeys.size === 1 &&
-      sufficiency.missingEvidenceKeys.has("human_validation")
+      sufficiency.missingEvidenceKeys.length === 1 &&
+      sufficiency.missingEvidenceKeys.includes("human_validation")
     ) {
       return {
         decision: "block",
