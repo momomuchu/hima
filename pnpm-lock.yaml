@@ -33,6 +33,12 @@ importers:
         specifier: workspace:*
         version: link:../core
 
+  packages/adapter-claude-v2:
+    dependencies:
+      '@hima/storage-core':
+        specifier: workspace:*
+        version: link:../storage-core
+
   packages/adapter-codex:
     dependencies:
       '@harness/core':
@@ -44,6 +50,14 @@ importers:
       '@harness/core':
         specifier: workspace:*
         version: link:../core
+
+  packages/adapter-hermes-v2:
+    dependencies:
+      '@hima/storage-core':
+        specifier: workspace:*
+        version: link:../storage-core
+
+  packages/behavior-core: {}
 
   packages/cli:
     dependencies:
@@ -75,11 +89,26 @@ importers:
         specifier: ^4.4.2
         version: 4.4.2
 
+  packages/gates-core:
+    dependencies:
+      '@harness/core':
+        specifier: workspace:*
+        version: link:../core
+
   packages/generator:
     dependencies:
       zod:
         specifier: ^4.4.2
         version: 4.4.2
+
+  packages/hima-cli:
+    dependencies:
+      '@harness/core':
+        specifier: workspace:*
+        version: link:../core
+      '@hima/gates-core':
+        specifier: workspace:*
+        version: link:../gates-core
 
   packages/mcp-server:
     dependencies:
@@ -95,6 +124,15 @@ importers:
       '@harness/core':
         specifier: workspace:*
         version: link:../core
+
+  packages/storage-core:
+    dependencies:
+      yaml:
+        specifier: ^2.8.4
+        version: 2.8.4
+      zod:
+        specifier: ^4.4.2
+        version: 4.4.2
 
 packages:
 

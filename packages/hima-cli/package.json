@@ -21,6 +21,7 @@
     "test": "vitest run --root ../.. ../../packages/hima-cli/test"
   },
   "dependencies": {
+    "@harness/core": "workspace:*",
     "@hima/gates-core": "workspace:*"
   }
 }
