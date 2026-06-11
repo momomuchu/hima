@@ -1,5 +1,5 @@
 {
-  "name": "@hima/storage-core",
+  "name": "@hima/adapter-claude-v2",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -15,10 +15,9 @@
   "scripts": {
     "build": "node ../../scripts/with-build-lock.mjs -- tsup src/index.ts --format esm --dts --sourcemap --clean",
     "typecheck": "node ../../scripts/with-build-lock.mjs -- tsc --noEmit",
-    "test": "vitest run --root ../.. ../../packages/storage-core/test"
+    "test": "vitest run --root ../.. ../../packages/adapter-claude-v2/test"
   },
   "dependencies": {
-    "yaml": "^2.8.4",
-    "zod": "^4.4.2"
+    "@hima/storage-core": "workspace:*"
   }
 }
