@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "engines": { "node": ">=20" },
+  "bin": {
+    "hima": "./dist/index.js"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -16,5 +19,8 @@
     "build": "node ../../scripts/with-build-lock.mjs -- tsup src/index.ts --format esm --dts --sourcemap --clean",
     "typecheck": "node ../../scripts/with-build-lock.mjs -- tsc --noEmit",
     "test": "vitest run --root ../.. ../../packages/hima-cli/test"
+  },
+  "dependencies": {
+    "@hima/gates-core": "workspace:*"
   }
 }
