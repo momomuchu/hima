@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 /**
- * @hima/cli — hima hook dispatcher
+ * @hima/cli — hima hook dispatcher + trace viewer
  *
- * Usage:
+ * Subcommands:
  *   hima hook <event> [--format claude] [--root <dir>]
+ *   hima trace [--session <id>] [--root <dir>] [--gate <g>] [--decision <d>]
+ *              [--only-blocks] [--json] [--watch]
+ *   hima observe  (alias for hima trace)
  *
- * Supported events:
+ * Supported hook events:
  *   session-start | user-prompt-submit | pre-tool-use | post-tool-use |
  *   pre-compact   | post-compact       | subagent-start
  *
@@ -27,6 +30,7 @@
  *     without writing to the real process streams. Used by router.test.ts.
  */
 
+import { readdir, stat } from "node:fs/promises";
 import path from "node:path";
 
 import { readStdinPayload } from "./stdin.js";
@@ -36,9 +40,16 @@ import {
   handleNoOp,
 } from "./router.js";
 import type { StdinPayload } from "./stdin.js";
+import { renderObserve, filterTrace, type TraceFilter } from "./observe.js";
+
+// Lazy import of readTrace from @hima/core to avoid loading it for hook commands
+async function getReadTrace() {
+  const { readTrace } = await import("@hima/core");
+  return readTrace;
+}
 
 // ---------------------------------------------------------------------------
-// Supported events
+// Supported hook events
 // ---------------------------------------------------------------------------
 
 const KNOWN_EVENTS = new Set([
@@ -56,25 +67,40 @@ const KNOWN_EVENTS = new Set([
 // ---------------------------------------------------------------------------
 
 type ParsedArgs = {
+  subcommand: "hook" | "trace" | null;
   event: string | null;
   root: string | null;
   format: string;
+  // trace-specific flags
+  session: string | null;
+  gate: string | null;
+  decision: string | null;
+  onlyBlocks: boolean;
+  json: boolean;
+  watch: boolean;
 };
 
 function parseArgs(argv: string[]): ParsedArgs {
-  // argv[0] = node, argv[1] = script, argv[2] = "hook", argv[3] = <event>, ...
   const args = argv.slice(2);
 
-  let subcommand: string | null = null;
+  let subcommand: "hook" | "trace" | null = null;
   let event: string | null = null;
   let root: string | null = null;
   let format = "claude";
+  let session: string | null = null;
+  let gate: string | null = null;
+  let decision: string | null = null;
+  let onlyBlocks = false;
+  let json = false;
+  let watch = false;
 
   let i = 0;
   while (i < args.length) {
     const arg = args[i] ?? "";
-    if (arg === "hook" && subcommand === null) {
+    if ((arg === "hook") && subcommand === null) {
       subcommand = "hook";
+    } else if ((arg === "trace" || arg === "observe") && subcommand === null) {
+      subcommand = "trace";
     } else if (arg === "--root" && i + 1 < args.length) {
       root = args[i + 1] ?? null;
       i += 1;
@@ -85,13 +111,34 @@ function parseArgs(argv: string[]): ParsedArgs {
       i += 1;
     } else if (arg.startsWith("--format=")) {
       format = arg.slice("--format=".length);
+    } else if (arg === "--session" && i + 1 < args.length) {
+      session = args[i + 1] ?? null;
+      i += 1;
+    } else if (arg.startsWith("--session=")) {
+      session = arg.slice("--session=".length);
+    } else if (arg === "--gate" && i + 1 < args.length) {
+      gate = args[i + 1] ?? null;
+      i += 1;
+    } else if (arg.startsWith("--gate=")) {
+      gate = arg.slice("--gate=".length);
+    } else if (arg === "--decision" && i + 1 < args.length) {
+      decision = args[i + 1] ?? null;
+      i += 1;
+    } else if (arg.startsWith("--decision=")) {
+      decision = arg.slice("--decision=".length);
+    } else if (arg === "--only-blocks") {
+      onlyBlocks = true;
+    } else if (arg === "--json") {
+      json = true;
+    } else if (arg === "--watch") {
+      watch = true;
     } else if (!arg.startsWith("--") && subcommand === "hook" && event === null) {
       event = arg;
     }
     i += 1;
   }
 
-  return { event, root, format };
+  return { subcommand, event, root, format, session, gate, decision, onlyBlocks, json, watch };
 }
 
 // ---------------------------------------------------------------------------
@@ -107,6 +154,72 @@ function resolveRoot(flagRoot: string | null): string {
     return path.resolve(envRoot);
   }
   return process.cwd();
+}
+
+// ---------------------------------------------------------------------------
+// Trace viewer helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * findLatestSessionId — list trace files and return the sessionId of the most
+ * recently modified one. Returns null if none exist.
+ */
+async function findLatestSessionId(root: string): Promise<string | null> {
+  const traceDir = path.join(root, ".hima", "state", "trace");
+  let files: string[];
+  try {
+    files = await readdir(traceDir);
+  } catch {
+    return null;
+  }
+
+  const jsonlFiles = files.filter((f) => f.endsWith(".jsonl"));
+  if (jsonlFiles.length === 0) return null;
+
+  let latestFile = "";
+  let latestMtime = 0;
+
+  for (const f of jsonlFiles) {
+    try {
+      const s = await stat(path.join(traceDir, f));
+      if (s.mtimeMs > latestMtime) {
+        latestMtime = s.mtimeMs;
+        latestFile = f;
+      }
+    } catch {
+      // skip unreadable files
+    }
+  }
+
+  if (latestFile === "") return null;
+  // Strip .jsonl extension to get sessionId
+  return latestFile.slice(0, -".jsonl".length);
+}
+
+/**
+ * runTraceCommand — read and render the trace for a session.
+ * Used by both the one-shot and --watch paths.
+ */
+async function runTraceCommand(
+  root: string,
+  sessionId: string,
+  args: ParsedArgs,
+): Promise<void> {
+  const readTrace = await getReadTrace();
+  const events = await readTrace(root, sessionId);
+
+  if (args.json) {
+    process.stdout.write(JSON.stringify(events, null, 2) + "\n");
+    return;
+  }
+
+  const filter: TraceFilter = {
+    gate: args.gate ?? undefined,
+    decision: args.decision ?? undefined,
+    onlyBlocks: args.onlyBlocks,
+  };
+
+  process.stdout.write(renderObserve(events, filter) + "\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -155,6 +268,8 @@ export async function route(
   // Reset exitCode for this invocation.
   process.exitCode = 0;
 
+  const sessionId = payload.sessionId ?? "unknown-session";
+
   try {
     if (!KNOWN_EVENTS.has(event)) {
       // Unknown event — safety net, exit 0
@@ -176,11 +291,11 @@ export async function route(
         case "pre-compact":
         case "post-compact":
         case "subagent-start":
-          handleNoOp(event);
+          await handleNoOp(event, root, sessionId);
           break;
 
         default:
-          handleNoOp(event);
+          await handleNoOp(event, root, sessionId);
       }
     }
   } catch (err: unknown) {
@@ -205,7 +320,60 @@ export async function route(
 // ---------------------------------------------------------------------------
 
 async function main(): Promise<void> {
-  const { event, root: flagRoot } = parseArgs(process.argv);
+  const parsed = parseArgs(process.argv);
+  const root = resolveRoot(parsed.root);
+
+  // -------------------------------------------------------------------------
+  // hima trace / hima observe subcommand
+  // -------------------------------------------------------------------------
+  if (parsed.subcommand === "trace") {
+    // Determine sessionId: explicit --session or most-recently-modified file.
+    let sessionId = parsed.session;
+    if (sessionId === null || sessionId === "") {
+      sessionId = await findLatestSessionId(root);
+      if (sessionId === null) {
+        process.stderr.write("[hima] trace: no trace files found in .hima/state/trace/\n");
+        process.exitCode = 1;
+        return;
+      }
+    }
+
+    if (parsed.watch) {
+      // --watch: poll every ~1s and print new events as they arrive.
+      const readTrace = await getReadTrace();
+      let lastCount = 0;
+
+      process.stderr.write(`[hima] watching trace for session: ${sessionId}\n`);
+
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const events = await readTrace(root, sessionId);
+        if (events.length > lastCount) {
+          const newEvents = events.slice(lastCount);
+          lastCount = events.length;
+          const filter: TraceFilter = {
+            gate: parsed.gate ?? undefined,
+            decision: parsed.decision ?? undefined,
+            onlyBlocks: parsed.onlyBlocks,
+          };
+          const filtered = filterTrace(newEvents, filter);
+          if (filtered.length > 0) {
+            const { renderTimeline } = await import("./observe.js");
+            process.stdout.write(renderTimeline(filtered) + "\n");
+          }
+        }
+        await new Promise<void>((resolve) => setTimeout(resolve, 1000));
+      }
+    } else {
+      await runTraceCommand(root, sessionId, parsed);
+    }
+    return;
+  }
+
+  // -------------------------------------------------------------------------
+  // hima hook subcommand
+  // -------------------------------------------------------------------------
+  const { event } = parsed;
 
   // Unknown or missing event → exit 0 (allow, do not block session)
   if (event === null || !KNOWN_EVENTS.has(event)) {
@@ -215,10 +383,9 @@ async function main(): Promise<void> {
     return;
   }
 
-  const root = resolveRoot(flagRoot);
-
   // Read stdin payload — always tolerates failures
   const payload = await readStdinPayload();
+  const sessionId = payload.sessionId ?? "unknown-session";
 
   // Dispatch to the appropriate handler
   // Each handler is wrapped here so any error results in exit 0 (allow)
@@ -238,12 +405,12 @@ async function main(): Promise<void> {
       case "pre-compact":
       case "post-compact":
       case "subagent-start":
-        handleNoOp(event);
+        await handleNoOp(event, root, sessionId);
         break;
 
       default:
         // Type-exhaustiveness safety net (already guarded by KNOWN_EVENTS above)
-        handleNoOp(event);
+        await handleNoOp(event, root, sessionId);
     }
   } catch (err: unknown) {
     // SAFETY: never let an error block the session

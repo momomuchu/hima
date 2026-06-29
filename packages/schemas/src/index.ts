@@ -85,3 +85,11 @@ export {
   decodeWard,
   decodeWardEither,
 } from "./ward.js";
+
+// trace — structured observability record per gate invocation (v3)
+// Note: the legacy trace-event.ts is superseded by this export.
+export {
+  TraceEvent,
+  decodeTraceEvent,
+  decodeTraceEventEither,
+} from "./trace.js";

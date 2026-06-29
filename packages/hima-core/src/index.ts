@@ -69,3 +69,8 @@ export {
 export type {
   MergeOptions,
 } from "./team-merge.js";
+
+// ---------------------------------------------------------------------------
+// trace — per-session JSONL trace emitter (observability)
+// ---------------------------------------------------------------------------
+export { appendTrace, readTrace, traceFilePath } from "./trace.js";

@@ -14,6 +14,10 @@ export type StdinPayload = {
   toolName?: string;
   toolInput?: unknown;
   promptContent?: string;
+  /** Claude session_id from the hook payload (snake_case in real payloads). */
+  sessionId?: string;
+  /** Claude hook_event_name from the hook payload (e.g. "PreToolUse"). */
+  hookEventName?: string;
 };
 
 /**
@@ -48,9 +52,11 @@ export async function readStdinPayload(): Promise<StdinPayload> {
 /**
  * normalizePayload — map a parsed JSON value to the loose StdinPayload subset.
  *
- * Claude Code sends snake_case fields (`tool_name`, `tool_input`, `prompt`); we read those
- * first and fall back to camelCase (`toolName`, `toolInput`, `promptContent`) for direct/test
- * callers. Non-object input yields an empty payload. Pure + synchronous → unit-testable.
+ * Claude Code sends snake_case fields (`tool_name`, `tool_input`, `prompt`,
+ * `session_id`, `hook_event_name`); we read those first and fall back to
+ * camelCase (`toolName`, `toolInput`, `promptContent`, `sessionId`,
+ * `hookEventName`) for direct/test callers.
+ * Non-object input yields an empty payload. Pure + synchronous → unit-testable.
  */
 export function normalizePayload(parsed: unknown): StdinPayload {
   if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
@@ -65,5 +71,7 @@ export function normalizePayload(parsed: unknown): StdinPayload {
     toolName: str(obj["tool_name"]) ?? str(obj["toolName"]),
     toolInput: obj["tool_input"] ?? obj["toolInput"],
     promptContent: str(obj["prompt"]) ?? str(obj["promptContent"]),
+    sessionId: str(obj["session_id"]) ?? str(obj["sessionId"]),
+    hookEventName: str(obj["hook_event_name"]) ?? str(obj["hookEventName"]),
   };
 }

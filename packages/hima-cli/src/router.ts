@@ -9,6 +9,10 @@
  * (index.ts). Any unhandled error inside a handler should result in exit 0
  * (allow), never a crash that blocks the session.
  *
+ * TRACING CONTRACT: after each event is handled, appendTrace is called to
+ * persist a structured TraceEvent. Tracing is wrapped in try/catch so a trace
+ * failure never changes the hook's exit behaviour.
+ *
  * Event routing:
  *   user-prompt-submit  → sigil detection → ward create/resume → emit context
  *   pre-tool-use        → skill-gate enforcement for write tools
@@ -25,10 +29,11 @@ import {
   getCell,
   pickAttack,
   translateClaude,
+  appendTrace,
 } from "@hima/core";
 
 import { DEV_CYCLE } from "@hima/schemas";
-import type { GateVerdict } from "@hima/schemas";
+import type { GateVerdict, TraceEvent } from "@hima/schemas";
 
 import { emitBlock, emitContext, emitAllow } from "./claude-format.js";
 import type { StdinPayload } from "./stdin.js";
@@ -48,6 +53,32 @@ const WRITE_TOOL_NAMES = new Set([
 ]);
 
 // ---------------------------------------------------------------------------
+// Internal trace helper
+// ---------------------------------------------------------------------------
+
+/**
+ * safeAppendTrace — build a TraceEvent and fire-and-forget to persist it.
+ *
+ * Deliberately NOT awaited: handlers return immediately without blocking on I/O.
+ * Node.js event loop drains the pending appendFile before the process exits,
+ * so the trace line is written even without an explicit await in the handler.
+ * All errors are swallowed; tracing must NEVER alter the hook's exit behaviour.
+ */
+function safeAppendTrace(
+  root: string,
+  partial: Omit<TraceEvent, "ts">,
+): void {
+  try {
+    const event: TraceEvent = { ...partial, ts: new Date().toISOString() };
+    appendTrace(root, event, event.sessionId).catch(() => {
+      // swallow — tracing must never break the hook
+    });
+  } catch {
+    // swallow synchronous errors (e.g. schema construction)
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Exported event handlers
 // ---------------------------------------------------------------------------
 
@@ -59,6 +90,7 @@ export async function handleUserPromptSubmit(
   root: string,
   payload: StdinPayload,
 ): Promise<void> {
+  const sessionId = payload.sessionId ?? "unknown-session";
   const text = payload.promptContent ?? "";
 
   // 1. Sigil detection
@@ -66,6 +98,16 @@ export async function handleUserPromptSubmit(
   if (sigil === null) {
     // No sigil → silent allow
     emitAllow();
+    safeAppendTrace(root, {
+      sessionId,
+      hookEvent: "UserPromptSubmit",
+      gateType: "noop",
+      decision: "noop",
+      skillsForced: [],
+      skillsLoaded: [],
+      exitCode: 0,
+      reason: "no terminal sigil detected",
+    });
     return;
   }
 
@@ -80,6 +122,20 @@ export async function handleUserPromptSubmit(
   // 3. Build a canary and emit it as additionalContext
   const canary = `[HIMA] ward:${ward.id} stage:${ward.openStage} sigil:${sigil.sigil} floor:${ward.floor}`;
   emitContext("UserPromptSubmit", canary);
+
+  // 4. Emit trace event for the ward activation
+  safeAppendTrace(root, {
+    sessionId,
+    hookEvent: "UserPromptSubmit",
+    gateType: "ward",
+    decision: "allow",
+    sigil: sigil.sigil,
+    wardStage: ward.openStage,
+    skillsForced: [],
+    skillsLoaded: [],
+    exitCode: 0,
+    canary,
+  });
 }
 
 /**
@@ -92,12 +148,24 @@ export async function handlePreToolUse(
   root: string,
   payload: StdinPayload,
 ): Promise<void> {
+  const sessionId = payload.sessionId ?? "unknown-session";
   const toolName = payload.toolName ?? "";
 
   // 1. Load the ward. No ward → allow (the pipeline hasn't started yet).
   const ward = await resumeWard(root);
   if (ward === null) {
     emitAllow();
+    safeAppendTrace(root, {
+      sessionId,
+      hookEvent: "PreToolUse",
+      gateType: "noop",
+      decision: "noop",
+      toolName: toolName || undefined,
+      skillsForced: [],
+      skillsLoaded: [],
+      exitCode: 0,
+      reason: "no active ward",
+    });
     return;
   }
 
@@ -106,11 +174,24 @@ export async function handlePreToolUse(
   if (stageDef === undefined || stageDef.forceSkills.length === 0) {
     // No forced skills for this stage → allow
     emitAllow();
+    safeAppendTrace(root, {
+      sessionId,
+      hookEvent: "PreToolUse",
+      gateType: "noop",
+      decision: "noop",
+      toolName: toolName || undefined,
+      wardStage: ward.openStage,
+      skillsForced: [],
+      skillsLoaded: [],
+      exitCode: 0,
+      reason: "no forced skills for this stage",
+    });
     return;
   }
 
   // 3. Read the skill register.
   const register = await readRegister(root);
+  const skillsLoaded = register.map((r) => r.id);
 
   // 4. Find the first forceSkill not yet in the register.
   const missing = stageDef.forceSkills.find(
@@ -120,6 +201,18 @@ export async function handlePreToolUse(
   if (missing === undefined) {
     // All required skills are loaded → allow
     emitAllow();
+    safeAppendTrace(root, {
+      sessionId,
+      hookEvent: "PreToolUse",
+      gateType: "skill-force",
+      decision: "allow",
+      toolName: toolName || undefined,
+      wardStage: ward.openStage,
+      skillsForced: [],
+      skillsLoaded,
+      exitCode: 0,
+      reason: "all required skills loaded",
+    });
     return;
   }
 
@@ -127,6 +220,18 @@ export async function handlePreToolUse(
   if (!WRITE_TOOL_NAMES.has(toolName)) {
     // Non-write tool → allow (skill gate only fires on write tools)
     emitAllow();
+    safeAppendTrace(root, {
+      sessionId,
+      hookEvent: "PreToolUse",
+      gateType: "skill-force",
+      decision: "allow",
+      toolName: toolName || undefined,
+      wardStage: ward.openStage,
+      skillsForced: [],
+      skillsLoaded,
+      exitCode: 0,
+      reason: "non-write tool — skill gate not enforced",
+    });
     return;
   }
 
@@ -147,6 +252,20 @@ export async function handlePreToolUse(
 
   if (claudeResponse.decision === "block") {
     emitBlock(claudeResponse.reason ?? verdict.reason);
+
+    safeAppendTrace(root, {
+      sessionId,
+      hookEvent: "PreToolUse",
+      gateType: "skill-force",
+      decision: "block",
+      forceActionKind: action.kind,
+      toolName: toolName || undefined,
+      wardStage: ward.openStage,
+      skillsForced: [missing.id],
+      skillsLoaded,
+      exitCode: 2,
+      reason: claudeResponse.reason ?? verdict.reason,
+    });
   } else {
     // pickAttack downgraded to inject/noop (shouldn't happen with claude pre_tool,
     // but honour it gracefully)
@@ -155,14 +274,43 @@ export async function handlePreToolUse(
     } else {
       emitAllow();
     }
+
+    safeAppendTrace(root, {
+      sessionId,
+      hookEvent: "PreToolUse",
+      gateType: "skill-force",
+      decision: "allow",
+      forceActionKind: action.kind,
+      toolName: toolName || undefined,
+      wardStage: ward.openStage,
+      skillsForced: [],
+      skillsLoaded,
+      exitCode: 0,
+      reason: "pickAttack downgraded block to allow",
+    });
   }
 }
 
 /**
  * handleNoOp — for all other events: exit 0, optionally emit a canary to stderr.
+ * Also persists a "noop" trace event so the session timeline is complete.
  */
-export function handleNoOp(eventName: string): void {
+export async function handleNoOp(
+  eventName: string,
+  root: string,
+  sessionId: string,
+): Promise<void> {
   // Emit a quiet canary to stderr so the hook wire can be tested end-to-end.
   process.stderr.write(`[hima] ${eventName}: no-op\n`);
   emitAllow();
+
+  safeAppendTrace(root, {
+    sessionId,
+    hookEvent: eventName,
+    gateType: "noop",
+    decision: "noop",
+    skillsForced: [],
+    skillsLoaded: [],
+    exitCode: 0,
+  });
 }
