@@ -42,9 +42,11 @@ import {
   handlePostToolUse,
   handleStop,
   handleNoOp,
+  handleStageAdvance,
 } from "./router.js";
 import type { StdinPayload } from "./stdin.js";
 import type { RuntimeTarget } from "@hima/core";
+import type { StageVerdict } from "@hima/schemas";
 import { renderObserve, filterTrace, type TraceFilter } from "./observe.js";
 import { runSetup } from "./setup.js";
 
@@ -66,7 +68,9 @@ const KNOWN_EVENTS = new Set([
   "pre-compact",
   "post-compact",
   "subagent-start",
-  "stop",         // R-005: stop handler + BEH-023 completion gate
+  "stop",           // R-005: stop handler + BEH-023 completion gate
+  "stage-advance",  // R-006 + R-043: cycle-transition command
+  "subagent-stop",  // R-054: observe-only subagent stop event
 ]);
 
 // ---------------------------------------------------------------------------
@@ -88,6 +92,9 @@ type ParsedArgs = {
   // setup-specific flags
   runtime: "claude" | "codex" | "hermes" | null;
   fresh: boolean;
+  // stage-advance-specific flags (R-006 / R-043)
+  stage: string | null;
+  status: string | null;
 };
 
 function parseArgs(argv: string[]): ParsedArgs {
@@ -105,6 +112,8 @@ function parseArgs(argv: string[]): ParsedArgs {
   let watch = false;
   let runtime: "claude" | "codex" | "hermes" | null = null;
   let fresh = false;
+  let stage: string | null = null;
+  let status: string | null = null;
 
   let i = 0;
   while (i < args.length) {
@@ -148,6 +157,16 @@ function parseArgs(argv: string[]): ParsedArgs {
       watch = true;
     } else if (arg === "--fresh") {
       fresh = true;
+    } else if (arg === "--stage" && i + 1 < args.length) {
+      stage = args[i + 1] ?? null;
+      i += 1;
+    } else if (arg.startsWith("--stage=")) {
+      stage = arg.slice("--stage=".length);
+    } else if (arg === "--status" && i + 1 < args.length) {
+      status = args[i + 1] ?? null;
+      i += 1;
+    } else if (arg.startsWith("--status=")) {
+      status = arg.slice("--status=".length);
     } else if (arg === "--runtime" && i + 1 < args.length) {
       const rv = args[i + 1] ?? "";
       if (rv === "claude" || rv === "codex" || rv === "hermes") {
@@ -165,7 +184,7 @@ function parseArgs(argv: string[]): ParsedArgs {
     i += 1;
   }
 
-  return { subcommand, event, root, format, session, gate, decision, onlyBlocks, json, watch, runtime, fresh };
+  return { subcommand, event, root, format, session, gate, decision, onlyBlocks, json, watch, runtime, fresh, stage, status };
 }
 
 // ---------------------------------------------------------------------------
@@ -326,6 +345,13 @@ export async function route(
         case "pre-compact":
         case "post-compact":
         case "subagent-start":
+        case "subagent-stop":  // R-054: observe-only
+          await handleNoOp(event, root, sessionId);
+          break;
+
+        // stage-advance is handled directly in main() with parsed --stage/--status;
+        // in the route() test-helper path it falls through to no-op.
+        case "stage-advance":
           await handleNoOp(event, root, sessionId);
           break;
 
@@ -486,6 +512,40 @@ async function main(): Promise<void> {
       // R-003: post-tool-use records reads into the session read-set.
       case "post-tool-use":
         await handlePostToolUse(root, payload, runtime);
+        break;
+
+      // R-006 + R-043: stage-advance — cycle transition command.
+      // stage and status come from CLI args (--stage / --status), not stdin.
+      case "stage-advance": {
+        const VALID_STATUSES = new Set<string>([
+          "done", "done-verified", "partial", "blocked",
+        ]);
+        if (
+          parsed.stage === null ||
+          parsed.stage.trim() === "" ||
+          parsed.status === null ||
+          !VALID_STATUSES.has(parsed.status)
+        ) {
+          process.stderr.write(
+            "[hima] stage-advance: --stage and --status are required; " +
+              "--status must be one of done|done-verified|partial|blocked\n",
+          );
+          process.exitCode = 1;
+          break;
+        }
+        await handleStageAdvance(
+          root,
+          parsed.stage,
+          parsed.status as StageVerdict["status"],
+          sessionId,
+          runtime,
+        );
+        break;
+      }
+
+      // R-054: subagent-stop — observe-only, trace emission.
+      case "subagent-stop":
+        await handleNoOp(event, root, sessionId);
         break;
 
       // All other events: no-op

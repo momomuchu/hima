@@ -24,6 +24,7 @@ import { BEH_READ_BEFORE_WRITE } from "./beh-read-before-write.js";
 import { BEH_FALSIFIES_IF } from "./beh-falsifies-if.js";
 import { BEH_SECURITY_SCOPE } from "./beh-security-scope.js";
 import { BEH_SECRET_GUARD } from "./beh-secret-guard.js";
+import { BEH_RESEARCH_FIRST } from "./beh-research-first.js";
 
 // ---------------------------------------------------------------------------
 // Registry class
@@ -89,6 +90,8 @@ defaultRegistry.registerBehavior(BEH_FALSIFIES_IF);
 defaultRegistry.registerBehavior(BEH_SECURITY_SCOPE);
 // R-009: secret content boundary guard on Write/Edit + git push (pre_tool, all floors).
 defaultRegistry.registerBehavior(BEH_SECRET_GUARD);
+// R-007: research-first gate — discovery must be sealed before spec-class writes (pre_tool).
+defaultRegistry.registerBehavior(BEH_RESEARCH_FIRST);
 
 /**
  * Module-level convenience: register a descriptor in the default registry.

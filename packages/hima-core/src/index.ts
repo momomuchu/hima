@@ -31,6 +31,16 @@ export {
 
 export * from "./skill-state.js";
 export * from "./ward-store.js";
+
+// ---------------------------------------------------------------------------
+// ward-transitions — cycle-transition guards and archival (R-006, R-042, R-043)
+// ---------------------------------------------------------------------------
+export {
+  checkStageGate,
+  writeStageVerdict,
+  closeWard,
+} from "./ward-transitions.js";
+
 export { translateClaude } from "./adapter-claude.js";
 export type { ClaudeResponse } from "./adapter-claude.js";
 
@@ -73,6 +83,7 @@ export { BEH_READ_BEFORE_WRITE } from "./behavior-core/beh-read-before-write.js"
 export { BEH_FALSIFIES_IF } from "./behavior-core/beh-falsifies-if.js";
 export { BEH_SECURITY_SCOPE } from "./behavior-core/beh-security-scope.js";
 export { BEH_SECRET_GUARD } from "./behavior-core/beh-secret-guard.js";
+export { BEH_RESEARCH_FIRST } from "./behavior-core/beh-research-first.js";
 
 // ---------------------------------------------------------------------------
 // read-set — per-session read-set tracker (R-003 PostToolUse capture)

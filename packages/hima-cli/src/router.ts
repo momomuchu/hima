@@ -40,11 +40,13 @@ import {
   recordRead,
   writeDeferredVerdict,
   readAndConsumeDeferredVerdict,
+  writeStageVerdict,
+  closeWard,
 } from "@hima/core";
 import type { RuntimeTarget, DispatchResponse, DeferredVerdict } from "@hima/core";
 
 import { DEV_CYCLE } from "@hima/schemas";
-import type { GateVerdict, TraceEvent, ForceAction } from "@hima/schemas";
+import type { GateVerdict, TraceEvent, ForceAction, StageVerdict } from "@hima/schemas";
 
 import { emitBlock, emitContext, emitAllow } from "./claude-format.js";
 import type { StdinPayload } from "./stdin.js";
@@ -182,7 +184,7 @@ export async function handleUserPromptSubmit(
     return;
   }
 
-  // 2. Create or resume the ward
+  // 2. Create or resume the ward (R-040: differentiate for canary)
   const existing = await resumeWard(root);
   const ward = existing ?? await createWard(root, {
     id: randomUUID(),
@@ -206,8 +208,24 @@ export async function handleUserPromptSubmit(
   // The result is not used to block here — future behaviors will gate this path.
   await evaluateGate(getBehaviorsForGate("user_prompt"), userPromptCtx);
 
-  // 4. Build a canary and emit it as additionalContext
-  const canary = `[HIMA] ward:${ward.id} stage:${ward.openStage} sigil:${sigil.sigil} floor:${ward.floor}`;
+  // 4. R-040: emit a canary — distinct for resume vs create
+  let canary: string;
+  if (existing !== null) {
+    // Resume path: emit the last-sealed stage + current position
+    const SEALED_STATUSES = new Set(["done", "done-verified", "done-validated"]);
+    const lastSealed =
+      [...ward.verdicts]
+        .reverse()
+        .find((v) => SEALED_STATUSES.has(v.status))?.stage ?? "none";
+    canary =
+      `[HIMA] ${ward.entryPoint}:resuming — ` +
+      `ward:${ward.id} — ` +
+      `last-sealed:${lastSealed} — ` +
+      `floor:${ward.floor}`;
+  } else {
+    // Create path: emit the standard ward-activation canary
+    canary = `[HIMA] ward:${ward.id} stage:${ward.openStage} sigil:${sigil.sigil} floor:${ward.floor}`;
+  }
   emitContext("UserPromptSubmit", canary);
 
   // 5. Emit trace event for the ward activation
@@ -676,6 +694,76 @@ export async function handleStop(
     skillsLoaded: register.map((r) => r.id),
     exitCode: 0,
     reason: verdict.reason,
+  });
+}
+
+/**
+ * handleStageAdvance — R-006 + R-043: seal a stage verdict, advance openStage,
+ * emit per-stage canaries, and (for verify) archive the ward to the ledger.
+ *
+ * R-043: writes a StageVerdict for `stage` with `status`, then advances
+ *   ward.openStage to the next DEV_CYCLE stage.
+ * R-021: after openStage advances, emits a stage-entry canary so the agent
+ *   knows what forceSkills are required for the new stage.
+ * closeWard: when stage==="verify" and status is done or done-verified,
+ *   archives the ward snapshot to .hima/state/ledger/.
+ *
+ * @param root      Project root.
+ * @param stage     The stage to seal (e.g. "discovery", "verify").
+ * @param status    The verdict status to record.
+ * @param sessionId Trace session id.
+ * @param runtime   Runtime target (for trace).
+ */
+export async function handleStageAdvance(
+  root: string,
+  stage: string,
+  status: StageVerdict["status"],
+  sessionId: string,
+  _runtime: RuntimeTarget = "claude",
+): Promise<void> {
+  // 1. Write the stage verdict and advance openStage atomically.
+  const ward = await writeStageVerdict(root, stage, status);
+
+  // 2. POST-ACT verdict canary: confirm what was sealed and the new open stage.
+  const postActCanary =
+    `[HIMA] stage-advance — ${ward.entryPoint}:${stage} sealed:${status} → ` +
+    `open:${ward.openStage} — floor:${ward.floor}`;
+
+  // 3. R-021 stage-entry canary: inject forceSkills for the newly open stage.
+  const config = await loadConfig(root);
+  const forceSkills = resolveStageForceSkills(config, ward.openStage, DEV_CYCLE);
+  const enshrining =
+    forceSkills.length > 0
+      ? forceSkills.map((s) => s.id).join(",")
+      : "none";
+  const stageEntryCanary =
+    `[HIMA] ${ward.entryPoint}:${ward.openStage} — ` +
+    `floor:${ward.floor} — ` +
+    `enshrining:${enshrining}`;
+
+  // Emit both canaries in a single additionalContext so the agent sees them.
+  emitContext("StageAdvance", `${postActCanary}\n${stageEntryCanary}`);
+
+  // 4. closeWard when verify is sealed: archive the run to the ledger.
+  const CLOSE_ON_STATUSES: ReadonlySet<StageVerdict["status"]> = new Set([
+    "done",
+    "done-verified",
+  ]);
+  if (stage === "verify" && CLOSE_ON_STATUSES.has(status)) {
+    await closeWard(root, new Date().toISOString());
+  }
+
+  // 5. Emit trace event.
+  safeAppendTrace(root, {
+    sessionId,
+    hookEvent: "StageAdvance",
+    gateType: "noop",
+    decision: "allow",
+    wardStage: ward.openStage,
+    skillsForced: [],
+    skillsLoaded: [],
+    exitCode: 0,
+    reason: `stage-advance: "${stage}" → ${status}; openStage now "${ward.openStage}"`,
   });
 }
 
