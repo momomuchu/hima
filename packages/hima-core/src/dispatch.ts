@@ -2,9 +2,8 @@
  * dispatch.ts — runtime-aware ForceAction → adapter response dispatcher.
  *
  * dispatchTranslate() routes a ForceAction to the correct runtime adapter.
- * Currently only adapter-claude is implemented; adapter-codex and adapter-hermes
- * land in I10 (R-010, R-011). Until then, codex and hermes fall back to the
- * Claude response shape (safe: both runtimes accept JSON on stdout).
+ * R-010 (codex), R-011 (hermes), R-050 (opencode): real adapter calls replace
+ * the I8 fallback stubs.
  *
  * See: .planning/architecture/V3-COMPLETENESS-AUDIT.md R-012,
  *      ARCHITECTURE-v3.md §3.5 adapter-contract.
@@ -14,13 +13,23 @@ import type { ForceAction } from "@hima/schemas";
 import type { RuntimeTarget } from "./capability-map-v3.js";
 import { translateClaude } from "./adapter-claude.js";
 import type { ClaudeResponse } from "./adapter-claude.js";
+import { translateCodex } from "./adapter-codex.js";
+import { translateHermes } from "./adapter-hermes.js";
+import { translateOpenCode } from "./adapter-opencode.js";
 
 // ---------------------------------------------------------------------------
 // DispatchResponse — canonical response type returned by dispatchTranslate.
-// Until codex/hermes adapters exist, the shape is identical to ClaudeResponse.
+//
+// Superset of all adapter response shapes; runtime-specific fields are optional.
+// Shape: { decision, reason?, additionalContext?, systemMessage?, exitCode, raw? }
 // ---------------------------------------------------------------------------
 
-export type DispatchResponse = ClaudeResponse;
+export type DispatchResponse = ClaudeResponse & {
+  /** Codex-specific: injected on stdout as the systemMessage field (≤1800 bytes). */
+  systemMessage?: string;
+  /** Runtime-native raw payload (e.g. Hermes ACP object). */
+  raw?: unknown;
+};
 
 // ---------------------------------------------------------------------------
 // dispatchTranslate — routes ForceAction to the correct adapter
@@ -30,12 +39,9 @@ export type DispatchResponse = ClaudeResponse;
  * Translate a ForceAction to the native hook-response payload for the given
  * runtime target.
  *
- * @param runtime - The active runtime ("claude" | "codex" | "hermes").
+ * @param runtime - The active runtime ("claude" | "codex" | "hermes" | "opencode").
  * @param action  - The ForceAction produced by pickAttack().
- * @returns       - A response object with decision + optional context.
- *
- * TODO(I10-R-010): replace codex fallback with translateCodex()
- * TODO(I10-R-011): replace hermes fallback with translateHermes()
+ * @returns       - A DispatchResponse compatible with all runtime adapter shapes.
  */
 export function dispatchTranslate(
   runtime: RuntimeTarget,
@@ -46,15 +52,17 @@ export function dispatchTranslate(
       return translateClaude(action);
 
     case "codex":
-      // TODO(I10-R-010): translateCodex — falls back to claude format for now.
-      // Codex uses systemMessage injection (constrained, 1800 bytes max) but
-      // the response shape is compatible enough for the I8 gate backbone.
-      return translateClaude(action);
+      // R-010: real Codex adapter — constrained injection, 1800-byte cap,
+      // systemMessage channel, hard-block at pre_tool+stop only.
+      return translateCodex(action);
 
     case "hermes":
-      // TODO(I10-R-011): translateHermes — falls back to claude format for now.
-      // Hermes stop is deferred; deferred-block actions return {continue} which
-      // is safe here. The writeDeferredVerdict side-effect lands in I10/R-027.
-      return translateClaude(action);
+      // R-011: real Hermes adapter — ACP format, deferred stop enforcement,
+      // raw ACP object carried in response.raw.
+      return translateHermes(action);
+
+    case "opencode":
+      // R-050: OpenCode adapter — rich-capable, semantics pending web verification.
+      return translateOpenCode(action);
   }
 }

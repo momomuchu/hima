@@ -33,6 +33,24 @@ export * from "./skill-state.js";
 export * from "./ward-store.js";
 export { translateClaude } from "./adapter-claude.js";
 export type { ClaudeResponse } from "./adapter-claude.js";
+
+// ---------------------------------------------------------------------------
+// adapter-codex — Codex runtime adapter (R-010)
+// ---------------------------------------------------------------------------
+export { translateCodex } from "./adapter-codex.js";
+export type { CodexResponse } from "./adapter-codex.js";
+
+// ---------------------------------------------------------------------------
+// adapter-hermes — Hermes ACP runtime adapter (R-011)
+// ---------------------------------------------------------------------------
+export { translateHermes } from "./adapter-hermes.js";
+export type { HermesResponse, AcpObject } from "./adapter-hermes.js";
+
+// ---------------------------------------------------------------------------
+// adapter-opencode — OpenCode runtime adapter (R-050)
+// ---------------------------------------------------------------------------
+export { translateOpenCode } from "./adapter-opencode.js";
+export type { OpenCodeResponse } from "./adapter-opencode.js";
 export { runGate } from "./run-gate.js";
 export type { RunGateInput, RunGateResult } from "./run-gate.js";
 
@@ -71,6 +89,16 @@ export { evaluateGate } from "./gates-core/evaluate-gate.js";
 // ---------------------------------------------------------------------------
 export { dispatchTranslate } from "./dispatch.js";
 export type { DispatchResponse } from "./dispatch.js";
+
+// ---------------------------------------------------------------------------
+// deferred-verdict — single-use block verdict persistence (R-027)
+// ---------------------------------------------------------------------------
+export {
+  writeDeferredVerdict,
+  readAndConsumeDeferredVerdict,
+  verdictFilePath,
+} from "./deferred-verdict.js";
+export type { DeferredVerdict } from "./deferred-verdict.js";
 
 // ---------------------------------------------------------------------------
 // risk-class — resolveRiskClass() helper (R-002)

@@ -38,11 +38,13 @@ import {
   loadConfig,
   resolveStageForceSkills,
   recordRead,
+  writeDeferredVerdict,
+  readAndConsumeDeferredVerdict,
 } from "@hima/core";
-import type { RuntimeTarget } from "@hima/core";
+import type { RuntimeTarget, DispatchResponse, DeferredVerdict } from "@hima/core";
 
 import { DEV_CYCLE } from "@hima/schemas";
-import type { GateVerdict, TraceEvent } from "@hima/schemas";
+import type { GateVerdict, TraceEvent, ForceAction } from "@hima/schemas";
 
 import { emitBlock, emitContext, emitAllow } from "./claude-format.js";
 import type { StdinPayload } from "./stdin.js";
@@ -88,6 +90,38 @@ function safeAppendTrace(
 }
 
 // ---------------------------------------------------------------------------
+// emitBlockDispatch — runtime-aware block emission (R-010/R-011/R-050)
+// ---------------------------------------------------------------------------
+
+/**
+ * Emit a full runtime-specific block response to stdout and set exitCode=2.
+ *
+ * Includes optional runtime-native fields from the dispatch response:
+ *   - systemMessage: Codex injection channel (≤1800 bytes)
+ *   - raw:           Hermes ACP object {action:"block", message}
+ *
+ * This replaces bare emitBlock() for paths where the adapter response carries
+ * additional runtime-specific fields beyond {decision, reason}.
+ */
+function emitBlockDispatch(
+  response: DispatchResponse,
+  fallbackReason: string,
+): void {
+  const payload: Record<string, unknown> = {
+    decision: "block",
+    reason: response.reason ?? fallbackReason,
+  };
+  if (response.systemMessage !== undefined) {
+    payload["systemMessage"] = response.systemMessage;
+  }
+  if (response.raw !== undefined) {
+    payload["raw"] = response.raw;
+  }
+  process.stdout.write(JSON.stringify(payload) + "\n");
+  process.exitCode = 2;
+}
+
+// ---------------------------------------------------------------------------
 // Exported event handlers
 // ---------------------------------------------------------------------------
 
@@ -102,10 +136,33 @@ function safeAppendTrace(
 export async function handleUserPromptSubmit(
   root: string,
   payload: StdinPayload,
-  _runtime: RuntimeTarget = "claude",
+  runtime: RuntimeTarget = "claude",
 ): Promise<void> {
   const sessionId = payload.sessionId ?? "unknown-session";
   const text = payload.promptContent ?? "";
+
+  // R-027: replay any deferred stop verdict from a previous hermes stop hook.
+  // The deferred verdict is single-use: readAndConsumeDeferredVerdict deletes it.
+  const deferredVerdict = await readAndConsumeDeferredVerdict(root, sessionId);
+  if (deferredVerdict !== null) {
+    const replayAction: ForceAction = {
+      kind: "hard-block",
+      reason: deferredVerdict.reason,
+    };
+    const replayResponse = dispatchTranslate(runtime, replayAction);
+    emitBlockDispatch(replayResponse, deferredVerdict.reason);
+    safeAppendTrace(root, {
+      sessionId,
+      hookEvent: "UserPromptSubmit",
+      gateType: "user_prompt",
+      decision: "block",
+      skillsForced: [],
+      skillsLoaded: [],
+      exitCode: 2,
+      reason: `[deferred-replay] ${deferredVerdict.reason}`,
+    });
+    return;
+  }
 
   // 1. Sigil detection
   const sigil = pickSigil(text);
@@ -188,6 +245,30 @@ export async function handlePreToolUse(
   const sessionId = payload.sessionId ?? "unknown-session";
   const toolName = payload.toolName ?? "";
 
+  // R-027: replay any deferred stop verdict from a previous hermes stop hook.
+  // The deferred verdict is single-use: readAndConsumeDeferredVerdict deletes it.
+  const deferredVerdict = await readAndConsumeDeferredVerdict(root, sessionId);
+  if (deferredVerdict !== null) {
+    const replayAction: ForceAction = {
+      kind: "hard-block",
+      reason: deferredVerdict.reason,
+    };
+    const replayResponse = dispatchTranslate(runtime, replayAction);
+    emitBlockDispatch(replayResponse, deferredVerdict.reason);
+    safeAppendTrace(root, {
+      sessionId,
+      hookEvent: "PreToolUse",
+      gateType: "pre_tool",
+      decision: "block",
+      toolName: toolName || undefined,
+      skillsForced: [],
+      skillsLoaded: [],
+      exitCode: 2,
+      reason: `[deferred-replay] ${deferredVerdict.reason}`,
+    });
+    return;
+  }
+
   // 1. Load the ward (may be null when no sigil was detected yet).
   const ward = await resumeWard(root);
 
@@ -224,7 +305,8 @@ export async function handlePreToolUse(
       // generic "gate verdict: block with no forceIntent" message when there is
       // no forceIntent, discarding the specific violation type and behavior
       // reason. The behavior's reason is the informative one.
-      emitBlock(behaviorVerdict.reason);
+      // Use emitBlockDispatch to include runtime-specific fields (systemMessage, raw).
+      emitBlockDispatch({ ...response, reason: behaviorVerdict.reason }, behaviorVerdict.reason);
       safeAppendTrace(root, {
         sessionId,
         hookEvent: "PreToolUse",
@@ -357,7 +439,9 @@ export async function handlePreToolUse(
   const response = dispatchTranslate(runtime, action);
 
   if (response.decision === "block") {
-    emitBlock(response.reason ?? verdict.reason);
+    // Use emitBlockDispatch to include runtime-specific fields (Codex systemMessage,
+    // Hermes raw ACP object) in the stdout response alongside decision+reason.
+    emitBlockDispatch(response, verdict.reason);
 
     safeAppendTrace(root, {
       sessionId,
@@ -545,8 +629,20 @@ export async function handleStop(
       return;
     }
 
-    // hermes: deferred enforcement (R-027 writes the verdict file in I10).
-    // TODO(I10-R-027): writeDeferredVerdict(root, sessionId, verdict)
+    // hermes: deferred enforcement (R-027).
+    // Persist the block verdict for replay at the next pre_tool or user_prompt hook.
+    // writeDeferredVerdict writes atomically; errors are swallowed so a write
+    // failure never blocks the session (fail-open at stop, fail-closed at replay).
+    const dv: DeferredVerdict = {
+      decision: "block",
+      reason: verdict.reason,
+      source: "hermes-stop-gate",
+      resolveOn: ["pre_tool", "user_prompt"],
+      ts: new Date().toISOString(),
+    };
+    writeDeferredVerdict(root, sessionId, dv).catch(() => {
+      // intentionally swallowed — verdict write failure must not block the session
+    });
     emitAllow();
     safeAppendTrace(root, {
       sessionId,
@@ -557,7 +653,7 @@ export async function handleStop(
       skillsForced: [],
       skillsLoaded: register.map((r) => r.id),
       exitCode: 0,
-      reason: `[TODO-R-027] deferred block on hermes: ${verdict.reason}`,
+      reason: `[deferred-R-027] verdict persisted for hermes: ${verdict.reason}`,
     });
     return;
   }

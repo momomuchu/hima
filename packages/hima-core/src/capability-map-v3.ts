@@ -5,6 +5,7 @@ import {
 
 // Re-export GateType type from schemas for local use
 import type { GateType } from "@hima/schemas";
+import { OPENCODE_MAP } from "./adapter-opencode.js";
 
 /**
  * capability-map-v3 — the runtime capability matrix for PFV4.
@@ -22,7 +23,7 @@ import type { GateType } from "@hima/schemas";
  * violation, so a broken map fails fast rather than silently returning bad data).
  */
 
-export type RuntimeTarget = "claude" | "codex" | "hermes";
+export type RuntimeTarget = "claude" | "codex" | "hermes" | "opencode";
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -430,6 +431,7 @@ const RUNTIME_MAPS: Record<RuntimeTarget, Record<GateType, GateCapabilityCell>> 
   claude: CLAUDE_MAP,
   codex: CODEX_MAP,
   hermes: HERMES_MAP,
+  opencode: OPENCODE_MAP,
 };
 
 // ---------------------------------------------------------------------------
@@ -458,4 +460,4 @@ export function getCell(
 }
 
 // Named map exports for callers that want direct access.
-export { CLAUDE_MAP, CODEX_MAP, HERMES_MAP };
+export { CLAUDE_MAP, CODEX_MAP, HERMES_MAP, OPENCODE_MAP };
