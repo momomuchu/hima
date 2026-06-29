@@ -62,4 +62,8 @@ Falsifies-If:
 
 ## 5. Status log
 
-- **2026-06-29** — Cycle 98 opened. Walking skeleton landed (commits 4d50579 + d735e3b: @hima/schemas 87 tests, @hima/core 93 tests incl. E2E). I1 in progress: 5 dead v2 packages removed; claim-bearing guard scoped to exempt archives. Supersedes cycle-97 (v2 behavior system removed).
+- **2026-06-29** — Cycle 98 opened. Walking skeleton landed (commits 4d50579 + d735e3b: @hima/schemas 87 tests, @hima/core 93 tests incl. E2E). Supersedes cycle-97 (v2 behavior system removed).
+  - **I1 ✅** — 5 dead v2 packages removed (incl. behavior-core); claim-bearing guard exempts archives + live anchors resolved (39 files, 0 issues). Commits 6d9648b, a68d24b (pushed).
+  - **I2 ✅** — @hima/cli v3 (real-process forcing CLI; snake_case Claude payload; spawn E2E exit 2/0; 33 tests). Commit afd7bf5 (pushed). `.claude/settings.json` hooks repointed to packages/hima-cli/dist.
+  - **I3 ✅ DONE (2026-06-29)** — purged the @harness legacy chain (7 packages: core, cli, adapter-{claude,codex,hermes}, generator, mcp-server) + legacy tooling scripts (generate-consommable-artifacts, package-policy, package-tarball-smoke) + two @harness-specific guard pairs (audit-construction-completion, guard-construction-blocked-state). Rewired root package.json/tsconfig.json/run-tests.mjs to the v3 keep-set only (@hima/schemas, @hima/storage-core, @hima/core, @hima/cli). Repo is now **v3-only**: `pnpm test` green (exit 0, 21 files / 336 tests; schemas 87, storage-core 10, core 206, cli 33) and claim-bearing guard pass (39 files, 0 issues — count unchanged). Commits 813bb9b (remove @harness chain), 719e426 (rewire root) — both pushed to origin/restructure/v2.
+  - **I4 ⏳** — forced-parallelization core (role catalog, spawnPlan, mergeTeamOutputs) in @hima/core, TDD (workflow wtwm37a7d).
