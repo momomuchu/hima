@@ -66,4 +66,22 @@ Falsifies-If:
   - **I1 ✅** — 5 dead v2 packages removed (incl. behavior-core); claim-bearing guard exempts archives + live anchors resolved (39 files, 0 issues). Commits 6d9648b, a68d24b (pushed).
   - **I2 ✅** — @hima/cli v3 (real-process forcing CLI; snake_case Claude payload; spawn E2E exit 2/0; 33 tests). Commit afd7bf5 (pushed). `.claude/settings.json` hooks repointed to packages/hima-cli/dist.
   - **I3 ✅ DONE (2026-06-29)** — purged the @harness legacy chain (7 packages: core, cli, adapter-{claude,codex,hermes}, generator, mcp-server) + legacy tooling scripts (generate-consommable-artifacts, package-policy, package-tarball-smoke) + two @harness-specific guard pairs (audit-construction-completion, guard-construction-blocked-state). Rewired root package.json/tsconfig.json/run-tests.mjs to the v3 keep-set only (@hima/schemas, @hima/storage-core, @hima/core, @hima/cli). Repo is now **v3-only**: `pnpm test` green (exit 0, 21 files / 336 tests; schemas 87, storage-core 10, core 206, cli 33) and claim-bearing guard pass (39 files, 0 issues — count unchanged). Commits 813bb9b (remove @harness chain), 719e426 (rewire root) — both pushed to origin/restructure/v2.
-  - **I4 ⏳** — forced-parallelization core (role catalog, spawnPlan, mergeTeamOutputs) in @hima/core, TDD (workflow wtwm37a7d).
+  - **I4 ✅** — forced-parallelization core (11-role catalog, spawnPlan, mergeTeamOutputs M1–M6, PURE) + SSOT refactor. Commits e1299e7, 2ea4ba8 (pushed).
+  - **I5 ✅** — observability: TraceEvent emission to .hima/state/trace/<session>.jsonl + `hima trace` viewer (filters, --watch). Commits 88ec2d9, e9f98d9 (pushed).
+  - **I6 ✅** — config/customization layer (HimaConfig: per-user/project override of stage skills, cycle, roles; loadConfig base<user<project). Commit 79b19a8 (pushed).
+  - **I7 ✅** — `hima setup` onboarding (wire 7 hooks + scaffold .hima + --fresh reset). Commit 89175a3 (pushed).
+  - **V3 COMPLETENESS AUDIT (2026-06-29)** — `.planning/architecture/V3-COMPLETENESS-AUDIT.md`: 55 gaps (15 CRITICAL/23 HIGH/13 MEDIUM/4 LOW), iteration plan I8–I15. Mandate: complete the v3 architecture (0 gaps, certified).
+  - **I8 ✅** — gate backbone: evaluateGate BehaviorDescriptor engine + BEH-023 stop (blocks fake DONE) + multi-runtime dispatch + criticality routing (R-001/002/005/012). Commit 93975fe (pushed). 570 tests.
+  - **I9 ✅** — safety invariants: read-before-write, MISSING_FALSIFIES_IF, security-scope, secret-guard + read-set + light-path (R-003/004/008/009/053). Commit b45e16c. 725 tests.
+  - **I10 ✅** — real adapters Codex/Hermes/OpenCode + deferred-block roundtrip (R-010/011/050/027/012-final). Commit cc3b6bf. 812 tests.
+  - **I11 ✅** — cycle transition engine: `hima hook stage-advance` + verdict writes + research-first hard gate + per-stage/resume canaries + ledger archival (R-006/007/021/040/042/043/052/054). Commit 1ca1a84. 906 tests. **The 4 critical-path blockers (I8–I11) are complete.**
+  - **I12 ✅** — session-start ward-restore + auto-actions (artifact-auto-open via cmux [founder seed], founder-digest, review-surface, pre-compact preserve, next-attack, post_tool trace) (R-025/026/030/036/039/044/045/046). Commit 8ee95b7. **960 tests, pnpm test exit 0.**
+
+  ⏸️ **PAUSED 2026-06-29 (founder request) after I12.** Repo green at 960 tests, all pushed to origin/restructure/v2 (head 8ee95b7).
+  **REMAINING to certify v3 complete (~13 gaps):**
+  - **I13** — risk-classifier (no-sigil → floor) + floor-raise + DEV_CYCLE floor-scaled forceSkills + feedback-wave-detect + wave-log + ADR-before-impl/spec-gate behaviors (R-016/017/018/019/022/023/024/041 + R-037).
+  - **I14** — profiles/prompts-core + planner-write-guard + rules-engine (path-scoped picomatch injection) + live role-spawning gate (R-020/028/029/035).
+  - **I10b** — Hermes subagent compensations + plugin scaffold (R-034/038/047/048/049/055).
+  - **I15** — formal specs SPEC-008..014 (Effect contracts) (R-013/014/015/031/032/033/051).
+  - **Certify** — final adversarial critic: re-run the completeness audit, confirm 0 gaps with file:line/test evidence.
+  Scripts ready on disk: scratchpad/i13.. not yet written. To RESUME: continue the loop from I13 (the audit register `.planning/architecture/V3-COMPLETENESS-AUDIT.md` is the source of truth).
