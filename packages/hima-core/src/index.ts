@@ -1,7 +1,7 @@
 /**
  * @hima/core — public surface.
  *
- * Re-exports everything from the five core modules so consumers can import
+ * Re-exports everything from the core modules so consumers can import
  * directly from "@hima/core" without knowing the internal file layout.
  *
  * NOTE: Both capability-map-v3 and forcing-primitive independently export a
@@ -9,11 +9,9 @@
  * We expose it once via capability-map-v3 and exclude the duplicate from
  * forcing-primitive to keep the public surface unambiguous.
  *
- * NOTE: role-catalog and spawn-plan both define a `RoleDef` type and a
- * `ROLE_CATALOG` constant with different shapes (intentional: different
- * abstraction layers). spawn-plan's versions are canonical on the public
- * surface (they carry roleId/model/isAdversarial). role-catalog's versions
- * are re-exported under prefixed aliases to avoid TS2308 ambiguity.
+ * NOTE: RoleDef and ROLE_CATALOG have a single source of truth in role-catalog.
+ * spawn-plan re-exports them from there; we expose them here from role-catalog
+ * directly (one canonical export, no aliases required).
  *
  * NOTE: spawn-plan and team-merge both export `mergeTeamOutputs` with
  * different signatures. spawn-plan's version (AgentVerdict[]) is the
@@ -39,33 +37,23 @@ export { runGate } from "./run-gate.js";
 export type { RunGateInput, RunGateResult } from "./run-gate.js";
 
 // ---------------------------------------------------------------------------
-// role-catalog — 11-role catalog (forcedSkills/adversaryOf shape)
-// RoleDef and ROLE_CATALOG are re-exported under catalog-prefixed aliases to
-// avoid collision with spawn-plan's canonical RoleDef / ROLE_CATALOG.
+// role-catalog — SSOT for RoleDef, ROLE_CATALOG, and getRolesForStage.
 // ---------------------------------------------------------------------------
-export {
-  getRolesForStage,
-} from "./role-catalog.js";
-export type {
-  RoleDef as CatalogRoleDef,
-} from "./role-catalog.js";
-export {
-  ROLE_CATALOG as CATALOG_ROLES,
-} from "./role-catalog.js";
+export type { RoleDef, AgentModel } from "./role-catalog.js";
+export { ROLE_CATALOG, getRolesForStage } from "./role-catalog.js";
 
 // ---------------------------------------------------------------------------
-// spawn-plan — work-driven team composition (canonical RoleDef with roleId/model/isAdversarial)
-// mergeTeamOutputs here operates on AgentVerdict[] (coordinator merge path).
+// spawn-plan — work-driven team composition.
+// RoleDef/AgentModel/ROLE_CATALOG are imported by spawn-plan from role-catalog;
+// only the spawn-plan-specific symbols are exported here.
+// mergeTeamOutputs operates on AgentVerdict[] (coordinator merge path).
 // ---------------------------------------------------------------------------
 export {
-  ROLE_CATALOG,
   spawnPlan,
   teamWidth,
   mergeTeamOutputs,
 } from "./spawn-plan.js";
 export type {
-  RoleDef,
-  AgentModel,
   AgentDecision,
   AgentVerdict,
 } from "./spawn-plan.js";
