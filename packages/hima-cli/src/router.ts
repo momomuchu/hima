@@ -37,6 +37,8 @@ import {
   appendTrace,
   loadConfig,
   resolveStageForceSkills,
+  resolveStageForceSkillsForFloor,
+  classifyRisk,
   recordRead,
   writeDeferredVerdict,
   readAndConsumeDeferredVerdict,
@@ -175,8 +177,26 @@ export async function handleUserPromptSubmit(
   // 1. Sigil detection
   const sigil = pickSigil(text);
   if (sigil === null) {
-    // No sigil → silent allow
-    emitAllow();
+    // R-018: no sigil — classify prompt risk and emit advisory canary for H+/M.
+    // A no-sigil prompt does NOT create a ward; advisory only.
+    const classResult = classifyRisk(text);
+    const classFloor = classResult.floor;
+
+    if (RISK_ORDER[classFloor] >= RISK_ORDER["H"]) {
+      emitContext(
+        "UserPromptSubmit",
+        `[HIMA] no sigil — classified ${classFloor} — expected entry: full`,
+      );
+    } else if (classFloor === "M") {
+      emitContext(
+        "UserPromptSubmit",
+        "[HIMA] no sigil — classified M — expected entry: run",
+      );
+    } else {
+      // T / L floor → light path, no advisory needed
+      emitAllow();
+    }
+
     safeAppendTrace(root, {
       sessionId,
       hookEvent: "UserPromptSubmit",
@@ -185,17 +205,34 @@ export async function handleUserPromptSubmit(
       skillsForced: [],
       skillsLoaded: [],
       exitCode: 0,
-      reason: "no terminal sigil detected",
+      reason: `no terminal sigil detected — classified ${classFloor}`,
     });
     return;
   }
 
+  // R-019: when a sigil is present, also classify the prompt. Take the max of
+  // the sigil's default floor and the classifier's floor — the classifier can
+  // only RAISE the floor, never lower it.
+  const classResultForSigil = classifyRisk(text);
+  const sigilFloor = sigil.floor;
+  const finalFloor: typeof sigil.floor =
+    RISK_ORDER[classResultForSigil.floor] > RISK_ORDER[sigilFloor]
+      ? classResultForSigil.floor
+      : sigilFloor;
+
+  // If the classifier raised the floor, build a raise-canary for emission.
+  const raiseCanary =
+    finalFloor !== sigilFloor
+      ? `[HIMA] floor raised ${sigilFloor}->${finalFloor} by risk-classifier (${classResultForSigil.reasons.join(", ")})`
+      : undefined;
+
   // 2. Create or resume the ward (R-040: differentiate for canary)
   const existing = await resumeWard(root);
+  // R-019: pass the raised floor to createWard so the ward starts at the correct floor.
   const ward = existing ?? await createWard(root, {
     id: randomUUID(),
     entryPoint: sigil.entryPoint,
-    floor: sigil.floor,
+    floor: finalFloor,
   });
 
   // 3. R-001 — evaluateGate for user_prompt behaviors (near-noop at I8).
@@ -229,10 +266,13 @@ export async function handleUserPromptSubmit(
       `last-sealed:${lastSealed} — ` +
       `floor:${ward.floor}`;
   } else {
-    // Create path: emit the standard ward-activation canary
+    // Create path: emit the standard ward-activation canary.
+    // If the floor was raised by the classifier (R-019), include the raise canary first.
     canary = `[HIMA] ward:${ward.id} stage:${ward.openStage} sigil:${sigil.sigil} floor:${ward.floor}`;
   }
-  emitContext("UserPromptSubmit", canary);
+  const canaryWithRaise =
+    raiseCanary !== undefined ? `${raiseCanary}\n${canary}` : canary;
+  emitContext("UserPromptSubmit", canaryWithRaise);
 
   // 5. Emit trace event for the ward activation
   safeAppendTrace(root, {
@@ -380,8 +420,10 @@ export async function handlePreToolUse(
   }
 
   // 6. Resolve forceSkills for the current stage, honoring any project/user config.
+  //    R-017: apply floor-scaling so H/C wards enforce the extra skills from ENTRYPOINTS-v3.
   const config = await loadConfig(root);
-  const forceSkills = resolveStageForceSkills(config, ward.openStage, DEV_CYCLE);
+  const baseForceSkills = resolveStageForceSkills(config, ward.openStage, DEV_CYCLE);
+  const forceSkills = resolveStageForceSkillsForFloor(baseForceSkills, ward.openStage, ward.floor);
   if (forceSkills.length === 0) {
     // No forced skills for this stage → allow
     emitAllow();
@@ -448,9 +490,17 @@ export async function handlePreToolUse(
 
   // 10. Build a GateVerdict and run through pickAttack → dispatchTranslate.
   //    R-012: getCell and dispatchTranslate are parameterised on runtime.
+  //    R-017: when floor-scaling adds multiple skills, list them all in the reason
+  //           so the agent and the trace show the complete floor-scaled requirement set.
+  const allSkillIds = forceSkills.map((s) => s.id).join(", ");
+  const blockReason =
+    forceSkills.length > 1
+      ? `skills required for stage "${ward.openStage}" (floor ${ward.floor}): [${allSkillIds}] — ${missing.id} not yet invoked`
+      : `skill ${missing.id} is required for stage "${ward.openStage}" and has not been invoked`;
+
   const verdict: GateVerdict = {
     decision: "block",
-    reason: `skill ${missing.id} is required for stage "${ward.openStage}" and has not been invoked`,
+    reason: blockReason,
     forceIntent: {
       kind: "SkillGate",
       skillId: missing.id,
@@ -465,7 +515,9 @@ export async function handlePreToolUse(
   if (response.decision === "block") {
     // Use emitBlockDispatch to include runtime-specific fields (Codex systemMessage,
     // Hermes raw ACP object) in the stdout response alongside decision+reason.
-    emitBlockDispatch(response, verdict.reason);
+    // R-017: always use verdict.reason so the floor-scaled skill list is shown,
+    // not the adapter's single-skill reason from dispatchTranslate.
+    emitBlockDispatch({ ...response, reason: verdict.reason }, verdict.reason);
 
     safeAppendTrace(root, {
       sessionId,
@@ -475,7 +527,7 @@ export async function handlePreToolUse(
       forceActionKind: action.kind,
       toolName: toolName || undefined,
       wardStage: ward.openStage,
-      skillsForced: [missing.id],
+      skillsForced: forceSkills.map((s) => s.id), // R-017: all floor-scaled skills
       skillsLoaded,
       exitCode: 2,
       reason: response.reason ?? verdict.reason,

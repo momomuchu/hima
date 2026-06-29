@@ -18,7 +18,8 @@ import { readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { Either, Schema } from "effect";
-import { CycleDef, SkillRef } from "@hima/schemas";
+import { CycleDef, RISK_ORDER, SkillRef } from "@hima/schemas";
+import type { RiskClass } from "@hima/schemas";
 import type { AgentModel, RoleDef } from "./role-catalog.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -209,6 +210,148 @@ export function resolveStageInjectSkills(
   }
 
   return [];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// resolveStageForceSkillsForFloor — R-017 floor-scaled skill gate
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Per-stage extra forceSkills added at floor H and floor C (on top of base).
+ *
+ * Reading the table:
+ *   H: skills ADDED when floor >= H (beyond the L/M base from DEV_CYCLE).
+ *   C: skills ADDED when floor >= C (in addition to H extras).
+ *
+ * Derived from ENTRYPOINTS-v3.md PART 4 — THE DEFINITIVE STAGE → CORPUS SKILL FORCE-MAP.
+ * Only [FORCE] skills that appear first at H or C in the table are listed here;
+ * skills already forced at L/M come in via the `base` parameter from resolveStageForceSkills.
+ */
+const STAGE_FLOOR_EXTRAS: Readonly<
+  Record<string, Readonly<{ H: readonly SkillRef[]; C: readonly SkillRef[] }>>
+> = {
+  discovery: {
+    H: [
+      { source: "corpus", id: "corpus-specification-requirements" },
+      { source: "corpus", id: "corpus-architecture-system-design" },
+    ],
+    C: [
+      { source: "corpus", id: "corpus-domain-modeling-ddd" },
+      { source: "corpus", id: "corpus-security-privacy-compliance" },
+      { source: "corpus", id: "corpus-software-delivery-governance" },
+    ],
+  },
+  analysis: {
+    H: [
+      { source: "corpus", id: "corpus-domain-modeling-ddd" },
+      { source: "corpus", id: "corpus-architecture-system-design" },
+    ],
+    C: [
+      { source: "corpus", id: "corpus-api-design" },
+      { source: "corpus", id: "corpus-security-privacy-compliance" },
+      { source: "corpus", id: "corpus-software-delivery-governance" },
+    ],
+  },
+  spec: {
+    H: [
+      { source: "corpus", id: "corpus-schema-driven-development" },
+      { source: "corpus", id: "corpus-domain-modeling-ddd" },
+      { source: "corpus", id: "corpus-architecture-system-design" },
+    ],
+    C: [
+      { source: "corpus", id: "corpus-security-privacy-compliance" },
+    ],
+  },
+  design: {
+    H: [
+      { source: "corpus", id: "corpus-error-handling-resilience" },
+    ],
+    C: [
+      { source: "corpus", id: "corpus-security-privacy-compliance" },
+      { source: "corpus", id: "corpus-observability" },
+      { source: "corpus", id: "corpus-software-delivery-governance" },
+    ],
+  },
+  impl: {
+    H: [
+      { source: "corpus", id: "corpus-error-handling-resilience" },
+      { source: "corpus", id: "corpus-performance-engineering" },
+      { source: "corpus", id: "corpus-security-privacy-compliance" },
+      { source: "corpus", id: "corpus-observability" },
+    ],
+    C: [
+      { source: "corpus", id: "corpus-software-delivery-governance" },
+    ],
+  },
+  test: {
+    H: [
+      { source: "corpus", id: "corpus-code-quality-maintainability" },
+      { source: "corpus", id: "corpus-observability" },
+      { source: "corpus", id: "corpus-software-delivery-governance" },
+    ],
+    C: [],
+  },
+  verify: {
+    H: [
+      { source: "corpus", id: "corpus-software-delivery-governance" },
+      { source: "corpus", id: "corpus-security-privacy-compliance" },
+    ],
+    C: [
+      { source: "corpus", id: "corpus-observability" },
+      { source: "corpus", id: "corpus-production-reliability-devops" },
+    ],
+  },
+  maintenance: {
+    H: [],
+    C: [],
+  },
+};
+
+/**
+ * resolveStageForceSkillsForFloor — apply floor-scaling to a base skill list.
+ *
+ * Takes the base forceSkills (from resolveStageForceSkills) and adds the extra
+ * [FORCE] skills mandated at H and C floors per ENTRYPOINTS-v3 PART 4.
+ *
+ * Rules:
+ *   - At floor T / L / M: returns `base` unchanged.
+ *   - At floor H: returns base + H-extras for this stage.
+ *   - At floor C: returns base + H-extras + C-extras for this stage.
+ *   - Skills already present in `base` are deduplicated (not added twice).
+ *   - Unknown stage ids return `base` unchanged (no floor-scaling defined).
+ *
+ * @param base    The forceSkills resolved by resolveStageForceSkills (config override > cycle > DEV_CYCLE).
+ * @param stageId The current ward stage (e.g. "discovery", "impl").
+ * @param floor   The ward's effective floor (after R-019 classification raise).
+ * @returns       The floor-scaled forceSkills list.
+ */
+export function resolveStageForceSkillsForFloor(
+  base: SkillRef[],
+  stageId: string,
+  floor: RiskClass,
+): SkillRef[] {
+  // Below H floor: no extra skills (default / M behavior unchanged).
+  if (RISK_ORDER[floor] < RISK_ORDER["H"]) {
+    return base;
+  }
+
+  const extras = STAGE_FLOOR_EXTRAS[stageId];
+  if (extras === undefined) {
+    // Unknown stage — return base unchanged.
+    return base;
+  }
+
+  // Collect H extras (always added at H+) and optionally C extras.
+  const toAdd: SkillRef[] = [
+    ...extras.H,
+    ...(RISK_ORDER[floor] >= RISK_ORDER["C"] ? extras.C : []),
+  ];
+
+  // Deduplicate: skip any extra already present in base.
+  const baseKeys = new Set(base.map((s) => `${s.source}:${s.id}`));
+  const newExtras = toAdd.filter((s) => !baseKeys.has(`${s.source}:${s.id}`));
+
+  return [...base, ...newExtras];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -25,7 +25,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { resumeWard } from "@hima/core";
+import { resumeWard, markLoaded } from "@hima/core";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -199,7 +199,15 @@ describe("(c) stage-advance --stage discovery --status done", () => {
 // ---------------------------------------------------------------------------
 
 describe("(d) pre-tool-use Write to spec file — allowed after discovery sealed", () => {
-  it("exits 0 after research gate is cleared", () => {
+  // R-017 floor-scaling: at floor H, the analysis stage requires extra skills
+  // (corpus-domain-modeling-ddd, corpus-architecture-system-design) in addition
+  // to BEH_RESEARCH_FIRST clearing discovery. Load them here so the write can proceed.
+  beforeAll(async () => {
+    await markLoaded(root, { source: "corpus", id: "corpus-domain-modeling-ddd" });
+    await markLoaded(root, { source: "corpus", id: "corpus-architecture-system-design" });
+  });
+
+  it("exits 0 after research gate is cleared and analysis skills loaded", () => {
     // Use the same spec file path — it's a new file (doesn't exist on disk)
     // so BEH_READ_BEFORE_WRITE's new-file allowance applies.
     const { status } = spawnCli(
@@ -237,7 +245,7 @@ describe("(e) stage-advance through to verify=done → ledger archived", () => {
       ]);
       expect(status).toBe(0);
     }
-  });
+  }, 60_000); // 6 stages × ~5s each; bumped from default 15s
 
   it("ledger directory contains at least one .jsonl file after verify done", () => {
     const ledgerDir = path.join(root, ".hima", "state", "ledger");

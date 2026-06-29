@@ -149,11 +149,13 @@ describe("Scenario 2 — pre-tool-use allows after discovery skill is markLoaded
 
   beforeAll(async () => {
     s2root = mkdtempSync(path.join(tmpdir(), "hima-cli-e2e-s2-"));
-    // Ward at discovery, then immediately mark the skill as loaded.
+    // Ward at discovery with floor M (no floor-scaling extras at M), then mark
+    // the single required skill as loaded → allow. Using floor H would require
+    // additional H-scaled skills (corpus-specification-requirements etc.) per R-017.
     await createWard(s2root, {
       id: "e2e-scenario-2",
       entryPoint: "full",
-      floor: "H",
+      floor: "M",
     });
     await markLoaded(s2root, {
       source: "corpus",

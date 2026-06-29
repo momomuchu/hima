@@ -261,7 +261,8 @@ describe("Scenario E — dispatch: pre-tool-use --format codex + skill-force →
   it("pre-tool-use --format codex allows after skill markLoaded", async () => {
     const root2 = mkdtempSync(path.join(tmpdir(), "hima-stop-e2e-e2-"));
     try {
-      await createWard(root2, { id: "stop-e2e-e2", entryPoint: "full", floor: "H" });
+      // Use floor M so only 1 skill is required (no R-017 floor-scaling extras at M).
+      await createWard(root2, { id: "stop-e2e-e2", entryPoint: "full", floor: "M" });
       await markLoaded(root2, { source: "corpus", id: DISCOVERY_SKILL_ID });
 
       const { status } = spawnCli(

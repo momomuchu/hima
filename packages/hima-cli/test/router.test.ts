@@ -195,10 +195,12 @@ describe("router — pre-tool-use skill-force block", () => {
   );
 
   it(
-    "GIVEN ward at discovery, skill already markLoaded → exitCode 0 (allow)",
+    "GIVEN ward at discovery (floor M), skill already markLoaded → exitCode 0 (allow)",
     async () => {
       const { createWard, markLoaded } = await import("@hima/core");
-      await createWard(root, { id: "test-run-002", entryPoint: "full", floor: "H" });
+      // Use floor M: at M, only the base DEV_CYCLE discovery skill is required (no R-017 extras).
+      // At floor H, resolveStageForceSkillsForFloor adds extra skills that would also need loading.
+      await createWard(root, { id: "test-run-002", entryPoint: "full", floor: "M" });
       // Mark the discovery skill as already loaded
       await markLoaded(root, {
         source: "corpus",

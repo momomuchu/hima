@@ -84,6 +84,7 @@ export { BEH_FALSIFIES_IF } from "./behavior-core/beh-falsifies-if.js";
 export { BEH_SECURITY_SCOPE } from "./behavior-core/beh-security-scope.js";
 export { BEH_SECRET_GUARD } from "./behavior-core/beh-secret-guard.js";
 export { BEH_RESEARCH_FIRST } from "./behavior-core/beh-research-first.js";
+export { BEH_SPEC_GATE } from "./behavior-core/beh-spec-gate.js";
 
 // ---------------------------------------------------------------------------
 // read-set — per-session read-set tracker (R-003 PostToolUse capture)
@@ -115,6 +116,11 @@ export type { DeferredVerdict } from "./deferred-verdict.js";
 // risk-class — resolveRiskClass() helper (R-002)
 // ---------------------------------------------------------------------------
 export { resolveRiskClass } from "./risk-class.js";
+
+// ---------------------------------------------------------------------------
+// risk-classifier — classifyRisk() heuristic floor estimator (R-018, R-019)
+// ---------------------------------------------------------------------------
+export { classifyRisk } from "./risk-classifier.js";
 
 // ---------------------------------------------------------------------------
 // role-catalog — SSOT for RoleDef, ROLE_CATALOG, and getRolesForStage.
@@ -165,6 +171,7 @@ export {
   decodeHimaConfigEither,
   loadConfig,
   resolveStageForceSkills,
+  resolveStageForceSkillsForFloor,
   resolveStageInjectSkills,
   resolveRole,
 } from "./config.js";

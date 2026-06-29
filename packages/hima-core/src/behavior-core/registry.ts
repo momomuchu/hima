@@ -25,6 +25,7 @@ import { BEH_FALSIFIES_IF } from "./beh-falsifies-if.js";
 import { BEH_SECURITY_SCOPE } from "./beh-security-scope.js";
 import { BEH_SECRET_GUARD } from "./beh-secret-guard.js";
 import { BEH_RESEARCH_FIRST } from "./beh-research-first.js";
+import { BEH_SPEC_GATE } from "./beh-spec-gate.js";
 
 // ---------------------------------------------------------------------------
 // Registry class
@@ -92,6 +93,9 @@ defaultRegistry.registerBehavior(BEH_SECURITY_SCOPE);
 defaultRegistry.registerBehavior(BEH_SECRET_GUARD);
 // R-007: research-first gate — discovery must be sealed before spec-class writes (pre_tool).
 defaultRegistry.registerBehavior(BEH_RESEARCH_FIRST);
+
+// R-024 / I13: spec-gate advisory at M+ user_prompt (warns before code without spec reference).
+defaultRegistry.registerBehavior(BEH_SPEC_GATE);
 
 /**
  * Module-level convenience: register a descriptor in the default registry.
