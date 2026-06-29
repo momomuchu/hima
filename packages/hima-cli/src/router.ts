@@ -37,6 +37,7 @@ import {
   appendTrace,
   loadConfig,
   resolveStageForceSkills,
+  recordRead,
 } from "@hima/core";
 import type { RuntimeTarget } from "@hima/core";
 
@@ -187,30 +188,17 @@ export async function handlePreToolUse(
   const sessionId = payload.sessionId ?? "unknown-session";
   const toolName = payload.toolName ?? "";
 
-  // 1. Load the ward. No ward → allow (the pipeline hasn't started yet).
+  // 1. Load the ward (may be null when no sigil was detected yet).
   const ward = await resumeWard(root);
-  if (ward === null) {
-    emitAllow();
-    safeAppendTrace(root, {
-      sessionId,
-      hookEvent: "PreToolUse",
-      gateType: "noop",
-      decision: "noop",
-      toolName: toolName || undefined,
-      skillsForced: [],
-      skillsLoaded: [],
-      exitCode: 0,
-      reason: "no active ward",
-    });
-    return;
-  }
 
-  // 2. R-002 — resolve riskClass from ward.floor.
+  // 2. R-002 — resolve riskClass from ward.floor (falls back to "T" when no ward).
   const riskClass = resolveRiskClass(ward);
 
-  // 3. R-001 — evaluateGate for pre_tool behaviors (near-noop at I8).
-  //    getBehaviorsForGate("pre_tool") returns [] until I9 adds safety guards.
-  //    If a future behavior blocks here, we respect it and skip skill-force.
+  // 3. R-053 — evaluateGate for pre_tool behaviors REGARDLESS of whether a ward
+  //    exists. Safety invariants (BEH_FALSIFIES_IF, BEH_SECURITY_SCOPE,
+  //    BEH_SECRET_GUARD) are always-on and must fire even on no-sigil/T prompts.
+  //    BEH_READ_BEFORE_WRITE is floor-gated (M+) so it naturally skips at T.
+  //    If any behavior blocks here, we respect it BEFORE checking the ward.
   const preToolCtx = {
     event: {
       gateType: "pre_tool" as const,
@@ -232,18 +220,22 @@ export async function handlePreToolUse(
     const response = dispatchTranslate(runtime, action);
 
     if (response.decision === "block") {
-      emitBlock(response.reason ?? behaviorVerdict.reason);
+      // Use behaviorVerdict.reason directly — pickAttack replaces it with a
+      // generic "gate verdict: block with no forceIntent" message when there is
+      // no forceIntent, discarding the specific violation type and behavior
+      // reason. The behavior's reason is the informative one.
+      emitBlock(behaviorVerdict.reason);
       safeAppendTrace(root, {
         sessionId,
         hookEvent: "PreToolUse",
         gateType: "pre_tool",
         decision: "block",
         toolName: toolName || undefined,
-        wardStage: ward.openStage,
+        wardStage: ward?.openStage,
         skillsForced: [],
         skillsLoaded: register.map((r) => r.id),
         exitCode: 2,
-        reason: response.reason ?? behaviorVerdict.reason,
+        reason: behaviorVerdict.reason,
       });
     } else {
       emitAllow();
@@ -253,7 +245,7 @@ export async function handlePreToolUse(
         gateType: "pre_tool",
         decision: "allow",
         toolName: toolName || undefined,
-        wardStage: ward.openStage,
+        wardStage: ward?.openStage,
         skillsForced: [],
         skillsLoaded: register.map((r) => r.id),
         exitCode: 0,
@@ -263,7 +255,25 @@ export async function handlePreToolUse(
     return;
   }
 
-  // 4. Resolve forceSkills for the current stage, honoring any project/user config.
+  // 4. R-053: safety behaviors evaluated above. Now check if a ward exists.
+  //    No ward → skip skill-force (the pipeline hasn't started yet) and allow.
+  if (ward === null) {
+    emitAllow();
+    safeAppendTrace(root, {
+      sessionId,
+      hookEvent: "PreToolUse",
+      gateType: "noop",
+      decision: "noop",
+      toolName: toolName || undefined,
+      skillsForced: [],
+      skillsLoaded: [],
+      exitCode: 0,
+      reason: "no active ward — safety behaviors passed, skill-force skipped",
+    });
+    return;
+  }
+
+  // 6. Resolve forceSkills for the current stage, honoring any project/user config.
   const config = await loadConfig(root);
   const forceSkills = resolveStageForceSkills(config, ward.openStage, DEV_CYCLE);
   if (forceSkills.length === 0) {
@@ -284,11 +294,11 @@ export async function handlePreToolUse(
     return;
   }
 
-  // 5. Read the skill register.
+  // 7. Read the skill register.
   const register = await readRegister(root);
   const skillsLoaded = register.map((r) => r.id);
 
-  // 6. Find the first forceSkill not yet in the register.
+  // 8. Find the first forceSkill not yet in the register.
   const missing = forceSkills.find(
     (ref) => !register.some((r) => r.id === ref.id && r.source === ref.source),
   );
@@ -311,7 +321,7 @@ export async function handlePreToolUse(
     return;
   }
 
-  // 7. Only block if this is a write tool.
+  // 9. Only block if this is a write tool.
   if (!WRITE_TOOL_NAMES.has(toolName)) {
     // Non-write tool → allow (skill gate only fires on write tools)
     emitAllow();
@@ -330,7 +340,7 @@ export async function handlePreToolUse(
     return;
   }
 
-  // 8. Build a GateVerdict and run through pickAttack → dispatchTranslate.
+  // 10. Build a GateVerdict and run through pickAttack → dispatchTranslate.
   //    R-012: getCell and dispatchTranslate are parameterised on runtime.
   const verdict: GateVerdict = {
     decision: "block",
@@ -385,6 +395,74 @@ export async function handlePreToolUse(
       reason: "pickAttack downgraded block to allow",
     });
   }
+}
+
+/**
+ * handlePostToolUse — R-003 read-set capture: record files read by the agent.
+ *
+ * When the agent uses a read tool (Read, ReadFile), the resulting PostToolUse
+ * event carries the tool name and the target file path in toolInput. This
+ * handler extracts that path and records it in the per-session read-set so
+ * BEH_READ_BEFORE_WRITE can later verify that a file was read before being
+ * written at M+ risk class.
+ *
+ * Always exits 0 (allow): PostToolUse is observe-only — recording failures
+ * must never block the session.
+ *
+ * toolInput shape for Read/ReadFile (defensive narrowing — toolInput is unknown):
+ *   Read:     { file_path: string; ... }
+ *   ReadFile: { path: string; ... }
+ */
+export async function handlePostToolUse(
+  root: string,
+  payload: StdinPayload,
+  _runtime: RuntimeTarget = "claude",
+): Promise<void> {
+  const sessionId = payload.sessionId ?? "unknown-session";
+  const toolName = payload.toolName ?? "";
+
+  // Only record reads; all other post-tool events are no-ops.
+  const READ_TOOL_NAMES = new Set(["Read", "ReadFile"]);
+  if (READ_TOOL_NAMES.has(toolName)) {
+    // Extract file path defensively from toolInput.
+    const filePath = extractReadPath(payload.toolInput);
+    if (filePath !== undefined) {
+      // recordRead swallows all errors internally — safe to fire-and-forget.
+      await recordRead(root, sessionId, filePath);
+    }
+  }
+
+  // Always allow — PostToolUse is observe-only.
+  emitAllow();
+  safeAppendTrace(root, {
+    sessionId,
+    hookEvent: "PostToolUse",
+    gateType: "noop",
+    decision: "noop",
+    toolName: toolName || undefined,
+    skillsForced: [],
+    skillsLoaded: [],
+    exitCode: 0,
+    reason:
+      READ_TOOL_NAMES.has(toolName)
+        ? `read-set: recorded read for "${toolName}"`
+        : "non-read tool — no read-set capture",
+  });
+}
+
+/**
+ * Extract the target file path from a Read/ReadFile toolInput.
+ * Tries "file_path" first (Read canonical field), then "path" (ReadFile variant).
+ * Returns undefined when neither is a non-empty string.
+ */
+function extractReadPath(toolInput: unknown): string | undefined {
+  if (typeof toolInput !== "object" || toolInput === null) return undefined;
+  const ti = toolInput as Record<string, unknown>;
+  const candidate = ti["file_path"] ?? ti["path"];
+  if (typeof candidate === "string" && candidate.trim() !== "") {
+    return candidate.trim();
+  }
+  return undefined;
 }
 
 /**

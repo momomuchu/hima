@@ -20,6 +20,10 @@
 import type { GateType } from "@hima/schemas";
 import type { BehaviorDescriptor } from "./types.js";
 import { BEH_023 } from "./beh-023-completion.js";
+import { BEH_READ_BEFORE_WRITE } from "./beh-read-before-write.js";
+import { BEH_FALSIFIES_IF } from "./beh-falsifies-if.js";
+import { BEH_SECURITY_SCOPE } from "./beh-security-scope.js";
+import { BEH_SECRET_GUARD } from "./beh-secret-guard.js";
 
 // ---------------------------------------------------------------------------
 // Registry class
@@ -75,6 +79,16 @@ export const defaultRegistry = new Registry();
 
 // Seed with iteration-I8 behaviors.
 defaultRegistry.registerBehavior(BEH_023);
+
+// Seed with iteration-I9 safety invariants (always-on CRITICAL guards).
+// R-003: read-before-write at M+ floor (pre_tool).
+defaultRegistry.registerBehavior(BEH_READ_BEFORE_WRITE);
+// R-004: Falsifies-If gate on claim-bearing files (pre_tool, all floors).
+defaultRegistry.registerBehavior(BEH_FALSIFIES_IF);
+// R-008: security scope enforcement for offensive Bash tools (pre_tool, all floors).
+defaultRegistry.registerBehavior(BEH_SECURITY_SCOPE);
+// R-009: secret content boundary guard on Write/Edit + git push (pre_tool, all floors).
+defaultRegistry.registerBehavior(BEH_SECRET_GUARD);
 
 /**
  * Module-level convenience: register a descriptor in the default registry.

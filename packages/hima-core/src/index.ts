@@ -51,6 +51,15 @@ export {
   getBehaviorsForGate,
 } from "./behavior-core/registry.js";
 export { BEH_023 } from "./behavior-core/beh-023-completion.js";
+export { BEH_READ_BEFORE_WRITE } from "./behavior-core/beh-read-before-write.js";
+export { BEH_FALSIFIES_IF } from "./behavior-core/beh-falsifies-if.js";
+export { BEH_SECURITY_SCOPE } from "./behavior-core/beh-security-scope.js";
+export { BEH_SECRET_GUARD } from "./behavior-core/beh-secret-guard.js";
+
+// ---------------------------------------------------------------------------
+// read-set — per-session read-set tracker (R-003 PostToolUse capture)
+// ---------------------------------------------------------------------------
+export { recordRead, readReadSet, isInReadSet } from "./read-set.js";
 
 // ---------------------------------------------------------------------------
 // gates-core — evaluateGate() aggregator

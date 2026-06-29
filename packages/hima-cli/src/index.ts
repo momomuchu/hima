@@ -39,6 +39,7 @@ import { readStdinPayload } from "./stdin.js";
 import {
   handleUserPromptSubmit,
   handlePreToolUse,
+  handlePostToolUse,
   handleStop,
   handleNoOp,
 } from "./router.js";
@@ -317,8 +318,11 @@ export async function route(
           await handleStop(root, payload, runtime);
           break;
 
-        case "session-start":
         case "post-tool-use":
+          await handlePostToolUse(root, payload, runtime);
+          break;
+
+        case "session-start":
         case "pre-compact":
         case "post-compact":
         case "subagent-start":
@@ -479,9 +483,13 @@ async function main(): Promise<void> {
         await handleStop(root, payload, runtime);
         break;
 
+      // R-003: post-tool-use records reads into the session read-set.
+      case "post-tool-use":
+        await handlePostToolUse(root, payload, runtime);
+        break;
+
       // All other events: no-op
       case "session-start":
-      case "post-tool-use":
       case "pre-compact":
       case "post-compact":
       case "subagent-start":
