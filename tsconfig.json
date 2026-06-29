@@ -1,11 +1,9 @@
 {
   "files": [],
   "references": [
-    { "path": "./packages/core" },
-    { "path": "./packages/cli" },
-    { "path": "./packages/mcp-server" },
-    { "path": "./packages/adapter-codex" },
-    { "path": "./packages/adapter-claude" },
-    { "path": "./packages/adapter-hermes" }
+    { "path": "./packages/schemas" },
+    { "path": "./packages/storage-core" },
+    { "path": "./packages/hima-core" },
+    { "path": "./packages/hima-cli" }
   ]
 }
