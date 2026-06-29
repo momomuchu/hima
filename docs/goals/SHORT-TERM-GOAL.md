@@ -77,9 +77,11 @@ Falsifies-If:
   - **I11 ✅** — cycle transition engine: `hima hook stage-advance` + verdict writes + research-first hard gate + per-stage/resume canaries + ledger archival (R-006/007/021/040/042/043/052/054). Commit 1ca1a84. 906 tests. **The 4 critical-path blockers (I8–I11) are complete.**
   - **I12 ✅** — session-start ward-restore + auto-actions (artifact-auto-open via cmux [founder seed], founder-digest, review-surface, pre-compact preserve, next-attack, post_tool trace) (R-025/026/030/036/039/044/045/046). Commit 8ee95b7. **960 tests, pnpm test exit 0.**
 
-  ⏸️ **PAUSED 2026-06-29 (founder request) after I12.** Repo green at 960 tests, all pushed to origin/restructure/v2 (head 8ee95b7).
+  - **I13 ✅** — risk-classifier (no-sigil → expected-entry canary) + runtime floor-raise + floor-scaled forceSkills + spec-gate advisory (R-017/018/019/024). Commit 68ed505. 1088 tests. Deferred to I14: R-016/022/023/037/041.
+
+  ⏸️ **PAUSED 2026-06-29 (founder request) after I13.** Repo green at 1088 tests, all pushed to origin/restructure/v2 (head 68ed505). The v3 hooks are now LIVE in-session (dogfooding: the classifier fired on the founder's own prompt).
   **REMAINING to certify v3 complete (~13 gaps):**
-  - **I13** — risk-classifier (no-sigil → floor) + floor-raise + DEV_CYCLE floor-scaled forceSkills + feedback-wave-detect + wave-log + ADR-before-impl/spec-gate behaviors (R-016/017/018/019/022/023/024/041 + R-037).
+  - (I13 ✅ done — R-017/018/019/024 closed; R-016/022/023/037/041 folded into I14 below.)
   - **I14** — profiles/prompts-core + planner-write-guard + rules-engine (path-scoped picomatch injection) + live role-spawning gate (R-020/028/029/035).
   - **I10b** — Hermes subagent compensations + plugin scaffold (R-034/038/047/048/049/055).
   - **I15** — formal specs SPEC-008..014 (Effect contracts) (R-013/014/015/031/032/033/051).
