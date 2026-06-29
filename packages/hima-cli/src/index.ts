@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 /**
- * @hima/cli — hima hook dispatcher + trace viewer
+ * @hima/cli — hima hook dispatcher + trace viewer + setup
  *
  * Subcommands:
  *   hima hook <event> [--format claude] [--root <dir>]
  *   hima trace [--session <id>] [--root <dir>] [--gate <g>] [--decision <d>]
  *              [--only-blocks] [--json] [--watch]
  *   hima observe  (alias for hima trace)
+ *   hima setup [--runtime claude|codex|hermes] [--fresh] [--root <dir>]
  *
  * Supported hook events:
  *   session-start | user-prompt-submit | pre-tool-use | post-tool-use |
@@ -32,6 +33,7 @@
 
 import { readdir, stat } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { readStdinPayload } from "./stdin.js";
 import {
@@ -41,6 +43,7 @@ import {
 } from "./router.js";
 import type { StdinPayload } from "./stdin.js";
 import { renderObserve, filterTrace, type TraceFilter } from "./observe.js";
+import { runSetup } from "./setup.js";
 
 // Lazy import of readTrace from @hima/core to avoid loading it for hook commands
 async function getReadTrace() {
@@ -67,7 +70,7 @@ const KNOWN_EVENTS = new Set([
 // ---------------------------------------------------------------------------
 
 type ParsedArgs = {
-  subcommand: "hook" | "trace" | null;
+  subcommand: "hook" | "trace" | "setup" | null;
   event: string | null;
   root: string | null;
   format: string;
@@ -78,12 +81,15 @@ type ParsedArgs = {
   onlyBlocks: boolean;
   json: boolean;
   watch: boolean;
+  // setup-specific flags
+  runtime: "claude" | "codex" | "hermes" | null;
+  fresh: boolean;
 };
 
 function parseArgs(argv: string[]): ParsedArgs {
   const args = argv.slice(2);
 
-  let subcommand: "hook" | "trace" | null = null;
+  let subcommand: "hook" | "trace" | "setup" | null = null;
   let event: string | null = null;
   let root: string | null = null;
   let format = "claude";
@@ -93,6 +99,8 @@ function parseArgs(argv: string[]): ParsedArgs {
   let onlyBlocks = false;
   let json = false;
   let watch = false;
+  let runtime: "claude" | "codex" | "hermes" | null = null;
+  let fresh = false;
 
   let i = 0;
   while (i < args.length) {
@@ -101,6 +109,8 @@ function parseArgs(argv: string[]): ParsedArgs {
       subcommand = "hook";
     } else if ((arg === "trace" || arg === "observe") && subcommand === null) {
       subcommand = "trace";
+    } else if (arg === "setup" && subcommand === null) {
+      subcommand = "setup";
     } else if (arg === "--root" && i + 1 < args.length) {
       root = args[i + 1] ?? null;
       i += 1;
@@ -132,13 +142,26 @@ function parseArgs(argv: string[]): ParsedArgs {
       json = true;
     } else if (arg === "--watch") {
       watch = true;
+    } else if (arg === "--fresh") {
+      fresh = true;
+    } else if (arg === "--runtime" && i + 1 < args.length) {
+      const rv = args[i + 1] ?? "";
+      if (rv === "claude" || rv === "codex" || rv === "hermes") {
+        runtime = rv;
+      }
+      i += 1;
+    } else if (arg.startsWith("--runtime=")) {
+      const rv = arg.slice("--runtime=".length);
+      if (rv === "claude" || rv === "codex" || rv === "hermes") {
+        runtime = rv;
+      }
     } else if (!arg.startsWith("--") && subcommand === "hook" && event === null) {
       event = arg;
     }
     i += 1;
   }
 
-  return { subcommand, event, root, format, session, gate, decision, onlyBlocks, json, watch };
+  return { subcommand, event, root, format, session, gate, decision, onlyBlocks, json, watch, runtime, fresh };
 }
 
 // ---------------------------------------------------------------------------
@@ -322,6 +345,44 @@ export async function route(
 async function main(): Promise<void> {
   const parsed = parseArgs(process.argv);
   const root = resolveRoot(parsed.root);
+
+  // -------------------------------------------------------------------------
+  // hima setup subcommand
+  // -------------------------------------------------------------------------
+  if (parsed.subcommand === "setup") {
+    // Derive the absolute path to this CLI's dist entry so the wired hooks
+    // point at the real installed binary (not a global "hima" shim).
+    const himaBinPath = fileURLToPath(import.meta.url);
+
+    try {
+      const result = await runSetup({
+        root,
+        runtime: parsed.runtime ?? undefined,
+        fresh: parsed.fresh,
+        himaBinPath,
+      });
+
+      for (const msg of result.messages) {
+        process.stdout.write(`[hima setup] ${msg}\n`);
+      }
+
+      const wiredCount = result.wired.length;
+      const scaffoldedCount = result.scaffolded.length;
+      const resetCount = result.reset.length;
+
+      process.stdout.write(
+        `[hima setup] Done — runtime: ${result.runtime}` +
+          `, wired: ${wiredCount}` +
+          `, scaffolded: ${scaffoldedCount}` +
+          `, reset: ${resetCount}\n`,
+      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      process.stderr.write(`[hima setup] error: ${msg}\n`);
+      process.exitCode = 1;
+    }
+    return;
+  }
 
   // -------------------------------------------------------------------------
   // hima trace / hima observe subcommand
