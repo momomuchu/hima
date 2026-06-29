@@ -2,9 +2,9 @@ import type { GateEvent, GateVerdict } from "@hima/schemas";
 import { getCell } from "./capability-map-v3.js";
 import { pickAttack } from "./forcing-primitive.js";
 import { readRegister } from "./skill-state.js";
-import { translateClaude } from "./adapter-claude.js";
+import { dispatchTranslate } from "./dispatch.js";
+import type { DispatchResponse } from "./dispatch.js";
 import type { RuntimeTarget } from "./capability-map-v3.js";
-import type { ClaudeResponse } from "./adapter-claude.js";
 import type { ForceAction } from "@hima/schemas";
 
 /**
@@ -35,7 +35,7 @@ export type RunGateInput = {
 
 export type RunGateResult = {
   forceAction: ForceAction;
-  claude: ClaudeResponse;
+  claude: DispatchResponse;
   canary: string;
 };
 
@@ -55,8 +55,8 @@ export async function runGate(input: RunGateInput): Promise<RunGateResult> {
   // 3. Determine the strongest available force action.
   const forceAction = pickAttack(runtime, gateType, verdict, register, cell);
 
-  // 4. Translate for the Claude runtime.
-  const claude = translateClaude(forceAction);
+  // 4. Translate for the active runtime via dispatchTranslate (R-012).
+  const claude = dispatchTranslate(runtime, forceAction);
 
   // 5. Build the canary string.
   const forcedId =

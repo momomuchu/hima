@@ -39,9 +39,11 @@ import { readStdinPayload } from "./stdin.js";
 import {
   handleUserPromptSubmit,
   handlePreToolUse,
+  handleStop,
   handleNoOp,
 } from "./router.js";
 import type { StdinPayload } from "./stdin.js";
+import type { RuntimeTarget } from "@hima/core";
 import { renderObserve, filterTrace, type TraceFilter } from "./observe.js";
 import { runSetup } from "./setup.js";
 
@@ -63,6 +65,7 @@ const KNOWN_EVENTS = new Set([
   "pre-compact",
   "post-compact",
   "subagent-start",
+  "stop",         // R-005: stop handler + BEH-023 completion gate
 ]);
 
 // ---------------------------------------------------------------------------
@@ -267,6 +270,7 @@ export async function route(
   event: string,
   payload: StdinPayload,
   root: string,
+  runtime: RuntimeTarget = "claude",
 ): Promise<RouteResult> {
   // Buffer for captured stdout output.
   let captured = "";
@@ -302,11 +306,15 @@ export async function route(
     } else {
       switch (event) {
         case "user-prompt-submit":
-          await handleUserPromptSubmit(root, payload);
+          await handleUserPromptSubmit(root, payload, runtime);
           break;
 
         case "pre-tool-use":
-          await handlePreToolUse(root, payload);
+          await handlePreToolUse(root, payload, runtime);
+          break;
+
+        case "stop":
+          await handleStop(root, payload, runtime);
           break;
 
         case "session-start":
@@ -448,16 +456,27 @@ async function main(): Promise<void> {
   const payload = await readStdinPayload();
   const sessionId = payload.sessionId ?? "unknown-session";
 
+  // R-012: resolve runtime from --format flag (default "claude").
+  const runtime: RuntimeTarget =
+    parsed.format === "codex" || parsed.format === "hermes"
+      ? (parsed.format as RuntimeTarget)
+      : "claude";
+
   // Dispatch to the appropriate handler
   // Each handler is wrapped here so any error results in exit 0 (allow)
   try {
     switch (event) {
       case "user-prompt-submit":
-        await handleUserPromptSubmit(root, payload);
+        await handleUserPromptSubmit(root, payload, runtime);
         break;
 
       case "pre-tool-use":
-        await handlePreToolUse(root, payload);
+        await handlePreToolUse(root, payload, runtime);
+        break;
+
+      case "stop":
+        // R-005: stop gate + BEH-023 completion check.
+        await handleStop(root, payload, runtime);
         break;
 
       // All other events: no-op

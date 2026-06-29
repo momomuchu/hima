@@ -37,6 +37,38 @@ export { runGate } from "./run-gate.js";
 export type { RunGateInput, RunGateResult } from "./run-gate.js";
 
 // ---------------------------------------------------------------------------
+// behavior-core — BehaviorDescriptor engine types, registry, and seed behaviors.
+// ---------------------------------------------------------------------------
+export type {
+  BehaviorDescriptor,
+  BehaviorContext,
+  BehaviorVerdict,
+} from "./behavior-core/types.js";
+export {
+  Registry,
+  defaultRegistry,
+  registerBehavior,
+  getBehaviorsForGate,
+} from "./behavior-core/registry.js";
+export { BEH_023 } from "./behavior-core/beh-023-completion.js";
+
+// ---------------------------------------------------------------------------
+// gates-core — evaluateGate() aggregator
+// ---------------------------------------------------------------------------
+export { evaluateGate } from "./gates-core/evaluate-gate.js";
+
+// ---------------------------------------------------------------------------
+// dispatch — runtime-aware adapter dispatcher (R-012)
+// ---------------------------------------------------------------------------
+export { dispatchTranslate } from "./dispatch.js";
+export type { DispatchResponse } from "./dispatch.js";
+
+// ---------------------------------------------------------------------------
+// risk-class — resolveRiskClass() helper (R-002)
+// ---------------------------------------------------------------------------
+export { resolveRiskClass } from "./risk-class.js";
+
+// ---------------------------------------------------------------------------
 // role-catalog — SSOT for RoleDef, ROLE_CATALOG, and getRolesForStage.
 // ---------------------------------------------------------------------------
 export type { RoleDef, AgentModel } from "./role-catalog.js";
