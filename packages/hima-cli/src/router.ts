@@ -42,10 +42,16 @@ import {
   readAndConsumeDeferredVerdict,
   writeStageVerdict,
   closeWard,
+  buildSessionResumeContext,
+  buildPreCompactContext,
+  buildArtifactAutoOpenContext,
+  buildFounderDigestContext,
+  buildReviewSurfaceContext,
+  buildNextAttackContext,
 } from "@hima/core";
 import type { RuntimeTarget, DispatchResponse, DeferredVerdict } from "@hima/core";
 
-import { DEV_CYCLE } from "@hima/schemas";
+import { DEV_CYCLE, RISK_ORDER } from "@hima/schemas";
 import type { GateVerdict, TraceEvent, ForceAction, StageVerdict } from "@hima/schemas";
 
 import { emitBlock, emitContext, emitAllow } from "./claude-format.js";
@@ -500,13 +506,16 @@ export async function handlePreToolUse(
 }
 
 /**
- * handlePostToolUse — R-003 read-set capture: record files read by the agent.
+ * handlePostToolUse — R-003 read-set capture + R-025/R-044/R-046 auto-actions.
  *
- * When the agent uses a read tool (Read, ReadFile), the resulting PostToolUse
- * event carries the tool name and the target file path in toolInput. This
- * handler extracts that path and records it in the per-session read-set so
- * BEH_READ_BEFORE_WRITE can later verify that a file was read before being
- * written at M+ risk class.
+ * R-003: When the agent uses a read tool (Read, ReadFile), records the file
+ *   path in the per-session read-set so BEH_READ_BEFORE_WRITE can later
+ *   verify that a file was read before being written at M+ risk class.
+ *
+ * R-025/R-044/R-046: When the agent writes a .md file under a plan/spec/docs
+ *   directory (Write/Edit/MultiEdit), emits buildArtifactAutoOpenContext and
+ *   buildReviewSurfaceContext as advisory additionalContext so the runtime
+ *   opens the artifact automatically and shows the review surface command.
  *
  * Always exits 0 (allow): PostToolUse is observe-only — recording failures
  * must never block the session.
@@ -514,6 +523,10 @@ export async function handlePreToolUse(
  * toolInput shape for Read/ReadFile (defensive narrowing — toolInput is unknown):
  *   Read:     { file_path: string; ... }
  *   ReadFile: { path: string; ... }
+ * toolInput shape for Write/Edit/MultiEdit:
+ *   Write:     { file_path: string; content: string }
+ *   Edit:      { file_path: string; ... }
+ *   MultiEdit: { file_path: string; ... }
  */
 export async function handlePostToolUse(
   root: string,
@@ -523,18 +536,53 @@ export async function handlePostToolUse(
   const sessionId = payload.sessionId ?? "unknown-session";
   const toolName = payload.toolName ?? "";
 
-  // Only record reads; all other post-tool events are no-ops.
+  // R-003: record reads into the per-session read-set.
   const READ_TOOL_NAMES = new Set(["Read", "ReadFile"]);
   if (READ_TOOL_NAMES.has(toolName)) {
-    // Extract file path defensively from toolInput.
     const filePath = extractReadPath(payload.toolInput);
     if (filePath !== undefined) {
       // recordRead swallows all errors internally — safe to fire-and-forget.
       await recordRead(root, sessionId, filePath);
     }
+    emitAllow();
+    safeAppendTrace(root, {
+      sessionId,
+      hookEvent: "PostToolUse",
+      gateType: "noop",
+      decision: "noop",
+      toolName: toolName || undefined,
+      skillsForced: [],
+      skillsLoaded: [],
+      exitCode: 0,
+      reason: `read-set: recorded read for "${toolName}"`,
+    });
+    return;
   }
 
-  // Always allow — PostToolUse is observe-only.
+  // R-025/R-044/R-046: auto-open for write tools targeting .md plan/spec/docs files.
+  const WRITE_TOOL_NAMES_SET = new Set(["Write", "Edit", "MultiEdit"]);
+  if (WRITE_TOOL_NAMES_SET.has(toolName)) {
+    const filePath = extractWritePath(payload.toolInput);
+    if (filePath !== undefined && isMdPlanPath(filePath)) {
+      const autoOpen = buildArtifactAutoOpenContext(filePath);
+      const reviewSurface = buildReviewSurfaceContext(true);
+      emitContext("PostToolUse", `${autoOpen}\n${reviewSurface}`);
+      safeAppendTrace(root, {
+        sessionId,
+        hookEvent: "PostToolUse",
+        gateType: "noop",
+        decision: "noop",
+        toolName: toolName || undefined,
+        skillsForced: [],
+        skillsLoaded: [],
+        exitCode: 0,
+        reason: `post_tool: artifact written — auto-open emitted for "${filePath}"`,
+      });
+      return;
+    }
+  }
+
+  // Default: allow — PostToolUse is observe-only.
   emitAllow();
   safeAppendTrace(root, {
     sessionId,
@@ -545,10 +593,7 @@ export async function handlePostToolUse(
     skillsForced: [],
     skillsLoaded: [],
     exitCode: 0,
-    reason:
-      READ_TOOL_NAMES.has(toolName)
-        ? `read-set: recorded read for "${toolName}"`
-        : "non-read tool — no read-set capture",
+    reason: "non-read/non-write-md tool — no capture",
   });
 }
 
@@ -565,6 +610,37 @@ function extractReadPath(toolInput: unknown): string | undefined {
     return candidate.trim();
   }
   return undefined;
+}
+
+/**
+ * Extract the target file path from a Write/Edit/MultiEdit toolInput.
+ * Tries "file_path" first, then "path".
+ */
+function extractWritePath(toolInput: unknown): string | undefined {
+  if (typeof toolInput !== "object" || toolInput === null) return undefined;
+  const ti = toolInput as Record<string, unknown>;
+  const candidate = ti["file_path"] ?? ti["path"];
+  if (typeof candidate === "string" && candidate.trim() !== "") {
+    return candidate.trim();
+  }
+  return undefined;
+}
+
+/**
+ * Return true when the file path is a Markdown file under a plan/spec/docs
+ * directory that should trigger an artifact-auto-open context (R-025).
+ *
+ * Recognised directories: docs/, plans/, specs/, .planning/
+ */
+function isMdPlanPath(filePath: string): boolean {
+  if (!filePath.endsWith(".md")) return false;
+  const n = filePath.replace(/\\/g, "/");
+  return (
+    n.includes("/docs/") || n.startsWith("docs/") ||
+    n.includes("/plans/") || n.startsWith("plans/") ||
+    n.includes("/specs/") || n.startsWith("specs/") ||
+    n.includes("/.planning/") || n.startsWith(".planning/")
+  );
 }
 
 /**
@@ -677,11 +753,39 @@ export async function handleStop(
   }
 
   // 8. allow / warn — exit 0.
-  //    For warn: additionalContext injection if the response carries one.
-  if (response.additionalContext !== undefined) {
-    emitContext("Stop", response.additionalContext);
-  } else {
-    emitAllow();
+  //    R-026/R-039: at M+, when verdict is a clean allow (DONE legitimately),
+  //    append buildFounderDigestContext and buildNextAttackContext so the agent
+  //    prepends the digest and proposes ranked next attacks.
+  {
+    const contextParts: string[] = [];
+
+    if (response.additionalContext !== undefined) {
+      contextParts.push(response.additionalContext);
+    }
+
+    // Emit founder digest + next-attack only on a clean allow at M+ with an
+    // active ward (so we have a meaningful stage to name).
+    const mFloor: number = RISK_ORDER["M"] ?? 2;
+    if (
+      verdict.decision === "allow" &&
+      (RISK_ORDER[riskClass] ?? 0) >= mFloor &&
+      ward !== null
+    ) {
+      contextParts.push(
+        buildFounderDigestContext({
+          state: "DONE_VERIFIED — advisory",
+          whatChanged: "session completed — stop gate passed",
+          reviewCmd: "git diff --stat HEAD",
+        }),
+      );
+      contextParts.push(buildNextAttackContext(ward.openStage));
+    }
+
+    if (contextParts.length > 0) {
+      emitContext("Stop", contextParts.join("\n"));
+    } else {
+      emitAllow();
+    }
   }
 
   safeAppendTrace(root, {
@@ -764,6 +868,103 @@ export async function handleStageAdvance(
     skillsLoaded: [],
     exitCode: 0,
     reason: `stage-advance: "${stage}" → ${status}; openStage now "${ward.openStage}"`,
+  });
+}
+
+/**
+ * handleSessionStart — R-030: session-start ward-resume context injection.
+ *
+ * Calls buildSessionResumeContext(root). When a ward is found, emits its
+ * resume canary as additionalContext so the agent knows it is resuming a
+ * prior run and which stage was last sealed. Always exits 0 (advisory only).
+ *
+ * When no ward exists, emits allow silently — there is nothing to resume.
+ */
+export async function handleSessionStart(
+  root: string,
+  payload: StdinPayload,
+  _runtime: RuntimeTarget = "claude",
+): Promise<void> {
+  const sessionId = payload.sessionId ?? "unknown-session";
+
+  const context = await buildSessionResumeContext(root);
+
+  if (context !== null) {
+    emitContext("SessionStart", context);
+    safeAppendTrace(root, {
+      sessionId,
+      hookEvent: "SessionStart",
+      gateType: "noop",
+      decision: "allow",
+      skillsForced: [],
+      skillsLoaded: [],
+      exitCode: 0,
+      reason: "session-start: ward found — resume context emitted",
+    });
+  } else {
+    emitAllow();
+    safeAppendTrace(root, {
+      sessionId,
+      hookEvent: "SessionStart",
+      gateType: "noop",
+      decision: "noop",
+      skillsForced: [],
+      skillsLoaded: [],
+      exitCode: 0,
+      reason: "session-start: no active ward",
+    });
+  }
+}
+
+/**
+ * handlePreCompact — R-036: pre_compact ward-state preservation block.
+ *
+ * On claude runtime, calls buildPreCompactContext(root) and emits a compact
+ * block carrying the ward state + skill register so the agent retains
+ * governance context across compaction (prevents context drift).
+ *
+ * For codex and hermes runtimes: no-op (pre_compact is a claude-only hook).
+ * Always exits 0 — this is advisory enrichment, never blocking.
+ */
+export async function handlePreCompact(
+  root: string,
+  payload: StdinPayload,
+  runtime: RuntimeTarget = "claude",
+): Promise<void> {
+  const sessionId = payload.sessionId ?? "unknown-session";
+
+  if (runtime === "claude") {
+    const context = await buildPreCompactContext(root);
+    if (context !== null) {
+      emitContext("PreCompact", context);
+      safeAppendTrace(root, {
+        sessionId,
+        hookEvent: "PreCompact",
+        gateType: "noop",
+        decision: "allow",
+        skillsForced: [],
+        skillsLoaded: [],
+        exitCode: 0,
+        reason: "pre-compact: ward state preservation block emitted",
+      });
+      return;
+    }
+  }
+
+  // Non-claude runtime or no active ward → silent allow.
+  emitAllow();
+  safeAppendTrace(root, {
+    sessionId,
+    hookEvent: "PreCompact",
+    gateType: "noop",
+    decision: "noop",
+    skillsForced: [],
+    skillsLoaded: [],
+    exitCode: 0,
+    reason:
+      runtime !== "claude"
+        ? `pre-compact: no-op for ${runtime} runtime`
+        : "pre-compact: no active ward",
   });
 }
 

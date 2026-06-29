@@ -43,6 +43,8 @@ import {
   handleStop,
   handleNoOp,
   handleStageAdvance,
+  handleSessionStart,
+  handlePreCompact,
 } from "./router.js";
 import type { StdinPayload } from "./stdin.js";
 import type { RuntimeTarget } from "@hima/core";
@@ -342,7 +344,13 @@ export async function route(
           break;
 
         case "session-start":
+          await handleSessionStart(root, payload, runtime);
+          break;
+
         case "pre-compact":
+          await handlePreCompact(root, payload, runtime);
+          break;
+
         case "post-compact":
         case "subagent-start":
         case "subagent-stop":  // R-054: observe-only
@@ -548,9 +556,16 @@ async function main(): Promise<void> {
         await handleNoOp(event, root, sessionId);
         break;
 
-      // All other events: no-op
+      // R-030: session-start — ward-resume context injection.
       case "session-start":
+        await handleSessionStart(root, payload, runtime);
+        break;
+
+      // R-036: pre-compact — ward-state preservation block (claude only).
       case "pre-compact":
+        await handlePreCompact(root, payload, runtime);
+        break;
+
       case "post-compact":
       case "subagent-start":
         await handleNoOp(event, root, sessionId);

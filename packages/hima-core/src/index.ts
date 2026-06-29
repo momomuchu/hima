@@ -169,3 +169,27 @@ export {
   resolveRole,
 } from "./config.js";
 export type { LoadConfigOpts } from "./config.js";
+
+// ---------------------------------------------------------------------------
+// auto-actions — pure advisory context builders (I12 AUTO-ACTION family).
+// R-025 A-01 artifact-auto-open, R-026 A-02 founder-digest,
+// R-039 T-06 next-attack-reflex, R-044 A-03 review-surface-emit,
+// R-045 A-14 research-convert.
+// ---------------------------------------------------------------------------
+export {
+  buildArtifactAutoOpenContext,
+  buildFounderDigestContext,
+  buildReviewSurfaceContext,
+  buildResearchConvertContext,
+  buildNextAttackContext,
+} from "./auto-actions.js";
+export type { FounderDigestOpts } from "./auto-actions.js";
+
+// ---------------------------------------------------------------------------
+// session-state — session-start and pre-compact advisory context builders.
+// R-030 buildSessionResumeContext, R-036 buildPreCompactContext.
+// ---------------------------------------------------------------------------
+export {
+  buildSessionResumeContext,
+  buildPreCompactContext,
+} from "./session-state.js";

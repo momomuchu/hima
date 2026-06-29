@@ -1,0 +1,145 @@
+/**
+ * auto-actions.ts — pure advisory context builders (I12 AUTO-ACTION family).
+ *
+ * All functions are pure (no I/O, no fs). They return strings or objects that
+ * the hook handlers inject as `additionalContext`. They NEVER exit 2; they are
+ * advisory enrichment only.
+ *
+ * Gap register coverage:
+ *   R-025  A-01  artifact-auto-open          → buildArtifactAutoOpenContext
+ *   R-026  A-02  founder-digest auto-prepend → buildFounderDigestContext
+ *   R-039  T-06  next-attack-reflex          → buildNextAttackContext
+ *   R-044  A-03  review-surface-emit         → buildReviewSurfaceContext
+ *   R-045  A-14  research-convert            → buildResearchConvertContext
+ *
+ * See: BEHAVIOR-CATALOG-v3.md §4.1 A-01/A-02/A-03/A-14; §5 T-06;
+ *      founder-digest.md; cmux-open-surface.md; research-discipline.md §3.
+ */
+
+// ---------------------------------------------------------------------------
+// R-025 — A-01: artifact auto-open
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a context line that instructs the runtime to open a plan/spec/docs
+ * artifact in the visible CMUX surface.
+ *
+ * Caller is responsible for deciding WHEN to emit this (only after Write to
+ * a `.md` file under plans/, specs/, docs/). The function itself is pure.
+ *
+ * @param filePath  Absolute or relative path to the written Markdown artifact.
+ * @returns         A single-line advisory additionalContext string.
+ */
+export function buildArtifactAutoOpenContext(filePath: string): string {
+  return `[HIMA auto] artifact written — open it: cmux markdown open ${filePath} --focus true`;
+}
+
+// ---------------------------------------------------------------------------
+// R-026 — A-02: founder-digest skeleton
+// ---------------------------------------------------------------------------
+
+/**
+ * Options for buildFounderDigestContext.
+ */
+export type FounderDigestOpts = {
+  /** DONE_VERIFIED / PARTIAL / BLOCKED + brief evidence boundary. */
+  state: string;
+  /** One sentence: what new decision or deliverable was produced this turn. */
+  whatChanged: string;
+  /** The exact shell command to inspect the diff (e.g. "git diff --stat HEAD"). */
+  reviewCmd: string;
+};
+
+/**
+ * Build the founder-digest skeleton (≤20 lines, 8 fields) to be prepended at
+ * M+ document-heavy task completion.
+ *
+ * The 8 fields match founder-digest.md exactly:
+ *   1. What this means
+ *   2. The core loop
+ *   3. Terms translated
+ *   4. What is actually new
+ *   5. What to challenge
+ *   6. Where to look
+ *   7. Review surface
+ *   8. State
+ *
+ * Fields not inferable from opts are left as `[fill-in]` placeholders so the
+ * caller (hook handler or PostToolUse enricher) can expand them with runtime
+ * context.
+ *
+ * @param opts  State, whatChanged, and reviewCmd provided by the caller.
+ * @returns     Multi-line additionalContext string (≤20 lines).
+ */
+export function buildFounderDigestContext(opts: FounderDigestOpts): string {
+  const { state, whatChanged, reviewCmd } = opts;
+  return [
+    "## Founder Digest",
+    "",
+    `**What this means** — ${whatChanged}`,
+    "**The core loop** — [fill-in]",
+    "**Terms translated** — No new terms.",
+    `**What is actually new** — ${whatChanged}`,
+    "**What to challenge** — [fill-in]",
+    "**Where to look** — [fill-in]",
+    `**Review surface** — ${reviewCmd}`,
+    `**State** — ${state}`,
+  ].join("\n");
+}
+
+// ---------------------------------------------------------------------------
+// R-044 — A-03: review-surface-emit
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a single-line review-surface context string.
+ *
+ * Emits the canonical `git diff --stat HEAD` command when files were changed
+ * this session, or a "no diff" note when nothing was written.
+ *
+ * @param changed  true when the session wrote or edited at least one file.
+ * @returns        Single-line advisory additionalContext string.
+ */
+export function buildReviewSurfaceContext(changed: boolean): string {
+  if (changed) {
+    return "[HIMA] review surface: git diff --stat HEAD";
+  }
+  return "[HIMA] review surface: No diff this session.";
+}
+
+// ---------------------------------------------------------------------------
+// R-045 — A-14: research-convert
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a research-evidence cite marker + conversion prompt.
+ *
+ * Injected after a research tool call (WebSearch, WebFetch, deep-research) at
+ * M+ criticality to remind the agent to convert findings into actionable
+ * requirements, decisions, and risks before trusting the recommendation.
+ *
+ * @param source  Human-readable source name (e.g. "WebSearch 2026-06-29",
+ *                "deep-research: vitest docs", "corpus-architecture §3").
+ * @returns       Single-line advisory additionalContext string.
+ */
+export function buildResearchConvertContext(source: string): string {
+  return `[HIMA] research evidence: ${source} — convert to requirements / decisions / risks before deciding.`;
+}
+
+// ---------------------------------------------------------------------------
+// R-039 — T-06: next-attack-reflex
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a next-attack-reflex context line emitted when a ward stage is sealed.
+ *
+ * Prompts the agent to propose ranked next attacks with owner surface
+ * (GitHub / Linear / Notion) and evidence before asking broad questions.
+ *
+ * @param wardStage  The stage name that was just sealed (e.g. "discovery",
+ *                   "cadrage", "implementation").
+ * @returns          Single-line advisory additionalContext string.
+ */
+export function buildNextAttackContext(wardStage: string): string {
+  return `[HIMA] stage ${wardStage} sealed — propose ranked next attacks (owner surface + evidence)`;
+}
