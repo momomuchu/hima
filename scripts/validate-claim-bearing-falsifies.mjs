@@ -10,9 +10,19 @@ const issues = [];
 
 const markdownFiles = [];
 for await (const filePath of walk(path.join(root, "docs"))) {
-  if (filePath.endsWith(".md")) {
-    markdownFiles.push(toRelativePath(filePath));
+  if (!filePath.endsWith(".md")) {
+    continue;
   }
+  const relativePath = toRelativePath(filePath);
+  // Frozen/archived artifacts are exempt: their evidence-anchors point at the repo state as it
+  // was when the cycle closed and are not required to resolve against the live tree.
+  if (
+    relativePath.startsWith("docs/archive-v1/") ||
+    relativePath.startsWith("docs/goals/archive/")
+  ) {
+    continue;
+  }
+  markdownFiles.push(relativePath);
 }
 
 const checks = [];

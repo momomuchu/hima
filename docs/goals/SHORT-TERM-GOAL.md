@@ -1,133 +1,65 @@
 ---
-cycle-id: cycle-97-behavior-system
+cycle-id: cycle-98-v3-build-loop
 claim-bearing: true
 status: ACTIVE
-opened: 2026-05-20
+opened: 2026-06-29
 closed:
-supersedes: cycle-96-external-authorization-required (BLOCKED — its premise "no safe local-only lane remains" is obsoleted by this cycle)
-priority: ACTIVE-LOCAL (no external authorization required)
+supersedes: cycle-97-behavior-system (the v2 behavior system is removed; hima is rebuilt v3-only per ADR-0003/0004)
 governing-principle: docs/goals/README.md §"Saturation-based DONE — the harder bar"
 ---
 
-
-# Short-Term Goal — Cycle 97: Behavior System (governed, enforced, portable)
+# Short-Term Goal — Cycle 98: hima v3 build loop (self-refining)
 
 ## 1. Why this cycle exists
 
-Cycle 96 parked the construction goal as BLOCKED because cycle 95 found "no remaining safe
-local-only implementation lane" — all open ledger rows need external authorization (real install
-hosts, runtime/model sessions, public release, payments).
+hima is being rebuilt as **v3** per ADR-0004: a forcing-function kernel over a pluggable cycle,
+with the legacy v2/v1 packages removed. The walking skeleton (`@hima/schemas` + `@hima/core`,
+forcing primitive proven by an E2E) has landed. This cycle drives the v3 build forward as a
+**self-refining loop** until the runtime is functional on a live runtime and the suite is green.
 
-That premise is now false. The behavior system is a complete, safe, local-only build lane:
-it adds a first-class **behaviors catalog** to the hima kernel — invariants that govern *how* the
-runtime agent reasons and acts, enforced at canonical gates, classified by **action signal** rather
-than by scanning output text for keywords.
+## 2. Deliverable — run the loop until acceptance
 
-This cycle directly advances Long-Term Goal §1.3 (*"the most disciplined evidence kernel"*) and
-contributes file:line evidence toward excellence-book coverage for `05-architecture` and `07-build`.
+The loop iterates: **slice → build (TDD/DDD) → verify → self-critique → next slice**, using
+workflows for heavy parallel work, verifying between iterations, surfacing only at milestones or
+true blockers.
 
-The motivating defect, observed live this session **five times**: the existing enforcement
-classifies intent by regex over output text, so merely *discussing* a governed concept triggers
-enforcement of it (false positive), while genuine shortcut work with no trigger word escapes
-(false negative). Behavior #0 fixes exactly this.
-
-## 2. Deliverable — the COMPLETE behavior system
-
-Source spec: `docs/conception/12-behaviors-catalog-spec.md` (PLANNED).
-13 seed behaviors, each enforced at a canonical GateType, each carrying a Falsifies-If block.
-
-| Wave | Scope |
+| Iteration | Scope |
 |---|---|
-| **W0 — Foundation** | ADR adopting 9 GateTypes (resolve the 7-vs-9 contract/spec contradiction); the single structural schema commit; **BEH-000 Action-Signal Classification** (keystone — replaces every keyword/regex output scanner and the dev-entry auto-promotion proxy). |
-| **W1 — Epistemic** | BEH-010 Read-Before-Write · BEH-011 Unjustified-Suppression Guard · BEH-012 Chesterton's-Fence Delete Guard · BEH-013 Claim-Source / Calibrated Uncertainty · BEH-014 Anti-Sycophancy Re-Verify. |
-| **W2 — Enforcement teeth** | BEH-020 Critic gate before Verify→Capitalize · BEH-021 Dimension-specific retry/escalation · BEH-022 Loop detection that actually emits LOOP_DETECTED · BEH-023 Three-state completion status. |
-| **W3 — Delegation & watcher** | BEH-030 Subagent budget+failure contract fields · BEH-031 Watcher role (H/C) · BEH-032 In-band kill switch (CYCLE_ABORT) · cross-runtime degraded modes for Codex/Hermes (which lack subagent gates; Hermes stop is advisory). |
+| **I1 — clean baseline** | Remove dead v2 packages (behavior-core, gates-core, hima-cli, adapter-*-v2); fix the claim-bearing guard (archives exempt; live anchors resolve); `pnpm test` green. |
+| **I2 — real CLI/adapter (option 1a)** | A live `hima` v3 CLI hook path on Claude (stdin GateEvent → sigil/ward/skill-force → exit 2), TDD; repoint `.claude/settings.json` hooks to the v3 CLI; prove enforcement in a real process. |
+| **I3 — purge legacy** | Once v3 enforces the hooks, remove the `@harness/*` legacy chain; rewire root build/test/tsconfig to v3-only. |
+| **I4 — forced parallelization + roles (option 1b)** | Role-team spawn + merge model + enriched roles, TDD (PARALLELIZATION-v3 design). |
 
-## 3. Scope
+## 3. DONE criteria (saturation-based)
 
-**IN SCOPE**
-- Spec 12 PLANNED → ACCEPTED.
-- The 9-GateType ADR + canonical-contract alignment.
-- One structural (S) schema commit: `claimSource`, `completionStatus`, `budget`/`failurePolicy`,
-  `role:"watcher"`, `qualityDimension`, `sessionReadSet`, `loopDetector` ring buffer.
-- All 13 behaviors implemented behind their gates, with tests, on the Claude adapter (richest gate surface).
-- Per-runtime degraded-mode equivalents for Codex and Hermes.
+1. `pnpm test` is green (curated suite), no regressions.
+2. A live v3 CLI enforces the universal-base gates (`user_prompt` + `pre_tool`) on Claude in a real
+   process; `.claude/settings.json` points to it; an integration test spawns it and asserts exit 2
+   on a skill-force.
+3. The `@harness/*` legacy packages are removed; the repo is v3-only and builds green.
+4. Forced-parallelization model implemented with passing tests (role-team spawn + merge).
+5. Every new claim-bearing artifact carries a resolving Falsifies-If (guard green).
 
-**DEFERRED (next cycles)**
-- Hardening the `prompt_pattern` classifiers (BEH-014, BEH-032) — the one fuzzy classifier family;
-  isolate and tighten after the action-signal core is proven.
-- Returning to cycle-96 external-authorization rows once behaviors land.
+Saturation: a final critic + verification wave confirms each criterion with file:line/test evidence;
+any finding re-opens the cycle.
 
-## 4. DONE criteria (saturation-based — README §"the harder bar")
+## 4. Kill conditions
 
-Numeric floors (necessary, not sufficient):
-
-1. **ADR recorded** adopting 9 GateTypes; `00-canonical-runtime-contract.md §6` updated to list nine.
-2. **Structural schema commit landed** (single S commit, zero behavior change), green typecheck + lint.
-3. **13/13 behaviors implemented + verified**: each behavior has (a) an action-signal classifier wired
-   to its GateType(s), (b) a passing test proving block/warn at its declared risk floor, (c) a passing
-   test of its Falsifies-If counter-example, (d) its Codex/Hermes degraded mode implemented.
-4. **BEH-000 regression proof**: a test demonstrates that discussing or reading a governed concept
-   no longer produces a gate verdict in the absence of a corresponding tool action (the trap closed).
-5. **Zero classifier scans output text by keyword** anywhere in `packages/core/src/`.
-6. **Spec 12 ACCEPTED** with no open RED CARD.
-
-Saturation criterion (the actual bar):
-
-```yaml
-saturation-criterion:
-  enforced-by: a final critic + fresh coverage-auditor wave run AFTER all four waves land
-  passes-when: >
-    the coverage re-audit reports 13/13 IMPLEMENTED with file:line evidence AND finds zero behaviors
-    still keyword-classified AND zero behaviors missing a Falsifies-If block; AND a critic attempting
-    to reach a completion-verified state while skipping any behavior's gate FAILS to do so.
-  ratchet: if any post-wave finding lands, the cycle re-opens; status reverts ACTIVE; new criteria added.
-```
-
-Findings-applied clause (README §4): the behaviors must be wired into the live gate evaluation,
-not merely specified. A spec without enforcement does not close this cycle.
+- If the v3 forcing premise fails on the live universal base (the spawned CLI cannot hard-block),
+  stop and re-examine ARCHITECTURE-v3 §C2 before building further (per ADR-0004 Falsifies-If).
+- Never weaken a guard to pass; fix the code/data. Tidy First: S and B commits never mixed.
 
 ```yaml
 Falsifies-If:
   kill-condition: >
-    Any behavior is marked IMPLEMENTED without a passing block/warn test at its risk floor, OR any
-    classifier in packages/core/src still decides a gate verdict by matching keywords in output text,
-    OR cycle-97 is marked DONE while spec 12 still carries an open RED CARD.
-  checkpoint-date: 2026-06-10
-  evidence-anchor: docs/conception/12-behaviors-catalog-spec.md + packages/core/src/gates/ + packages/core/test/ + .planning/behavior-system/
-  on-fail: reopen cycle-97 as ACTIVE; restore the per-behavior verification-missing blockers.
+    A v3 iteration is marked done without a passing test at its acceptance criterion, OR the legacy
+    @harness chain is removed before the v3 CLI is wired into the live hooks (leaving the session
+    without enforcement), OR pnpm test is left red.
+  checkpoint-date: 2026-07-06
+  evidence-anchor: docs/decisions/0004-v3-architecture-build.md + packages/hima-core/ + packages/schemas/
+  on-fail: reopen cycle-98 ACTIVE; restore the failing iteration's blocker; do not advance the loop.
 ```
 
-## 5. Kill conditions (approach-level)
+## 5. Status log
 
-- If BEH-000's action-signal approach proves infeasible on a target runtime (a runtime exposes no
-  usable tool-argument or diff signal), fall back to that runtime's **degraded mode** — never back to
-  keyword scanning. Document the gap; do not silently weaken the classifier.
-- If the structural schema commit cannot stay behavior-neutral (Tidy First S/B), split it further;
-  never mix the schema change with behavior wiring in one commit.
-
-## 6. Books queued after this one
-
-1. `prompt_pattern` classifier hardening (BEH-014 + BEH-032 fuzzy-edge reduction).
-2. Resume cycle-96 external-authorization packets (now unblocked-by-priority, still need user auth).
-
-## 7. Status log
-
-- **2026-05-20** — Cycle 97 drafted (staging). Supersedes cycle-96 BLOCKED: the behavior system is the
-  safe local-only lane cycle-95 declared absent. Coverage evidence: 44 behaviors audited
-  (32% implemented / 39% partial / 29% missing) across `.planning/behavior-system/coverage-{A,B,C}-*.md`;
-  vocabulary + 8 contradictions reconciled in `.planning/behavior-system/reconciliation-and-contradictions.md`;
-  spec drafted at `docs/conception/12-behaviors-catalog-spec.md` (PLANNED). No code written yet.
-
-- **2026-05-21** — 13/13 behaviors built + deployed (W0–W3 + FIX-1/2/3). ADR 0002 landed (9 GateTypes).
-  BEH-000 action-signal classifier live; keyword false-positive trap closed. 1215/1224 tests pass (9
-  pre-existing Windows flakies). Saturation gate: NOT MET — 4 behaviors (BEH-012/021/023/031) are
-  unit-test-only, missing handleHook end-to-end integration tests. BEH-012 also carries a 5th
-  local normalizePath copy (FIX-1 missed it). Cycle remains ACTIVE; FIX-4 is the closure blocker.
-  Handoff: `.planning/behavior-system/HANDOFF.md`.
-
----
-
-*This file is `claim-bearing: true` and governed by `docs/conception/05-gates-policy-spec.md` §8.4.
-The §4 DONE criteria + both Falsifies-If blocks are gate-relevant assertions. Numeric floors are
-necessary but not sufficient; close requires real enforcement evidence (tests + file:line), not a spec alone.*
+- **2026-06-29** — Cycle 98 opened. Walking skeleton landed (commits 4d50579 + d735e3b: @hima/schemas 87 tests, @hima/core 93 tests incl. E2E). I1 in progress: 5 dead v2 packages removed; claim-bearing guard scoped to exempt archives. Supersedes cycle-97 (v2 behavior system removed).

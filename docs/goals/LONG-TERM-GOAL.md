@@ -54,7 +54,7 @@ See `docs/business-model/strategy-diagnosis.md` §2 for the 7 refusal rules (R1�
 Falsifies-If:
   kill-condition: Any of the 7 refusal rules R1-R7 in strategy-diagnosis.md §2 fires its kill-condition before 2027-08-01
   checkpoint-date: rolling (per-event)
-  evidence-anchor: docs/business-model/strategy-diagnosis.md §2 + the specific evidence-anchor named in the firing rule
+  evidence-anchor: docs/archive-v1/business-model/strategy-diagnosis.md §2 + the specific evidence-anchor named in the firing rule
   on-fail: pause the short-term goal cadence; revise this file's §1 and §2 within 14 days; resume the cadence with the next short-term goal aligned to the revised long-term goal
 ```
 
