@@ -27,60 +27,6 @@ importers:
         specifier: ^4.1.5
         version: 4.1.5(@types/node@24.12.2)(vite@8.0.10(@types/node@24.12.2)(esbuild@0.27.7)(yaml@2.8.4))
 
-  packages/adapter-claude:
-    dependencies:
-      '@harness/core':
-        specifier: workspace:*
-        version: link:../core
-
-  packages/adapter-codex:
-    dependencies:
-      '@harness/core':
-        specifier: workspace:*
-        version: link:../core
-
-  packages/adapter-hermes:
-    dependencies:
-      '@harness/core':
-        specifier: workspace:*
-        version: link:../core
-
-  packages/cli:
-    dependencies:
-      '@harness/adapter-claude':
-        specifier: workspace:*
-        version: link:../adapter-claude
-      '@harness/adapter-codex':
-        specifier: workspace:*
-        version: link:../adapter-codex
-      '@harness/adapter-hermes':
-        specifier: workspace:*
-        version: link:../adapter-hermes
-      '@harness/core':
-        specifier: workspace:*
-        version: link:../core
-      citty:
-        specifier: ^0.2.2
-        version: 0.2.2
-
-  packages/core:
-    dependencies:
-      xstate:
-        specifier: ^5.31.0
-        version: 5.31.0
-      yaml:
-        specifier: ^2.8.4
-        version: 2.8.4
-      zod:
-        specifier: ^4.4.2
-        version: 4.4.2
-
-  packages/generator:
-    dependencies:
-      zod:
-        specifier: ^4.4.2
-        version: 4.4.2
-
   packages/hima-cli:
     dependencies:
       '@hima/core':
@@ -107,21 +53,6 @@ importers:
       effect:
         specifier: ^3
         version: 3.21.4
-
-  packages/mcp-server:
-    dependencies:
-      '@harness/adapter-claude':
-        specifier: workspace:*
-        version: link:../adapter-claude
-      '@harness/adapter-codex':
-        specifier: workspace:*
-        version: link:../adapter-codex
-      '@harness/adapter-hermes':
-        specifier: workspace:*
-        version: link:../adapter-hermes
-      '@harness/core':
-        specifier: workspace:*
-        version: link:../core
 
   packages/schemas:
     dependencies:
@@ -697,9 +628,6 @@ packages:
     resolution: {integrity: sha512-Qgzu8kfBvo+cA4962jnP1KkS6Dop5NS6g7R5LFYJr4b8Ub94PPQXUksCw9PvXoeXPRRddRNC5C1JQUR2SMGtnA==}
     engines: {node: '>= 14.16.0'}
 
-  citty@0.2.2:
-    resolution: {integrity: sha512-+6vJA3L98yv+IdfKGZHBNiGW5KHn22e/JwID0Strsz8h4S/csAu/OuICwxrg44k5MRiZHWIo8XXuJgQTriRP4w==}
-
   commander@4.1.1:
     resolution: {integrity: sha512-NOKm8xhkzAjzFx8B2v5OAHT+u5pRQc2UCa2Vq9jYL/31o2wi9mxBA7LIFs3sV5VSC49z6pEhfbMULvShKj26WA==}
     engines: {node: '>= 6'}
@@ -1122,9 +1050,6 @@ packages:
     engines: {node: '>=8'}
     hasBin: true
 
-  xstate@5.31.0:
-    resolution: {integrity: sha512-5B+0DqC0uNUrcLUEY3pn3iNy+swvK2E0ZpYp5gnV3oxMX5y87vzXkU5YXv9CAtyG5c5FOJ1SzvTWHrwE8fMZNQ==}
-
   yaml@2.8.4:
     resolution: {integrity: sha512-ml/JPOj9fOQK8RNnWojA67GbZ0ApXAUlN2UQclwv2eVgTgn7O9gg9o7paZWKMp4g0H3nTLtS9LVzhkpOFIKzog==}
     engines: {node: '>= 14.6'}
@@ -1492,8 +1417,6 @@ snapshots:
   chokidar@4.0.3:
     dependencies:
       readdirp: 4.1.2
-
-  citty@0.2.2: {}
 
   commander@4.1.1: {}
 
@@ -1867,8 +1790,6 @@ snapshots:
     dependencies:
       siginfo: 2.0.0
       stackback: 0.0.2
-
-  xstate@5.31.0: {}
 
   yaml@2.8.4: {}
 

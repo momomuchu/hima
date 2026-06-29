@@ -1,9 +1,0 @@
-# Build output — tsup emits to dist/ but a bare `tsc` invocation
-# (without --outDir) would place .js alongside .ts sources.
-# Guard against that leak.
-src/**/*.js
-src/**/*.js.map
-src/**/*.mjs
-src/**/*.d.ts
-# dist is tracked via package.json "files" field, not git
-dist/
