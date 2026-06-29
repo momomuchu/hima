@@ -1,0 +1,55 @@
+{
+  "stageSkills": {
+    "discovery": {
+      "force": [
+        { "source": "corpus", "id": "corpus-OVERRIDE-SKILL" }
+      ],
+      "inject": []
+    },
+    "spec": {
+      "force": [
+        { "source": "corpus", "id": "corpus-spec-driven-development" },
+        { "source": "project", "id": "local-spec-helper" }
+      ]
+    }
+  },
+  "cycle": {
+    "id": "my-custom-cycle",
+    "name": "My Custom Cycle",
+    "stages": [
+      {
+        "id": "discovery",
+        "name": "Discovery",
+        "forceSkills": [{ "source": "corpus", "id": "corpus-technical-analysis-discovery" }],
+        "injectSkills": [],
+        "entryAllowed": true
+      },
+      {
+        "id": "spec",
+        "name": "Specification",
+        "forceSkills": [{ "source": "corpus", "id": "corpus-spec-driven-development" }],
+        "injectSkills": [],
+        "entryAllowed": true
+      },
+      {
+        "id": "impl",
+        "name": "Implementation",
+        "forceSkills": [{ "source": "corpus", "id": "corpus-code-quality-maintainability" }],
+        "injectSkills": [],
+        "entryAllowed": true
+      }
+    ]
+  },
+  "roles": {
+    "executor": {
+      "model": "haiku",
+      "stages": ["impl", "test"],
+      "forcedSkills": [
+        { "source": "corpus", "id": "corpus-code-quality-maintainability" }
+      ]
+    },
+    "reviewer": {
+      "model": "sonnet"
+    }
+  }
+}

@@ -93,3 +93,10 @@ export {
   decodeTraceEvent,
   decodeTraceEventEither,
 } from "./trace.js";
+
+// config — per-user / per-project HimaConfig schema + decoders (AMENDMENT-001 / -003)
+export {
+  HimaConfig,
+  decodeHimaConfig,
+  decodeHimaConfigEither,
+} from "./config.js";

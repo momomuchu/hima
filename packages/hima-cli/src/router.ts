@@ -30,6 +30,8 @@ import {
   pickAttack,
   translateClaude,
   appendTrace,
+  loadConfig,
+  resolveStageForceSkills,
 } from "@hima/core";
 
 import { DEV_CYCLE } from "@hima/schemas";
@@ -169,9 +171,10 @@ export async function handlePreToolUse(
     return;
   }
 
-  // 2. Find the current stage definition in DEV_CYCLE.
-  const stageDef = DEV_CYCLE.stages.find((s) => s.id === ward.openStage);
-  if (stageDef === undefined || stageDef.forceSkills.length === 0) {
+  // 2. Resolve forceSkills for the current stage, honoring any project/user config.
+  const config = await loadConfig(root);
+  const forceSkills = resolveStageForceSkills(config, ward.openStage, DEV_CYCLE);
+  if (forceSkills.length === 0) {
     // No forced skills for this stage → allow
     emitAllow();
     safeAppendTrace(root, {
@@ -194,7 +197,7 @@ export async function handlePreToolUse(
   const skillsLoaded = register.map((r) => r.id);
 
   // 4. Find the first forceSkill not yet in the register.
-  const missing = stageDef.forceSkills.find(
+  const missing = forceSkills.find(
     (ref) => !register.some((r) => r.id === ref.id && r.source === ref.source),
   );
 

@@ -74,3 +74,18 @@ export type {
 // trace — per-session JSONL trace emitter (observability)
 // ---------------------------------------------------------------------------
 export { appendTrace, readTrace, traceFilePath } from "./trace.js";
+
+// ---------------------------------------------------------------------------
+// config — per-user / per-project config loader + resolvers
+// (AMENDMENT-001 pluggable skills + AMENDMENT-003 pluggable cycle)
+// ---------------------------------------------------------------------------
+export {
+  HimaConfig,
+  decodeHimaConfig,
+  decodeHimaConfigEither,
+  loadConfig,
+  resolveStageForceSkills,
+  resolveStageInjectSkills,
+  resolveRole,
+} from "./config.js";
+export type { LoadConfigOpts } from "./config.js";
