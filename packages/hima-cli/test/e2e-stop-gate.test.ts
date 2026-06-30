@@ -234,7 +234,7 @@ describe("Scenario E — dispatch: pre-tool-use --format codex + skill-force →
   it("exitStatus === 2 (codex skill-force block)", () => {
     const { status } = spawnCli(
       ["hook", "pre-tool-use", "--format", "codex"],
-      { tool_name: "Write", tool_input: { path: "src/foo.ts", content: "x" } },
+      { tool_name: "Write", tool_input: { path: "src/spec.md", content: "x" } },
       root,
     );
     expect(status).toBe(2);
@@ -243,7 +243,7 @@ describe("Scenario E — dispatch: pre-tool-use --format codex + skill-force →
   it("stdout contains block decision for codex dispatch", () => {
     const { stdout } = spawnCli(
       ["hook", "pre-tool-use", "--format", "codex"],
-      { tool_name: "Write", tool_input: { path: "src/foo.ts", content: "x" } },
+      { tool_name: "Write", tool_input: { path: "src/spec.md", content: "x" } },
       root,
     );
     expect(stdout).toMatch(/"decision"\s*:\s*"block"/);
@@ -252,7 +252,7 @@ describe("Scenario E — dispatch: pre-tool-use --format codex + skill-force →
   it("stdout references the discovery skill id", () => {
     const { stdout } = spawnCli(
       ["hook", "pre-tool-use", "--format", "codex"],
-      { tool_name: "Write", tool_input: { path: "src/bar.ts", content: "y" } },
+      { tool_name: "Write", tool_input: { path: "src/plan.md", content: "y" } },
       root,
     );
     expect(stdout).toContain(DISCOVERY_SKILL_ID);
@@ -265,9 +265,11 @@ describe("Scenario E — dispatch: pre-tool-use --format codex + skill-force →
       await createWard(root2, { id: "stop-e2e-e2", entryPoint: "full", floor: "M" });
       await markLoaded(root2, { source: "corpus", id: DISCOVERY_SKILL_ID });
 
+      // Use a .md path so the planner write-guard (discovery = planner stage) allows;
+      // skill-force also passes since the skill is loaded → exit 0.
       const { status } = spawnCli(
         ["hook", "pre-tool-use", "--format", "codex"],
-        { tool_name: "Write", tool_input: { path: "src/baz.ts", content: "z" } },
+        { tool_name: "Write", tool_input: { path: "src/plan.md", content: "z" } },
         root2,
       );
       expect(status).toBe(0);

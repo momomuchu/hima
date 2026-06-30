@@ -20,6 +20,7 @@
   "dependencies": {
     "effect": "^3",
     "@hima/schemas": "workspace:*",
-    "@hima/storage-core": "workspace:*"
+    "@hima/storage-core": "workspace:*",
+    "picomatch": "^4"
   }
 }

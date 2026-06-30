@@ -87,7 +87,7 @@ describe("Scenario A — pre-tool-use --format codex + skill-force → exit 2 + 
   it("exit status is 2 (codex hard block)", () => {
     const { status } = spawnCli(
       ["hook", "pre-tool-use", "--format", "codex"],
-      { tool_name: "Write", tool_input: { path: "src/foo.ts", content: "x" } },
+      { tool_name: "Write", tool_input: { path: "src/spec.md", content: "x" } },
       root,
     );
     expect(status).toBe(2);
@@ -96,7 +96,7 @@ describe("Scenario A — pre-tool-use --format codex + skill-force → exit 2 + 
   it("stdout contains decision:block", () => {
     const { stdout } = spawnCli(
       ["hook", "pre-tool-use", "--format", "codex"],
-      { tool_name: "Write", tool_input: { path: "src/foo.ts", content: "x" } },
+      { tool_name: "Write", tool_input: { path: "src/spec.md", content: "x" } },
       root,
     );
     expect(stdout).toMatch(/"decision"\s*:\s*"block"/);
@@ -105,7 +105,7 @@ describe("Scenario A — pre-tool-use --format codex + skill-force → exit 2 + 
   it("stdout systemMessage exists and contains the discovery skill id within first 100 chars", () => {
     const { stdout } = spawnCli(
       ["hook", "pre-tool-use", "--format", "codex"],
-      { tool_name: "Write", tool_input: { path: "src/foo.ts", content: "x" } },
+      { tool_name: "Write", tool_input: { path: "src/spec.md", content: "x" } },
       root,
     );
     const parsed = JSON.parse(stdout.trim()) as Record<string, unknown>;

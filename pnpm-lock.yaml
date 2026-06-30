@@ -53,6 +53,9 @@ importers:
       effect:
         specifier: ^3
         version: 3.21.4
+      picomatch:
+        specifier: ^4
+        version: 4.0.4
 
   packages/schemas:
     dependencies:

@@ -26,6 +26,7 @@ import { BEH_SECURITY_SCOPE } from "./beh-security-scope.js";
 import { BEH_SECRET_GUARD } from "./beh-secret-guard.js";
 import { BEH_RESEARCH_FIRST } from "./beh-research-first.js";
 import { BEH_SPEC_GATE } from "./beh-spec-gate.js";
+import { BEH_PLANNER_WRITE_GUARD } from "./beh-planner-write-guard.js";
 
 // ---------------------------------------------------------------------------
 // Registry class
@@ -96,6 +97,9 @@ defaultRegistry.registerBehavior(BEH_RESEARCH_FIRST);
 
 // R-024 / I13: spec-gate advisory at M+ user_prompt (warns before code without spec reference).
 defaultRegistry.registerBehavior(BEH_SPEC_GATE);
+
+// R-020 part 2 / I14: planner-write-guard — blocks code writes in planner stages (pre_tool).
+defaultRegistry.registerBehavior(BEH_PLANNER_WRITE_GUARD);
 
 /**
  * Module-level convenience: register a descriptor in the default registry.

@@ -50,6 +50,9 @@ import {
   buildFounderDigestContext,
   buildReviewSurfaceContext,
   buildNextAttackContext,
+  roleForStage,
+  roleContext,
+  resolveRulesForPath,
 } from "@hima/core";
 import type { RuntimeTarget, DispatchResponse, DeferredVerdict } from "@hima/core";
 
@@ -272,7 +275,15 @@ export async function handleUserPromptSubmit(
   }
   const canaryWithRaise =
     raiseCanary !== undefined ? `${raiseCanary}\n${canary}` : canary;
-  emitContext("UserPromptSubmit", canaryWithRaise);
+
+  // R-020 — role injection (advisory): resolve role from openStage and emit
+  // the role-context string as additional advisory context so the agent knows
+  // its active role constraints (e.g. planner must not write code).
+  const activeRole = roleForStage(ward.openStage);
+  const roleCtx = activeRole !== null ? roleContext(activeRole) : null;
+  const fullContext =
+    roleCtx !== null ? `${canaryWithRaise}\n${roleCtx}` : canaryWithRaise;
+  emitContext("UserPromptSubmit", fullContext);
 
   // 5. Emit trace event for the ward activation
   safeAppendTrace(root, {
@@ -287,6 +298,42 @@ export async function handleUserPromptSubmit(
     exitCode: 0,
     canary,
   });
+}
+
+// ---------------------------------------------------------------------------
+// emitAllowWithRules — advisory rules injection on allow paths (R-029)
+// ---------------------------------------------------------------------------
+
+/**
+ * Emit an allow response (exit 0) optionally decorated with injected rule bodies.
+ *
+ * If resolveRulesForPath finds matching rules for `targetPath`, they are emitted
+ * as additionalContext before exit. If no rules match (or targetPath is undefined),
+ * falls back to a silent allow (emitAllow). Never throws — rules injection is
+ * best-effort and must never block the hook.
+ *
+ * R-029: rules injection is advisory only — always exits 0 regardless of result.
+ */
+async function emitAllowWithRules(
+  root: string,
+  sessionId: string,
+  targetPath: string | undefined,
+): Promise<void> {
+  if (targetPath !== undefined) {
+    try {
+      const absTarget = targetPath.startsWith("/")
+        ? targetPath
+        : `${root}/${targetPath}`;
+      const { injected } = await resolveRulesForPath(root, absTarget, { sessionId });
+      if (injected.length > 0) {
+        emitContext("PreToolUse", `[HIMA rules]\n${injected.join("\n---\n")}`);
+        return;
+      }
+    } catch {
+      // Best-effort: swallow errors so rules injection never breaks the hook.
+    }
+  }
+  emitAllow();
 }
 
 /**
@@ -308,6 +355,21 @@ export async function handlePreToolUse(
 ): Promise<void> {
   const sessionId = payload.sessionId ?? "unknown-session";
   const toolName = payload.toolName ?? "";
+
+  // R-029: extract target file path from toolInput early for rules injection.
+  // Used by emitAllowWithRules at each allow exit (advisory, never blocks).
+  const toolInputObj =
+    typeof payload.toolInput === "object" && payload.toolInput !== null
+      ? (payload.toolInput as Record<string, unknown>)
+      : undefined;
+  const targetFilePath: string | undefined =
+    toolInputObj !== undefined
+      ? typeof toolInputObj["file_path"] === "string"
+        ? (toolInputObj["file_path"] as string)
+        : typeof toolInputObj["path"] === "string"
+          ? (toolInputObj["path"] as string)
+          : undefined
+      : undefined;
 
   // R-027: replay any deferred stop verdict from a previous hermes stop hook.
   // The deferred verdict is single-use: readAndConsumeDeferredVerdict deletes it.
@@ -384,7 +446,7 @@ export async function handlePreToolUse(
         reason: behaviorVerdict.reason,
       });
     } else {
-      emitAllow();
+      await emitAllowWithRules(root, sessionId, targetFilePath);
       safeAppendTrace(root, {
         sessionId,
         hookEvent: "PreToolUse",
@@ -404,7 +466,7 @@ export async function handlePreToolUse(
   // 4. R-053: safety behaviors evaluated above. Now check if a ward exists.
   //    No ward → skip skill-force (the pipeline hasn't started yet) and allow.
   if (ward === null) {
-    emitAllow();
+    await emitAllowWithRules(root, sessionId, targetFilePath);
     safeAppendTrace(root, {
       sessionId,
       hookEvent: "PreToolUse",
@@ -425,8 +487,8 @@ export async function handlePreToolUse(
   const baseForceSkills = resolveStageForceSkills(config, ward.openStage, DEV_CYCLE);
   const forceSkills = resolveStageForceSkillsForFloor(baseForceSkills, ward.openStage, ward.floor);
   if (forceSkills.length === 0) {
-    // No forced skills for this stage → allow
-    emitAllow();
+    // No forced skills for this stage → allow (with R-029 rules injection).
+    await emitAllowWithRules(root, sessionId, targetFilePath);
     safeAppendTrace(root, {
       sessionId,
       hookEvent: "PreToolUse",
@@ -452,8 +514,8 @@ export async function handlePreToolUse(
   );
 
   if (missing === undefined) {
-    // All required skills are loaded → allow
-    emitAllow();
+    // All required skills are loaded → allow (with R-029 rules injection).
+    await emitAllowWithRules(root, sessionId, targetFilePath);
     safeAppendTrace(root, {
       sessionId,
       hookEvent: "PreToolUse",
@@ -471,8 +533,9 @@ export async function handlePreToolUse(
 
   // 9. Only block if this is a write tool.
   if (!WRITE_TOOL_NAMES.has(toolName)) {
-    // Non-write tool → allow (skill gate only fires on write tools)
-    emitAllow();
+    // Non-write tool → allow (skill gate only fires on write tools).
+    // R-029: inject rules even on non-write tool paths.
+    await emitAllowWithRules(root, sessionId, targetFilePath);
     safeAppendTrace(root, {
       sessionId,
       hookEvent: "PreToolUse",

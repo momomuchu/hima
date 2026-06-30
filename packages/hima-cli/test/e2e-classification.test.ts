@@ -203,7 +203,7 @@ describe("Scenario C — H-floor ward at discovery lists floor-scaled skills in 
   it("exitStatus === 2 (block — skills not loaded)", () => {
     const { status } = spawnCli(
       ["hook", "pre-tool-use", "--format", "claude"],
-      { toolName: "Write", toolInput: { file_path: "src/foo.ts", content: "x" } },
+      { toolName: "Write", toolInput: { file_path: "src/spec.md", content: "x" } },
       cRoot,
     );
     expect(status).toBe(2);
@@ -212,7 +212,7 @@ describe("Scenario C — H-floor ward at discovery lists floor-scaled skills in 
   it('stdout contains "block" decision', () => {
     const { stdout } = spawnCli(
       ["hook", "pre-tool-use", "--format", "claude"],
-      { toolName: "Write", toolInput: { file_path: "src/foo.ts", content: "x" } },
+      { toolName: "Write", toolInput: { file_path: "src/spec.md", content: "x" } },
       cRoot,
     );
     expect(stdout).toMatch(/"decision"\s*:\s*"block"/);
@@ -221,7 +221,7 @@ describe("Scenario C — H-floor ward at discovery lists floor-scaled skills in 
   it("block reason references the base discovery skill", () => {
     const { stdout } = spawnCli(
       ["hook", "pre-tool-use", "--format", "claude"],
-      { toolName: "Write", toolInput: { file_path: "src/foo.ts", content: "x" } },
+      { toolName: "Write", toolInput: { file_path: "src/spec.md", content: "x" } },
       cRoot,
     );
     expect(stdout).toContain(DISCOVERY_SKILL_ID);
@@ -230,7 +230,7 @@ describe("Scenario C — H-floor ward at discovery lists floor-scaled skills in 
   it("block reason lists H-extra skill corpus-specification-requirements (floor-scaled)", () => {
     const { stdout } = spawnCli(
       ["hook", "pre-tool-use", "--format", "claude"],
-      { toolName: "Write", toolInput: { file_path: "src/foo.ts", content: "x" } },
+      { toolName: "Write", toolInput: { file_path: "src/spec.md", content: "x" } },
       cRoot,
     );
     // R-017: at floor H, resolveStageForceSkillsForFloor adds this skill.
@@ -240,7 +240,7 @@ describe("Scenario C — H-floor ward at discovery lists floor-scaled skills in 
   it("block reason lists H-extra skill corpus-architecture-system-design (floor-scaled)", () => {
     const { stdout } = spawnCli(
       ["hook", "pre-tool-use", "--format", "claude"],
-      { toolName: "Write", toolInput: { file_path: "src/foo.ts", content: "x" } },
+      { toolName: "Write", toolInput: { file_path: "src/spec.md", content: "x" } },
       cRoot,
     );
     expect(stdout).toContain(H_EXTRA_SKILL_2);
@@ -249,7 +249,7 @@ describe("Scenario C — H-floor ward at discovery lists floor-scaled skills in 
   it("block reason lists MORE than 1 forced skill (floor-scaled beyond base)", () => {
     const { stdout } = spawnCli(
       ["hook", "pre-tool-use", "--format", "claude"],
-      { toolName: "Write", toolInput: { file_path: "src/foo.ts", content: "x" } },
+      { toolName: "Write", toolInput: { file_path: "src/spec.md", content: "x" } },
       cRoot,
     );
     // The reason should mention multiple skill ids separated by commas.

@@ -85,6 +85,7 @@ export { BEH_SECURITY_SCOPE } from "./behavior-core/beh-security-scope.js";
 export { BEH_SECRET_GUARD } from "./behavior-core/beh-secret-guard.js";
 export { BEH_RESEARCH_FIRST } from "./behavior-core/beh-research-first.js";
 export { BEH_SPEC_GATE } from "./behavior-core/beh-spec-gate.js";
+export { BEH_PLANNER_WRITE_GUARD } from "./behavior-core/beh-planner-write-guard.js";
 
 // ---------------------------------------------------------------------------
 // read-set — per-session read-set tracker (R-003 PostToolUse capture)
@@ -200,3 +201,32 @@ export {
   buildSessionResumeContext,
   buildPreCompactContext,
 } from "./session-state.js";
+
+// ---------------------------------------------------------------------------
+// prompts-core — role→stage mapping, variant resolution, role-context strings.
+// R-020: roleForStage, roleContext, PLANNER_STAGES; resolveVariant.
+// ---------------------------------------------------------------------------
+export type { HimaRole } from "./prompts-core/role-for-stage.js";
+export {
+  PLANNER_STAGES,
+  EXECUTOR_STAGES,
+  REVIEWER_STAGES,
+  roleForStage,
+  roleContext,
+} from "./prompts-core/role-for-stage.js";
+export type { ResolveVariantParams } from "./prompts-core/variant-resolver.js";
+export {
+  resolveVariant,
+  PLANNER_AGENT_NAMES,
+} from "./prompts-core/variant-resolver.js";
+export type { PromptSource, VariantTable } from "./prompts-core/types.js";
+
+// ---------------------------------------------------------------------------
+// rules-engine — path-scoped rule injection (R-029, SPEC-006).
+// resolveRulesForPath, parseRuleFrontmatter, ruleMatches.
+// ---------------------------------------------------------------------------
+export type { ResolveRulesOpts, ResolveRulesResult } from "./rules-engine/index.js";
+export { resolveRulesForPath } from "./rules-engine/index.js";
+export type { ParsedRule } from "./rules-engine/frontmatter.js";
+export { parseRuleFrontmatter } from "./rules-engine/frontmatter.js";
+export { ruleMatches } from "./rules-engine/matcher.js";
