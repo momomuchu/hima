@@ -65,12 +65,13 @@ afterEach(async () => {
 // ---------------------------------------------------------------------------
 
 describe("router — graceful no-op events (exit 0)", () => {
+  // subagent-start is no longer a no-op: it evaluates BEH_WORKER_MODEL and blocks
+  // on claude when no model is specified. See e2e-subagents.test.ts for coverage.
   const noOpEvents = [
     "session-start",
     "post-tool-use",
     "pre-compact",
     "post-compact",
-    "subagent-start",
   ] as const;
 
   for (const event of noOpEvents) {

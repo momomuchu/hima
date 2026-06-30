@@ -53,6 +53,10 @@ import {
   roleForStage,
   roleContext,
   resolveRulesForPath,
+  injectRulesIntoDelegateTask,
+  markSubagentSeen,
+  isSubagentSeen,
+  hermesHomeWarning,
 } from "@hima/core";
 import type { RuntimeTarget, DispatchResponse, DeferredVerdict } from "@hima/core";
 
@@ -392,6 +396,16 @@ export async function handlePreToolUse(
       exitCode: 2,
       reason: `[deferred-replay] ${deferredVerdict.reason}`,
     });
+    return;
+  }
+
+  // R-038: Hermes delegate_task intercept — compensation for absent subagent_start.
+  // When runtime is "hermes" and the tool being invoked is "delegate_task", treat this
+  // pre_tool event as a subagent_start gate: evaluate BEH_WORKER_MODEL (and any other
+  // subagent_start behaviors), and on allow inject hima governance rules into the task
+  // payload. This prevents subagents from inheriting the session default model.
+  if (runtime === "hermes" && toolName === "delegate_task") {
+    await handleHermesDelegateTask(root, payload, sessionId);
     return;
   }
 
@@ -998,14 +1012,22 @@ export async function handleStageAdvance(
 export async function handleSessionStart(
   root: string,
   payload: StdinPayload,
-  _runtime: RuntimeTarget = "claude",
+  runtime: RuntimeTarget = "claude",
 ): Promise<void> {
   const sessionId = payload.sessionId ?? "unknown-session";
 
   const context = await buildSessionResumeContext(root);
 
-  if (context !== null) {
-    emitContext("SessionStart", context);
+  // R-055: when runtime is hermes, append HERMES_HOME warning when the env var
+  // is absent — profile switching mid-session is disabled without it.
+  const homeWarning =
+    runtime === "hermes" ? hermesHomeWarning(process.env) : null;
+
+  // Build the final context string: combine ward-resume context + hermes warning.
+  const finalContext = [context, homeWarning].filter(Boolean).join("\n") || null;
+
+  if (finalContext !== null) {
+    emitContext("SessionStart", finalContext);
     safeAppendTrace(root, {
       sessionId,
       hookEvent: "SessionStart",
@@ -1014,7 +1036,10 @@ export async function handleSessionStart(
       skillsForced: [],
       skillsLoaded: [],
       exitCode: 0,
-      reason: "session-start: ward found — resume context emitted",
+      reason:
+        context !== null
+          ? "session-start: ward found — resume context emitted"
+          : "session-start: hermes home warning emitted",
     });
   } else {
     emitAllow();
@@ -1080,6 +1105,270 @@ export async function handlePreCompact(
       runtime !== "claude"
         ? `pre-compact: no-op for ${runtime} runtime`
         : "pre-compact: no active ward",
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Minimal hima governance rules serialized for subagent injection (R-047).
+//
+// Injected into delegate_task payloads so Hermes subagents inherit key
+// governance constraints even without a native subagent_start hook.
+// Kept short (≤ MAX_RULES_CHARS) to stay within the size guard in
+// injectRulesIntoDelegateTask.
+// ---------------------------------------------------------------------------
+
+const HIMA_GOVERNANCE_RULES_SERIALIZED = [
+  "hima governance (injected from parent session):",
+  "1. Worker model: always specify model explicitly (haiku|sonnet). Never inherit session default.",
+  "2. Observe all gates: pre_tool, stop, session_start remain active in child sessions.",
+  "3. No unsafe operations (destructive git, secret exposure) without explicit authority.",
+  "4. Skill-force: call required corpus-* skills before writing implementation files.",
+  "5. Falsifies-If blocks on claim-bearing artifacts must be present.",
+].join("\n");
+
+/**
+ * handleHermesDelegateTask — internal R-038 compensation handler.
+ *
+ * Called from handlePreToolUse when runtime==="hermes" and toolName==="delegate_task".
+ * Evaluates the subagent_start gate (BEH_WORKER_MODEL) and either blocks or
+ * injects hima rules into the task payload.
+ *
+ * Emit shape on allow (hermes ACP with modifications):
+ *   {"decision":"allow","raw":{"action":"continue","modifications":{"task":"<injected>"}}}
+ *
+ * Emit shape on block:
+ *   {"decision":"block","reason":"...","raw":{"action":"block","message":"..."}}
+ */
+async function handleHermesDelegateTask(
+  root: string,
+  payload: StdinPayload,
+  sessionId: string,
+): Promise<void> {
+  const ward = await resumeWard(root);
+  const riskClass = resolveRiskClass(ward);
+
+  // Build subagent_start BehaviorContext from the delegate_task toolInput.
+  const subagentCtx = {
+    event: {
+      gateType: "subagent_start" as const,
+      toolName: "delegate_task",
+      toolInput: payload.toolInput,
+    },
+    riskClass,
+    root,
+    ward,
+    agentOutput: undefined,
+  };
+
+  const verdict = await evaluateGate(
+    getBehaviorsForGate("subagent_start"),
+    subagentCtx,
+  );
+
+  if (verdict.decision === "block") {
+    // Hermes pre_tool canBlock=true — emit hard block.
+    const blockPayload = {
+      decision: "block",
+      reason: verdict.reason,
+      raw: { action: "block", message: verdict.reason },
+    };
+    process.stdout.write(JSON.stringify(blockPayload) + "\n");
+    process.exitCode = 2;
+
+    safeAppendTrace(root, {
+      sessionId,
+      hookEvent: "PreToolUse",
+      gateType: "subagent_start",
+      decision: "block",
+      toolName: "delegate_task",
+      skillsForced: [],
+      skillsLoaded: [],
+      exitCode: 2,
+      reason: `[R-038 delegate_task] ${verdict.reason}`,
+    });
+    return;
+  }
+
+  // Allow path: inject hima governance rules into the task payload.
+  // Extract the task text from toolInput (tries "task" and "description" fields).
+  const toolInputObj =
+    typeof payload.toolInput === "object" && payload.toolInput !== null
+      ? (payload.toolInput as Record<string, unknown>)
+      : undefined;
+  const taskText =
+    toolInputObj !== undefined
+      ? typeof toolInputObj["task"] === "string"
+        ? toolInputObj["task"]
+        : typeof toolInputObj["description"] === "string"
+          ? toolInputObj["description"]
+          : "[no task text]"
+      : "[no task text]";
+
+  const modifiedTask = injectRulesIntoDelegateTask(
+    taskText,
+    HIMA_GOVERNANCE_RULES_SERIALIZED,
+  );
+
+  const allowPayload = {
+    decision: "allow",
+    raw: {
+      action: "continue",
+      modifications: { task: modifiedTask },
+    },
+  };
+  process.stdout.write(JSON.stringify(allowPayload) + "\n");
+
+  safeAppendTrace(root, {
+    sessionId,
+    hookEvent: "PreToolUse",
+    gateType: "subagent_start",
+    decision: "allow",
+    toolName: "delegate_task",
+    skillsForced: [],
+    skillsLoaded: [],
+    exitCode: 0,
+    reason: "[R-038 delegate_task] subagent_start allowed — hima rules injected",
+  });
+}
+
+/**
+ * handleSubagentStart — R-028: enforce BEH_WORKER_MODEL at the subagent_start gate.
+ *
+ * On Claude (canBlock=true for subagent_start): if BEH_WORKER_MODEL blocks (no model
+ * specified in the spawn payload), emits a hard block + exit 2. Otherwise allows.
+ *
+ * On Hermes: subagent_start is absent; compensation is via handlePreToolUse's
+ * delegate_task intercept (R-038). This function is only reached on Claude.
+ *
+ * On Codex: subagent_start is degraded (canBlock=false); the poll-file mechanism
+ * (R-049) provides compensation. Here we still evaluate the gate but cannot block.
+ */
+export async function handleSubagentStart(
+  root: string,
+  payload: StdinPayload,
+  runtime: RuntimeTarget = "claude",
+): Promise<void> {
+  const sessionId = payload.sessionId ?? "unknown-session";
+  const ward = await resumeWard(root);
+  const riskClass = resolveRiskClass(ward);
+
+  // Build BehaviorContext for the subagent_start gate.
+  const ctx = {
+    event: {
+      gateType: "subagent_start" as const,
+      toolName: payload.toolName ?? undefined,
+      toolInput: payload.toolInput,
+    },
+    riskClass,
+    root,
+    ward,
+    agentOutput: undefined,
+  };
+
+  const verdict = await evaluateGate(getBehaviorsForGate("subagent_start"), ctx);
+  const register = await readRegister(root);
+  const cell = getCell(runtime, "subagent_start");
+  const action = pickAttack(runtime, "subagent_start", verdict, register, cell);
+  const response = dispatchTranslate(runtime, action);
+
+  if (verdict.decision === "block" && cell.canBlock) {
+    // Claude: hard-block. Use verdict.reason for the specific violation message.
+    emitBlockDispatch({ ...response, reason: verdict.reason }, verdict.reason);
+    safeAppendTrace(root, {
+      sessionId,
+      hookEvent: "SubagentStart",
+      gateType: "subagent_start",
+      decision: "block",
+      toolName: payload.toolName ?? undefined,
+      skillsForced: [],
+      skillsLoaded: register.map((r) => r.id),
+      exitCode: 2,
+      reason: verdict.reason,
+    });
+    return;
+  }
+
+  // Allow path (or non-blocking runtime like Codex).
+  if (response.additionalContext !== undefined) {
+    emitContext("SubagentStart", response.additionalContext);
+  } else {
+    emitAllow();
+  }
+
+  safeAppendTrace(root, {
+    sessionId,
+    hookEvent: "SubagentStart",
+    gateType: "subagent_start",
+    decision: verdict.decision === "block" ? "allow" : verdict.decision,
+    toolName: payload.toolName ?? undefined,
+    skillsForced: [],
+    skillsLoaded: register.map((r) => r.id),
+    exitCode: 0,
+    reason: verdict.reason,
+  });
+}
+
+/**
+ * handleSubagentStop — R-048: observe-only subagent stop with Hermes dedup guard.
+ *
+ * For Hermes runtime: the subagent_stop event can replay 6+ times due to a known
+ * Hermes bug. isSubagentSeen/markSubagentSeen prevent duplicate processing: on
+ * first observation the event is recorded; subsequent duplicates are silently dropped.
+ *
+ * For all runtimes: exits 0 (observe-only, never blocks).
+ *
+ * agentId extraction: tries `toolInput.agentId`, `toolInput.agent_id`, then falls
+ * back to `toolName` or "unknown-agent" so the dedup key is always non-empty.
+ */
+export async function handleSubagentStop(
+  root: string,
+  payload: StdinPayload,
+  runtime: RuntimeTarget = "claude",
+): Promise<void> {
+  const sessionId = payload.sessionId ?? "unknown-session";
+
+  // Extract agentId from payload for dedup (R-048, Hermes-specific).
+  const toolInputObj =
+    typeof payload.toolInput === "object" && payload.toolInput !== null
+      ? (payload.toolInput as Record<string, unknown>)
+      : undefined;
+  const agentId =
+    toolInputObj !== undefined
+      ? typeof toolInputObj["agentId"] === "string" && toolInputObj["agentId"] !== ""
+        ? toolInputObj["agentId"]
+        : typeof toolInputObj["agent_id"] === "string" && toolInputObj["agent_id"] !== ""
+          ? toolInputObj["agent_id"]
+          : (payload.toolName ?? "unknown-agent")
+      : (payload.toolName ?? "unknown-agent");
+
+  // R-048: Hermes dedup — skip re-processing duplicate subagent_stop events.
+  if (runtime === "hermes") {
+    const alreadySeen = await isSubagentSeen(root, sessionId, agentId, "subagent_stop");
+    if (alreadySeen) {
+      // Duplicate: silently allow, no trace spam.
+      emitAllow();
+      return;
+    }
+    // First occurrence: record and proceed.
+    await markSubagentSeen(root, sessionId, agentId, "subagent_stop").catch(() => {
+      // swallow — dedup persistence failure must never block the hook
+    });
+  }
+
+  // Observe-only: emit a canary and allow.
+  process.stderr.write(`[hima] subagent-stop: no-op\n`);
+  emitAllow();
+
+  safeAppendTrace(root, {
+    sessionId,
+    hookEvent: "subagent-stop",
+    gateType: "subagent_stop",
+    decision: "noop",
+    toolName: payload.toolName ?? undefined,
+    skillsForced: [],
+    skillsLoaded: [],
+    exitCode: 0,
+    reason: `subagent-stop: observe-only${runtime === "hermes" ? " (dedup: first occurrence)" : ""}`,
   });
 }
 

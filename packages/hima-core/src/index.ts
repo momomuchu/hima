@@ -86,6 +86,7 @@ export { BEH_SECRET_GUARD } from "./behavior-core/beh-secret-guard.js";
 export { BEH_RESEARCH_FIRST } from "./behavior-core/beh-research-first.js";
 export { BEH_SPEC_GATE } from "./behavior-core/beh-spec-gate.js";
 export { BEH_PLANNER_WRITE_GUARD } from "./behavior-core/beh-planner-write-guard.js";
+export { BEH_WORKER_MODEL } from "./behavior-core/beh-worker-model.js";
 
 // ---------------------------------------------------------------------------
 // read-set — per-session read-set tracker (R-003 PostToolUse capture)
@@ -220,6 +221,33 @@ export {
   PLANNER_AGENT_NAMES,
 } from "./prompts-core/variant-resolver.js";
 export type { PromptSource, VariantTable } from "./prompts-core/types.js";
+
+// ---------------------------------------------------------------------------
+// hermes-subagent — Hermes subagent propagation helpers (R-047, R-048).
+// injectRulesIntoDelegateTask: idempotent rule injection into delegate_task payloads.
+// markSubagentSeen / isSubagentSeen: session-scoped dedup for subagent_stop replay.
+// ---------------------------------------------------------------------------
+export {
+  injectRulesIntoDelegateTask,
+  markSubagentSeen,
+  isSubagentSeen,
+} from "./hermes-subagent.js";
+
+// ---------------------------------------------------------------------------
+// codex-subagent — poll-file compensation for Codex subagent_start absence (R-049).
+// registerSubagent: called by child Codex agent at session-start.
+// readSubagentRegistry: read accumulated child sessionIds for a parent session.
+// ---------------------------------------------------------------------------
+export {
+  registerSubagent,
+  readSubagentRegistry,
+} from "./codex-subagent.js";
+
+// ---------------------------------------------------------------------------
+// hermes-home — HERMES_HOME warning helper (R-055).
+// hermesHomeWarning: returns a warning string when HERMES_HOME is absent/empty.
+// ---------------------------------------------------------------------------
+export { hermesHomeWarning, HERMES_HOME_WARNING } from "./hermes-home.js";
 
 // ---------------------------------------------------------------------------
 // rules-engine — path-scoped rule injection (R-029, SPEC-006).

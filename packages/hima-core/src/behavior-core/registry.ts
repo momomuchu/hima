@@ -27,6 +27,7 @@ import { BEH_SECRET_GUARD } from "./beh-secret-guard.js";
 import { BEH_RESEARCH_FIRST } from "./beh-research-first.js";
 import { BEH_SPEC_GATE } from "./beh-spec-gate.js";
 import { BEH_PLANNER_WRITE_GUARD } from "./beh-planner-write-guard.js";
+import { BEH_WORKER_MODEL } from "./beh-worker-model.js";
 
 // ---------------------------------------------------------------------------
 // Registry class
@@ -100,6 +101,11 @@ defaultRegistry.registerBehavior(BEH_SPEC_GATE);
 
 // R-020 part 2 / I14: planner-write-guard — blocks code writes in planner stages (pre_tool).
 defaultRegistry.registerBehavior(BEH_PLANNER_WRITE_GUARD);
+
+// R-028 / I10b: worker-model-explicit — blocks subagent spawn without explicit model.
+// Fires at subagent_start gate on claude (canBlock=true). Hermes compensates via
+// handlePreToolUse delegate_task intercept (R-038).
+defaultRegistry.registerBehavior(BEH_WORKER_MODEL);
 
 /**
  * Module-level convenience: register a descriptor in the default registry.

@@ -45,6 +45,8 @@ import {
   handleStageAdvance,
   handleSessionStart,
   handlePreCompact,
+  handleSubagentStart,
+  handleSubagentStop,
 } from "./router.js";
 import type { StdinPayload } from "./stdin.js";
 import type { RuntimeTarget } from "@hima/core";
@@ -351,9 +353,17 @@ export async function route(
           await handlePreCompact(root, payload, runtime);
           break;
 
-        case "post-compact":
         case "subagent-start":
-        case "subagent-stop":  // R-054: observe-only
+          // R-028: BEH_WORKER_MODEL gate — block claude spawns without explicit model.
+          await handleSubagentStart(root, payload, runtime);
+          break;
+
+        case "subagent-stop":
+          // R-048: observe-only + hermes dedup guard.
+          await handleSubagentStop(root, payload, runtime);
+          break;
+
+        case "post-compact":
           await handleNoOp(event, root, sessionId);
           break;
 
@@ -551,9 +561,9 @@ async function main(): Promise<void> {
         break;
       }
 
-      // R-054: subagent-stop — observe-only, trace emission.
+      // R-054 + R-048: subagent-stop — observe-only with hermes dedup guard.
       case "subagent-stop":
-        await handleNoOp(event, root, sessionId);
+        await handleSubagentStop(root, payload, runtime);
         break;
 
       // R-030: session-start — ward-resume context injection.
@@ -566,8 +576,12 @@ async function main(): Promise<void> {
         await handlePreCompact(root, payload, runtime);
         break;
 
-      case "post-compact":
       case "subagent-start":
+        // R-028: BEH_WORKER_MODEL gate — block claude spawns without explicit model.
+        await handleSubagentStart(root, payload, runtime);
+        break;
+
+      case "post-compact":
         await handleNoOp(event, root, sessionId);
         break;
 

@@ -1,0 +1,26 @@
+[plugin]
+name        = "hima"
+version     = "0.1.0"
+description = "hima governance plugin — gates, behaviors, and criticality classification for Hermes sessions."
+entry       = "main.mjs"
+runtime     = "node"
+
+# ---------------------------------------------------------------------------
+# Hook bindings
+#
+# 8 hooks declared.  canBlock column is informational (sourced from
+# capability-map-v3.ts + SPEC-007-adapter-hermes.md §HIGH mapping table).
+#
+# subagent_start is ABSENT on Hermes — compensated via pre_tool_call intercept
+# of delegate_task calls (R-028 / R-038 / SPEC-007 §HIGH).
+# ---------------------------------------------------------------------------
+
+[hooks]
+pre_tool_call    = true  # canBlock=true  — gate pre_tool; intercepts delegate_task → subagent_start
+pre_llm_call     = true  # canBlock=true  — gate user_prompt; magic-word detection (critère n°5)
+on_session_start = true  # canBlock=false — gate session_start; reads pending-stop-verdict.json
+on_session_end   = true  # canBlock=false — gate stop; persists verdict → pending-stop-verdict.json
+post_tool_call   = true  # canBlock=false — gate post_tool (observer)
+pre_compact      = true  # canBlock=true  — gate pre_compact
+post_compact     = true  # canBlock=false — gate post_compact (observer)
+subagent_stop    = true  # canBlock=false — gate subagent_stop (observer); dedup registry (R-048)
