@@ -281,14 +281,14 @@ Elle correspond au critère binaire n°3 de `.omc/ultragoal/brief.md`.
    (destructive op en M0 ou write zone violation en M1).
 8. Le plugin retourne `{"action": "block", "message": "pre_tool blocked: ..."}` à Hermes.
 
-### Critère de succès (binaire)
+### Critère n°3 — Succès (binaire)
 
 - [CRITICAL][BLOCKS:none] **PASS** : Hermes n'exécute pas la commande `rm -rf /tmp/test`.
   Le fichier (s'il existait) est intact. L'agent reçoit le message de blocage.
 - [CRITICAL][BLOCKS:none] **FAIL** : La commande s'exécute. Le critère n°3 n'est pas satisfait
   et Wave 3 ne peut pas être déclarée DONE_VERIFIED.
 
-### Invariants additionnels à vérifier dans le même test
+### Invariants additionnels à vérifier dans le même test (critère 3)
 
 - [HIGH][BLOCKS:none] Le plugin logue l'événement dans `.hima/gate-log.jsonl` avec
   `gateType`, `decision`, `violationType`, `ts`.
@@ -296,6 +296,92 @@ Elle correspond au critère binaire n°3 de `.omc/ultragoal/brief.md`.
   fichier dans la zone autorisée passe sans blocage).
 - [MEDIUM][BLOCKS:none] Le format JSON retourné par le plugin est parsable par Hermes
   (pas de champ inconnu qui ferait échouer la désérialisation).
+
+---
+
+## Critère d'acceptation binaire n°4 — Session complète de bout en bout
+
+Source : `.omc/ultragoal/brief.md` critère 4.
+
+### Scénario
+
+1. Démarrer une session Hermes avec le plugin hima activé et `HIMA_PROJECT_ROOT` pointant
+   vers un projet hima initialisé (`.hima/` présent avec `current-risk.json` à `T`).
+2. **Parler** : l'utilisateur envoie un message décrivant une tâche (ex. : "ajoute un test
+   pour la fonction classifyRisk").
+3. **Classification criticality** : le hook `pre_llm_call` évalue `user_prompt`. La gate
+   classe la tâche selon les signaux du message (fichiers mentionnés, labels). Le fichier
+   `.hima/current-risk.json` est mis à jour avec la risk class calculée.
+4. **Magic-word `/ulw`** : l'utilisateur envoie un message se terminant par `/ulw`.
+   Le keyword detector dans `pre_llm_call` détecte le token `ulw` en fin de message
+   (pattern `\bulw\s*$`) et injecte le mode d'exécution parallèle via `content` injection.
+5. **Verify** : en fin de tâche, le hook `on_session_end` évalue la gate `stop`. Pour
+   une tâche de risk class T, `requiresEvidenceBeforeStop=false` → verdict `allow +
+   DONE_VERIFIED` sans evidence set. Le plugin logue le verdict final.
+
+### Critère n°4 — Succès (binaire)
+
+- [CRITICAL][BLOCKS:none] **PASS** : les 5 étapes ci-dessus s'enchaînent sans erreur.
+  Le fichier `.hima/gate-log.jsonl` contient les entrées `user_prompt` et `stop` avec
+  leurs décisions. Le verdict final est `DONE_VERIFIED`.
+- [CRITICAL][BLOCKS:none] **FAIL** : toute interruption non intentionnelle du flux
+  (plugin crash, hook non déclenché, gate bloquant une étape légitime, `/ulw` non détecté).
+
+---
+
+## Critère d'acceptation binaire n°5 — Magic-word non déclenché en milieu de phrase
+
+Source : `.omc/ultragoal/brief.md` critère 5.
+
+### Scénario
+
+1. L'utilisateur envoie : `"dans OMO il y a un système ulw qui fait de l'exécution parallèle"`.
+2. Le keyword detector dans `pre_llm_call` évalue le message.
+3. Le pattern `\bulw\s*$` ne matche PAS car `ulw` est en milieu de phrase, pas en fin.
+4. Le message est transmis au LLM sans injection de mode d'exécution.
+
+### Critère n°5 — Succès (binaire)
+
+- [CRITICAL][BLOCKS:none] **PASS** : aucune injection de mode d'exécution. Le LLM
+  reçoit le message original. Aucune entrée `keyword_detected` dans `.hima/gate-log.jsonl`
+  pour ce message.
+- [CRITICAL][BLOCKS:none] **FAIL** : le keyword `ulw` est détecté en position non-finale
+  et le mode d'exécution est injecté — faux positif, violation du contrat magic-word.
+
+---
+
+## Falsifies-If
+
+```
+kill-condition: Le plugin hima retourne {"action":"block"} pour un tool call autorisé
+  (faux positif), ou laisse passer un tool call interdit (faux négatif), lors de la démo
+  du critère n°3.
+checkpoint-date: 2026-07-15
+evidence-anchor: .hima/gate-log.jsonl (entrée pre_tool pour le tool call de test)
+on-fail: Bloquer Wave 3 ; diagnostiquer via `hima hook pre-tool-use --format hermes`
+  en CLI direct ; corriger l'évaluation de gate avant tout autre test.
+
+kill-condition: La session complète parler→classification→/ulw→verify (critère n°4)
+  ne fonctionne pas de bout en bout après livraison de Wave 3.
+checkpoint-date: 2026-07-15
+evidence-anchor: .hima/gate-log.jsonl (entrées user_prompt + stop de la session de test)
+on-fail: Identifier l'étape défaillante (classification? injection magic-word? gate stop?);
+  ouvrir un ticket Wave 3 ciblé ; ne pas déclarer Wave 3 DONE_VERIFIED.
+
+kill-condition: Le magic-word `ulw` se déclenche quand il apparaît en milieu de phrase
+  (critère n°5 — faux positif tel qu'observé en live avec OMC, PROPOSITION.md §12).
+checkpoint-date: 2026-07-15
+evidence-anchor: packages/adapter-hermes-v2/src/ (implémentation keyword detector)
+on-fail: Corriger le pattern regex vers `\bulw\s*$` (fin de message uniquement) ;
+  ajouter un test unitaire couvrant explicitement la position mid-phrase.
+
+kill-condition: Le mécanisme pending-stop-verdict.json n'est pas implémenté et des
+  sessions Hermes à risque M/H/C se terminent sans verdict de gate stop.
+checkpoint-date: 2026-08-01
+evidence-anchor: packages/adapter-hermes-v2/src/, .hima/ (fichier ou section run-set)
+on-fail: ADR requis sur le choix du mécanisme (fichier séparé vs section run-set.json)
+  avant tout commit Wave 3 touchant le hook on_session_end.
+```
 
 ---
 
