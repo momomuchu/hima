@@ -65,7 +65,10 @@ export const DEV_CYCLE: CycleDef = {
     {
       id: "analysis",
       name: "Analysis",
-      forceSkills: [],
+      forceSkills: [
+        { source: "corpus", id: "corpus-specification-requirements" },
+        { source: "corpus", id: "corpus-domain-modeling-ddd" },
+      ],
       injectSkills: [],
       entryAllowed: true,
     },
@@ -92,6 +95,7 @@ export const DEV_CYCLE: CycleDef = {
       name: "Implementation",
       forceSkills: [
         { source: "corpus", id: "corpus-code-quality-maintainability" },
+        { source: "corpus", id: "corpus-error-handling-resilience" },
       ],
       injectSkills: [],
       entryAllowed: true,
@@ -117,7 +121,9 @@ export const DEV_CYCLE: CycleDef = {
     {
       id: "maintenance",
       name: "Maintenance",
-      forceSkills: [],
+      forceSkills: [
+        { source: "corpus", id: "corpus-production-reliability-devops" },
+      ],
       injectSkills: [],
       entryAllowed: true,
     },

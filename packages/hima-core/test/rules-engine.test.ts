@@ -24,7 +24,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { parseRuleFrontmatter } from "../src/rules-engine/frontmatter.js";
 import { ruleMatches } from "../src/rules-engine/matcher.js";
-import { resolveRulesForPath } from "../src/rules-engine/index.js";
+import { resolveRulesForPath, discoverAgentsMd } from "../src/rules-engine/index.js";
 
 // ---------------------------------------------------------------------------
 // Tmp dir lifecycle
@@ -413,5 +413,183 @@ describe("resolveRulesForPath — source priority and multi-rule scenarios", () 
 
     expect(result.matchedFiles).toHaveLength(2);
     expect(result.matchedFiles.every((f) => f.endsWith(".md"))).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// §9 — R-029: global homedir tier (injectable via opts.sources for hermeticity)
+// ---------------------------------------------------------------------------
+
+describe("resolveRulesForPath — §9 R-029 global homedir tier", () => {
+  it("rule in simulated ~/.hima/rules is returned when no local rule matches", async () => {
+    // Simulate ~/.hima/rules using a tmp directory (hermetic — never touches real homedir).
+    const simulatedGlobalDir = path.join(tmpRoot, "simulated-home", ".hima", "rules");
+    await mkdir(simulatedGlobalDir, { recursive: true });
+    const globalRuleContent = `---\nalwaysApply: true\n---\nGlobal rule body.\n`;
+    await writeFile(path.join(simulatedGlobalDir, "global.md"), globalRuleContent, "utf8");
+
+    // sources order mirrors DEFAULT_SOURCES, with the simulated dir as the global tier
+    const sources = [".hima/rules", ".claude/rules", ".cursor/rules", simulatedGlobalDir];
+    const target = path.join(tmpRoot, "src", "app.ts");
+
+    const result = await resolveRulesForPath(tmpRoot, target, { sources });
+
+    expect(result.injected.some((b) => b.includes("Global rule body."))).toBe(true);
+    expect(result.matchedFiles.some((f) => f.includes("global.md"))).toBe(true);
+  });
+
+  it("local .hima/rules rule precedes the global tier rule when both apply", async () => {
+    // Local rule (higher priority)
+    const localRuleContent = `---\nalwaysApply: true\n---\nLocal rule body.\n`;
+    await writeRule(tmpRoot, ".hima/rules", "local.md", localRuleContent);
+
+    // Global tier (lower priority)
+    const simulatedGlobalDir = path.join(tmpRoot, "simulated-home", ".hima", "rules");
+    await mkdir(simulatedGlobalDir, { recursive: true });
+    const globalRuleContent = `---\nalwaysApply: true\n---\nGlobal rule body.\n`;
+    await writeFile(path.join(simulatedGlobalDir, "global.md"), globalRuleContent, "utf8");
+
+    const sources = [".hima/rules", simulatedGlobalDir];
+    const target = path.join(tmpRoot, "src", "index.ts");
+    const result = await resolveRulesForPath(tmpRoot, target, { sources });
+
+    expect(result.injected).toHaveLength(2);
+    // Local rule appears first (higher priority = first in result)
+    expect(result.injected[0]).toContain("Local rule body.");
+    expect(result.injected[1]).toContain("Global rule body.");
+  });
+
+  it("global tier is skipped gracefully when directory does not exist", async () => {
+    const nonExistentGlobal = path.join(tmpRoot, "no-such-home", ".hima", "rules");
+    const sources = [".hima/rules", nonExistentGlobal];
+    const target = path.join(tmpRoot, "src", "app.ts");
+
+    const result = await resolveRulesForPath(tmpRoot, target, { sources });
+
+    // No throw — result is simply empty
+    expect(result.injected).toHaveLength(0);
+    expect(result.matchedFiles).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// §10 — R-029: discoverAgentsMd walk-up
+// ---------------------------------------------------------------------------
+
+describe("discoverAgentsMd — R-029 walk-up from root to target directory", () => {
+  async function writeAgentsMd(dir: string, body: string): Promise<string> {
+    await mkdir(dir, { recursive: true });
+    const filePath = path.join(dir, "AGENTS.md");
+    await writeFile(filePath, body, "utf8");
+    return filePath;
+  }
+
+  it("returns [] when no AGENTS.md exists anywhere on the chain", async () => {
+    const target = path.join(tmpRoot, "src", "components", "Button.tsx");
+    const result = await discoverAgentsMd(tmpRoot, target);
+    expect(result).toEqual([]);
+  });
+
+  it("returns root-level AGENTS.md when only root has one", async () => {
+    await writeAgentsMd(tmpRoot, "Root context.");
+    const target = path.join(tmpRoot, "src", "Button.tsx");
+    const result = await discoverAgentsMd(tmpRoot, target);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toBe(path.join(tmpRoot, "AGENTS.md"));
+  });
+
+  it("returns root-to-leaf order: root first, deeper dirs last", async () => {
+    await writeAgentsMd(tmpRoot, "Root context.");
+    await writeAgentsMd(path.join(tmpRoot, "src"), "Src context.");
+    await writeAgentsMd(path.join(tmpRoot, "src", "components"), "Components context.");
+
+    const target = path.join(tmpRoot, "src", "components", "Button.tsx");
+    const result = await discoverAgentsMd(tmpRoot, target);
+
+    expect(result).toHaveLength(3);
+    expect(result[0]).toBe(path.join(tmpRoot, "AGENTS.md"));
+    expect(result[1]).toBe(path.join(tmpRoot, "src", "AGENTS.md"));
+    expect(result[2]).toBe(path.join(tmpRoot, "src", "components", "AGENTS.md"));
+  });
+
+  it("skips levels that do not have AGENTS.md", async () => {
+    // Only root and deepest level have AGENTS.md; intermediate level is missing
+    await writeAgentsMd(tmpRoot, "Root context.");
+    await writeAgentsMd(path.join(tmpRoot, "src", "components"), "Components context.");
+
+    const target = path.join(tmpRoot, "src", "components", "Button.tsx");
+    const result = await discoverAgentsMd(tmpRoot, target);
+
+    expect(result).toHaveLength(2);
+    expect(result[0]).toBe(path.join(tmpRoot, "AGENTS.md"));
+    expect(result[1]).toBe(path.join(tmpRoot, "src", "components", "AGENTS.md"));
+  });
+
+  it("target file is in root — only root AGENTS.md is checked", async () => {
+    await writeAgentsMd(tmpRoot, "Root context.");
+    const target = path.join(tmpRoot, "Makefile");
+    const result = await discoverAgentsMd(tmpRoot, target);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toBe(path.join(tmpRoot, "AGENTS.md"));
+  });
+
+  it("target outside root — returns at most the root-level AGENTS.md", async () => {
+    await writeAgentsMd(tmpRoot, "Root context.");
+    // Target is outside root (parent of tmpRoot)
+    const outsideTarget = path.join(path.dirname(tmpRoot), "some-other-file.ts");
+    const result = await discoverAgentsMd(tmpRoot, outsideTarget);
+    // relDir starts with ".." so the walk stops at root
+    expect(result.every((p) => p.startsWith(tmpRoot))).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// §11 — R-029: AGENTS.md bodies are appended to resolveRulesForPath result
+// ---------------------------------------------------------------------------
+
+describe("resolveRulesForPath — §11 R-029 AGENTS.md bodies in injected", () => {
+  it("AGENTS.md body is appended to injected when it exists on the path", async () => {
+    // AGENTS.md at root
+    await writeFile(path.join(tmpRoot, "AGENTS.md"), "# Root agents\nConvention A.\n", "utf8");
+
+    const target = path.join(tmpRoot, "src", "foo.ts");
+    const result = await resolveRulesForPath(tmpRoot, target, {
+      sources: [], // no rules dirs — only AGENTS.md walk-up
+    });
+
+    expect(result.injected).toHaveLength(1);
+    expect(result.injected[0]).toContain("Convention A.");
+    expect(result.matchedFiles).toHaveLength(1);
+    expect(result.matchedFiles[0]).toBe(path.join(tmpRoot, "AGENTS.md"));
+  });
+
+  it("AGENTS.md bodies from multiple levels all appear in injected (root-to-leaf)", async () => {
+    await writeFile(path.join(tmpRoot, "AGENTS.md"), "Root.\n", "utf8");
+    await mkdir(path.join(tmpRoot, "src"), { recursive: true });
+    await writeFile(path.join(tmpRoot, "src", "AGENTS.md"), "Src.\n", "utf8");
+
+    const target = path.join(tmpRoot, "src", "bar.ts");
+    const result = await resolveRulesForPath(tmpRoot, target, {
+      sources: [],
+    });
+
+    expect(result.injected).toHaveLength(2);
+    expect(result.injected[0]).toContain("Root.");
+    expect(result.injected[1]).toContain("Src.");
+  });
+
+  it("AGENTS.md bodies are appended AFTER rule injections (rules first, agents last)", async () => {
+    const ruleContent = `---\nalwaysApply: true\n---\nRule content.\n`;
+    await writeRule(tmpRoot, ".hima/rules", "rule.md", ruleContent);
+    await writeFile(path.join(tmpRoot, "AGENTS.md"), "Agent context.\n", "utf8");
+
+    const target = path.join(tmpRoot, "src", "app.ts");
+    const result = await resolveRulesForPath(tmpRoot, target, {
+      sources: [".hima/rules"],
+    });
+
+    expect(result.injected).toHaveLength(2);
+    expect(result.injected[0]).toContain("Rule content.");
+    expect(result.injected[1]).toContain("Agent context.");
   });
 });

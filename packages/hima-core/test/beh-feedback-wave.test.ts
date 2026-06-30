@@ -55,6 +55,26 @@
  * Descriptor contract:
  *  AH. gates = ["user_prompt"]
  *  AI. id = "BEH-FEEDBACK-WAVE"
+ *
+ * Path 2 fallback (R-016):
+ *  AJ. ≥2 evaluative tokens + ward present → warn (path:fallback)
+ *  AK. ≥2 evaluative tokens, no ward → allow (NOT triggered)
+ *  AL. 1 evaluative token + ward → allow (insufficient: <2 for Path 2)
+ *  AM. Path 2 warn reason contains "[BEH-FEEDBACK-WAVE]"
+ *  AN. Path 2 warn reason contains "path:fallback"
+ *  AO. Path 2 warn reason contains the ward openStage
+ *
+ * NOT-triggered reason contract (all allow paths):
+ *  AP. below-H allow carries "[founder-feedback-scale] evaluated — NOT triggered"
+ *  AQ. no-promptContent allow carries "[founder-feedback-scale] evaluated — NOT triggered"
+ *  AR. no-artifact allow (no ward) carries "[founder-feedback-scale] evaluated — NOT triggered"
+ *  AS. no-evaluative allow carries "[founder-feedback-scale] evaluated — NOT triggered"
+ *
+ * countEvaluativeTokens unit tests:
+ *  AT. "trop lent et trop petit" → 2
+ *  AU. "cassé et mauvais et raté" → 3
+ *  AV. "everything looks fine" → 0
+ *  AW. "trop lent" → 1
  */
 
 import { describe, it, expect } from "vitest";
@@ -64,9 +84,10 @@ import {
   EVALUATIVE_TOKENS,
   findArtifactToken,
   findEvaluativeToken,
+  countEvaluativeTokens,
 } from "../src/behavior-core/beh-feedback-wave.js";
 import type { BehaviorContext, BehaviorVerdict } from "../src/behavior-core/types.js";
-import type { RiskClass } from "@hima/schemas";
+import type { RiskClass, Ward } from "@hima/schemas";
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -77,11 +98,25 @@ function evaluate(ctx: BehaviorContext): BehaviorVerdict {
   return BEH_FEEDBACK_WAVE.evaluate(ctx) as BehaviorVerdict;
 }
 
-/** Build a BehaviorContext with specified promptContent and riskClass. */
+/** Minimal valid Ward for Path 2 tests. */
+function makeWard(overrides: Partial<Ward> = {}): Ward {
+  return {
+    id: "ward-test-001",
+    entryPoint: "full",
+    floor: "M",
+    openStage: "spec",
+    skillRegister: [],
+    verdicts: [],
+    ...overrides,
+  };
+}
+
+/** Build a BehaviorContext with specified promptContent, riskClass, and optional ward. */
 function makeCtx(overrides: {
   promptContent?: string;
   riskClass?: RiskClass;
   useUndefinedPrompt?: true;
+  ward?: Ward | null;
 } = {}): BehaviorContext {
   return {
     event: {
@@ -92,6 +127,7 @@ function makeCtx(overrides: {
     },
     riskClass: overrides.riskClass ?? "H",
     root: "/tmp/test-project",
+    ...(overrides.ward !== undefined ? { ward: overrides.ward } : {}),
   };
 }
 
@@ -392,5 +428,167 @@ describe("BEH_FEEDBACK_WAVE — descriptor contract", () => {
 
   it("AI. id = 'BEH-FEEDBACK-WAVE'", () => {
     expect(BEH_FEEDBACK_WAVE.id).toBe("BEH-FEEDBACK-WAVE");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Path 2 fallback (R-016)
+// ---------------------------------------------------------------------------
+
+describe("BEH_FEEDBACK_WAVE — Path 2 fallback", () => {
+  // A prompt with ≥2 evaluative tokens and no artifact token.
+  const TWO_NEGATIVES = "trop lent et trop petit";
+  const THREE_NEGATIVES = "c'est cassé, c'est mauvais et raté";
+
+  it("AJ. ≥2 evaluative tokens + ward present → warn (path:fallback)", () => {
+    const ctx = makeCtx({ promptContent: TWO_NEGATIVES, ward: makeWard() });
+    const result = evaluate(ctx);
+    expect(result.decision).toBe("warn");
+    expect(result.behaviorId).toBe("BEH-FEEDBACK-WAVE");
+  });
+
+  it("AK. ≥2 evaluative tokens, no ward → allow (NOT triggered)", () => {
+    // ward absent (not set in ctx)
+    const ctx = makeCtx({ promptContent: TWO_NEGATIVES });
+    const result = evaluate(ctx);
+    expect(result.decision).toBe("allow");
+    expect(result.reason).toContain("[founder-feedback-scale] evaluated — NOT triggered");
+  });
+
+  it("AK-null. ≥2 evaluative tokens, ward: null → allow (NOT triggered)", () => {
+    const ctx = makeCtx({ promptContent: TWO_NEGATIVES, ward: null });
+    const result = evaluate(ctx);
+    expect(result.decision).toBe("allow");
+    expect(result.reason).toContain("[founder-feedback-scale] evaluated — NOT triggered");
+  });
+
+  it("AL. 1 evaluative token + ward → allow (insufficient for Path 2)", () => {
+    const ctx = makeCtx({ promptContent: "trop lent", ward: makeWard() });
+    const result = evaluate(ctx);
+    expect(result.decision).toBe("allow");
+    expect(result.reason).toContain("[founder-feedback-scale] evaluated — NOT triggered");
+  });
+
+  it("AM. Path 2 warn reason contains '[BEH-FEEDBACK-WAVE]'", () => {
+    const ctx = makeCtx({ promptContent: THREE_NEGATIVES, ward: makeWard() });
+    const result = evaluate(ctx);
+    expect(result.decision).toBe("warn");
+    expect(result.reason).toContain("[BEH-FEEDBACK-WAVE]");
+  });
+
+  it("AN. Path 2 warn reason contains 'path:fallback'", () => {
+    const ctx = makeCtx({ promptContent: TWO_NEGATIVES, ward: makeWard() });
+    const result = evaluate(ctx);
+    expect(result.decision).toBe("warn");
+    expect(result.reason).toContain("path:fallback");
+  });
+
+  it("AO. Path 2 warn reason contains the ward openStage", () => {
+    const ctx = makeCtx({
+      promptContent: TWO_NEGATIVES,
+      ward: makeWard({ openStage: "build" }),
+    });
+    const result = evaluate(ctx);
+    expect(result.decision).toBe("warn");
+    expect(result.reason).toContain("build");
+  });
+
+  it("Path 2 warn never carries violationType (advisory constraint)", () => {
+    const ctx = makeCtx({ promptContent: TWO_NEGATIVES, ward: makeWard() });
+    const result = evaluate(ctx);
+    expect(result.decision).toBe("warn");
+    expect(result.violationType).toBeUndefined();
+  });
+
+  it("Path 2 does not fire when riskClass is below H (step 1 takes precedence)", () => {
+    const ctx = makeCtx({ promptContent: TWO_NEGATIVES, riskClass: "M", ward: makeWard() });
+    const result = evaluate(ctx);
+    expect(result.decision).toBe("allow");
+  });
+
+  it("Path 2 does not fire when promptContent is empty (step 2 takes precedence)", () => {
+    const ctx = makeCtx({ promptContent: "", ward: makeWard() });
+    const result = evaluate(ctx);
+    expect(result.decision).toBe("allow");
+    expect(result.reason).toContain("no promptContent");
+  });
+
+  it("Path 1 still fires when artifact token present even with ward (Path 1 wins)", () => {
+    // "la landing" is an artifact token + "cassé" + "mauvais" → Path 1 fires
+    const ctx = makeCtx({
+      promptContent: "la landing est cassée et mauvaise",
+      ward: makeWard(),
+    });
+    const result = evaluate(ctx);
+    expect(result.decision).toBe("warn");
+    // Path 1 reason contains the artifact token, not "path:fallback"
+    expect(result.reason).toContain("la landing");
+    expect(result.reason).not.toContain("path:fallback");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// NOT-triggered reason contract (all allow paths carry the literal)
+// ---------------------------------------------------------------------------
+
+describe("BEH_FEEDBACK_WAVE — NOT-triggered reason on all allow paths", () => {
+  const NOT_TRIGGERED = "[founder-feedback-scale] evaluated — NOT triggered";
+
+  it("AP. below-H allow carries NOT-triggered literal", () => {
+    const ctx = makeCtx({ riskClass: "M", promptContent: "la landing est cassée" });
+    const result = evaluate(ctx);
+    expect(result.decision).toBe("allow");
+    expect(result.reason).toContain(NOT_TRIGGERED);
+  });
+
+  it("AQ. no-promptContent allow carries NOT-triggered literal", () => {
+    const ctx = makeCtx({ useUndefinedPrompt: true });
+    const result = evaluate(ctx);
+    expect(result.decision).toBe("allow");
+    expect(result.reason).toContain(NOT_TRIGGERED);
+  });
+
+  it("AR. no-artifact allow (no ward) carries NOT-triggered literal", () => {
+    const ctx = makeCtx({ promptContent: "c'est cassé et mauvais" });
+    const result = evaluate(ctx);
+    expect(result.decision).toBe("allow");
+    expect(result.reason).toContain(NOT_TRIGGERED);
+  });
+
+  it("AS. no-evaluative allow carries NOT-triggered literal", () => {
+    const ctx = makeCtx({ promptContent: "la landing looks great" });
+    const result = evaluate(ctx);
+    expect(result.decision).toBe("allow");
+    expect(result.reason).toContain(NOT_TRIGGERED);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// countEvaluativeTokens unit tests
+// ---------------------------------------------------------------------------
+
+describe("countEvaluativeTokens", () => {
+  it("AT. 'trop lent et trop petit' → 2", () => {
+    expect(countEvaluativeTokens("trop lent et trop petit")).toBe(2);
+  });
+
+  it("AU. 'c'est cassé, c'est mauvais et raté' → 3", () => {
+    expect(countEvaluativeTokens("c'est cassé, c'est mauvais et raté")).toBe(3);
+  });
+
+  it("AV. 'everything looks fine' → 0", () => {
+    expect(countEvaluativeTokens("everything looks fine")).toBe(0);
+  });
+
+  it("AW. 'trop lent' → 1", () => {
+    expect(countEvaluativeTokens("trop lent")).toBe(1);
+  });
+
+  it("case-insensitive: 'TROP LENT ET MAUVAIS' → 2", () => {
+    expect(countEvaluativeTokens("TROP LENT ET MAUVAIS")).toBe(2);
+  });
+
+  it("returns 0 for empty string", () => {
+    expect(countEvaluativeTokens("")).toBe(0);
   });
 });

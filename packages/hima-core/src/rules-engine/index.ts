@@ -24,8 +24,9 @@
  *      [HIGH][BLOCKS:high] sections.
  */
 
+import os from "node:os";
 import path from "node:path";
-import { mkdir, readFile, readdir, realpath } from "node:fs/promises";
+import { access, mkdir, readFile, readdir, realpath } from "node:fs/promises";
 import { parseRuleFrontmatter } from "./frontmatter.js";
 import { ruleMatches } from "./matcher.js";
 import { safeAtomicWriteFile } from "@hima/storage-core";
@@ -60,10 +61,26 @@ export type ResolveRulesResult = {
 // ---------------------------------------------------------------------------
 
 /**
- * Default rule source directories relative to the project root, in
- * descending priority order.
+ * Default rule source directories in descending priority order.
+ *
+ * Precedence (highest first):
+ *   0. .hima/rules    — project-local hima rules (highest)
+ *   1. .claude/rules  — project-local Claude rules
+ *   2. .cursor/rules  — project-local Cursor rules
+ *   3. ~/.hima/rules  — global user rules (lowest; absolute path, not project-relative)
+ *
+ * Entries 0-2 are resolved relative to the project root via path.resolve(root, src).
+ * Entry 3 is an absolute path; path.resolve treats it correctly when root is prepended
+ * (path.resolve ignores earlier segments when it encounters an absolute segment).
+ *
+ * Tests override this via opts.sources to stay hermetic.
  */
-const DEFAULT_SOURCES = [".hima/rules", ".claude/rules", ".cursor/rules"];
+const DEFAULT_SOURCES = [
+  ".hima/rules",
+  ".claude/rules",
+  ".cursor/rules",
+  path.join(os.homedir(), ".hima", "rules"),
+];
 
 /** Valid rule file extensions. */
 const VALID_EXTS = new Set([".md", ".mdc"]);
@@ -156,7 +173,83 @@ export async function resolveRulesForPath(
     await saveSessionRecord(root, sessionId, updated);
   }
 
+  // ── AGENTS.md walk-up (R-029) ────────────────────────────────────────────
+  // Collect AGENTS.md files from the project root down to the target file's
+  // directory (root-to-leaf). Their bodies are appended as always-applicable
+  // context — not subject to frontmatter parsing, glob matching, or session
+  // dedup (they are scoped directory conventions, not injected rules).
+  const agentsMdPaths = await discoverAgentsMd(root, targetPath);
+  for (const agentsMdPath of agentsMdPaths) {
+    try {
+      const body = await readFile(agentsMdPath, "utf8");
+      injected.push(body);
+      matchedFiles.push(agentsMdPath);
+    } catch {
+      // File disappeared between discoverAgentsMd and read — skip silently.
+    }
+  }
+
   return { injected, matchedFiles };
+}
+
+// ---------------------------------------------------------------------------
+// discoverAgentsMd (R-029)
+// ---------------------------------------------------------------------------
+
+/**
+ * Collect the absolute paths of AGENTS.md files that exist on the directory
+ * chain from the project root down to the directory that contains `targetPath`
+ * (inclusive, root-to-leaf order).
+ *
+ * Scoping rule (from CLAUDE.md §SCOPED-CONTEXT):
+ *   "Read applicable root/subdir AGENTS.md files root-to-leaf; more-specific
+ *   directory context wins for files in scope."
+ *
+ * Only AGENTS.md files that are under `root` (or exactly at `root`) are
+ * considered. If `targetPath` is outside `root`, only root-level AGENTS.md
+ * is checked.
+ *
+ * Never throws: a missing AGENTS.md at any level is simply skipped.
+ *
+ * @param root        Absolute project root directory.
+ * @param targetPath  Absolute path of the file being processed by a tool.
+ * @returns           Absolute paths of found AGENTS.md files in root-to-leaf order.
+ */
+export async function discoverAgentsMd(
+  root: string,
+  targetPath: string,
+): Promise<string[]> {
+  const targetDir = path.dirname(targetPath);
+  const relDir = path.relative(root, targetDir);
+
+  // Build the directory chain: root, root/a, root/a/b, ... root/a/b/c
+  const dirs: string[] = [root];
+
+  // Only walk into the project tree. If relDir starts with ".." the target is
+  // outside root — we still check root itself but stop there.
+  if (relDir && relDir !== "." && !relDir.startsWith("..")) {
+    const parts = relDir.split(path.sep);
+    let current = root;
+    for (const part of parts) {
+      current = path.join(current, part);
+      dirs.push(current);
+    }
+  }
+
+  const found: string[] = [];
+  for (const dir of dirs) {
+    const agentsMdPath = path.join(dir, "AGENTS.md");
+    try {
+      // access() is cheaper than readFile() — we only need existence here;
+      // the body is read by the caller (resolveRulesForPath).
+      await access(agentsMdPath);
+      found.push(agentsMdPath);
+    } catch {
+      // Missing or unreadable AGENTS.md at this level — not an error.
+    }
+  }
+
+  return found;
 }
 
 // ---------------------------------------------------------------------------

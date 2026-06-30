@@ -62,8 +62,10 @@ import {
   spawnPlan,
   ROLE_CATALOG,
   writeSpawnManifest,
+  hasSpawnManifest,
   buildSpawnAssignmentContext,
   appendWaveLog,
+  buildResearchConvertContext,
 } from "@hima/core";
 import type { RuntimeTarget, DispatchResponse, DeferredVerdict } from "@hima/core";
 
@@ -260,6 +262,7 @@ export async function handleUserPromptSubmit(
     root,
     ward,
     agentOutput: text,
+    sessionId, // R-003: key must match what PostToolUse recordRead uses
   };
   const userPromptVerdict = await evaluateGate(getBehaviorsForGate("user_prompt"), userPromptCtx);
 
@@ -323,10 +326,17 @@ export async function handleUserPromptSubmit(
   const contextParts: string[] = [canaryWithRaise];
   if (roleCtx !== null) contextParts.push(roleCtx);
 
-  // Append behavior advisory (R-016: feedback-wave warn injected into context
-  // so the agent sees the wave-launch recommendation immediately).
+  // R-016: append behavior advisory or NOT-triggered evaluation to context.
+  //   warn path: inject the wave-launch recommendation.
+  //   allow path with NOT-triggered reason: surface the evaluation line so the
+  //     agent sees that founder-feedback-scale was checked and did not fire.
   if (userPromptVerdict.decision === "warn") {
     contextParts.push(`[HIMA advisory] ${userPromptVerdict.reason}`);
+  } else if (
+    userPromptVerdict.decision === "allow" &&
+    userPromptVerdict.reason.includes("[founder-feedback-scale] evaluated — NOT triggered")
+  ) {
+    contextParts.push(userPromptVerdict.reason);
   }
 
   // R-041: research sub-pass injection for "run" entryPoint (new ward only).
@@ -496,6 +506,7 @@ export async function handlePreToolUse(
     root,
     ward,
     agentOutput: undefined,
+    sessionId, // R-003: align key with PostToolUse recordRead
   };
   const behaviorVerdict = await evaluateGate(getBehaviorsForGate("pre_tool"), preToolCtx);
 
@@ -594,6 +605,45 @@ export async function handlePreToolUse(
   );
 
   if (missing === undefined) {
+    // R-035: StageParallelizationGate — advisory-strong check.
+    // When a write is about to happen in a non-discovery stage and no spawn
+    // manifest exists for that ward+stage, emit a role-team advisory so the
+    // agent knows to spawn the correct Task subagents.
+    // Advisory-strong: does NOT hard-block to avoid bricking the pipeline.
+    if (WRITE_TOOL_NAMES.has(toolName) && ward.openStage !== "discovery") {
+      try {
+        const manifestExists = await hasSpawnManifest(root, ward.id, ward.openStage);
+        if (!manifestExists) {
+          const roles = spawnPlan(ward.openStage, ROLE_CATALOG);
+          if (roles.length > 0) {
+            const assignCtx = buildSpawnAssignmentContext(
+              ward.openStage,
+              roles.map((r) => ({ role: r.roleId })),
+            );
+            emitContext(
+              "PreToolUse",
+              `[HIMA advisory-strong R-035] spawn manifest absent for stage "${ward.openStage}" — ${assignCtx}`,
+            );
+            safeAppendTrace(root, {
+              sessionId,
+              hookEvent: "PreToolUse",
+              gateType: "pre_tool",
+              decision: "allow",
+              toolName: toolName || undefined,
+              wardStage: ward.openStage,
+              skillsForced: [],
+              skillsLoaded,
+              exitCode: 0,
+              reason: `R-035: spawn manifest absent for stage "${ward.openStage}" — advisory emitted`,
+            });
+            return;
+          }
+        }
+      } catch {
+        // Advisory: swallow errors — the gate must never break the hook pipeline.
+      }
+    }
+
     // All required skills are loaded → allow (with R-029 rules injection).
     await emitAllowWithRules(root, sessionId, targetFilePath);
     safeAppendTrace(root, {
@@ -755,13 +805,31 @@ export async function handlePostToolUse(
   }
 
   // R-025/R-044/R-046: auto-open for write tools targeting .md plan/spec/docs files.
+  // R-026: document-heavy check — append founder-digest at M+ for .md plan writes
+  //        or large (>300 char) writes.
   const WRITE_TOOL_NAMES_SET = new Set(["Write", "Edit", "MultiEdit"]);
   if (WRITE_TOOL_NAMES_SET.has(toolName)) {
     const filePath = extractWritePath(payload.toolInput);
     if (filePath !== undefined && isMdPlanPath(filePath)) {
       const autoOpen = buildArtifactAutoOpenContext(filePath);
       const reviewSurface = buildReviewSurfaceContext(true);
-      emitContext("PostToolUse", `${autoOpen}\n${reviewSurface}`);
+      const docParts: string[] = [autoOpen, reviewSurface];
+
+      // R-026: emit founder-digest advisory at M+ (md plan path always doc-heavy).
+      const docWard = await resumeWard(root);
+      const docRiskClass = resolveRiskClass(docWard);
+      const mFloor: number = RISK_ORDER["M"] ?? 2;
+      if ((RISK_ORDER[docRiskClass] ?? 0) >= mFloor && docWard !== null) {
+        docParts.push(
+          buildFounderDigestContext({
+            state: "PARTIAL — document written, pipeline ongoing",
+            whatChanged: `document written to ${filePath}`,
+            reviewCmd: "git diff --stat HEAD",
+          }),
+        );
+      }
+
+      emitContext("PostToolUse", docParts.join("\n"));
       safeAppendTrace(root, {
         sessionId,
         hookEvent: "PostToolUse",
@@ -771,7 +839,63 @@ export async function handlePostToolUse(
         skillsForced: [],
         skillsLoaded: [],
         exitCode: 0,
-        reason: `post_tool: artifact written — auto-open emitted for "${filePath}"`,
+        reason: `post_tool: artifact written — auto-open + R-026 emitted for "${filePath}"`,
+      });
+      return;
+    }
+
+    // R-026: document-heavy large-output write at M+ also surfaces the digest.
+    if (isDocumentHeavy(payload.toolInput)) {
+      const heavyWard = await resumeWard(root);
+      const heavyRiskClass = resolveRiskClass(heavyWard);
+      const mFloor: number = RISK_ORDER["M"] ?? 2;
+      if ((RISK_ORDER[heavyRiskClass] ?? 0) >= mFloor && heavyWard !== null) {
+        const heavyPath = filePath ?? "(unknown path)";
+        emitContext(
+          "PostToolUse",
+          buildFounderDigestContext({
+            state: "PARTIAL — large document written",
+            whatChanged: `content written: ${heavyPath}`,
+            reviewCmd: "git diff --stat HEAD",
+          }),
+        );
+        safeAppendTrace(root, {
+          sessionId,
+          hookEvent: "PostToolUse",
+          gateType: "noop",
+          decision: "noop",
+          toolName: toolName || undefined,
+          skillsForced: [],
+          skillsLoaded: [],
+          exitCode: 0,
+          reason: `post_tool: document-heavy (>300 chars) write at M+ — R-026 digest emitted`,
+        });
+        return;
+      }
+    }
+  }
+
+  // R-045: research-convert advisory for WebSearch/WebFetch at M+.
+  // After a research tool call, emit a cite marker + conversion prompt so the
+  // agent converts findings into requirements/decisions/risks before deciding.
+  const RESEARCH_TOOL_NAMES = new Set(["WebSearch", "WebFetch"]);
+  if (RESEARCH_TOOL_NAMES.has(toolName)) {
+    const researchWard = await resumeWard(root);
+    const researchRiskClass = resolveRiskClass(researchWard);
+    const mFloor: number = RISK_ORDER["M"] ?? 2;
+    if ((RISK_ORDER[researchRiskClass] ?? 0) >= mFloor) {
+      const source = `${toolName} ${new Date().toISOString().slice(0, 10)}`;
+      emitContext("PostToolUse", buildResearchConvertContext(source));
+      safeAppendTrace(root, {
+        sessionId,
+        hookEvent: "PostToolUse",
+        gateType: "noop",
+        decision: "noop",
+        toolName: toolName || undefined,
+        skillsForced: [],
+        skillsLoaded: [],
+        exitCode: 0,
+        reason: `post_tool: research-convert advisory emitted for "${toolName}" at M+`,
       });
       return;
     }
@@ -803,6 +927,7 @@ export async function handlePostToolUse(
     root,
     ward: postWard,
     agentOutput: postToolAgentOutput,
+    sessionId, // R-003: key must match what PostToolUse recordRead uses
   };
 
   const postToolVerdict = await evaluateGate(getBehaviorsForGate("post_tool"), postToolCtx);
@@ -885,6 +1010,20 @@ function isMdPlanPath(filePath: string): boolean {
 }
 
 /**
+ * Return true when the toolInput carries a large content block (>300 chars).
+ *
+ * Used as the document-heavy heuristic for R-026 founder-digest at PostToolUse:
+ * a Write with >300 chars of content qualifies even when the target path is not
+ * under a plan/spec/docs directory.
+ */
+function isDocumentHeavy(toolInput: unknown): boolean {
+  if (typeof toolInput !== "object" || toolInput === null) return false;
+  const ti = toolInput as Record<string, unknown>;
+  const content = ti["content"];
+  return typeof content === "string" && content.length > 300;
+}
+
+/**
  * handleStop — R-005 stop gate: reject fake-done verdicts via BEH-023.
  *
  * Scans the agent's final output for completion lexemes (DONE, DONE_VERIFIED,
@@ -928,6 +1067,7 @@ export async function handleStop(
     root,
     ward,
     agentOutput,
+    sessionId, // R-003: key must match what PostToolUse recordRead uses
   };
 
   // 3. R-001 — evaluateGate: run BEH-023 (and any future stop behaviors).
@@ -1074,17 +1214,20 @@ export async function handleStageAdvance(
     `[HIMA] stage-advance — ${ward.entryPoint}:${stage} sealed:${status} → ` +
     `open:${ward.openStage} — floor:${ward.floor}`;
 
-  // 3. R-021 stage-entry canary: inject forceSkills for the newly open stage.
+  // 3. R-021 stage-entry canary: inject forceSkills + active role for the newly open stage.
   const config = await loadConfig(root);
   const forceSkills = resolveStageForceSkills(config, ward.openStage, DEV_CYCLE);
   const enshrining =
     forceSkills.length > 0
       ? forceSkills.map((s) => s.id).join(",")
       : "none";
+  // R-021: roleForStage must be emitted at stage-advance (not only at user-prompt).
+  const stageRole = roleForStage(ward.openStage) ?? "none";
   const stageEntryCanary =
     `[HIMA] ${ward.entryPoint}:${ward.openStage} — ` +
     `floor:${ward.floor} — ` +
-    `enshrining:${enshrining}`;
+    `enshrining:${enshrining} — ` +
+    `role:${stageRole}`;
 
   // Emit both canaries in a single additionalContext so the agent sees them.
   emitContext("StageAdvance", `${postActCanary}\n${stageEntryCanary}`);
@@ -1270,6 +1413,7 @@ async function handleHermesDelegateTask(
     root,
     ward,
     agentOutput: undefined,
+    sessionId, // R-003: key must match what PostToolUse recordRead uses
   };
 
   const verdict = await evaluateGate(
@@ -1375,6 +1519,7 @@ export async function handleSubagentStart(
     root,
     ward,
     agentOutput: undefined,
+    sessionId, // R-003: key must match what PostToolUse recordRead uses
   };
 
   const verdict = await evaluateGate(getBehaviorsForGate("subagent_start"), ctx);

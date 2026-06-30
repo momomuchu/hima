@@ -1,17 +1,20 @@
 /**
  * BEH_FEEDBACK_WAVE — Feedback-wave-detect advisory gate (R-016).
  *
- * At every user_prompt gate, when the incoming prompt contains BOTH an
- * artifact-signal token AND an evaluative/negative token AND the effective
- * risk class is H or C, this behavior emits an advisory warn recommending
- * a multi-agent feedback wave (corpus-ui-knowledge / corpus-* per dimension).
+ * At every user_prompt gate, this behavior checks for two trigger paths:
  *
- * Matching rules (Path 1 — full trigger):
+ * Path 1 — full trigger (all three conditions at H/C):
  *   1. riskClass < H (T, L, M)            → allow (advisory not warranted).
  *   2. No promptContent                    → allow.
- *   3. Zero artifact-signal token matches  → allow.
+ *   3. Zero artifact-signal token matches  → skip to Path 2 check.
  *   4. Zero evaluative-language matches    → allow.
  *   5. ≥1 artifact token AND ≥1 evaluative token at H/C → warn.
+ *
+ * Path 2 — fallback trigger (implicit artifact from active session ward):
+ *   When no artifact token is found but the prompt contains ≥2 distinct
+ *   evaluative/negative tokens AND ctx.ward is present (active session
+ *   artifact), emit an advisory warn at the minimum (3-lane) scale.
+ *   If ward is absent, fall through to allow.
  *
  * Token matching is case-insensitive and partial (substring) — "cassée"
  * matches token "cassé"; "l'animation" matches token "l'animat".
@@ -19,12 +22,16 @@
  * This behavior is ADVISORY (warn), never block. It enriches the agent's
  * context with a prompt to launch specialist feedback lanes without halting.
  *
+ * On every ALLOW path, the reason includes the literal:
+ *   "[founder-feedback-scale] evaluated — NOT triggered"
+ * so the integrator can detect and optionally surface it.
+ *
  * violationType: n/a (advisory — warn never carries violationType)
  * gates:         ["user_prompt"]
  *
  * See: .planning/architecture/V3-COMPLETENESS-AUDIT.md R-016,
  *      BEHAVIOR-CATALOG-v3.md §1 S-15,
- *      founder-feedback-scale.md §1 (Path 1 trigger definition).
+ *      founder-feedback-scale.md §1 (Path 1 + Path 2 trigger definition).
  */
 
 import type { BehaviorDescriptor, BehaviorContext, BehaviorVerdict } from "./types.js";
@@ -182,6 +189,24 @@ export function findEvaluativeToken(prompt: string): string | null {
   return null;
 }
 
+/**
+ * Count the number of distinct evaluative/negative tokens present in the
+ * prompt (case-insensitive substring match).
+ *
+ * Used by the Path 2 fallback: ≥2 distinct tokens is the threshold for
+ * an implicit-artifact wave advisory when ctx.ward is present.
+ */
+export function countEvaluativeTokens(prompt: string): number {
+  const lower = prompt.toLowerCase();
+  let count = 0;
+  for (const token of EVALUATIVE_TOKENS) {
+    if (lower.includes(token.toLowerCase())) {
+      count++;
+    }
+  }
+  return count;
+}
+
 // ---------------------------------------------------------------------------
 // BEH_FEEDBACK_WAVE descriptor
 // ---------------------------------------------------------------------------
@@ -200,7 +225,8 @@ export const BEH_FEEDBACK_WAVE: BehaviorDescriptor = {
     if (riskOrder(riskClass) < H_FLOOR) {
       return {
         decision: "allow",
-        reason: `riskClass "${riskClass}" is below H — feedback-wave advisory not warranted`,
+        reason:
+          `[founder-feedback-scale] evaluated — NOT triggered. Reason: riskClass "${riskClass}" is below H — feedback-wave advisory not warranted`,
         behaviorId: BEHAVIOR_ID,
       };
     }
@@ -210,14 +236,29 @@ export const BEH_FEEDBACK_WAVE: BehaviorDescriptor = {
     if (prompt === undefined || prompt.trim() === "") {
       return {
         decision: "allow",
-        reason: "no promptContent to scan — feedback-wave gate not applicable",
+        reason:
+          "[founder-feedback-scale] evaluated — NOT triggered. Reason: no promptContent to scan — feedback-wave gate not applicable",
         behaviorId: BEHAVIOR_ID,
       };
     }
 
-    // ── 3. No artifact-signal token → allow (no concrete artifact in scope) ─
+    // ── 3. No artifact-signal token → Path 2 fallback check ───────────────
     const artifactHit = findArtifactToken(prompt);
     if (artifactHit === null) {
+      // Path 2: ≥2 distinct evaluative tokens + active session ward present.
+      const evalCount = countEvaluativeTokens(prompt);
+      if (evalCount >= 2 && ctx.ward != null) {
+        return {
+          decision: "warn",
+          reason:
+            `[BEH-FEEDBACK-WAVE] feedback-wave path:fallback — no artifact-signal token but ` +
+            `${evalCount} distinct evaluative signals detected; active session artifact assumed ` +
+            `from ward (stage: "${ctx.ward.openStage}"). ` +
+            `Validate: was this the intended artifact? ` +
+            `See founder-feedback-scale.md §1 Path 2.`,
+          behaviorId: BEHAVIOR_ID,
+        };
+      }
       return {
         decision: "allow",
         reason:

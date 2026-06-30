@@ -84,12 +84,46 @@ describe("CycleDef schema", () => {
     }
   });
 
-  it("analysis and maintenance stages have empty forceSkills", () => {
-    for (const stageId of ["analysis", "maintenance"]) {
-      const stage = DEV_CYCLE.stages.find((s) => s.id === stageId);
-      expect(stage).toBeDefined();
-      expect(stage!.forceSkills).toHaveLength(0);
-    }
+  it("analysis stage forceSkills includes corpus-specification-requirements", () => {
+    const analysis = DEV_CYCLE.stages.find((s) => s.id === "analysis");
+    expect(analysis).toBeDefined();
+    const hasSkill = analysis!.forceSkills.some(
+      (ref) =>
+        ref.source === "corpus" &&
+        ref.id === "corpus-specification-requirements",
+    );
+    expect(hasSkill).toBe(true);
+  });
+
+  it("analysis stage forceSkills includes corpus-domain-modeling-ddd", () => {
+    const analysis = DEV_CYCLE.stages.find((s) => s.id === "analysis");
+    expect(analysis).toBeDefined();
+    const hasSkill = analysis!.forceSkills.some(
+      (ref) =>
+        ref.source === "corpus" && ref.id === "corpus-domain-modeling-ddd",
+    );
+    expect(hasSkill).toBe(true);
+  });
+
+  it("impl stage forceSkills includes corpus-error-handling-resilience", () => {
+    const impl = DEV_CYCLE.stages.find((s) => s.id === "impl");
+    expect(impl).toBeDefined();
+    const hasSkill = impl!.forceSkills.some(
+      (ref) =>
+        ref.source === "corpus" && ref.id === "corpus-error-handling-resilience",
+    );
+    expect(hasSkill).toBe(true);
+  });
+
+  it("maintenance stage forceSkills includes corpus-production-reliability-devops", () => {
+    const maintenance = DEV_CYCLE.stages.find((s) => s.id === "maintenance");
+    expect(maintenance).toBeDefined();
+    const hasSkill = maintenance!.forceSkills.some(
+      (ref) =>
+        ref.source === "corpus" &&
+        ref.id === "corpus-production-reliability-devops",
+    );
+    expect(hasSkill).toBe(true);
   });
 
   it("all stages have entryAllowed: true", () => {

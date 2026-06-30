@@ -200,9 +200,11 @@ describe("(c) stage-advance --stage discovery --status done", () => {
 
 describe("(d) pre-tool-use Write to spec file — allowed after discovery sealed", () => {
   // R-017 floor-scaling: at floor H, the analysis stage requires extra skills
-  // (corpus-domain-modeling-ddd, corpus-architecture-system-design) in addition
-  // to BEH_RESEARCH_FIRST clearing discovery. Load them here so the write can proceed.
+  // (corpus-specification-requirements, corpus-domain-modeling-ddd,
+  // corpus-architecture-system-design) in addition to BEH_RESEARCH_FIRST clearing
+  // discovery. Load them here so the write can proceed.
   beforeAll(async () => {
+    await markLoaded(root, { source: "corpus", id: "corpus-specification-requirements" });
     await markLoaded(root, { source: "corpus", id: "corpus-domain-modeling-ddd" });
     await markLoaded(root, { source: "corpus", id: "corpus-architecture-system-design" });
   });

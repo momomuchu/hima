@@ -148,9 +148,11 @@ export const BEH_READ_BEFORE_WRITE: BehaviorDescriptor = {
     }
 
     // ── Read-set check ───────────────────────────────────────────────────────
-    // Use the ward id as the session key (falls back to "unknown" when no ward).
-    const sessionId = ward?.id ?? "unknown";
-    const readSet = await readReadSet(root, sessionId);
+    // Prefer ctx.sessionId (set by the adapter/router) for the read-set key;
+    // fall back to ward?.id, then "unknown" (R-003: key must match what the
+    // PostToolUse Read handler recorded via recordRead(root, sessionId, file)).
+    const sessionKey = ctx.sessionId ?? ward?.id ?? "unknown";
+    const readSet = await readReadSet(root, sessionKey);
 
     // isInReadSet resolves filePath via path.resolve for comparison.
     if (isInReadSet(readSet, absPath)) {

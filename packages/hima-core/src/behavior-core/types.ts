@@ -53,6 +53,11 @@ export type BehaviorVerdict = {
  *                  session_start events before sigil detection).
  *   agentOutput  — the raw text the agent emitted (relevant for stop-gate
  *                  behaviors that scan completion lexemes).
+ *   sessionId    — the active session identifier. When present, behaviors that
+ *                  key per-session state (e.g. the read-set in
+ *                  BEH_READ_BEFORE_WRITE) use this value in preference to
+ *                  ward?.id. Falls back to ward?.id when absent.
+ *                  See: R-003 in V3-COMPLETENESS-AUDIT.md.
  */
 export type BehaviorContext = {
   event: GateEvent;
@@ -60,6 +65,7 @@ export type BehaviorContext = {
   root: string;
   ward?: Ward | null;
   agentOutput?: string;
+  sessionId?: string;
 };
 
 // ---------------------------------------------------------------------------

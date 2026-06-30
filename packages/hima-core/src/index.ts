@@ -244,6 +244,16 @@ export {
 export type { PromptSource, VariantTable } from "./prompts-core/types.js";
 
 // ---------------------------------------------------------------------------
+// prompts-core — role-specific bundled prompt tables + loader (R-020).
+// PLANNER_PROMPTS, EXECUTOR_PROMPTS, CRITIC_PROMPTS: variant tables.
+// loadPrompt: materialises a PromptSource into a prompt string.
+// ---------------------------------------------------------------------------
+export { loadPrompt } from "./prompts-core/loader.js";
+export { PLANNER_PROMPTS } from "./prompts-core/planner-prompts.js";
+export { EXECUTOR_PROMPTS } from "./prompts-core/executor-prompts.js";
+export { CRITIC_PROMPTS } from "./prompts-core/critic-prompts.js";
+
+// ---------------------------------------------------------------------------
 // hermes-subagent — Hermes subagent propagation helpers (R-047, R-048).
 // injectRulesIntoDelegateTask: idempotent rule injection into delegate_task payloads.
 // markSubagentSeen / isSubagentSeen: session-scoped dedup for subagent_stop replay.
@@ -275,7 +285,7 @@ export { hermesHomeWarning, HERMES_HOME_WARNING } from "./hermes-home.js";
 // resolveRulesForPath, parseRuleFrontmatter, ruleMatches.
 // ---------------------------------------------------------------------------
 export type { ResolveRulesOpts, ResolveRulesResult } from "./rules-engine/index.js";
-export { resolveRulesForPath } from "./rules-engine/index.js";
+export { resolveRulesForPath, discoverAgentsMd } from "./rules-engine/index.js";
 export type { ParsedRule } from "./rules-engine/frontmatter.js";
 export { parseRuleFrontmatter } from "./rules-engine/frontmatter.js";
 export { ruleMatches } from "./rules-engine/matcher.js";

@@ -73,6 +73,9 @@ function makeWard(id = "ward-001"): Ward {
  * Build a BehaviorContext. When `toolInput` is explicitly `null` in overrides,
  * the event.toolInput is set to undefined (cannot pass undefined through an
  * object literal without it being swallowed by ??).
+ *
+ * `sessionId` — when provided, sets ctx.sessionId so BEH_READ_BEFORE_WRITE
+ * uses it as the read-set key (R-003 fix: prefer ctx.sessionId over ward?.id).
  */
 function makeCtx(
   root: string,
@@ -83,6 +86,7 @@ function makeCtx(
     ward?: Ward | null;
     rawToolInput?: unknown;
     useUndefinedToolInput?: true;
+    sessionId?: string;
   } = {},
 ): BehaviorContext {
   const toolInput = overrides.useUndefinedToolInput
@@ -100,6 +104,7 @@ function makeCtx(
     riskClass: overrides.riskClass ?? "M",
     root,
     ward: overrides.ward !== undefined ? overrides.ward : makeWard(),
+    ...(overrides.sessionId !== undefined ? { sessionId: overrides.sessionId } : {}),
   };
 }
 
@@ -296,6 +301,45 @@ describe("BEH_READ_BEFORE_WRITE — read-before-write gate", () => {
     const ctx = makeCtx(root);
     const result = await evaluate(ctx);
     expect(result.decision).toBe("block");
+  });
+
+  // ── R-003: ctx.sessionId takes precedence over ward?.id ──────────────────
+  // These tests verify the key-alignment fix: the behavior must look up the
+  // read-set using ctx.sessionId when provided, not ward?.id.
+
+  it("R-003-A. ctx.sessionId provided, read recorded under sessionId → allow", async () => {
+    const abs = await createFile(root, "src/foo.ts");
+    const sessionId = "explicit-session-r003";
+    // Record under the explicit session id — NOT under the ward id ("ward-001")
+    await recordRead(root, sessionId, abs);
+    // Ward id ("ward-001") ≠ sessionId — if the behavior used ward?.id it would block.
+    const ctx = makeCtx(root, { sessionId });
+    const result = await evaluate(ctx);
+    expect(result.decision).toBe("allow");
+    expect(result.reason).toMatch(/read-set/);
+  });
+
+  it("R-003-B. ctx.sessionId provided but read recorded under ward.id → block (keys mismatch)", async () => {
+    const abs = await createFile(root, "src/foo.ts");
+    const sessionId = "explicit-session-r003";
+    // Record under ward id — different from sessionId
+    await recordRead(root, "ward-001", abs);
+    const ctx = makeCtx(root, { sessionId });
+    const result = await evaluate(ctx);
+    // sessionId ≠ "ward-001" → read-set keyed by sessionId is empty → block
+    expect(result.decision).toBe("block");
+    expect(result.violationType).toBe("READ_BEFORE_WRITE");
+  });
+
+  it("R-003-C. no ctx.sessionId → falls back to ward?.id → allow when read recorded under ward id", async () => {
+    const abs = await createFile(root, "src/foo.ts");
+    // Record under ward id (fallback path)
+    await recordRead(root, "ward-001", abs);
+    // No sessionId in context → behavior falls back to ward?.id = "ward-001"
+    const ctx = makeCtx(root);
+    const result = await evaluate(ctx);
+    expect(result.decision).toBe("allow");
+    expect(result.reason).toMatch(/read-set/);
   });
 
   it("descriptor is registered for pre_tool only", () => {
