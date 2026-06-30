@@ -2,36 +2,37 @@
 codex_hooks = true
 
 [[hooks.SessionStart]]
-# hima_gate_type = "session_start"
 
 [[hooks.SessionStart.hooks]]
 type = "command"
-command = "node \"C:/Users/momomuchu/dev/Pipeline/hima/packages/cli/dist/index.js\" hook session-start --format codex"
+command = 'node "C:/Users/momomuchu/dev/Pipeline/hima/packages/cli/dist/index.js" hook session-start --format codex'
 
 [[hooks.UserPromptSubmit]]
-# hima_gate_type = "user_prompt"
 
 [[hooks.UserPromptSubmit.hooks]]
 type = "command"
-command = "node \"C:/Users/momomuchu/dev/Pipeline/hima/packages/cli/dist/index.js\" hook user-prompt-submit --format codex"
+command = 'node "C:/Users/momomuchu/dev/Pipeline/hima/packages/cli/dist/index.js" hook user-prompt-submit --format codex'
 
 [[hooks.PreToolUse]]
-# hima_gate_type = "pre_tool"
 
 [[hooks.PreToolUse.hooks]]
 type = "command"
-command = "node \"C:/Users/momomuchu/dev/Pipeline/hima/packages/cli/dist/index.js\" hook pre-tool-use --format codex"
+command = 'node "C:/Users/momomuchu/dev/Pipeline/hima/packages/cli/dist/index.js" hook pre-tool-use --format codex'
 
 [[hooks.PostToolUse]]
-# hima_gate_type = "post_tool"
 
 [[hooks.PostToolUse.hooks]]
 type = "command"
-command = "node \"C:/Users/momomuchu/dev/Pipeline/hima/packages/cli/dist/index.js\" hook post-tool-use --format codex"
+command = 'node "C:/Users/momomuchu/dev/Pipeline/hima/packages/cli/dist/index.js" hook post-tool-use --format codex'
 
 [[hooks.Stop]]
-# hima_gate_type = "stop"
 
 [[hooks.Stop.hooks]]
 type = "command"
-command = "node \"C:/Users/momomuchu/dev/Pipeline/hima/packages/cli/dist/index.js\" hook stop --format codex"
+command = 'node "C:/Users/momomuchu/dev/Pipeline/hima/packages/cli/dist/index.js" hook stop --format codex'
+
+[shell_environment_policy]
+inherit = "core"
+
+[shell_environment_policy.set]
+OMC_SKIP_HOOKS = "subagent-stop"

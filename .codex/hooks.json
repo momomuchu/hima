@@ -1,0 +1,80 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/maache/.local/share/fnm/node-versions/v22.21.0/installation/bin/node /Users/maache/hima/packages/cli/dist/index.js hook pre-tool-use --format claude"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/maache/.local/share/fnm/node-versions/v22.21.0/installation/bin/node /Users/maache/hima/packages/cli/dist/index.js hook post-tool-use --format claude"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/maache/.local/share/fnm/node-versions/v22.21.0/installation/bin/node /Users/maache/hima/packages/cli/dist/index.js hook pre-compact --format claude"
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/maache/.local/share/fnm/node-versions/v22.21.0/installation/bin/node /Users/maache/hima/packages/cli/dist/index.js hook post-compact --format claude"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/maache/.local/share/fnm/node-versions/v22.21.0/installation/bin/node /Users/maache/hima/packages/cli/dist/index.js hook session-start --format claude"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/maache/.local/share/fnm/node-versions/v22.21.0/installation/bin/node /Users/maache/hima/packages/cli/dist/index.js hook user-prompt-submit --format claude"
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/maache/.local/share/fnm/node-versions/v22.21.0/installation/bin/node /Users/maache/hima/packages/cli/dist/index.js hook subagent-start --format claude"
+          }
+        ]
+      }
+    ]
+  }
+}
