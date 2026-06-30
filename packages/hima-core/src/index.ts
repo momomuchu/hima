@@ -87,11 +87,32 @@ export { BEH_RESEARCH_FIRST } from "./behavior-core/beh-research-first.js";
 export { BEH_SPEC_GATE } from "./behavior-core/beh-spec-gate.js";
 export { BEH_PLANNER_WRITE_GUARD } from "./behavior-core/beh-planner-write-guard.js";
 export { BEH_WORKER_MODEL } from "./behavior-core/beh-worker-model.js";
+// I14b behaviors (R-016, R-022, R-023)
+export { BEH_FEEDBACK_WAVE } from "./behavior-core/beh-feedback-wave.js";
+export { BEH_ANTI_SYCOPHANCY } from "./behavior-core/beh-anti-sycophancy.js";
+export { BEH_ADR_BEFORE_IMPL } from "./behavior-core/beh-adr-before-impl.js";
 
 // ---------------------------------------------------------------------------
 // read-set — per-session read-set tracker (R-003 PostToolUse capture)
 // ---------------------------------------------------------------------------
 export { recordRead, readReadSet, isInReadSet } from "./read-set.js";
+
+// ---------------------------------------------------------------------------
+// wave-log — founder feedback-wave audit log emitter (R-037)
+// ---------------------------------------------------------------------------
+export { appendWaveLog, waveLogPath } from "./wave-log.js";
+export type { WaveLogEntry } from "./wave-log.js";
+
+// ---------------------------------------------------------------------------
+// research-subpass — compressed research sub-pass context for "run" entry (R-041)
+// ---------------------------------------------------------------------------
+export { runResearchSubpassContext } from "./research-subpass.js";
+
+// ---------------------------------------------------------------------------
+// spawn-manifest — live role-spawn manifest helpers (R-035)
+// ---------------------------------------------------------------------------
+export { writeSpawnManifest, hasSpawnManifest, buildSpawnAssignmentContext } from "./spawn-manifest.js";
+export type { SpawnManifest } from "./spawn-manifest.js";
 
 // ---------------------------------------------------------------------------
 // gates-core — evaluateGate() aggregator

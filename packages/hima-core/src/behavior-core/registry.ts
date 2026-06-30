@@ -28,6 +28,10 @@ import { BEH_RESEARCH_FIRST } from "./beh-research-first.js";
 import { BEH_SPEC_GATE } from "./beh-spec-gate.js";
 import { BEH_PLANNER_WRITE_GUARD } from "./beh-planner-write-guard.js";
 import { BEH_WORKER_MODEL } from "./beh-worker-model.js";
+// I14b behaviors (R-016, R-022, R-023)
+import { BEH_FEEDBACK_WAVE } from "./beh-feedback-wave.js";
+import { BEH_ANTI_SYCOPHANCY } from "./beh-anti-sycophancy.js";
+import { BEH_ADR_BEFORE_IMPL } from "./beh-adr-before-impl.js";
 
 // ---------------------------------------------------------------------------
 // Registry class
@@ -106,6 +110,15 @@ defaultRegistry.registerBehavior(BEH_PLANNER_WRITE_GUARD);
 // Fires at subagent_start gate on claude (canBlock=true). Hermes compensates via
 // handlePreToolUse delegate_task intercept (R-038).
 defaultRegistry.registerBehavior(BEH_WORKER_MODEL);
+
+// R-016 / I14b: feedback-wave-detect advisory at user_prompt (H+).
+defaultRegistry.registerBehavior(BEH_FEEDBACK_WAVE);
+
+// R-022 / I14b: anti-sycophancy advisory at post_tool (M+).
+defaultRegistry.registerBehavior(BEH_ANTI_SYCOPHANCY);
+
+// R-023 / I14b: ADR-before-impl advisory at pre_tool (M+).
+defaultRegistry.registerBehavior(BEH_ADR_BEFORE_IMPL);
 
 /**
  * Module-level convenience: register a descriptor in the default registry.

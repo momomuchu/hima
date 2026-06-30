@@ -57,6 +57,13 @@ import {
   markSubagentSeen,
   isSubagentSeen,
   hermesHomeWarning,
+  // I14b additions (R-041, R-035, R-037)
+  runResearchSubpassContext,
+  spawnPlan,
+  ROLE_CATALOG,
+  writeSpawnManifest,
+  buildSpawnAssignmentContext,
+  appendWaveLog,
 } from "@hima/core";
 import type { RuntimeTarget, DispatchResponse, DeferredVerdict } from "@hima/core";
 
@@ -242,10 +249,10 @@ export async function handleUserPromptSubmit(
     floor: finalFloor,
   });
 
-  // 3. R-001 — evaluateGate for user_prompt behaviors (near-noop at I8).
-  //    getBehaviorsForGate("user_prompt") returns [] until later iterations.
-  //    Calling it here wires the call-site so future behaviors are live without
-  //    further router changes.
+  // 3. R-001 — evaluateGate for user_prompt behaviors (I14b: now live).
+  //    getBehaviorsForGate("user_prompt") returns BEH_FEEDBACK_WAVE (R-016) and
+  //    BEH_SPEC_GATE (R-024). The result is used for advisory context injection
+  //    (warn path) and wave-log emission (R-037). Advisory — never blocks.
   const riskClass = resolveRiskClass(ward);
   const userPromptCtx = {
     event: { gateType: "user_prompt" as const, promptContent: text },
@@ -254,9 +261,32 @@ export async function handleUserPromptSubmit(
     ward,
     agentOutput: text,
   };
-  // Near-noop: evaluateGate returns "allow" when no behaviors are registered.
-  // The result is not used to block here — future behaviors will gate this path.
-  await evaluateGate(getBehaviorsForGate("user_prompt"), userPromptCtx);
+  const userPromptVerdict = await evaluateGate(getBehaviorsForGate("user_prompt"), userPromptCtx);
+
+  // R-037: when BEH_FEEDBACK_WAVE warns, append a minimal wave-log entry.
+  // The wave is not yet launched — pipeline_status is "partial" (advised but
+  // not acted upon). This log entry is the machine-verifiable seed for the
+  // DONE_VERIFIED acceptance check per founder-feedback-scale.md §4 and §7.
+  // Awaited (fast local I/O) so the write completes before the hook exits;
+  // errors are swallowed — a log failure must never break the pipeline.
+  if (
+    userPromptVerdict.decision === "warn" &&
+    userPromptVerdict.reason.includes("BEH-FEEDBACK-WAVE")
+  ) {
+    try {
+      await appendWaveLog(root, {
+        wave_id: `${sessionId.slice(0, 8)}-${Date.now().toString(36)}`,
+        artifact: "detected",
+        trigger_path: "full",
+        lane_count: 0,
+        models_used: [],
+        pipeline_status: "partial",
+        ts: new Date().toISOString(),
+      });
+    } catch {
+      // swallow — wave-log emission must never break the hook pipeline
+    }
+  }
 
   // 4. R-040: emit a canary — distinct for resume vs create
   let canary: string;
@@ -285,9 +315,45 @@ export async function handleUserPromptSubmit(
   // its active role constraints (e.g. planner must not write code).
   const activeRole = roleForStage(ward.openStage);
   const roleCtx = activeRole !== null ? roleContext(activeRole) : null;
-  const fullContext =
-    roleCtx !== null ? `${canaryWithRaise}\n${roleCtx}` : canaryWithRaise;
-  emitContext("UserPromptSubmit", fullContext);
+
+  // Build the full context as an ordered list of parts.
+  // Parts are joined with newlines — the agent sees each part as a distinct
+  // advisory line. The canary is always first; role context and behavior
+  // advisories follow in priority order.
+  const contextParts: string[] = [canaryWithRaise];
+  if (roleCtx !== null) contextParts.push(roleCtx);
+
+  // Append behavior advisory (R-016: feedback-wave warn injected into context
+  // so the agent sees the wave-launch recommendation immediately).
+  if (userPromptVerdict.decision === "warn") {
+    contextParts.push(`[HIMA advisory] ${userPromptVerdict.reason}`);
+  }
+
+  // R-041: research sub-pass injection for "run" entryPoint (new ward only).
+  // Advisory: inject corpus-technical-analysis-discovery for run entries.
+  if (existing === null) {
+    const researchCtx = runResearchSubpassContext(ward.entryPoint, ward.floor);
+    if (researchCtx !== null) contextParts.push(researchCtx);
+
+    // R-035: live role-spawn manifest for new wards.
+    // Compute the role-team for the initial stage, write the manifest file,
+    // and append the spawn-assignment advisory context so the agent spawns
+    // the correct Task subagents immediately.
+    const roles = spawnPlan(ward.openStage, ROLE_CATALOG);
+    if (roles.length > 0) {
+      const roleNames = roles.map((r) => r.roleId);
+      // Awaited (fast local I/O) so the manifest file is complete before the
+      // hook exits; errors are swallowed — a write failure must never block.
+      try {
+        await writeSpawnManifest(root, ward.id, ward.openStage, roleNames);
+      } catch {
+        // swallow — manifest write failure must never break the hook pipeline
+      }
+      contextParts.push(buildSpawnAssignmentContext(ward.openStage, roles.map((r) => ({ role: r.roleId }))));
+    }
+  }
+
+  emitContext("UserPromptSubmit", contextParts.join("\n"));
 
   // 5. Emit trace event for the ward activation
   safeAppendTrace(root, {
@@ -709,6 +775,52 @@ export async function handlePostToolUse(
       });
       return;
     }
+  }
+
+  // R-022: BEH_ANTI_SYCOPHANCY post_tool advisory gate.
+  // Derive agentOutput from promptContent (carries tool result or agent response
+  // text injected by the caller). Falls back to toolInput serialisation.
+  // Always exits 0 — the gate is advisory only (never block at PostToolUse).
+  const postToolAgentOutput =
+    typeof payload.promptContent === "string" && payload.promptContent.trim() !== ""
+      ? payload.promptContent
+      : typeof payload.toolInput === "string"
+        ? payload.toolInput
+        : payload.toolInput != null
+          ? JSON.stringify(payload.toolInput)
+          : undefined;
+
+  const postWard = await resumeWard(root);
+  const postRiskClass = resolveRiskClass(postWard);
+
+  const postToolCtx = {
+    event: {
+      gateType: "post_tool" as const,
+      toolName: toolName || undefined,
+      toolInput: payload.toolInput,
+    },
+    riskClass: postRiskClass,
+    root,
+    ward: postWard,
+    agentOutput: postToolAgentOutput,
+  };
+
+  const postToolVerdict = await evaluateGate(getBehaviorsForGate("post_tool"), postToolCtx);
+
+  if (postToolVerdict.decision === "warn") {
+    emitContext("PostToolUse", `[HIMA advisory] ${postToolVerdict.reason}`);
+    safeAppendTrace(root, {
+      sessionId,
+      hookEvent: "PostToolUse",
+      gateType: "post_tool",
+      decision: "warn",
+      toolName: toolName || undefined,
+      skillsForced: [],
+      skillsLoaded: [],
+      exitCode: 0,
+      reason: postToolVerdict.reason,
+    });
+    return;
   }
 
   // Default: allow — PostToolUse is observe-only.
