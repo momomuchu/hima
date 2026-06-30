@@ -26,3 +26,10 @@ coverage/
 .omx/
 .planning/
 .claude/
+
+# hima runtime session state (ephemeral — keep .hima/state/conception ADRs)
+.hima/state/events.jsonl
+.hima/state/ledger/
+.hima/state/read-set-*.json
+.hima/state/trace/
+.hima/state/session-diff-base.json
