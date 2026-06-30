@@ -21,17 +21,82 @@
 // ---------------------------------------------------------------------------
 
 /**
+ * Resolved environment that decides which artifact-open command to advise.
+ *
+ * `inCmux` is true when running inside a CMUX surface (CMUX provides the
+ * `cmux markdown open` command per cmux-open-surface.md). Outside CMUX we fall
+ * back to the OS-native opener so the hint is usable on Linux/Windows too.
+ */
+export type OpenEnv = {
+  platform: NodeJS.Platform;
+  inCmux: boolean;
+};
+
+/**
+ * Detect the open-environment from process state. Kept impure-at-the-edge:
+ * env and platform are injectable so callers/tests stay deterministic, and the
+ * default reads the live process so existing callers need no change.
+ *
+ * CMUX detection follows cmux-open-surface.md: presence of `CMUX_WORKSPACE_ID`
+ * or `CMUX_SURFACE_ID`.
+ *
+ * @param env       Environment map (defaults to `process.env`).
+ * @param platform  Node platform string (defaults to `process.platform`).
+ */
+export function detectOpenEnv(
+  env: NodeJS.ProcessEnv = process.env,
+  platform: NodeJS.Platform = process.platform,
+): OpenEnv {
+  return {
+    platform,
+    inCmux: Boolean(env.CMUX_WORKSPACE_ID || env.CMUX_SURFACE_ID),
+  };
+}
+
+/**
+ * The shell command that opens an artifact for the resolved environment.
+ *
+ * - inside CMUX → `cmux markdown open <path> --focus true` (visible surface)
+ * - macOS       → `open "<path>"`
+ * - Windows     → `start "" "<path>"`  (empty title arg so a quoted path is
+ *                 not consumed as the window title)
+ * - Linux/other → `xdg-open "<path>"`
+ *
+ * The path is always double-quoted so paths containing spaces yield a single
+ * valid command token.
+ */
+function artifactOpenCommand(filePath: string, openEnv: OpenEnv): string {
+  if (openEnv.inCmux) {
+    return `cmux markdown open "${filePath}" --focus true`;
+  }
+  switch (openEnv.platform) {
+    case "darwin":
+      return `open "${filePath}"`;
+    case "win32":
+      return `start "" "${filePath}"`;
+    default:
+      return `xdg-open "${filePath}"`;
+  }
+}
+
+/**
  * Build a context line that instructs the runtime to open a plan/spec/docs
- * artifact in the visible CMUX surface.
+ * artifact in the visible surface, using the right command for the platform.
  *
  * Caller is responsible for deciding WHEN to emit this (only after Write to
- * a `.md` file under plans/, specs/, docs/). The function itself is pure.
+ * a `.md` file under plans/, specs/, docs/). The function itself is pure given
+ * its arguments — `openEnv` defaults to the live process via `detectOpenEnv`,
+ * so in a CMUX session it still emits `cmux markdown open` (backward compatible).
  *
  * @param filePath  Absolute or relative path to the written Markdown artifact.
+ * @param openEnv   Resolved environment (defaults to `detectOpenEnv()`).
  * @returns         A single-line advisory additionalContext string.
  */
-export function buildArtifactAutoOpenContext(filePath: string): string {
-  return `[HIMA auto] artifact written — open it: cmux markdown open ${filePath} --focus true`;
+export function buildArtifactAutoOpenContext(
+  filePath: string,
+  openEnv: OpenEnv = detectOpenEnv(),
+): string {
+  return `[HIMA auto] artifact written — open it: ${artifactOpenCommand(filePath, openEnv)}`;
 }
 
 // ---------------------------------------------------------------------------

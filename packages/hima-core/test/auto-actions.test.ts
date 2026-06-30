@@ -5,44 +5,112 @@ import {
   buildNextAttackContext,
   buildResearchConvertContext,
   buildReviewSurfaceContext,
+  detectOpenEnv,
+  type OpenEnv,
 } from "../src/auto-actions.js";
 
 // ---------------------------------------------------------------------------
 // R-025 — buildArtifactAutoOpenContext
 // ---------------------------------------------------------------------------
 
-describe("buildArtifactAutoOpenContext", () => {
+const CMUX: OpenEnv = { platform: "darwin", inCmux: true };
+
+describe("buildArtifactAutoOpenContext (inside CMUX)", () => {
   it("includes the HIMA auto prefix", () => {
-    const result = buildArtifactAutoOpenContext("/path/to/plan.md");
-    expect(result).toContain("[HIMA auto] artifact written");
+    expect(buildArtifactAutoOpenContext("/path/to/plan.md", CMUX)).toContain(
+      "[HIMA auto] artifact written",
+    );
   });
 
   it("includes the cmux markdown open command", () => {
-    const result = buildArtifactAutoOpenContext("/path/to/plan.md");
-    expect(result).toContain("cmux markdown open");
+    expect(buildArtifactAutoOpenContext("/path/to/plan.md", CMUX)).toContain("cmux markdown open");
   });
 
   it("includes the --focus true flag", () => {
-    const result = buildArtifactAutoOpenContext("/path/to/plan.md");
-    expect(result).toContain("--focus true");
+    expect(buildArtifactAutoOpenContext("/path/to/plan.md", CMUX)).toContain("--focus true");
   });
 
   it("embeds the provided file path verbatim", () => {
     const path = "/Users/founder/hima/docs/plans/sprint-42.md";
-    const result = buildArtifactAutoOpenContext(path);
-    expect(result).toContain(path);
+    expect(buildArtifactAutoOpenContext(path, CMUX)).toContain(path);
   });
 
   it("produces a single line (no newlines)", () => {
-    const result = buildArtifactAutoOpenContext("docs/specs/SPEC-007.md");
-    expect(result).not.toContain("\n");
+    expect(buildArtifactAutoOpenContext("docs/specs/SPEC-007.md", CMUX)).not.toContain("\n");
   });
 
-  it("assembles the full canonical command", () => {
+  it("assembles the full canonical command (path quoted)", () => {
     const fp = "/work/ralplan.md";
-    expect(buildArtifactAutoOpenContext(fp)).toBe(
-      `[HIMA auto] artifact written — open it: cmux markdown open ${fp} --focus true`,
+    expect(buildArtifactAutoOpenContext(fp, CMUX)).toBe(
+      `[HIMA auto] artifact written — open it: cmux markdown open "${fp}" --focus true`,
     );
+  });
+});
+
+describe("buildArtifactAutoOpenContext (portability — non-CMUX environments)", () => {
+  it("uses macOS `open` on darwin outside CMUX", () => {
+    expect(buildArtifactAutoOpenContext("/p/x.md", { platform: "darwin", inCmux: false })).toBe(
+      '[HIMA auto] artifact written — open it: open "/p/x.md"',
+    );
+  });
+
+  it("uses `xdg-open` on linux", () => {
+    expect(buildArtifactAutoOpenContext("/p/x.md", { platform: "linux", inCmux: false })).toBe(
+      '[HIMA auto] artifact written — open it: xdg-open "/p/x.md"',
+    );
+  });
+
+  it("uses `start` with an empty title arg on win32", () => {
+    expect(buildArtifactAutoOpenContext("C:/p/x.md", { platform: "win32", inCmux: false })).toBe(
+      '[HIMA auto] artifact written — open it: start "" "C:/p/x.md"',
+    );
+  });
+
+  it("prefers cmux even on linux when inside CMUX (cmux-open-surface rule)", () => {
+    expect(buildArtifactAutoOpenContext("/p/x.md", { platform: "linux", inCmux: true })).toContain(
+      "cmux markdown open",
+    );
+  });
+
+  it("quotes paths containing spaces into a single token on every platform", () => {
+    const spaced = "/Users/maache/My Work/plan.md";
+    const cases: Array<[OpenEnv, string]> = [
+      [{ platform: "darwin", inCmux: true }, `cmux markdown open "${spaced}" --focus true`],
+      [{ platform: "darwin", inCmux: false }, `open "${spaced}"`],
+      [{ platform: "linux", inCmux: false }, `xdg-open "${spaced}"`],
+      [{ platform: "win32", inCmux: false }, `start "" "${spaced}"`],
+    ];
+    for (const [env, expected] of cases) {
+      expect(buildArtifactAutoOpenContext(spaced, env)).toBe(
+        `[HIMA auto] artifact written — open it: ${expected}`,
+      );
+    }
+  });
+
+  it("stays single-line on every platform", () => {
+    for (const platform of ["darwin", "linux", "win32"] as const) {
+      expect(buildArtifactAutoOpenContext("/p/x.md", { platform, inCmux: false })).not.toContain(
+        "\n",
+      );
+    }
+  });
+});
+
+describe("detectOpenEnv", () => {
+  it("detects CMUX from CMUX_WORKSPACE_ID", () => {
+    expect(detectOpenEnv({ CMUX_WORKSPACE_ID: "ws_1" }, "darwin").inCmux).toBe(true);
+  });
+
+  it("detects CMUX from CMUX_SURFACE_ID", () => {
+    expect(detectOpenEnv({ CMUX_SURFACE_ID: "sf_1" }, "linux").inCmux).toBe(true);
+  });
+
+  it("reports not-in-CMUX when no CMUX env vars present", () => {
+    expect(detectOpenEnv({}, "linux").inCmux).toBe(false);
+  });
+
+  it("passes the platform through", () => {
+    expect(detectOpenEnv({}, "win32").platform).toBe("win32");
   });
 });
 

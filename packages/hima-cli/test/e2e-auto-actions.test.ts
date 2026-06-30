@@ -26,9 +26,8 @@ import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
-
 import { createWard } from "@hima/core";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -51,11 +50,17 @@ function spawnCli(
   args: string[],
   stdinPayload: Record<string, unknown>,
   cliRoot: string,
+  envOverride?: NodeJS.ProcessEnv,
 ): { status: number | null; stdout: string; stderr: string } {
   const result = spawnSync("node", [DIST_INDEX, ...args, "--root", cliRoot], {
     input: JSON.stringify(stdinPayload),
     encoding: "utf8",
     timeout: 15_000,
+    // Default: force a CMUX environment so the artifact-auto-open command is
+    // deterministic regardless of where the suite runs (CI on Linux would
+    // otherwise emit `xdg-open` instead of `cmux markdown open`). Callers that
+    // need to exercise the non-CMUX path pass an explicit envOverride.
+    env: envOverride ?? { ...process.env, CMUX_WORKSPACE_ID: "test-ws" },
   });
   return {
     status: result.status,
@@ -148,38 +153,22 @@ describe("(b) post-tool-use Write docs/*.md → artifact-auto-open context emitt
   };
 
   it("exit 0 (advisory — never blocks)", () => {
-    const { status } = spawnCli(
-      ["hook", "post-tool-use", "--format", "claude"],
-      mdPayload,
-      root,
-    );
+    const { status } = spawnCli(["hook", "post-tool-use", "--format", "claude"], mdPayload, root);
     expect(status).toBe(0);
   });
 
   it('stdout contains "cmux markdown open"', () => {
-    const { stdout } = spawnCli(
-      ["hook", "post-tool-use", "--format", "claude"],
-      mdPayload,
-      root,
-    );
+    const { stdout } = spawnCli(["hook", "post-tool-use", "--format", "claude"], mdPayload, root);
     expect(stdout).toContain("cmux markdown open");
   });
 
   it("stdout contains the artifact file path", () => {
-    const { stdout } = spawnCli(
-      ["hook", "post-tool-use", "--format", "claude"],
-      mdPayload,
-      root,
-    );
+    const { stdout } = spawnCli(["hook", "post-tool-use", "--format", "claude"], mdPayload, root);
     expect(stdout).toContain("RALPLAN.md");
   });
 
   it('stdout does NOT contain "block"', () => {
-    const { stdout } = spawnCli(
-      ["hook", "post-tool-use", "--format", "claude"],
-      mdPayload,
-      root,
-    );
+    const { stdout } = spawnCli(["hook", "post-tool-use", "--format", "claude"], mdPayload, root);
     expect(stdout).not.toMatch(/"decision"\s*:\s*"block"/);
   });
 
@@ -194,6 +183,23 @@ describe("(b) post-tool-use Write docs/*.md → artifact-auto-open context emitt
       root,
     );
     expect(stdout).not.toContain("cmux markdown open");
+  });
+
+  it("outside CMUX, emits an OS-native opener (proves router wires detectOpenEnv)", () => {
+    // Strip CMUX env vars so the CLI takes the non-CMUX portability branch.
+    const noCmux: NodeJS.ProcessEnv = { ...process.env };
+    delete noCmux.CMUX_WORKSPACE_ID;
+    delete noCmux.CMUX_SURFACE_ID;
+    const { stdout } = spawnCli(
+      ["hook", "post-tool-use", "--format", "claude"],
+      mdPayload,
+      root,
+      noCmux,
+    );
+    expect(stdout).not.toContain("cmux markdown open");
+    // OS-native opener: open (darwin) / xdg-open (linux) / start (win32).
+    expect(stdout).toMatch(/\b(open|xdg-open|start)\b/);
+    expect(stdout).toContain("RALPLAN.md");
   });
 });
 
