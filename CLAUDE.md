@@ -7,11 +7,11 @@
 This project follows a three-file goal cadence:
 
 1. **Vision** — `docs/specs/SPEC-VISION.md` — the formal ISO/IEC/IEEE 29148 vision (what hima is, its irreducible primitive = the cycle, scope, ConOps, measures, falsifiers). Durable; revised only when the vision itself shifts. (The prior commercial `vision.md` is archived to `private/`.)
-2. **Long-term goal** — **PENDING re-derivation** from SPEC-VISION §1 (objectives + success criteria). The prior commercial `LONG-TERM-GOAL.md` is archived to `private/` — it is NOT the current goal.
+2. **Long-term goal** — `docs/goals/LONG-TERM-GOAL.md` — the re-centered, non-commercial end state + acceptance criteria (derived from SPEC-VISION §1). The prior commercial one is archived to `private/`.
 3. **Short-term goal** — `docs/goals/SHORT-TERM-GOAL.md` — the current cycle's deliverable + kill criteria + DONE definition. Refreshed when the previous short-term goal reaches `status: DONE`.
 
 **Protocol on session-start:**
-- Read the vision + short-term goal.
+- Read the vision + long-term + short-term goal.
 - If `SHORT-TERM-GOAL.md` is `status: ACTIVE`, execute against it.
 - If `status: DONE`, archive to `docs/goals/archive/cycle-NN-DONE-YYYY-MM-DD.md` and surface to the user that a new short-term goal is needed (or pull the next one from the queue listed in the current file).
 - If `status: BLOCKED`, surface the blocker before doing anything else.
@@ -30,8 +30,10 @@ Full protocol: `docs/goals/README.md`.
 | What | Where |
 |---|---|
 | Vision (formal, ISO 29148) | `docs/specs/SPEC-VISION.md` |
-| Formal contracts / specs | `docs/specs/` (SPEC-VISION, SPEC-008..014) |
+| Primitive (the cycle) | `docs/specs/SPEC-PRIMITIVE.md` |
+| Formal contracts / specs | `docs/specs/` (SPEC-VISION, SPEC-PRIMITIVE, SPEC-008..014) |
 | Architecture decisions (ADRs) | `docs/decisions/` |
+| Non-commercial end state | `docs/goals/LONG-TERM-GOAL.md` |
 | Current cycle's deliverable | `docs/goals/SHORT-TERM-GOAL.md` |
 | Setup / config guides | `docs/hima-setup.md`, `docs/hima-config.md` |
 | Private (strategy, business, full v1 archive) | `private/` submodule (`momomuchu/hima-private`) — access-gated |

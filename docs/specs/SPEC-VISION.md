@@ -28,6 +28,10 @@ Unambiguous, Complete, Singular, Feasible, Verifiable, Correct, Conforming*; the
 ## §1 Business context
 
 ### 1.1 Background & problem statement
+> *Per 29148, §1.1 is **descriptive problem-statement** prose, not testable acceptance
+> requirements. The criticality tags here denote **problem severity**, not execution-blocking
+> order; the testable requirements begin at §1.3 (V-005+).*
+
 - **V-001** `[CRITICAL][BLOCKS:critical]` We are in the era of AI coding agents — a durable new
   role. The agents are getting genuinely capable, but there is **no trustworthy layer that shows
   a functionality was proposed → applied → then validated *and verified*, clearly, accurately,
@@ -91,7 +95,7 @@ Unambiguous, Complete, Singular, Feasible, Verifiable, Correct, Conforming*; the
 - **V-010** `[CRITICAL][BLOCKS:critical]` **The irreducible primitive of hima is the CYCLE.**
   Development proceeds by cycles; the cycle is the smallest complete unit hima governs. A cycle is
   an ordered set of stages; each stage is *governed* (the right context/skill/role is forced) and
-  *gated* by V&V before it may advance. → detailed in `SPEC-PRIMITIVE` (to be authored, traces to V-010).
+  *gated* by V&V before it may advance. → detailed in `docs/specs/SPEC-PRIMITIVE.md` (traces to V-010).
 - **V-011** `[HIGH][BLOCKS:high]` **Forcing the right skill/context/role is the *mechanism*, not the
   primitive** — it is how each stage of the cycle is governed. (This corrects the earlier framing that
   named forcing itself as the primitive.)
@@ -102,18 +106,21 @@ Unambiguous, Complete, Singular, Feasible, Verifiable, Correct, Conforming*; the
   SPEC-PRIMITIVE. Placeholder, not a commitment.
 
 ### 3.4 Assumptions & dependencies
-- **V-013** `[HIGH][BLOCKS:high]` Assumes host coding agents expose a hook surface hima can bind to
-  (UserPromptSubmit / PreToolUse / PostToolUse / Stop / SubagentStart-Stop, per runtime). Depends on
-  thin per-runtime adapters (Claude/Codex/Hermes/OpenCode).
+- **V-013** `[HIGH][BLOCKS:high]` **Assumption:** host coding agents expose a hook surface hima can
+  bind to (UserPromptSubmit / PreToolUse / PostToolUse / Stop / SubagentStart-Stop, per runtime).
+- **V-013a** `[HIGH][BLOCKS:high]` **Dependency:** thin per-runtime adapters
+  (Claude / Codex / Hermes / OpenCode) that translate the universal gate model to each host.
 
 ---
 
 ## §4 Scope
 
 ### 4.1 Scope of v1 (in)
-- **V-014** `[CRITICAL][BLOCKS:critical]` v1 = **the base architecture already proposed and built —
-  the V3 architecture** (forcing primitive, gate/behavior engine, capability-map, adapters, ward,
-  cycle engine, forced parallelization, traces). Certified 54/54, 1591 tests green.
+- **V-014** `[CRITICAL][BLOCKS:critical]` v1 scope = **the built V3 architecture**, whose components
+  are enumerated (with code locations) in `docs/specs/SPEC-PRIMITIVE.md` §9 — the forcing primitive,
+  gate/behavior engine, capability-map, adapters, ward, cycle engine, forced parallelization, and
+  traces. (Point-in-time evidence: certified 54/54 gaps, 1591 tests green as of 2026-07-02 —
+  see the Falsifies-If evidence-anchor; not an in-statement claim.)
 
 ### 4.2 Scope of later releases
 - **V-015** `[MEDIUM][BLOCKS:none]` Later = **modes** — e.g. an **automatic / bypass mode**: hima
@@ -143,9 +150,9 @@ Unambiguous, Complete, Singular, Feasible, Verifiable, Correct, Conforming*; the
 - **V-019** `[CRITICAL][BLOCKS:high]` **The measure of effectiveness is the TRACE.** Because every
   step is traced, hima can state **exactly what happened** — e.g. whether a given stage of the cycle
   was passed. Effectiveness is *evidenced*, not asserted.
-- **V-020** `[HIGH][BLOCKS:low]` **Quality attribute:** given a problem, hima brings the right
-  **attack strategy** (`pickAttack`) to bear on it. Observability from the transcript is the visible
-  proof.
+- **V-020** `[HIGH][BLOCKS:low]` **Quality attribute:** given a problem, hima selects a
+  **deterministic attack strategy** via `pickAttack`'s ladder rule (the strongest available
+  ForceAction for the runtime's capability). Observability from the transcript is the visible proof.
 
 **GQM operationalization (measurable, not hope):**
 | Goal | Question | Metric |
@@ -157,9 +164,10 @@ Unambiguous, Complete, Singular, Feasible, Verifiable, Correct, Conforming*; the
 
 ## §7 Traceability & governance
 
-- **V-021** `[CRITICAL][BLOCKS:critical]` **Absolute control over everything the plugin runs.** Each
-  stage is traced; from the transcript hima can **retrace what happened, how, and why**. Governance =
-  the cycle cannot advance past a stage whose V&V gate has not produced a sealed verdict.
+- **V-021** `[CRITICAL][BLOCKS:critical]` **Governance rule:** the cycle cannot advance past a stage
+  whose V&V gate has not produced a sealed verdict, and every stage transition is traced — so from
+  the transcript alone hima can retrace what happened, how, and why. (Verifiable against
+  SPEC-PRIMITIVE P-007/P-009; supersedes the earlier unbounded "absolute control" phrasing.)
 - **V-022** `[HIGH][BLOCKS:low]` hima practices its own discipline: this vision is claim-bearing and
   falsifiable (below); the primitive and contracts must trace to a `V-00x` or be cut.
 
@@ -185,9 +193,9 @@ Per-set: `Complete` ☐ `Consistent` ☐ `Feasible` ☐ `Bounded` ☐
   `private/` submodule** (`private/vision-commercial-v1.md`, `private/LONG-TERM-GOAL-commercial-v1.md`)
   per founder direction 2026-07-02 — parked, not deleted. Remaining: derive a fresh (non-commercial)
   long-term goal from §1 of this spec.
-- **OD-2** `[MEDIUM][BLOCKS:low]` **base tier: agnostic vs opinionated.** Does `base` ship only the
-  cycle/forcing primitives (dev-cycle becomes a pluggable pack), or a default opinionated dev-cycle
-  with skills? Affects the 15 proposed base-skills. Decoupled from the vision; resolve at SPEC-PRIMITIVE.
+- **OD-2** `[MEDIUM][BLOCKS:low]` **base tier: agnostic vs opinionated — RESOLVED.** `base` ships
+  agnostic primitives + meta skills; the opinionated dev-cycle skills become a swappable default
+  pack. See `docs/decisions/0006-base-tier-agnostic-primitives.md`.
 - **OD-3** `[MEDIUM][BLOCKS:none]` **"discipline of development" (context/prompting per stage)** —
   founder said "not for now." Parked as later scope, noted so it is a decision, not an omission.
 

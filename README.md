@@ -2,6 +2,10 @@
 
 Portable coding-agent harness implementation and architecture notes.
 
+> **Current source of truth:** vision → `docs/specs/SPEC-VISION.md`; primitive (the cycle) →
+> `docs/specs/SPEC-PRIMITIVE.md`; non-commercial end state → `docs/goals/LONG-TERM-GOAL.md`.
+> Sections below this note predate the v3 re-grounding and are being refreshed.
+
 ## Scope
 
 HIMA implements the PFV4 runtime kernel for governed coding-agent workflows
