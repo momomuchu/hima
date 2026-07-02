@@ -1,9 +1,9 @@
 ---
 cycle-id: cycle-98-v3-build-loop
 claim-bearing: true
-status: ACTIVE
+status: DONE
 opened: 2026-06-29
-closed:
+closed: 2026-07-02
 supersedes: cycle-97-behavior-system (the v2 behavior system is removed; hima is rebuilt v3-only per ADR-0003/0004)
 governing-principle: docs/goals/README.md §"Saturation-based DONE — the harder bar"
 ---
@@ -82,8 +82,9 @@ Falsifies-If:
   ⏸️ **PAUSED 2026-06-29 (founder request) after I13.** Repo green at 1088 tests, all pushed to origin/restructure/v2 (head 68ed505). The v3 hooks are now LIVE in-session (dogfooding: the classifier fired on the founder's own prompt).
   **REMAINING to certify v3 complete (~13 gaps):**
   - (I13 ✅ done — R-017/018/019/024 closed; R-016/022/023/037/041 folded into I14 below.)
-  - **I14** — profiles/prompts-core + planner-write-guard + rules-engine (path-scoped picomatch injection) + live role-spawning gate (R-020/028/029/035).
-  - **I10b** — Hermes subagent compensations + plugin scaffold (R-034/038/047/048/049/055).
-  - **I15** — formal specs SPEC-008..014 (Effect contracts) (R-013/014/015/031/032/033/051).
-  - **Certify** — final adversarial critic: re-run the completeness audit, confirm 0 gaps with file:line/test evidence.
-  Scripts ready on disk: scratchpad/i13.. not yet written. To RESUME: continue the loop from I13 (the audit register `.planning/architecture/V3-COMPLETENESS-AUDIT.md` is the source of truth).
+  - **I14 ✅** profiles + planner-write-guard + rules-engine (82b80f2) · **I10b ✅** Hermes subagents + plugin (df4c36b) · **I14b ✅** feedback-wave/anti-sycophancy/ADR/spawn-manifest (59721e4) · **I15 ✅** specs SPEC-008..014 (f3d5410) · **I16/I17/I18/I19 ✅** certification remediation waves (7e85f11, b24c353, 25b089b).
+  - **✅ CERTIFIED (2026-07-02, audit pass-5)** — `.planning/architecture/V3-CERTIFICATION.md` status CERTIFIED: **54/54 gaps closed, 0 partial, 0 open**, adversarially re-verified across 4 disjoint lanes with file:line + spawned-CLI e2e evidence. **1591 tests green, `pnpm test` exit 0.** Head `25b089b` on origin/restructure/v2.
+
+## 6. DONE — cycle-98 complete
+
+The v3 forcing-function runtime is architecturally complete and certified. All original completeness-audit gaps (R-001..R-055) are closed. **A new short-term goal is needed** — candidates: (a) merge restructure/v2 → main + tag v3.0.0-alpha; (b) the deferred R-035 hard-block escape-hatch (`--solo`) if forced-parallelization must be a true block; (c) live-runtime validation of the Hermes plugin on a real Hermes session; (d) resume cycle-96 external-authorization rows.
