@@ -57,6 +57,18 @@ export const FLOOR_SKILL_ADDITIONS: Readonly<Record<string, FloorAdditions>> =
       H: [{ source: "corpus", id: "corpus-security-privacy-compliance" }],
       C: [],
     },
+    analysis: {
+      H: [{ source: "corpus", id: "corpus-domain-modeling-ddd" }],
+      C: [{ source: "corpus", id: "corpus-architecture-system-design" }],
+    },
+    test: {
+      H: [{ source: "corpus", id: "corpus-quality-engineering" }],
+      C: [],
+    },
+    maintenance: {
+      H: [{ source: "corpus", id: "corpus-production-reliability-devops" }],
+      C: [],
+    },
   };
 
 // ─────────────────────────────────────────────────────────────────────────────

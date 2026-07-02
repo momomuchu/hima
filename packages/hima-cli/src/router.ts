@@ -22,6 +22,7 @@
  */
 
 import { randomUUID } from "node:crypto";
+import { execFileSync } from "node:child_process";
 
 import {
   pickSigil,
@@ -59,6 +60,7 @@ import {
   hermesHomeWarning,
   // I14b additions (R-041, R-035, R-037)
   runResearchSubpassContext,
+  researchSubpassForcedSkill,
   spawnPlan,
   ROLE_CATALOG,
   writeSpawnManifest,
@@ -66,11 +68,29 @@ import {
   buildSpawnAssignmentContext,
   appendWaveLog,
   buildResearchConvertContext,
+  // I18 wiring additions (R-044, R-049, R-020, R-041)
+  captureGitSnapshot,
+  readGitSnapshot,
+  hasChangesSince,
+  registerSubagent,
+  readSubagentRegistry,
+  addWardSkillRequirement,
+  PLANNER_PROMPTS,
+  EXECUTOR_PROMPTS,
+  CRITIC_PROMPTS,
+  resolveVariant,
+  loadPrompt,
 } from "@hima/core";
-import type { RuntimeTarget, DispatchResponse, DeferredVerdict } from "@hima/core";
+import type {
+  RuntimeTarget,
+  DispatchResponse,
+  DeferredVerdict,
+  HimaRole,
+  VariantTable,
+} from "@hima/core";
 
 import { DEV_CYCLE, RISK_ORDER } from "@hima/schemas";
-import type { GateVerdict, TraceEvent, ForceAction, StageVerdict } from "@hima/schemas";
+import type { GateVerdict, TraceEvent, ForceAction, StageVerdict, SkillRef } from "@hima/schemas";
 
 import { emitBlock, emitContext, emitAllow } from "./claude-format.js";
 import type { StdinPayload } from "./stdin.js";
@@ -89,9 +109,98 @@ const WRITE_TOOL_NAMES = new Set([
   "MultiEdit",
 ]);
 
+/**
+ * Tool-name substrings that indicate a subagent-spawning call on the Codex
+ * runtime (R-049). Matched case-insensitively against the raw toolName.
+ */
+const CODEX_SUBAGENT_SPAWN_PATTERN = /task|delegate|spawn|subagent/i;
+
+// ---------------------------------------------------------------------------
+// runGitDiffStat — best-effort `git diff --stat` snapshot (R-044)
+// ---------------------------------------------------------------------------
+
+/**
+ * Run `git -C <root> diff --stat` and return its stdout, or "" on any failure
+ * (git not installed, root is not a repo, timeout, etc.). Never throws — the
+ * review-surface "changed" signal degrades gracefully to "no baseline" rather
+ * than blocking or crashing the hook.
+ */
+function runGitDiffStat(root: string): string {
+  try {
+    return execFileSync("git", ["-C", root, "diff", "--stat"], {
+      encoding: "utf8",
+      timeout: 5000,
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Merge extra SkillRefs (e.g. ward-scoped R-041 extras) into a base forceSkills
+ * list, deduplicating by source+id. Base entries keep their order; extras are
+ * appended in declaration order, skipping any already present.
+ */
+function mergeSkillRefs(base: SkillRef[], extra: readonly SkillRef[]): SkillRef[] {
+  const seen = new Set(base.map((s) => `${s.source}:${s.id}`));
+  const merged = [...base];
+  for (const ref of extra) {
+    const key = `${ref.source}:${ref.id}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      merged.push(ref);
+    }
+  }
+  return merged;
+}
+
 // ---------------------------------------------------------------------------
 // Internal trace helper
 // ---------------------------------------------------------------------------
+
+/**
+ * ROLE_PROMPT_TABLES — maps each HimaRole to its bundled VariantTable (R-020).
+ * "reviewer" maps to CRITIC_PROMPTS (the critic profile owns the reviewer role
+ * marker — see prompts-core/critic-prompts.ts).
+ */
+const ROLE_PROMPT_TABLES: Record<HimaRole, VariantTable> = {
+  planner: PLANNER_PROMPTS,
+  executor: EXECUTOR_PROMPTS,
+  reviewer: CRITIC_PROMPTS,
+};
+
+/**
+ * resolveRichRolePrompt — R-020: materialise the richer role-variant prompt
+ * for the active role via resolveVariant + loadPrompt, instead of leaving that
+ * machinery unwired. Returns null when there is no active role (unrecognised
+ * stage) or on any resolution failure — this is advisory enrichment, never a
+ * hard requirement.
+ *
+ * modelID is derived from the runtime target: "claude-*" for the claude
+ * runtime (matches the "claude" variant matcher), a non-claude-prefixed
+ * placeholder otherwise (falls back to the "default" variant).
+ */
+async function resolveRichRolePrompt(
+  activeRole: HimaRole | null,
+  runtime: RuntimeTarget,
+): Promise<string | null> {
+  if (activeRole === null) return null;
+  try {
+    const table = ROLE_PROMPT_TABLES[activeRole];
+    const modelID = runtime === "claude" ? "claude-unknown" : "unknown-model";
+    const variantName = resolveVariant({
+      modelID,
+      agentName: activeRole,
+      variants: table,
+    });
+    const source = table[variantName];
+    if (source === undefined) return null;
+    return await loadPrompt(source);
+  } catch {
+    return null;
+  }
+}
 
 /**
  * safeAppendTrace — build a TraceEvent and fire-and-forget to persist it.
@@ -319,12 +428,20 @@ export async function handleUserPromptSubmit(
   const activeRole = roleForStage(ward.openStage);
   const roleCtx = activeRole !== null ? roleContext(activeRole) : null;
 
+  // R-020: richer role-variant prompt — resolveVariant + loadPrompt from the
+  // matching bundled table (PLANNER_PROMPTS/EXECUTOR_PROMPTS/CRITIC_PROMPTS),
+  // injected IN ADDITION to the one-line roleCtx fallback above. Previously
+  // this machinery was built + exported but had zero call sites in the live
+  // hook path (V3-CERTIFICATION.md R-020).
+  const richRolePrompt = await resolveRichRolePrompt(activeRole, runtime);
+
   // Build the full context as an ordered list of parts.
   // Parts are joined with newlines — the agent sees each part as a distinct
   // advisory line. The canary is always first; role context and behavior
   // advisories follow in priority order.
   const contextParts: string[] = [canaryWithRaise];
   if (roleCtx !== null) contextParts.push(roleCtx);
+  if (richRolePrompt !== null) contextParts.push(richRolePrompt);
 
   // R-016: append behavior advisory or NOT-triggered evaluation to context.
   //   warn path: inject the wave-launch recommendation.
@@ -344,6 +461,23 @@ export async function handleUserPromptSubmit(
   if (existing === null) {
     const researchCtx = runResearchSubpassContext(ward.entryPoint, ward.floor);
     if (researchCtx !== null) contextParts.push(researchCtx);
+
+    // R-041: at floor H+, the research sub-pass is FORCED, not merely advisory —
+    // but ONLY for "run" entry-point wards (mirrors runResearchSubpassContext's
+    // own entryPoint==="run" gate via researchCtx !== null). "full"/"spec" wards
+    // must NOT get this extra requirement. Persist corpus-technical-analysis-
+    // discovery into the ward's skillRegister so handlePreToolUse's skill-force
+    // gate (merged via mergeSkillRefs) blocks writes until invoked, regardless
+    // of the current DEV_CYCLE stage.
+    const forcedResearchSkill =
+      researchCtx !== null ? researchSubpassForcedSkill(ward.floor) : null;
+    if (forcedResearchSkill !== null) {
+      try {
+        await addWardSkillRequirement(root, forcedResearchSkill);
+      } catch {
+        // swallow — enforcement persistence must never break the hook pipeline
+      }
+    }
 
     // R-035: live role-spawn manifest for new wards.
     // Compute the role-team for the initial stage, write the manifest file,
@@ -475,6 +609,15 @@ export async function handlePreToolUse(
     return;
   }
 
+  // R-049: Codex subagent-spawn compensation — poll-file registration.
+  // Codex has no native subagent_start hook; when a subagent-spawning tool is
+  // invoked on the codex runtime, register the child session in the parent's
+  // poll file so a later pre_tool call (from the parent) can discover the
+  // spawn via readSubagentRegistry. Observational — never blocks the spawn.
+  if (runtime === "codex" && CODEX_SUBAGENT_SPAWN_PATTERN.test(toolName)) {
+    await recordCodexSubagentSpawn(root, payload, sessionId, toolName);
+  }
+
   // R-038: Hermes delegate_task intercept — compensation for absent subagent_start.
   // When runtime is "hermes" and the tool being invoked is "delegate_task", treat this
   // pre_tool event as a subagent_start gate: evaluate BEH_WORKER_MODEL (and any other
@@ -576,7 +719,11 @@ export async function handlePreToolUse(
   //    R-017: apply floor-scaling so H/C wards enforce the extra skills from ENTRYPOINTS-v3.
   const config = await loadConfig(root);
   const baseForceSkills = resolveStageForceSkills(config, ward.openStage, DEV_CYCLE);
-  const forceSkills = resolveStageForceSkillsForFloor(baseForceSkills, ward.openStage, ward.floor);
+  const floorForceSkills = resolveStageForceSkillsForFloor(baseForceSkills, ward.openStage, ward.floor);
+  // R-041: merge in any extra forced skills persisted on the ward itself
+  // (e.g. corpus-technical-analysis-discovery, forced at floor H+ run-entry
+  // regardless of the current DEV_CYCLE stage — see addWardSkillRequirement).
+  const forceSkills = mergeSkillRefs(floorForceSkills, ward.skillRegister);
   if (forceSkills.length === 0) {
     // No forced skills for this stage → allow (with R-029 rules injection).
     await emitAllowWithRules(root, sessionId, targetFilePath);
@@ -812,7 +959,21 @@ export async function handlePostToolUse(
     const filePath = extractWritePath(payload.toolInput);
     if (filePath !== undefined && isMdPlanPath(filePath)) {
       const autoOpen = buildArtifactAutoOpenContext(filePath);
-      const reviewSurface = buildReviewSurfaceContext(true);
+
+      // R-044: compute the REAL changed flag from the session-start git
+      // baseline instead of a hardcoded `true`. Falls back to "changed=true"
+      // (fail-safe: assume a diff exists) only when reading the baseline or
+      // running git itself throws — the review-surface line is advisory, so a
+      // false positive here is safer than silently claiming "no diff".
+      let changed = true;
+      try {
+        const baseSnapshot = await readGitSnapshot(root);
+        const currentSnapshot = runGitDiffStat(root);
+        changed = hasChangesSince(baseSnapshot, currentSnapshot);
+      } catch {
+        changed = true;
+      }
+      const reviewSurface = buildReviewSurfaceContext(changed);
       const docParts: string[] = [autoOpen, reviewSurface];
 
       // R-026: emit founder-digest advisory at M+ (md plan path always doc-heavy).
@@ -1159,7 +1320,10 @@ export async function handleStop(
           reviewCmd: "git diff --stat HEAD",
         }),
       );
-      contextParts.push(buildNextAttackContext(ward.openStage));
+      // R-039: pass ward.verdicts so the ranked next-attack proposal is
+      // stage-specific (furthest-along sealed stage) instead of the generic
+      // "propose ranked next attacks" fallback.
+      contextParts.push(buildNextAttackContext(ward.openStage, ward.verdicts));
     }
 
     if (contextParts.length > 0) {
@@ -1270,6 +1434,18 @@ export async function handleSessionStart(
   runtime: RuntimeTarget = "claude",
 ): Promise<void> {
   const sessionId = payload.sessionId ?? "unknown-session";
+
+  // R-044: capture the git-diff baseline for this session so PostToolUse can
+  // compute a real "changed" flag (hasChangesSince) instead of a hardcoded
+  // literal. Tolerant of failure (git absent, root not a repo, timeout) —
+  // captureGitSnapshot then persists "" as the baseline in that case, which
+  // hasChangesSince treats like any other snapshot (compared by string equality).
+  try {
+    const gitSnapshot = runGitDiffStat(root);
+    await captureGitSnapshot(root, gitSnapshot);
+  } catch {
+    // swallow — snapshot capture must never break session-start
+  }
 
   const context = await buildSessionResumeContext(root);
 
@@ -1394,6 +1570,63 @@ const HIMA_GOVERNANCE_RULES_SERIALIZED = [
  * Emit shape on block:
  *   {"decision":"block","reason":"...","raw":{"action":"block","message":"..."}}
  */
+/**
+ * recordCodexSubagentSpawn — internal R-049 compensation handler.
+ *
+ * Called from handlePreToolUse when runtime==="codex" and toolName matches a
+ * subagent-spawning tool (task|delegate|spawn|subagent, case-insensitive).
+ * Registers a child sessionId in the parent's poll file (registerSubagent),
+ * re-reads the registry (readSubagentRegistry) so the count is available for
+ * the trace, and appends a trace event recording the registration.
+ *
+ * Never blocks, never throws — this is observational compensation for the
+ * absent native Codex subagent_start hook (capability-map-v3 CODEX_MAP:
+ * compensatingMechanism="poll_subagent_file").
+ */
+async function recordCodexSubagentSpawn(
+  root: string,
+  payload: StdinPayload,
+  sessionId: string,
+  toolName: string,
+): Promise<void> {
+  try {
+    const toolInputObj =
+      typeof payload.toolInput === "object" && payload.toolInput !== null
+        ? (payload.toolInput as Record<string, unknown>)
+        : undefined;
+
+    const childId =
+      toolInputObj !== undefined &&
+      typeof toolInputObj["childSessionId"] === "string" &&
+      toolInputObj["childSessionId"] !== ""
+        ? (toolInputObj["childSessionId"] as string)
+        : toolInputObj !== undefined &&
+            typeof toolInputObj["child_session_id"] === "string" &&
+            toolInputObj["child_session_id"] !== ""
+          ? (toolInputObj["child_session_id"] as string)
+          : randomUUID();
+
+    await registerSubagent(root, sessionId, childId);
+    const registry = await readSubagentRegistry(root, sessionId);
+
+    safeAppendTrace(root, {
+      sessionId,
+      hookEvent: "PreToolUse",
+      gateType: "subagent_start",
+      decision: "allow",
+      toolName,
+      skillsForced: [],
+      skillsLoaded: [],
+      exitCode: 0,
+      reason:
+        `[R-049 codex-subagent] registered child "${childId}" — ` +
+        `registry now has ${registry.length} entr${registry.length === 1 ? "y" : "ies"}`,
+    });
+  } catch {
+    // swallow — compensation must never break the pre_tool hook pipeline
+  }
+}
+
 async function handleHermesDelegateTask(
   root: string,
   payload: StdinPayload,

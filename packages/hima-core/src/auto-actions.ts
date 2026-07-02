@@ -196,15 +196,90 @@ export function buildResearchConvertContext(source: string): string {
 // ---------------------------------------------------------------------------
 
 /**
+ * A single stage's sealed/open verdict, as tracked on the ward.
+ *
+ * `status` values considered "sealed" are: "done", "done-verified",
+ * "done-validated". Any other status (e.g. "open", "blocked") is not sealed.
+ */
+export type StageVerdict = {
+  stage: string;
+  status: string;
+};
+
+/** Canonical DEV_CYCLE stage order (AMENDMENT-003, 8 stages). */
+const DEV_CYCLE_STAGE_ORDER: readonly string[] = [
+  "discovery",
+  "analysis",
+  "spec",
+  "design",
+  "impl",
+  "test",
+  "verify",
+  "maintenance",
+];
+
+/** Ranked next-attack proposal keyed by the furthest-along sealed stage. */
+const NEXT_ATTACK_BY_STAGE: Readonly<Record<string, string>> = {
+  discovery: "open analysis (map the domain)",
+  analysis: "open spec (author the contract)",
+  spec: "open design (architect the solution)",
+  design: "open impl (build it)",
+  impl: "open test (write the tests)",
+  test: "open verify (validate end-to-end)",
+  verify: "open maintenance (operate it)",
+  maintenance: "cycle complete — propose the next short-term goal",
+};
+
+const SEALED_STATUSES: ReadonlySet<string> = new Set([
+  "done",
+  "done-verified",
+  "done-validated",
+]);
+
+/**
  * Build a next-attack-reflex context line emitted when a ward stage is sealed.
  *
  * Prompts the agent to propose ranked next attacks with owner surface
  * (GitHub / Linear / Notion) and evidence before asking broad questions.
  *
- * @param wardStage  The stage name that was just sealed (e.g. "discovery",
- *                   "cadrage", "implementation").
+ * When `verdicts` is provided, sealed stages (status in done / done-verified /
+ * done-validated) are enumerated and a stage-specific ranked next-step
+ * proposal is emitted based on the furthest-along sealed stage in DEV_CYCLE
+ * order (e.g. sealed: discovery,analysis → next attack: open spec (author the
+ * contract)).
+ *
+ * When `verdicts` is empty or undefined, a sane default is returned that
+ * simply names `openStage` as sealed and prompts for ranked next attacks.
+ *
+ * @param openStage  The stage name that was just sealed (e.g. "discovery",
+ *                   "cadrage", "implementation") — used for the default form.
+ * @param verdicts   Optional list of per-stage verdicts on the ward.
  * @returns          Single-line advisory additionalContext string.
  */
-export function buildNextAttackContext(wardStage: string): string {
-  return `[HIMA] stage ${wardStage} sealed — propose ranked next attacks (owner surface + evidence)`;
+export function buildNextAttackContext(
+  openStage: string,
+  verdicts?: readonly StageVerdict[],
+): string {
+  const sealedStages = (verdicts ?? [])
+    .filter((v) => SEALED_STATUSES.has(v.status))
+    .map((v) => v.stage);
+
+  if (sealedStages.length === 0) {
+    return `[HIMA] stage ${openStage} sealed — propose ranked next attacks (owner surface + evidence)`;
+  }
+
+  // sealedStages.length > 0 is guaranteed by the early return above, so the
+  // first element is always defined — the assertion only satisfies
+  // noUncheckedIndexedAccess, it does not change runtime behavior.
+  let furthest: string = sealedStages[0]!;
+  for (const stage of sealedStages) {
+    if (DEV_CYCLE_STAGE_ORDER.indexOf(stage) > DEV_CYCLE_STAGE_ORDER.indexOf(furthest)) {
+      furthest = stage;
+    }
+  }
+
+  const nextAttack =
+    NEXT_ATTACK_BY_STAGE[furthest] ?? `advance past ${furthest}`;
+
+  return `[HIMA] sealed: ${sealedStages.join(",")} → next attack: ${nextAttack} (owner surface + evidence)`;
 }

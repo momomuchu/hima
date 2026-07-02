@@ -91,6 +91,17 @@ export {
 } from "./codex-subagent.js";
 export type { LoadConfigOpts } from "./config.js";
 // ---------------------------------------------------------------------------
+// session-diff — git-state snapshot helpers for the R-044 review-surface gate.
+// captureGitSnapshot: persist a git-diff baseline at session-start.
+// readGitSnapshot / hasChangesSince: detect drift at post-tool-use.
+// ---------------------------------------------------------------------------
+export {
+  captureGitSnapshot,
+  hasChangesSince,
+  readGitSnapshot,
+  sessionDiffPath,
+} from "./session-diff.js";
+// ---------------------------------------------------------------------------
 // config — per-user / per-project config loader + resolvers
 // (AMENDMENT-001 pluggable skills + AMENDMENT-003 pluggable cycle)
 // ---------------------------------------------------------------------------
@@ -174,8 +185,13 @@ export {
 export { isInReadSet, readReadSet, recordRead } from "./read-set.js";
 // ---------------------------------------------------------------------------
 // research-subpass — compressed research sub-pass context for "run" entry (R-041)
+// runResearchSubpassContext: advisory canary string.
+// researchSubpassForcedSkill: the SkillRef to force onto the ward at floor H+.
 // ---------------------------------------------------------------------------
-export { runResearchSubpassContext } from "./research-subpass.js";
+export {
+  researchSubpassForcedSkill,
+  runResearchSubpassContext,
+} from "./research-subpass.js";
 // ---------------------------------------------------------------------------
 // risk-class — resolveRiskClass() helper (R-002)
 // ---------------------------------------------------------------------------

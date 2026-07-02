@@ -19,7 +19,8 @@
  *      ENTRYPOINTS-v3.md §ENTRY 2: 'corpus-technical-analysis-discovery injected'.
  */
 
-import type { RiskClass } from "@hima/schemas";
+import { RISK_ORDER } from "@hima/schemas";
+import type { RiskClass, SkillRef } from "@hima/schemas";
 
 /**
  * Return the research sub-pass canary/context string when the ward's entry point
@@ -44,6 +45,26 @@ export function runResearchSubpassContext(
 ): string | null {
   if (entryPoint === "run") {
     return "[HIMA] run research sub-pass: corpus-technical-analysis-discovery (advisory at M, forced at H+)";
+  }
+  return null;
+}
+
+/**
+ * Return the forced research skill for the current risk floor, or null when
+ * the floor does not force research.
+ *
+ * ENTRYPOINTS-v3 mandates that the research sub-pass is advisory at floor M
+ * (inject, not block) and forced (added to the skill register requirement)
+ * at floor H and above. This helper is the pure, testable source of truth
+ * for that forced-vs-advisory floor gate: callers add the returned SkillRef
+ * to the ward's skillRegister requirement when non-null.
+ *
+ * @param floor  The effective risk floor of the ward.
+ * @returns      The forced SkillRef at floor H/C, null at floor T/L/M.
+ */
+export function researchSubpassForcedSkill(floor: RiskClass): SkillRef | null {
+  if (RISK_ORDER[floor] >= RISK_ORDER["H"]) {
+    return { source: "corpus", id: "corpus-technical-analysis-discovery" };
   }
   return null;
 }

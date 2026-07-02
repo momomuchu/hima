@@ -19,7 +19,10 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { runResearchSubpassContext } from "../src/research-subpass.js";
+import {
+  researchSubpassForcedSkill,
+  runResearchSubpassContext,
+} from "../src/research-subpass.js";
 
 // ---------------------------------------------------------------------------
 // Mandated scenarios
@@ -117,5 +120,43 @@ describe("runResearchSubpassContext — pure function contract", () => {
       expect(result).not.toBeNull();
       expect(typeof result).toBe("string");
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// R-041 — researchSubpassForcedSkill
+// ---------------------------------------------------------------------------
+
+describe("researchSubpassForcedSkill", () => {
+  it("returns null at floor T", () => {
+    expect(researchSubpassForcedSkill("T")).toBeNull();
+  });
+
+  it("returns null at floor L", () => {
+    expect(researchSubpassForcedSkill("L")).toBeNull();
+  });
+
+  it("returns null at floor M (advisory, not forced)", () => {
+    expect(researchSubpassForcedSkill("M")).toBeNull();
+  });
+
+  it("returns the corpus-technical-analysis-discovery SkillRef at floor H", () => {
+    expect(researchSubpassForcedSkill("H")).toEqual({
+      source: "corpus",
+      id: "corpus-technical-analysis-discovery",
+    });
+  });
+
+  it("returns the corpus-technical-analysis-discovery SkillRef at floor C", () => {
+    expect(researchSubpassForcedSkill("C")).toEqual({
+      source: "corpus",
+      id: "corpus-technical-analysis-discovery",
+    });
+  });
+
+  it("identical calls return equal (deep) values — pure function", () => {
+    expect(researchSubpassForcedSkill("H")).toEqual(
+      researchSubpassForcedSkill("H"),
+    );
   });
 });

@@ -274,10 +274,76 @@ describe("buildNextAttackContext", () => {
     expect(result).not.toContain("\n");
   });
 
-  it("full canonical form", () => {
+  it("full canonical form (no verdicts — default form)", () => {
     const stage = "discovery";
     expect(buildNextAttackContext(stage)).toBe(
       `[HIMA] stage ${stage} sealed — propose ranked next attacks (owner surface + evidence)`,
+    );
+  });
+
+  it("returns the default form when verdicts is an empty array", () => {
+    expect(buildNextAttackContext("discovery", [])).toBe(
+      "[HIMA] stage discovery sealed — propose ranked next attacks (owner surface + evidence)",
+    );
+  });
+
+  it("enumerates sealed stages and proposes the stage-specific next attack (done)", () => {
+    const result = buildNextAttackContext("analysis", [
+      { stage: "discovery", status: "done" },
+      { stage: "analysis", status: "done" },
+    ]);
+    expect(result).toBe(
+      "[HIMA] sealed: discovery,analysis → next attack: open spec (author the contract) (owner surface + evidence)",
+    );
+  });
+
+  it("recognizes done-verified and done-validated as sealed statuses", () => {
+    const verified = buildNextAttackContext("discovery", [
+      { stage: "discovery", status: "done-verified" },
+    ]);
+    expect(verified).toContain("sealed: discovery");
+    expect(verified).toContain("open analysis (map the domain)");
+
+    const validated = buildNextAttackContext("spec", [
+      { stage: "spec", status: "done-validated" },
+    ]);
+    expect(validated).toContain("sealed: spec");
+    expect(validated).toContain("open design (architect the solution)");
+  });
+
+  it("ignores non-sealed statuses (open/blocked) when computing the next attack", () => {
+    const result = buildNextAttackContext("design", [
+      { stage: "discovery", status: "done" },
+      { stage: "analysis", status: "open" },
+      { stage: "spec", status: "blocked" },
+    ]);
+    expect(result).toBe(
+      "[HIMA] sealed: discovery → next attack: open analysis (map the domain) (owner surface + evidence)",
+    );
+  });
+
+  it("uses the furthest-along sealed stage (DEV_CYCLE order) even if verdicts are out of order", () => {
+    const result = buildNextAttackContext("impl", [
+      { stage: "impl", status: "done" },
+      { stage: "discovery", status: "done" },
+      { stage: "design", status: "done" },
+    ]);
+    expect(result).toContain("sealed: impl,discovery,design");
+    expect(result).toContain("open test (write the tests)");
+  });
+
+  it("proposes cycle-complete when maintenance is the furthest sealed stage", () => {
+    const result = buildNextAttackContext("maintenance", [
+      { stage: "maintenance", status: "done" },
+    ]);
+    expect(result).toContain(
+      "next attack: cycle complete — propose the next short-term goal",
+    );
+  });
+
+  it("falls back to the default form when no verdicts argument is passed at all", () => {
+    expect(buildNextAttackContext("verify")).toBe(
+      "[HIMA] stage verify sealed — propose ranked next attacks (owner surface + evidence)",
     );
   });
 });

@@ -94,7 +94,7 @@ type ParsedArgs = {
   json: boolean;
   watch: boolean;
   // setup-specific flags
-  runtime: "claude" | "codex" | "hermes" | null;
+  runtime: "claude" | "codex" | "hermes" | "opencode" | null;
   fresh: boolean;
   // stage-advance-specific flags (R-006 / R-043)
   stage: string | null;
@@ -114,7 +114,7 @@ function parseArgs(argv: string[]): ParsedArgs {
   let onlyBlocks = false;
   let json = false;
   let watch = false;
-  let runtime: "claude" | "codex" | "hermes" | null = null;
+  let runtime: "claude" | "codex" | "hermes" | "opencode" | null = null;
   let fresh = false;
   let stage: string | null = null;
   let status: string | null = null;
@@ -173,13 +173,13 @@ function parseArgs(argv: string[]): ParsedArgs {
       status = arg.slice("--status=".length);
     } else if (arg === "--runtime" && i + 1 < args.length) {
       const rv = args[i + 1] ?? "";
-      if (rv === "claude" || rv === "codex" || rv === "hermes") {
+      if (rv === "claude" || rv === "codex" || rv === "hermes" || rv === "opencode") {
         runtime = rv;
       }
       i += 1;
     } else if (arg.startsWith("--runtime=")) {
       const rv = arg.slice("--runtime=".length);
-      if (rv === "claude" || rv === "codex" || rv === "hermes") {
+      if (rv === "claude" || rv === "codex" || rv === "hermes" || rv === "opencode") {
         runtime = rv;
       }
     } else if (!arg.startsWith("--") && subcommand === "hook" && event === null) {
@@ -411,9 +411,14 @@ async function main(): Promise<void> {
     const himaBinPath = fileURLToPath(import.meta.url);
 
     try {
+      // runSetup does not (yet) support opencode hook-wiring; fall back to
+      // auto-detection for that value rather than widening SetupOpts.
+      const setupRuntime: "claude" | "codex" | "hermes" | undefined =
+        parsed.runtime === "opencode" ? undefined : parsed.runtime ?? undefined;
+
       const result = await runSetup({
         root,
-        runtime: parsed.runtime ?? undefined,
+        runtime: setupRuntime,
         fresh: parsed.fresh,
         himaBinPath,
       });
@@ -504,9 +509,9 @@ async function main(): Promise<void> {
   const payload = await readStdinPayload();
   const sessionId = payload.sessionId ?? "unknown-session";
 
-  // R-012: resolve runtime from --format flag (default "claude").
+  // R-012/R-050: resolve runtime from --format flag (default "claude").
   const runtime: RuntimeTarget =
-    parsed.format === "codex" || parsed.format === "hermes"
+    parsed.format === "codex" || parsed.format === "hermes" || parsed.format === "opencode"
       ? (parsed.format as RuntimeTarget)
       : "claude";
 

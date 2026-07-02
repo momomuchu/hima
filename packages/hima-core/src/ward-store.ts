@@ -3,6 +3,7 @@ import path from "node:path";
 import {
   Ward,
   StageVerdict,
+  SkillRef,
   decodeWard,
 } from "@hima/schemas";
 import {
@@ -152,6 +153,54 @@ export async function advanceStage(
       openStage: stage,
       verdicts: [...current.verdicts, closingVerdict],
     };
+
+    // Validate before persisting.
+    const validated = decodeWard(updated);
+
+    await assertSafeWriteTarget(root, wardPath);
+    await safeAtomicWriteFile(root, wardPath, serialize(validated));
+
+    return validated;
+  });
+}
+
+/**
+ * addWardSkillRequirement — append an extra required SkillRef to the ward's
+ * `skillRegister` field (R-041: research sub-pass enforcement at floor H+).
+ *
+ * `skillRegister` doubles as the ward-scoped list of extra forced skills:
+ * handlePreToolUse merges it into the stage's floor-scaled forceSkills so the
+ * skill-force gate blocks writes until the extra skill is invoked, regardless
+ * of which DEV_CYCLE stage is currently open.
+ *
+ * Idempotent: if a ref with the same source+id is already present, the ward
+ * is not rewritten (no duplicate entries).
+ *
+ * @param root  Project root.
+ * @param ref   The SkillRef to add as an extra requirement.
+ * @returns     The updated, persisted Ward.
+ */
+export async function addWardSkillRequirement(
+  root: string,
+  ref: SkillRef,
+): Promise<Ward> {
+  const wardPath = path.join(root, WARD_REL);
+  const lockDir = path.join(root, LOCK_REL);
+
+  await mkdir(path.dirname(lockDir), { recursive: true });
+
+  return withFileLock(lockDir, async () => {
+    // Re-read inside the lock to avoid lost-update.
+    const raw = await readFile(wardPath, "utf8");
+    const current = decodeWard(JSON.parse(raw));
+
+    const alreadyPresent = current.skillRegister.some(
+      (s) => s.source === ref.source && s.id === ref.id,
+    );
+
+    const updated: Ward = alreadyPresent
+      ? current
+      : { ...current, skillRegister: [...current.skillRegister, ref] };
 
     // Validate before persisting.
     const validated = decodeWard(updated);

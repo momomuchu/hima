@@ -318,7 +318,16 @@ describe("resolveStageForceSkillsForFloor — unknown stage", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("FLOOR_SKILL_ADDITIONS — exported map shape", () => {
-  const knownStages = ["discovery", "spec", "design", "impl", "verify"] as const;
+  const knownStages = [
+    "discovery",
+    "analysis",
+    "spec",
+    "design",
+    "impl",
+    "test",
+    "verify",
+    "maintenance",
+  ] as const;
 
   it("has entries for all expected DEV_CYCLE stages", () => {
     for (const stage of knownStages) {
@@ -348,14 +357,26 @@ describe("FLOOR_SKILL_ADDITIONS — exported map shape", () => {
     }
   });
 
-  it("H additions are non-empty for discovery, spec, design, impl, verify", () => {
+  it("H additions are non-empty for all 8 known stages", () => {
     for (const stage of knownStages) {
       const entry = FLOOR_SKILL_ADDITIONS[stage];
       expect(entry?.H.length).toBeGreaterThan(0);
     }
   });
 
+  it("H additions are non-empty at H for analysis/test/maintenance specifically", () => {
+    for (const stage of ["analysis", "test", "maintenance"] as const) {
+      const result = resolveStageForceSkillsForFloor([], stage, "H");
+      expect(result.length).toBeGreaterThan(0);
+    }
+  });
+
   it("verify has empty C additions (verify C list is [])", () => {
     expect(FLOOR_SKILL_ADDITIONS["verify"]?.C).toEqual([]);
+  });
+
+  it("test and maintenance have empty C additions", () => {
+    expect(FLOOR_SKILL_ADDITIONS["test"]?.C).toEqual([]);
+    expect(FLOOR_SKILL_ADDITIONS["maintenance"]?.C).toEqual([]);
   });
 });
