@@ -14,7 +14,7 @@ const currentResult = spawnSync(process.execPath, [script, "--json"], {
 assert.equal(currentResult.status, 0, currentResult.stderr);
 const currentReport = JSON.parse(currentResult.stdout);
 assert.equal(currentReport.status, "pass");
-assert.equal(currentReport.claimBearingFiles, 46);
+assert.equal(currentReport.claimBearingFiles, 47);
 assert.equal(currentReport.issues.length, 0);
 
 try {

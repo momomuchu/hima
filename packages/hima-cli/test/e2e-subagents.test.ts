@@ -17,10 +17,17 @@
  *  Scenario D — session-start --format hermes with HERMES_HOME unset → exit 0,
  *               stdout additionalContext contains "[HIMA WARNING]" / HERMES_HOME warning.
  *
+ *  Scenario E — R-048: subagent-stop --format hermes dedup, spawned TWICE with the
+ *               same session_id + tool_input.agentId → the first invocation is recorded
+ *               as a fresh trace event ("first occurrence"); the second (replayed)
+ *               invocation is silently suppressed — no second trace line is appended.
+ *               Both invocations exit 0 (observe-only, never blocks).
+ *
  * Pre-condition: `pnpm --filter @hima/cli build` must have run before this suite.
  * Runtime: node:child_process spawnSync (synchronous, sequential).
  */
 
+import { readTrace } from "@hima/core";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -356,6 +363,93 @@ describe("Scenario D — hermes session-start: HERMES_HOME warning", () => {
       expect(result.stdout, "HIMA WARNING must not appear when HERMES_HOME is set")
         .not.toContain("[HIMA WARNING]");
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Scenario E — R-048: subagent-stop --format hermes dedup (replay suppression)
+// ---------------------------------------------------------------------------
+
+describe("Scenario E — R-048: Hermes subagent-stop dedup e2e", () => {
+  it("second invocation with same session_id + agentId is suppressed as a replay", async () => {
+    const sessionId = "test-session-E-r048";
+    const agentId = "agent-r048-dedup-1";
+
+    // First invocation: fresh (agentId, "subagent_stop") pair for this session.
+    const first = spawnCli(
+      ["subagent-stop", "--format", "hermes"],
+      {
+        session_id: sessionId,
+        tool_name: "Task",
+        tool_input: { agentId },
+      },
+      root,
+    );
+
+    expect(first.status, "first invocation must exit 0 (observe-only)").toBe(0);
+
+    const eventsAfterFirst = await readTrace(root, sessionId);
+    expect(
+      eventsAfterFirst.length,
+      "first invocation must append exactly one trace event",
+    ).toBe(1);
+    expect(eventsAfterFirst[0]?.hookEvent).toBe("subagent-stop");
+    expect(
+      String(eventsAfterFirst[0]?.reason),
+      "first-occurrence trace must say so",
+    ).toContain("first occurrence");
+
+    // Second invocation: Hermes replay of the SAME subagent_stop event
+    // (same session_id + agentId) — must be silently suppressed.
+    const second = spawnCli(
+      ["subagent-stop", "--format", "hermes"],
+      {
+        session_id: sessionId,
+        tool_name: "Task",
+        tool_input: { agentId },
+      },
+      root,
+    );
+
+    expect(second.status, "replayed invocation must still exit 0 (never blocks)").toBe(0);
+
+    const eventsAfterSecond = await readTrace(root, sessionId);
+    expect(
+      eventsAfterSecond.length,
+      "replayed invocation must NOT append a second trace event — proves dedup suppression",
+    ).toBe(1);
+  });
+
+  it("a different agentId in the same session is treated as a distinct event (not suppressed)", async () => {
+    const sessionId = "test-session-E-r048-distinct";
+
+    const forAgentOne = spawnCli(
+      ["subagent-stop", "--format", "hermes"],
+      {
+        session_id: sessionId,
+        tool_name: "Task",
+        tool_input: { agentId: "agent-r048-dedup-A" },
+      },
+      root,
+    );
+    expect(forAgentOne.status).toBe(0);
+
+    const forAgentTwo = spawnCli(
+      ["subagent-stop", "--format", "hermes"],
+      {
+        session_id: sessionId,
+        tool_name: "Task",
+        tool_input: { agentId: "agent-r048-dedup-B" },
+      },
+      root,
+    );
+    expect(forAgentTwo.status).toBe(0);
+
+    const events = await readTrace(root, sessionId);
+    expect(
+      events.length,
+      "distinct agentIds must both be recorded — dedup key is per-agent, not per-session",
+    ).toBe(2);
   });
 });
 
