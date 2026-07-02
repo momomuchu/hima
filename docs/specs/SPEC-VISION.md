@@ -5,7 +5,7 @@ claim-bearing: true
 status: DRAFT
 date: 2026-07-02
 standard-basis: ISO/IEC/IEEE 29148:2018 (Vision + StRS + ConOps); companions IEEE 1362 (ConOps), ISO/IEC/IEEE 42010 (viewpoints), ISO/IEC 25010 (quality model)
-supersedes: docs/vision.md (the prior COMMERCIAL vision — MIT open-core / founding cohort / ARR / EU-AI-Act — is NOT the current vision per founder direction 2026-07-02; reconciliation pending, see §9 OD-1)
+supersedes: the prior COMMERCIAL vision (MIT open-core / founding cohort / ARR / EU-AI-Act) — NOT the current vision per founder direction 2026-07-02; now archived to private/vision-commercial-v1.md (see §9 OD-1)
 source: founder dictation 2026-07-02 (remote-control), formalized — content is the founder's, structure is 29148
 ---
 
@@ -180,10 +180,11 @@ Per-set: `Complete` ☐ `Consistent` ☐ `Feasible` ☐ `Bounded` ☐
 
 ## §9 Open decisions (residual — tagged, non-blocking for the vision)
 
-- **OD-1** `[HIGH][BLOCKS:high]` **Fate of the commercial layer.** The prior `docs/vision.md` and
-  `docs/goals/LONG-TERM-GOAL.md` are built on a commercial open-core thesis (ARR, founding cohort,
-  EU-AI-Act). Founder now states there is no business. Decision needed: **delete** that framing,
-  **or park** it as a dormant future hypothesis. Not auto-deleted — surfaced for the founder's call.
+- **OD-1** `[HIGH][BLOCKS:high]` **Fate of the commercial layer — RESOLVED (parked).** The prior
+  commercial vision + long-term goal (ARR, founding cohort, EU-AI-Act) are **archived to the
+  `private/` submodule** (`private/vision-commercial-v1.md`, `private/LONG-TERM-GOAL-commercial-v1.md`)
+  per founder direction 2026-07-02 — parked, not deleted. Remaining: derive a fresh (non-commercial)
+  long-term goal from §1 of this spec.
 - **OD-2** `[MEDIUM][BLOCKS:low]` **base tier: agnostic vs opinionated.** Does `base` ship only the
   cycle/forcing primitives (dev-cycle becomes a pluggable pack), or a default opinionated dev-cycle
   with skills? Affects the 15 proposed base-skills. Decoupled from the vision; resolve at SPEC-PRIMITIVE.
@@ -199,6 +200,6 @@ Falsifies-If:
     a coding agent rather than the abstraction layer above one (violating V-016), OR the irreducible
     unit hima governs ceases to be the cycle (violating V-010).
   checkpoint-date: 2026-08-01
-  evidence-anchor: docs/goals/LONG-TERM-GOAL.md
+  evidence-anchor: docs/decisions/0004-v3-architecture-build.md
   on-fail: reopen SPEC-VISION as DRAFT; re-run §0 primitive→contract traceability; reconcile the
     diverging statement before any dependent contract or base-skill work proceeds.

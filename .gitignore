@@ -33,3 +33,4 @@ coverage/
 .hima/state/read-set-*.json
 .hima/state/trace/
 .hima/state/session-diff-base.json
+.tmp-hima-build-lock/
