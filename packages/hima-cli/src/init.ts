@@ -18,6 +18,9 @@
  *   - `<root>/.hima/config.example.jsonc` — commented starter reference (A-017).
  *   - Q-005 = yes → `runSetup()` once per runtime selected at Q-001 (A-002), reusing the
  *     existing hook-wiring/scaffold module unchanged.
+ *   - `--generic` flag (opt-in, not a Q-001..Q-005 question) → `HimaConfig.cycle =
+ *     GENERIC_DEV_CYCLE`, the corpus-free base-tier pack from `@hima/core` dev-cycle-pack.ts
+ *     (SPEC-PRIMITIVE INV-2). See `InitOpts.generic` below.
  *
  * Re-run / merge contract (A-015, INV-4): `runtimes` / `useDevCyclePack` / `enabledSources`
  * are the three top-level keys `hima init` owns — every run overwrites them wholesale to match
@@ -32,7 +35,7 @@
 import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import readline from "node:readline/promises";
-import { decodeHimaConfigEither, type HimaConfig } from "@hima/core";
+import { decodeHimaConfigEither, GENERIC_DEV_CYCLE, type HimaConfig } from "@hima/core";
 import type { RiskClass, RuntimeTarget } from "@hima/schemas";
 import { safeAtomicWriteFile } from "@hima/storage-core";
 import { Either } from "effect";
@@ -95,6 +98,17 @@ export interface InitOpts {
   answerProvider?: AnswerProvider;
   /** Absolute path to the hima CLI dist entry-point, forwarded to runSetup(). */
   himaBinPath?: string;
+  /**
+   * `--generic` CLI flag — select the corpus-free `GENERIC_DEV_CYCLE` (@hima/core
+   * dev-cycle-pack.ts) as this project's cycle. This is a flag, not a Q-001..Q-005
+   * question: it does not extend or reorder the fixed 5-question flow (SPEC-016 R-001,
+   * `InitAnswers` stays exactly 5 fields). When true, `hima init` writes
+   * `HimaConfig.cycle = GENERIC_DEV_CYCLE` — the one intentional, opt-in exception to
+   * the "hima init never writes stageSkills/roles/cycle" contract documented above
+   * (A-015/INV-4): omit `--generic` (the default) and a re-run still leaves any
+   * hand-edited `cycle` completely untouched.
+   */
+  generic?: boolean;
 }
 
 export interface InitResult {
@@ -160,6 +174,11 @@ export async function runInit(opts: InitOpts): Promise<InitResult> {
   // ── 2. Build + validate the merged HimaConfig (A-014/A-015/INV-1/INV-4) ──────────────────
 
   const merged = buildMergedConfig(existing, answers);
+  if (opts.generic === true) {
+    // --generic (opt-in flag, not a Q-001..Q-005 answer): select the corpus-free
+    // GENERIC_DEV_CYCLE pack as this project's cycle (SPEC-PRIMITIVE INV-2 swappability).
+    merged["cycle"] = GENERIC_DEV_CYCLE;
+  }
   const decoded = decodeHimaConfigEither(merged);
   if (Either.isLeft(decoded)) {
     throw new Error(
@@ -184,6 +203,12 @@ export async function runInit(opts: InitOpts): Promise<InitResult> {
     "Precedence: hand-edited .hima/config.json stageSkills/roles beat a custom cycle, " +
       "which beats the shipped default dev-cycle pack.",
   );
+  if (opts.generic === true) {
+    messages.push(
+      'Cycle set to the corpus-free "generic-dev-cycle-v1" pack (--generic): ' +
+        "HimaConfig.cycle = GENERIC_DEV_CYCLE, zero corpus-source skills.",
+    );
+  }
 
   // ── 4. Q-005 — wire hooks now (A-001/A-002) ───────────────────────────────────────────────
 

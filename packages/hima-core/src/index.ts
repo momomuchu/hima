@@ -115,6 +115,15 @@ export {
   resolveStageForceSkillsForFloor,
   resolveStageInjectSkills,
 } from "./config.js";
+// ---------------------------------------------------------------------------
+// dev-cycle-pack — base-tier meta skills + the swappable default dev-cycle pack
+// (ADR-0006). GENERIC_DEV_CYCLE is the corpus-free default CycleDef.
+// ---------------------------------------------------------------------------
+export {
+  BASE_META_SKILLS,
+  DEV_CYCLE_PACK_SKILLS,
+  GENERIC_DEV_CYCLE,
+} from "./dev-cycle-pack.js";
 export type { DeferredVerdict } from "./deferred-verdict.js";
 // ---------------------------------------------------------------------------
 // deferred-verdict — single-use block verdict persistence (R-027)

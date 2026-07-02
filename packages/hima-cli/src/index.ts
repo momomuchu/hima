@@ -8,7 +8,7 @@
  *              [--only-blocks] [--json] [--watch]
  *   hima observe  (alias for hima trace)
  *   hima setup [--runtime claude|codex|hermes] [--fresh] [--root <dir>]
- *   hima init  [--yes] [--root <dir>]
+ *   hima init  [--yes] [--generic] [--root <dir>]
  *
  * Supported hook events:
  *   session-start | user-prompt-submit | pre-tool-use | post-tool-use |
@@ -103,6 +103,7 @@ type ParsedArgs = {
   status: string | null;
   // init-specific flags (SPEC-016/017)
   yes: boolean;
+  generic: boolean;
 };
 
 function parseArgs(argv: string[]): ParsedArgs {
@@ -123,6 +124,7 @@ function parseArgs(argv: string[]): ParsedArgs {
   let stage: string | null = null;
   let status: string | null = null;
   let yes = false;
+  let generic = false;
 
   let i = 0;
   while (i < args.length) {
@@ -137,6 +139,8 @@ function parseArgs(argv: string[]): ParsedArgs {
       subcommand = "init";
     } else if (arg === "--yes") {
       yes = true;
+    } else if (arg === "--generic") {
+      generic = true;
     } else if (arg === "--root" && i + 1 < args.length) {
       root = args[i + 1] ?? null;
       i += 1;
@@ -197,7 +201,7 @@ function parseArgs(argv: string[]): ParsedArgs {
     i += 1;
   }
 
-  return { subcommand, event, root, format, session, gate, decision, onlyBlocks, json, watch, runtime, fresh, stage, status, yes };
+  return { subcommand, event, root, format, session, gate, decision, onlyBlocks, json, watch, runtime, fresh, stage, status, yes, generic };
 }
 
 // ---------------------------------------------------------------------------
@@ -461,7 +465,7 @@ async function main(): Promise<void> {
     const himaBinPath = fileURLToPath(import.meta.url);
 
     try {
-      const result = await runInit({ root, yes: parsed.yes, himaBinPath });
+      const result = await runInit({ root, yes: parsed.yes, himaBinPath, generic: parsed.generic });
 
       for (const msg of result.messages) {
         process.stdout.write(`[hima init] ${msg}\n`);

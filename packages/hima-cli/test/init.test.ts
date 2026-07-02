@@ -115,6 +115,42 @@ describe("runInit --yes path", () => {
 });
 
 // ---------------------------------------------------------------------------
+// --generic flag — select the corpus-free GENERIC_DEV_CYCLE pack as HimaConfig.cycle
+// ---------------------------------------------------------------------------
+
+describe("runInit --generic flag", () => {
+  it("hima init --yes --generic writes a resolved cycle with ZERO corpus-source skills", async () => {
+    await runInit({ root, yes: true, generic: true });
+
+    const raw = readConfig(root) as {
+      cycle?: { stages: { forceSkills: { source: string; id: string }[] }[] };
+    };
+
+    expect(raw.cycle).toBeDefined();
+    const allForceSkills = (raw.cycle?.stages ?? []).flatMap((s) => s.forceSkills);
+    expect(allForceSkills.length).toBeGreaterThan(0);
+    expect(allForceSkills.every((s) => s.source !== "corpus")).toBe(true);
+    expect(allForceSkills.every((s) => s.source === "base")).toBe(true);
+
+    const decoded = decodeHimaConfigEither(raw);
+    expect(decoded._tag).toBe("Right");
+  });
+
+  it("does not write a cycle key when --generic is omitted (default behavior unchanged)", async () => {
+    await runInit({ root, yes: true });
+    const raw = readConfig(root) as Record<string, unknown>;
+    expect("cycle" in raw).toBe(false);
+  });
+
+  it("also honors --generic on the interactive/injected-answer-provider path", async () => {
+    const provider = cannedAnswers(["claude", "yes", "no", "M", "no"]);
+    await runInit({ root, answerProvider: provider, generic: true });
+    const raw = readConfig(root) as { cycle?: { id?: string } };
+    expect(raw.cycle?.id).toBe("generic-dev-cycle-v1");
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Interactive path via an injected AnswerProvider
 // ---------------------------------------------------------------------------
 
