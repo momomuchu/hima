@@ -8,6 +8,7 @@
  *              [--only-blocks] [--json] [--watch]
  *   hima observe  (alias for hima trace)
  *   hima setup [--runtime claude|codex|hermes] [--fresh] [--root <dir>]
+ *   hima init  [--yes] [--root <dir>]
  *
  * Supported hook events:
  *   session-start | user-prompt-submit | pre-tool-use | post-tool-use |
@@ -53,6 +54,7 @@ import type { RuntimeTarget } from "@hima/core";
 import type { StageVerdict } from "@hima/schemas";
 import { renderObserve, filterTrace, type TraceFilter } from "./observe.js";
 import { runSetup } from "./setup.js";
+import { runInit } from "./init.js";
 
 // Lazy import of readTrace from @hima/core to avoid loading it for hook commands
 async function getReadTrace() {
@@ -82,7 +84,7 @@ const KNOWN_EVENTS = new Set([
 // ---------------------------------------------------------------------------
 
 type ParsedArgs = {
-  subcommand: "hook" | "trace" | "setup" | null;
+  subcommand: "hook" | "trace" | "setup" | "init" | null;
   event: string | null;
   root: string | null;
   format: string;
@@ -99,12 +101,14 @@ type ParsedArgs = {
   // stage-advance-specific flags (R-006 / R-043)
   stage: string | null;
   status: string | null;
+  // init-specific flags (SPEC-016/017)
+  yes: boolean;
 };
 
 function parseArgs(argv: string[]): ParsedArgs {
   const args = argv.slice(2);
 
-  let subcommand: "hook" | "trace" | "setup" | null = null;
+  let subcommand: "hook" | "trace" | "setup" | "init" | null = null;
   let event: string | null = null;
   let root: string | null = null;
   let format = "claude";
@@ -118,6 +122,7 @@ function parseArgs(argv: string[]): ParsedArgs {
   let fresh = false;
   let stage: string | null = null;
   let status: string | null = null;
+  let yes = false;
 
   let i = 0;
   while (i < args.length) {
@@ -128,6 +133,10 @@ function parseArgs(argv: string[]): ParsedArgs {
       subcommand = "trace";
     } else if (arg === "setup" && subcommand === null) {
       subcommand = "setup";
+    } else if (arg === "init" && subcommand === null) {
+      subcommand = "init";
+    } else if (arg === "--yes") {
+      yes = true;
     } else if (arg === "--root" && i + 1 < args.length) {
       root = args[i + 1] ?? null;
       i += 1;
@@ -188,7 +197,7 @@ function parseArgs(argv: string[]): ParsedArgs {
     i += 1;
   }
 
-  return { subcommand, event, root, format, session, gate, decision, onlyBlocks, json, watch, runtime, fresh, stage, status };
+  return { subcommand, event, root, format, session, gate, decision, onlyBlocks, json, watch, runtime, fresh, stage, status, yes };
 }
 
 // ---------------------------------------------------------------------------
@@ -440,6 +449,33 @@ async function main(): Promise<void> {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       process.stderr.write(`[hima setup] error: ${msg}\n`);
+      process.exitCode = 1;
+    }
+    return;
+  }
+
+  // -------------------------------------------------------------------------
+  // hima init subcommand (SPEC-016/SPEC-017)
+  // -------------------------------------------------------------------------
+  if (parsed.subcommand === "init") {
+    const himaBinPath = fileURLToPath(import.meta.url);
+
+    try {
+      const result = await runInit({ root, yes: parsed.yes, himaBinPath });
+
+      for (const msg of result.messages) {
+        process.stdout.write(`[hima init] ${msg}\n`);
+      }
+
+      process.stdout.write(
+        `[hima init] Done — config: ${result.configPath}` +
+          `, floor: ${result.answers.floor}` +
+          `, runtimes: ${result.answers.runtimes.join(",")}` +
+          `, wired: ${result.wired.length}\n`,
+      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      process.stderr.write(`[hima init] error: ${msg}\n`);
       process.exitCode = 1;
     }
     return;

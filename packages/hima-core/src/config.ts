@@ -18,7 +18,7 @@ import { readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { Either, Schema } from "effect";
-import { CycleDef, RISK_ORDER, SkillRef } from "@hima/schemas";
+import { CycleDef, RISK_ORDER, RuntimeTarget, SkillRef } from "@hima/schemas";
 import type { RiskClass } from "@hima/schemas";
 import type { AgentModel, RoleDef } from "./role-catalog.js";
 
@@ -53,9 +53,20 @@ const RoleOverride = Schema.Struct({
 /**
  * HimaConfig — per-user / per-project customization overlay.
  *
- * stageSkills — keyed by stage id; overrides force/inject for that stage.
- * cycle       — full cycle replacement (AMENDMENT-003); supersedes DEV_CYCLE when present.
- * roles       — keyed by role id; overrides model, forcedSkills, and stages for a subagent.
+ * stageSkills     — keyed by stage id; overrides force/inject for that stage.
+ * cycle           — full cycle replacement (AMENDMENT-003); supersedes DEV_CYCLE when present.
+ * roles           — keyed by role id; overrides model, forcedSkills, and stages for a subagent.
+ * runtimes        — (SPEC-016 Q-001 / OQ-1) which coding-agent runtime(s) this project
+ *                    targets. Bookkeeping only for `hima init`'s own hook-wiring loop
+ *                    (SPEC-017 A-002) — never the source of truth for a live gate event's
+ *                    runtime (that always comes from the hook invocation context).
+ * useDevCyclePack — (SPEC-016 Q-002) when explicitly `false`, resolveStageForceSkills /
+ *                    resolveStageInjectSkills skip the DEV_CYCLE fallback step entirely
+ *                    (OQ-2). `undefined` (the default) preserves today's fallback behavior.
+ * enabledSources  — (SPEC-016 Q-003) allowlist of SkillRef.source tiers this project has
+ *                    declared available; resolveStageForceSkills / resolveStageInjectSkills
+ *                    drop any resolved SkillRef whose source is not in this list (OQ-3).
+ *                    `undefined` (the default) is a no-op — no filtering is applied.
  *
  * All top-level fields are optional.  Absent fields fall back to founder defaults
  * (DEV_CYCLE from @hima/schemas, ROLE_CATALOG from @hima/core).
@@ -67,6 +78,11 @@ export const HimaConfig = Schema.Struct({
   cycle: Schema.optional(CycleDef),
   roles: Schema.optional(
     Schema.Record({ key: Schema.String, value: RoleOverride }),
+  ),
+  runtimes: Schema.optional(Schema.Array(RuntimeTarget)),
+  useDevCyclePack: Schema.optional(Schema.Boolean),
+  enabledSources: Schema.optional(
+    Schema.Array(Schema.Literal("base", "corpus", "user", "project")),
   ),
 });
 
@@ -142,10 +158,17 @@ export async function loadConfig(
  * Precedence (first match wins):
  *   1. config.stageSkills[stageId].force  — explicit user/project override
  *   2. config.cycle stage.forceSkills     — custom cycle override (AMENDMENT-003)
- *   3. devCycle stage.forceSkills         — founder default (DEV_CYCLE from caller)
+ *   3. devCycle stage.forceSkills         — founder default (DEV_CYCLE from caller),
+ *                                            SKIPPED entirely when
+ *                                            config.useDevCyclePack === false (OQ-2)
  *   4. []                                 — stage not found in any source
  *
  * Pass DEV_CYCLE from @hima/schemas as devCycle to get the founder default.
+ *
+ * The resolved list is filtered by config.enabledSources when present (OQ-3):
+ * any SkillRef whose `source` is not in that allowlist is dropped. When
+ * config.enabledSources is undefined (the default), no filtering is applied —
+ * this is a no-op, preserving today's behavior exactly.
  */
 export function resolveStageForceSkills(
   config: HimaConfig,
@@ -155,19 +178,23 @@ export function resolveStageForceSkills(
   // 1. Explicit stageSkills override
   const force = config.stageSkills?.[stageId]?.force;
   if (force !== undefined) {
-    return [...force];
+    return filterByEnabledSources(config, [...force]);
   }
 
   // 2. Custom cycle stage override
   const configStage = config.cycle?.stages.find((s) => s.id === stageId);
   if (configStage !== undefined) {
-    return [...configStage.forceSkills];
+    return filterByEnabledSources(config, [...configStage.forceSkills]);
   }
 
-  // 3. Founder default cycle
+  // 3. Founder default cycle — skipped entirely when useDevCyclePack === false (OQ-2).
+  //    `undefined` (the default) falls through to the existing fallback unchanged.
+  if (config.useDevCyclePack === false) {
+    return [];
+  }
   const devStage = devCycle.stages.find((s) => s.id === stageId);
   if (devStage !== undefined) {
-    return [...devStage.forceSkills];
+    return filterByEnabledSources(config, [...devStage.forceSkills]);
   }
 
   return [];
@@ -183,8 +210,12 @@ export function resolveStageForceSkills(
  * Analogous to resolveStageForceSkills but for the inject dimension:
  *   1. config.stageSkills[stageId].inject  — explicit user/project override
  *   2. config.cycle stage.injectSkills     — custom cycle override
- *   3. devCycle stage.injectSkills         — founder default
+ *   3. devCycle stage.injectSkills         — founder default, SKIPPED entirely
+ *                                            when config.useDevCyclePack === false (OQ-2)
  *   4. []                                  — stage not found
+ *
+ * The resolved list is filtered by config.enabledSources when present (OQ-3),
+ * same no-op-when-undefined semantics as resolveStageForceSkills.
  */
 export function resolveStageInjectSkills(
   config: HimaConfig,
@@ -194,19 +225,22 @@ export function resolveStageInjectSkills(
   // 1. Explicit stageSkills override
   const inject = config.stageSkills?.[stageId]?.inject;
   if (inject !== undefined) {
-    return [...inject];
+    return filterByEnabledSources(config, [...inject]);
   }
 
   // 2. Custom cycle stage override
   const configStage = config.cycle?.stages.find((s) => s.id === stageId);
   if (configStage !== undefined) {
-    return [...configStage.injectSkills];
+    return filterByEnabledSources(config, [...configStage.injectSkills]);
   }
 
-  // 3. Founder default cycle
+  // 3. Founder default cycle — skipped entirely when useDevCyclePack === false (OQ-2).
+  if (config.useDevCyclePack === false) {
+    return [];
+  }
   const devStage = devCycle.stages.find((s) => s.id === stageId);
   if (devStage !== undefined) {
-    return [...devStage.injectSkills];
+    return filterByEnabledSources(config, [...devStage.injectSkills]);
   }
 
   return [];
@@ -401,6 +435,25 @@ export function resolveRole(
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
+ * Filter a resolved SkillRef list against config.enabledSources (SPEC-016 Q-003 / OQ-3).
+ *
+ * No-op guarantee: when config.enabledSources is undefined (the default, matching
+ * every config decoded before this field existed), the input list is returned
+ * unchanged — no filtering occurs.
+ */
+function filterByEnabledSources(
+  config: HimaConfig,
+  skills: SkillRef[],
+): SkillRef[] {
+  const enabledSources = config.enabledSources;
+  if (enabledSources === undefined) {
+    return skills;
+  }
+  const allowed = new Set<string>(enabledSources);
+  return skills.filter((s) => allowed.has(s.source));
+}
+
+/**
  * Try to load and decode a single config file.
  * Returns null if the file does not exist or fails to decode (never throws).
  */
@@ -447,12 +500,17 @@ function mergeAll(...configs: HimaConfig[]): HimaConfig {
  * Merge two configs with b winning over a.
  *
  * stageSkills / roles: per-key merge (b's entry wins for any key present in b).
- * cycle: b wins wholesale (project beats user).
+ * cycle / runtimes / useDevCyclePack / enabledSources: b wins wholesale when
+ * defined (project beats user), matching cycle's existing wholesale-replace
+ * semantics — these are scalar/array top-level fields, not keyed records.
  */
 function mergeTwo(a: HimaConfig, b: HimaConfig): HimaConfig {
   const stageSkills = mergeOptionalRecords(a.stageSkills, b.stageSkills);
   const cycle = b.cycle ?? a.cycle;
   const roles = mergeOptionalRecords(a.roles, b.roles);
+  const runtimes = b.runtimes ?? a.runtimes;
+  const useDevCyclePack = b.useDevCyclePack ?? a.useDevCyclePack;
+  const enabledSources = b.enabledSources ?? a.enabledSources;
 
   // Build a plain mutable object; HimaConfig.Type has readonly fields, but
   // a structurally compatible mutable object is assignable to the readonly type.
@@ -460,6 +518,9 @@ function mergeTwo(a: HimaConfig, b: HimaConfig): HimaConfig {
     stageSkills?: HimaConfig["stageSkills"];
     cycle?: HimaConfig["cycle"];
     roles?: HimaConfig["roles"];
+    runtimes?: HimaConfig["runtimes"];
+    useDevCyclePack?: HimaConfig["useDevCyclePack"];
+    enabledSources?: HimaConfig["enabledSources"];
   } = {};
 
   if (stageSkills !== undefined) {
@@ -470,6 +531,15 @@ function mergeTwo(a: HimaConfig, b: HimaConfig): HimaConfig {
   }
   if (roles !== undefined) {
     out.roles = roles as HimaConfig["roles"];
+  }
+  if (runtimes !== undefined) {
+    out.runtimes = runtimes;
+  }
+  if (useDevCyclePack !== undefined) {
+    out.useDevCyclePack = useDevCyclePack;
+  }
+  if (enabledSources !== undefined) {
+    out.enabledSources = enabledSources;
   }
 
   return out;

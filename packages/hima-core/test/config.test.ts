@@ -244,6 +244,44 @@ describe("loadConfig — project beats user precedence", () => {
     expect(resolveStageForceSkills(config, "spec", DEV_CYCLE)).toEqual([MY_SKILL]);
   });
 
+  it("project runtimes/useDevCyclePack/enabledSources win wholesale over user's", async () => {
+    const userConfig = {
+      runtimes: ["claude"],
+      useDevCyclePack: true,
+      enabledSources: ["base", "corpus", "user", "project"],
+    };
+    const projectConfig = {
+      runtimes: ["codex", "opencode"],
+      useDevCyclePack: false,
+      enabledSources: ["base", "user", "project"],
+    };
+    await writeFile(userConfigPath, JSON.stringify(userConfig));
+    await writeFile(projectConfigPath, JSON.stringify(projectConfig));
+
+    const config = await loadConfig("/root", { userConfigPath, projectConfigPath });
+    expect(config.runtimes).toEqual(["codex", "opencode"]);
+    expect(config.useDevCyclePack).toBe(false);
+    expect(config.enabledSources).toEqual(["base", "user", "project"]);
+  });
+
+  it("user's runtimes/useDevCyclePack/enabledSources survive when project omits them", async () => {
+    const userConfig = {
+      runtimes: ["claude"],
+      useDevCyclePack: false,
+      enabledSources: ["base", "user", "project"],
+    };
+    const projectConfig = {
+      stageSkills: { discovery: { force: [PROJECT_SKILL] } },
+    };
+    await writeFile(userConfigPath, JSON.stringify(userConfig));
+    await writeFile(projectConfigPath, JSON.stringify(projectConfig));
+
+    const config = await loadConfig("/root", { userConfigPath, projectConfigPath });
+    expect(config.runtimes).toEqual(["claude"]);
+    expect(config.useDevCyclePack).toBe(false);
+    expect(config.enabledSources).toEqual(["base", "user", "project"]);
+  });
+
   it("project roles entry wins over user entry for the same role", async () => {
     const userConfig = { roles: { surveyor: { model: "sonnet" } } };
     const projectConfig = { roles: { surveyor: { model: "haiku" } } };
@@ -417,5 +455,195 @@ describe("resolveStageForceSkills — config.cycle override", () => {
     // stageSkills.force takes priority over config.cycle
     const skills = resolveStageForceSkills(config, "discovery", DEV_CYCLE);
     expect(skills).toEqual([PROJECT_SKILL]);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SPEC-016/SPEC-017 onboarding fields — useDevCyclePack (OQ-2) + enabledSources (OQ-3)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("resolveStageForceSkills / resolveStageInjectSkills — regression lock", () => {
+  it("both useDevCyclePack and enabledSources undefined == today's exact DEV_CYCLE fallback behavior (force)", () => {
+    const config: HimaConfig = {};
+    expect(resolveStageForceSkills(config, "discovery", DEV_CYCLE)).toEqual([
+      { source: "corpus", id: "corpus-technical-analysis-discovery" },
+    ]);
+    expect(resolveStageForceSkills(config, "spec", DEV_CYCLE)).toEqual([
+      { source: "corpus", id: "corpus-spec-driven-development" },
+    ]);
+  });
+
+  it("both useDevCyclePack and enabledSources undefined == today's exact DEV_CYCLE fallback behavior (inject)", () => {
+    const config: HimaConfig = {};
+    // discovery has no injectSkills in DEV_CYCLE
+    expect(resolveStageInjectSkills(config, "discovery", DEV_CYCLE)).toEqual([]);
+  });
+
+  it("undefined enabledSources is a no-op on an explicit stageSkills.force override", () => {
+    const config: HimaConfig = {
+      stageSkills: { discovery: { force: [PROJECT_SKILL] } },
+    };
+    expect(resolveStageForceSkills(config, "discovery", DEV_CYCLE)).toEqual([
+      PROJECT_SKILL,
+    ]);
+  });
+
+  it("undefined useDevCyclePack (explicitly present but not false) preserves the DEV_CYCLE fallback", () => {
+    const config: HimaConfig = { useDevCyclePack: true };
+    expect(resolveStageForceSkills(config, "discovery", DEV_CYCLE)).toEqual([
+      { source: "corpus", id: "corpus-technical-analysis-discovery" },
+    ]);
+  });
+});
+
+describe("resolveStageForceSkills — useDevCyclePack: false skips the DEV_CYCLE fallback (OQ-2)", () => {
+  it("returns [] for a stage with no explicit override and no config.cycle", () => {
+    const config: HimaConfig = { useDevCyclePack: false };
+    expect(resolveStageForceSkills(config, "discovery", DEV_CYCLE)).toEqual([]);
+    expect(resolveStageForceSkills(config, "spec", DEV_CYCLE)).toEqual([]);
+  });
+
+  it("explicit stageSkills.force override still wins even when useDevCyclePack is false", () => {
+    const config: HimaConfig = {
+      useDevCyclePack: false,
+      stageSkills: { discovery: { force: [MY_SKILL] } },
+    };
+    expect(resolveStageForceSkills(config, "discovery", DEV_CYCLE)).toEqual([
+      MY_SKILL,
+    ]);
+  });
+
+  it("config.cycle stage override still wins even when useDevCyclePack is false", () => {
+    const config: HimaConfig = {
+      useDevCyclePack: false,
+      cycle: {
+        id: "custom",
+        name: "Custom",
+        stages: [
+          {
+            id: "discovery",
+            name: "Discovery",
+            forceSkills: [MY_SKILL],
+            injectSkills: [],
+            entryAllowed: true,
+          },
+        ],
+      },
+    };
+    expect(resolveStageForceSkills(config, "discovery", DEV_CYCLE)).toEqual([
+      MY_SKILL,
+    ]);
+  });
+
+  it("does not affect stages that are not in DEV_CYCLE either (still [])", () => {
+    const config: HimaConfig = { useDevCyclePack: false };
+    expect(
+      resolveStageForceSkills(config, "nonexistent-stage", DEV_CYCLE),
+    ).toEqual([]);
+  });
+});
+
+describe("resolveStageInjectSkills — useDevCyclePack: false skips the DEV_CYCLE fallback (OQ-2)", () => {
+  it("returns [] for a stage with no explicit override and no config.cycle", () => {
+    const config: HimaConfig = { useDevCyclePack: false };
+    expect(resolveStageInjectSkills(config, "discovery", DEV_CYCLE)).toEqual(
+      [],
+    );
+  });
+
+  it("explicit stageSkills.inject override still wins even when useDevCyclePack is false", () => {
+    const config: HimaConfig = {
+      useDevCyclePack: false,
+      stageSkills: { discovery: { inject: [MY_SKILL] } },
+    };
+    expect(resolveStageInjectSkills(config, "discovery", DEV_CYCLE)).toEqual([
+      MY_SKILL,
+    ]);
+  });
+});
+
+describe("resolveStageForceSkills — enabledSources filters by SkillRef.source (OQ-3)", () => {
+  it("enabledSources without 'corpus' drops the DEV_CYCLE corpus-* forceSkills fallback", () => {
+    const config: HimaConfig = {
+      enabledSources: ["base", "user", "project"],
+    };
+    // DEV_CYCLE's discovery/spec forceSkills are all source:"corpus" — all dropped
+    expect(resolveStageForceSkills(config, "discovery", DEV_CYCLE)).toEqual([]);
+    expect(resolveStageForceSkills(config, "spec", DEV_CYCLE)).toEqual([]);
+  });
+
+  it("enabledSources including 'corpus' keeps the DEV_CYCLE corpus-* forceSkills fallback", () => {
+    const config: HimaConfig = {
+      enabledSources: ["base", "corpus", "user", "project"],
+    };
+    expect(resolveStageForceSkills(config, "discovery", DEV_CYCLE)).toEqual([
+      { source: "corpus", id: "corpus-technical-analysis-discovery" },
+    ]);
+  });
+
+  it("enabledSources filters an explicit stageSkills.force override too", () => {
+    const config: HimaConfig = {
+      enabledSources: ["base", "user", "project"],
+      stageSkills: {
+        discovery: {
+          force: [
+            PROJECT_SKILL, // source: "project" — kept
+            { source: "corpus", id: "dropped-corpus-skill" }, // dropped
+          ],
+        },
+      },
+    };
+    expect(resolveStageForceSkills(config, "discovery", DEV_CYCLE)).toEqual([
+      PROJECT_SKILL,
+    ]);
+  });
+
+  it("enabledSources filters a config.cycle stage override too", () => {
+    const config: HimaConfig = {
+      enabledSources: ["base", "user", "project"],
+      cycle: {
+        id: "custom",
+        name: "Custom",
+        stages: [
+          {
+            id: "discovery",
+            name: "Discovery",
+            forceSkills: [
+              MY_SKILL, // source: "user" — kept
+              { source: "corpus", id: "dropped-corpus-skill" }, // dropped
+            ],
+            injectSkills: [],
+            entryAllowed: true,
+          },
+        ],
+      },
+    };
+    expect(resolveStageForceSkills(config, "discovery", DEV_CYCLE)).toEqual([
+      MY_SKILL,
+    ]);
+  });
+
+  it("empty enabledSources array drops every skill", () => {
+    const config: HimaConfig = { enabledSources: [] };
+    expect(resolveStageForceSkills(config, "discovery", DEV_CYCLE)).toEqual([]);
+  });
+});
+
+describe("resolveStageInjectSkills — enabledSources filters by SkillRef.source (OQ-3)", () => {
+  it("enabledSources without 'corpus' drops a corpus-sourced injectSkills override", () => {
+    const config: HimaConfig = {
+      enabledSources: ["base", "user", "project"],
+      stageSkills: {
+        discovery: {
+          inject: [
+            MY_SKILL,
+            { source: "corpus", id: "dropped-corpus-inject" },
+          ],
+        },
+      },
+    };
+    expect(resolveStageInjectSkills(config, "discovery", DEV_CYCLE)).toEqual([
+      MY_SKILL,
+    ]);
   });
 });

@@ -100,3 +100,10 @@ export {
   decodeHimaConfig,
   decodeHimaConfigEither,
 } from "./config.js";
+
+// runtime — RuntimeTarget schema (SPEC-016 Q-001 / OQ-1)
+export {
+  RuntimeTarget,
+  decodeRuntimeTarget,
+  decodeRuntimeTargetEither,
+} from "./runtime.js";
