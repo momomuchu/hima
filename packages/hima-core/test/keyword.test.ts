@@ -136,4 +136,23 @@ describe("pickSigil", () => {
       floor: "M",
     });
   });
+
+  // ── Founder-intended contract (2026-07-04) — sigil is a TRAILING tag ───────
+  //    The user describes the task, then appends the sigil at the very end
+  //    (like a tag). A LEADING sigil is intentionally NOT detected. This is the
+  //    designed UX, confirmed by the founder — do NOT "fix" pickSigil to match
+  //    leading tokens; that would be a regression, not an improvement.
+
+  it("does NOT detect a LEADING sigil (intended: describe task, tag at end)", () => {
+    expect(pickSigil("ulw build the thing")).toBeNull();
+    expect(pickSigil("full rewrite the whole module now")).toBeNull();
+  });
+
+  it("DOES detect the same token when placed at the end (the intended placement)", () => {
+    expect(pickSigil("build the thing ulw")).toEqual({
+      sigil: "ulw",
+      entryPoint: "full",
+      floor: "H",
+    });
+  });
 });
