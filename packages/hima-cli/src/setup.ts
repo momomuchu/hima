@@ -35,7 +35,10 @@ import { safeAtomicWriteFile } from "@hima/storage-core";
 // ---------------------------------------------------------------------------
 
 /**
- * All 7 Claude hook events: PascalCase (settings.json key) + kebab (CLI arg).
+ * All 9 Claude hook events: PascalCase (settings.json key) + kebab (CLI arg).
+ * Stop wires the BEH-023 completion gate (reject fake DONE); SubagentStop is the
+ * observe-only subagent stop event. Both were previously unwired — without the
+ * Stop hook the flagship "no unverified DONE" gate never fires in a live session.
  */
 const CLAUDE_HOOK_EVENTS = [
   { pascal: "SessionStart", kebab: "session-start" },
@@ -45,6 +48,8 @@ const CLAUDE_HOOK_EVENTS = [
   { pascal: "PreCompact", kebab: "pre-compact" },
   { pascal: "PostCompact", kebab: "post-compact" },
   { pascal: "SubagentStart", kebab: "subagent-start" },
+  { pascal: "Stop", kebab: "stop" },
+  { pascal: "SubagentStop", kebab: "subagent-stop" },
 ] as const;
 
 // ---------------------------------------------------------------------------

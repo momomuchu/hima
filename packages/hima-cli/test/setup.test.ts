@@ -56,9 +56,11 @@ describe("mergeClaudeHooks — pure function", () => {
     { pascal: "PreCompact", kebab: "pre-compact" },
     { pascal: "PostCompact", kebab: "post-compact" },
     { pascal: "SubagentStart", kebab: "subagent-start" },
+    { pascal: "Stop", kebab: "stop" },
+    { pascal: "SubagentStop", kebab: "subagent-stop" },
   ] as const;
 
-  it("empty settings → 7 events wired with global 'hima' bin", () => {
+  it("empty settings → 9 events wired with global 'hima' bin", () => {
     const result = mergeClaudeHooks({});
     const hooks = result["hooks"] as Record<string, unknown>;
 
@@ -140,7 +142,7 @@ describe("mergeClaudeHooks — pure function", () => {
   it("non-object existingSettings (null) → treated as {} without throwing", () => {
     const result = mergeClaudeHooks(null);
     const hooks = result["hooks"] as Record<string, unknown>;
-    // All 7 events must be present.
+    // All 9 events must be present.
     for (const { pascal } of ALL_EVENTS) {
       expect(hooks[pascal]).toBeDefined();
     }
@@ -149,13 +151,13 @@ describe("mergeClaudeHooks — pure function", () => {
   it("non-object existingSettings (string) → treated as {}", () => {
     const result = mergeClaudeHooks("not-an-object");
     const hooks = result["hooks"] as Record<string, unknown>;
-    expect(Object.keys(hooks)).toHaveLength(7);
+    expect(Object.keys(hooks)).toHaveLength(9);
   });
 
   it("non-object existingSettings (array) → treated as {}", () => {
     const result = mergeClaudeHooks([1, 2, 3]);
     const hooks = result["hooks"] as Record<string, unknown>;
-    expect(Object.keys(hooks)).toHaveLength(7);
+    expect(Object.keys(hooks)).toHaveLength(9);
   });
 
   it("existing hima entries from a previous run are replaced (not accumulated)", () => {
@@ -249,7 +251,7 @@ describe("runSetup — runtime detection", () => {
 // ---------------------------------------------------------------------------
 
 describe("runSetup — hook wiring (claude runtime)", () => {
-  it("creates .claude/settings.json with 7 hook events (global bin)", async () => {
+  it("creates .claude/settings.json with 9 hook events (global bin)", async () => {
     await mkdir(path.join(root, ".claude"), { recursive: true });
     await runSetup({ root });
 
@@ -270,6 +272,8 @@ describe("runSetup — hook wiring (claude runtime)", () => {
       "PreCompact",
       "PostCompact",
       "SubagentStart",
+      "Stop",
+      "SubagentStop",
     ]) {
       expect(hooks[event]).toBeDefined();
       const matchers = hooks[event] as Array<{ hooks: Array<{ command: string }> }>;
@@ -525,6 +529,8 @@ describe("runSetup — idempotency of hook wiring", () => {
       "PreCompact",
       "PostCompact",
       "SubagentStart",
+      "Stop",
+      "SubagentStop",
     ]) {
       const matchers = hooks[event] as unknown[];
       // Exactly 1 hima hook entry per event after repeated runs.

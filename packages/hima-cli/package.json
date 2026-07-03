@@ -1,6 +1,6 @@
 {
   "name": "@hima/cli",
-  "version": "0.0.0",
+  "version": "0.1.0-alpha.0",
   "private": true,
   "type": "module",
   "engines": { "node": ">=20" },
@@ -9,6 +9,7 @@
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "files": ["dist"],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

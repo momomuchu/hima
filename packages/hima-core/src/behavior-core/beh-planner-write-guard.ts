@@ -182,9 +182,12 @@ export const BEH_PLANNER_WRITE_GUARD: BehaviorDescriptor = {
     return {
       decision: "block",
       reason:
-        `[${BEHAVIOR_ID}] the ${role} role (stage "${openStage}") may only write .md / .hima/plans — ` +
-        `not implementation files. Advance past spec before writing code: ` +
-        `hima hook stage-advance --stage spec --status done`,
+        `[${BEHAVIOR_ID}] BLOCKED — the ${role} role (stage "${openStage}") may write ONLY .md plans ` +
+        `(.hima/plans/**), not implementation files. To unblock: (1) write the plan to ` +
+        `.hima/plans/<name>.md, then (2) advance the cycle toward "impl" one stage at a time — ` +
+        `\`hima hook stage-advance --stage <next> --status done\` ` +
+        `(discovery → analysis → spec → design → impl). Code writes are allowed once the open stage ` +
+        `reaches "impl"; you stay blocked at "${openStage}" until you advance.`,
       behaviorId: BEHAVIOR_ID,
       violationType: "PLANNER_WRITE_GUARD",
     };

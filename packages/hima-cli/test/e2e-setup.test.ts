@@ -45,7 +45,7 @@ const DIST_INDEX = path.resolve(
   "../dist/index.js",
 );
 
-/** The 7 Claude hook events in PascalCase (settings.json keys). */
+/** The 9 Claude hook events in PascalCase (settings.json keys). */
 const CLAUDE_HOOK_EVENTS = [
   "SessionStart",
   "UserPromptSubmit",
@@ -54,6 +54,8 @@ const CLAUDE_HOOK_EVENTS = [
   "PreCompact",
   "PostCompact",
   "SubagentStart",
+  "Stop",
+  "SubagentStop",
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -125,7 +127,7 @@ describe("Scenario 1 — hima setup --runtime claude", () => {
     expect(() => JSON.parse(raw)).not.toThrow();
   });
 
-  it("settings.json has exactly 7 hook events wired", () => {
+  it("settings.json has exactly 9 hook events wired", () => {
     const settingsPath = path.join(root, ".claude", "settings.json");
     const settings = JSON.parse(readFileSync(settingsPath, "utf8")) as Record<string, unknown>;
     const hooks = settings["hooks"] as Record<string, unknown>;
