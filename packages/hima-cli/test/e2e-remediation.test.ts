@@ -323,8 +323,9 @@ describe("R-021: stage-advance canary includes role:planner|executor|reviewer", 
 
     rmSync(stagesRoot, { recursive: true, force: true });
     // verify stage → role:reviewer (or role:none if no match, but reviewer is expected).
+    // (timeout raised to 90s: 7 sequential CLI spawns are ~5-6s each under full-suite load.)
     expect(stdout).toContain("role:");
-  }, 30_000);
+  }, 90_000);
 });
 
 // ---------------------------------------------------------------------------
