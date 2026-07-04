@@ -14,6 +14,12 @@
 # Install (hourly, off-minute):  (crontab -l 2>/dev/null; echo "13 * * * * /Users/maache/hima/scripts/ultraqa-cron.sh") | crontab -
 set -uo pipefail
 
+# cron runs with a minimal PATH that lacks node/codex/claude/hima. Pin absolute
+# locations so the campaign works headless outside any shell/cmux session.
+NODE_BIN="/Users/maache/.local/share/fnm/node-versions/v22.21.0/installation/bin/node"
+[ -x "$NODE_BIN" ] || NODE_BIN="$(command -v node || echo node)"
+export PATH="/Users/maache/.local/bin:/opt/homebrew/bin:$(dirname "$NODE_BIN"):/usr/local/bin:/usr/bin:/bin"
+
 SANDBOX="$HOME/hima-sandbox"
 DEADLINE_FILE="$SANDBOX/.ultraqa-deadline"
 LOG="$SANDBOX/ultraqa-cron.log"
