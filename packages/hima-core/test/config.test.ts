@@ -25,7 +25,9 @@ import {
   loadConfig,
   resolveRole,
   resolveStageForceSkills,
+  resolveStageForceSkillsForFloor,
   resolveStageInjectSkills,
+  filterByEnabledSources,
 } from "../src/config.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -645,5 +647,32 @@ describe("resolveStageInjectSkills — enabledSources filters by SkillRef.source
     expect(resolveStageInjectSkills(config, "discovery", DEV_CYCLE)).toEqual([
       MY_SKILL,
     ]);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Floor-extras must also honor enabledSources (F1 stranger trap — dogfound 2026-07-04)
+// resolveStageForceSkillsForFloor adds corpus-* STAGE_FLOOR_EXTRAS; those were NOT
+// filtered by enabledSources, so a corpus-disabled project got force-blocked on a
+// corpus skill it does not have. The pre_tool path now filters the floor result.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("floor-extras respect enabledSources", () => {
+  it("drops corpus floor-extras when corpus is not enabled (discovery @ H)", () => {
+    const base = resolveStageForceSkills({}, "discovery", DEV_CYCLE);
+    const withFloor = resolveStageForceSkillsForFloor(base, "discovery", "H");
+    // Sanity: the floor path DOES add a corpus-* extra when unfiltered.
+    expect(withFloor.some((s) => s.source === "corpus")).toBe(true);
+
+    const configCorpusOff: HimaConfig = {
+      enabledSources: ["base", "user", "project"],
+    };
+    const filtered = filterByEnabledSources(configCorpusOff, withFloor);
+    expect(filtered.some((s) => s.source === "corpus")).toBe(false);
+  });
+
+  it("keeps corpus floor-extras when enabledSources is undefined (no-op default)", () => {
+    const base = resolveStageForceSkills({}, "discovery", DEV_CYCLE);
+    const withFloor = resolveStageForceSkillsForFloor(base, "discovery", "H");
+    expect(filterByEnabledSources({}, withFloor)).toEqual(withFloor);
   });
 });

@@ -113,6 +113,7 @@ export {
   resolveRole,
   resolveStageForceSkills,
   resolveStageForceSkillsForFloor,
+  filterByEnabledSources,
   resolveStageInjectSkills,
 } from "./config.js";
 // ---------------------------------------------------------------------------

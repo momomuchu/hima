@@ -39,6 +39,7 @@ import {
   loadConfig,
   resolveStageForceSkills,
   resolveStageForceSkillsForFloor,
+  filterByEnabledSources,
   classifyRisk,
   recordRead,
   writeDeferredVerdict,
@@ -719,7 +720,14 @@ export async function handlePreToolUse(
   //    R-017: apply floor-scaling so H/C wards enforce the extra skills from ENTRYPOINTS-v3.
   const config = await loadConfig(root);
   const baseForceSkills = resolveStageForceSkills(config, ward.openStage, DEV_CYCLE);
-  const floorForceSkills = resolveStageForceSkillsForFloor(baseForceSkills, ward.openStage, ward.floor);
+  // Floor-scaling (resolveStageForceSkillsForFloor) adds STAGE_FLOOR_EXTRAS which are
+  // corpus-* skills — re-apply the enabledSources filter so a project with corpus
+  // disabled is NOT forced onto a skill it does not have (the F1 stranger trap: the
+  // floor path previously bypassed the filter that resolveStageForceSkills applies).
+  const floorForceSkills = filterByEnabledSources(
+    config,
+    resolveStageForceSkillsForFloor(baseForceSkills, ward.openStage, ward.floor),
+  );
   // R-041: merge in any extra forced skills persisted on the ward itself
   // (e.g. corpus-technical-analysis-discovery, forced at floor H+ run-entry
   // regardless of the current DEV_CYCLE stage — see addWardSkillRequirement).

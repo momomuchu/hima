@@ -441,7 +441,7 @@ export function resolveRole(
  * every config decoded before this field existed), the input list is returned
  * unchanged — no filtering occurs.
  */
-function filterByEnabledSources(
+export function filterByEnabledSources(
   config: HimaConfig,
   skills: SkillRef[],
 ): SkillRef[] {
