@@ -278,7 +278,8 @@ describe("BEH_PLANNER_WRITE_GUARD — extended coverage", () => {
     );
     expect(result.decision).toBe("block");
     expect(result.reason).toMatch(/discovery/);
-    expect(result.reason).toMatch(/stage-advance/);
+    // Remediation command is now the friendlier `hima advance` (was `hima hook stage-advance`).
+    expect(result.reason).toMatch(/hima advance/);
   });
 
   it("R. descriptor id is BEH-PLANNER-WRITE-GUARD", () => {

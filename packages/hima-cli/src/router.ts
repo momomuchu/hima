@@ -1369,9 +1369,10 @@ export async function handleStageAdvance(
   status: StageVerdict["status"],
   sessionId: string,
   _runtime: RuntimeTarget = "claude",
+  evidence: string[] = [],
 ): Promise<void> {
   // 1. Write the stage verdict and advance openStage atomically.
-  const ward = await writeStageVerdict(root, stage, status);
+  const ward = await writeStageVerdict(root, stage, status, evidence);
 
   // 2. POST-ACT verdict canary: confirm what was sealed and the new open stage.
   const postActCanary =
@@ -1417,6 +1418,60 @@ export async function handleStageAdvance(
     exitCode: 0,
     reason: `stage-advance: "${stage}" → ${status}; openStage now "${ward.openStage}"`,
   });
+}
+
+/**
+ * handleAdvance — friendly `hima advance` command (the one-command unblock).
+ * Seals the CURRENT open stage (or an explicit --stage) with a status
+ * (default "done") and optional --evidence, then advances. A thin convenience
+ * wrapper over handleStageAdvance so a stuck agent/user can run `hima advance`
+ * instead of the long `hima hook stage-advance --stage X --status done` form.
+ * Sets process.exitCode=1 on error (no active ward / invalid status).
+ */
+export async function handleAdvance(
+  root: string,
+  stage: string | null,
+  status: string | null,
+  evidence: string[],
+  sessionId: string,
+  runtime: RuntimeTarget = "claude",
+): Promise<void> {
+  const VALID: ReadonlySet<string> = new Set([
+    "done",
+    "done-verified",
+    "done-validated",
+    "partial",
+    "blocked",
+  ]);
+  const resolvedStatus = status ?? "done";
+  if (!VALID.has(resolvedStatus)) {
+    process.stderr.write(
+      `[hima advance] invalid --status "${resolvedStatus}"; must be one of ` +
+        `done|done-verified|done-validated|partial|blocked\n`,
+    );
+    process.exitCode = 1;
+    return;
+  }
+  let resolvedStage = stage;
+  if (resolvedStage === null || resolvedStage.trim() === "") {
+    const ward = await resumeWard(root);
+    if (ward === null) {
+      process.stderr.write(
+        "[hima advance] no active ward — submit a prompt first, or pass --stage\n",
+      );
+      process.exitCode = 1;
+      return;
+    }
+    resolvedStage = ward.openStage;
+  }
+  await handleStageAdvance(
+    root,
+    resolvedStage,
+    resolvedStatus as StageVerdict["status"],
+    sessionId,
+    runtime,
+    evidence,
+  );
 }
 
 /**

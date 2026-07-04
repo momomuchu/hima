@@ -44,6 +44,7 @@ import {
   handleStop,
   handleNoOp,
   handleStageAdvance,
+  handleAdvance,
   handleSessionStart,
   handlePreCompact,
   handleSubagentStart,
@@ -84,7 +85,7 @@ const KNOWN_EVENTS = new Set([
 // ---------------------------------------------------------------------------
 
 type ParsedArgs = {
-  subcommand: "hook" | "trace" | "setup" | "init" | null;
+  subcommand: "hook" | "trace" | "setup" | "init" | "advance" | null;
   event: string | null;
   root: string | null;
   format: string;
@@ -104,12 +105,14 @@ type ParsedArgs = {
   // init-specific flags (SPEC-016/017)
   yes: boolean;
   generic: boolean;
+  // stage-advance / advance evidence (repeatable --evidence)
+  evidence: string[];
 };
 
 function parseArgs(argv: string[]): ParsedArgs {
   const args = argv.slice(2);
 
-  let subcommand: "hook" | "trace" | "setup" | "init" | null = null;
+  let subcommand: "hook" | "trace" | "setup" | "init" | "advance" | null = null;
   let event: string | null = null;
   let root: string | null = null;
   let format = "claude";
@@ -125,6 +128,7 @@ function parseArgs(argv: string[]): ParsedArgs {
   let status: string | null = null;
   let yes = false;
   let generic = false;
+  const evidence: string[] = [];
 
   let i = 0;
   while (i < args.length) {
@@ -137,6 +141,8 @@ function parseArgs(argv: string[]): ParsedArgs {
       subcommand = "setup";
     } else if (arg === "init" && subcommand === null) {
       subcommand = "init";
+    } else if (arg === "advance" && subcommand === null) {
+      subcommand = "advance";
     } else if (arg === "--yes") {
       yes = true;
     } else if (arg === "--generic") {
@@ -184,6 +190,12 @@ function parseArgs(argv: string[]): ParsedArgs {
       i += 1;
     } else if (arg.startsWith("--status=")) {
       status = arg.slice("--status=".length);
+    } else if (arg === "--evidence" && i + 1 < args.length) {
+      const ev = args[i + 1];
+      if (ev !== undefined) evidence.push(ev);
+      i += 1;
+    } else if (arg.startsWith("--evidence=")) {
+      evidence.push(arg.slice("--evidence=".length));
     } else if (arg === "--runtime" && i + 1 < args.length) {
       const rv = args[i + 1] ?? "";
       if (rv === "claude" || rv === "codex" || rv === "hermes" || rv === "opencode") {
@@ -201,7 +213,7 @@ function parseArgs(argv: string[]): ParsedArgs {
     i += 1;
   }
 
-  return { subcommand, event, root, format, session, gate, decision, onlyBlocks, json, watch, runtime, fresh, stage, status, yes, generic };
+  return { subcommand, event, root, format, session, gate, decision, onlyBlocks, json, watch, runtime, fresh, stage, status, yes, generic, evidence };
 }
 
 // ---------------------------------------------------------------------------
@@ -486,6 +498,36 @@ async function main(): Promise<void> {
   }
 
   // -------------------------------------------------------------------------
+  // hima advance — the one-command unblock (seal current open stage + advance)
+  // -------------------------------------------------------------------------
+  if (parsed.subcommand === "advance") {
+    // Unlike hook events (which fail-open so a hook error never blocks the
+    // session), `hima advance` is a user command: an error MUST surface as a
+    // non-zero exit. Without this catch, a throw (missing ward, or a predecessor
+    // gate violation on --status done-verified) escapes to main().catch() and is
+    // reported as exit 0 — a governance tool must never lie about success.
+    try {
+      let advanceSession = parsed.session;
+      if (advanceSession === null || advanceSession === "") {
+        advanceSession = (await findLatestSessionId(root)) ?? "cli-advance";
+      }
+      await handleAdvance(
+        root,
+        parsed.stage,
+        parsed.status,
+        parsed.evidence,
+        advanceSession,
+        parsed.runtime ?? "claude",
+      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      process.stderr.write(`[hima advance] error: ${msg}\n`);
+      process.exitCode = 1;
+    }
+    return;
+  }
+
+  // -------------------------------------------------------------------------
   // hima trace / hima observe subcommand
   // -------------------------------------------------------------------------
   if (parsed.subcommand === "trace") {
@@ -602,6 +644,7 @@ async function main(): Promise<void> {
           parsed.status as StageVerdict["status"],
           sessionId,
           runtime,
+          parsed.evidence,
         );
         break;
       }
