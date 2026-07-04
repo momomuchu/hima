@@ -18,6 +18,12 @@ export type StdinPayload = {
   sessionId?: string;
   /** Claude hook_event_name from the hook payload (e.g. "PreToolUse"). */
   hookEventName?: string;
+  /**
+   * Claude transcript_path — path to the conversation .jsonl. On the Stop hook
+   * the agent's final message is NOT in the payload; it lives as the last
+   * assistant message in this transcript. handleStop reads it to feed BEH-023.
+   */
+  transcriptPath?: string;
 };
 
 /**
@@ -73,5 +79,6 @@ export function normalizePayload(parsed: unknown): StdinPayload {
     promptContent: str(obj["prompt"]) ?? str(obj["promptContent"]),
     sessionId: str(obj["session_id"]) ?? str(obj["sessionId"]),
     hookEventName: str(obj["hook_event_name"]) ?? str(obj["hookEventName"]),
+    transcriptPath: str(obj["transcript_path"]) ?? str(obj["transcriptPath"]),
   };
 }

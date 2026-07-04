@@ -23,6 +23,7 @@
 
 import { randomUUID } from "node:crypto";
 import { execFileSync } from "node:child_process";
+import { readFileSync, existsSync } from "node:fs";
 
 import {
   pickSigil,
@@ -1193,6 +1194,55 @@ function isDocumentHeavy(toolInput: unknown): boolean {
 }
 
 /**
+ * readTranscriptFinalAssistantText — extract the agent's final message text from
+ * a Claude transcript .jsonl. Each line is a message object; assistant messages
+ * carry text either as a plain string or as message.content[] blocks of type
+ * "text". Returns the LAST assistant text found (or "" on any problem). Tolerant
+ * of a missing file, malformed lines, and format variations.
+ */
+function readTranscriptFinalAssistantText(transcriptPath: string): string {
+  try {
+    if (!existsSync(transcriptPath)) return "";
+    let lastText = "";
+    for (const line of readFileSync(transcriptPath, "utf8").split("\n")) {
+      const t = line.trim();
+      if (!t) continue;
+      let obj: unknown;
+      try {
+        obj = JSON.parse(t);
+      } catch {
+        continue;
+      }
+      if (typeof obj !== "object" || obj === null) continue;
+      const rec = obj as Record<string, unknown>;
+      const msg =
+        (rec["message"] as Record<string, unknown> | undefined) ?? rec;
+      const role = (rec["type"] ?? msg["role"]) as string | undefined;
+      if (role !== "assistant") continue;
+      const content = msg["content"];
+      let text = "";
+      if (typeof content === "string") {
+        text = content;
+      } else if (Array.isArray(content)) {
+        text = content
+          .map((b) =>
+            b &&
+            typeof b === "object" &&
+            (b as Record<string, unknown>)["type"] === "text"
+              ? String((b as Record<string, unknown>)["text"] ?? "")
+              : "",
+          )
+          .join("");
+      }
+      if (text) lastText = text;
+    }
+    return lastText;
+  } catch {
+    return "";
+  }
+}
+
+/**
  * handleStop — R-005 stop gate: reject fake-done verdicts via BEH-023.
  *
  * Scans the agent's final output for completion lexemes (DONE, DONE_VERIFIED,
@@ -1212,15 +1262,22 @@ export async function handleStop(
   const sessionId = payload.sessionId ?? "unknown-session";
 
   // Derive agentOutput from the stop payload.
-  // Claude sends the agent's final response as promptContent (or via toolInput
-  // in some runtime configurations).
-  const agentOutput =
+  // IMPORTANT: on the real Claude Stop hook the agent's final message is NOT in
+  // the payload — the payload carries `transcript_path`, and the final text lives
+  // as the last assistant message in that transcript. If we only read
+  // promptContent/toolInput (empty at Stop), BEH-023 never sees a completion
+  // claim and the fake-DONE gate silently fails open. So: fall back to the
+  // transcript. (Ultra-QA dogfound 2026-07-04.)
+  let agentOutput =
     payload.promptContent ??
     (typeof payload.toolInput === "string"
       ? payload.toolInput
       : payload.toolInput != null
         ? JSON.stringify(payload.toolInput)
         : "");
+  if (!agentOutput && payload.transcriptPath) {
+    agentOutput = readTranscriptFinalAssistantText(payload.transcriptPath);
+  }
 
   // 1. Resume the active ward (provides riskClass + evidence check).
   const ward = await resumeWard(root);
