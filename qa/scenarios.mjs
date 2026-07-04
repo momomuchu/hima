@@ -75,4 +75,19 @@ export const SCENARIOS = [
     prompt: "Create src/thing.ts implementing a counter.",
     gate: "NO_DISABLED_SOURCE",
   },
+
+  // ── boundary: lower criticality (run sigil -> M) + codex generic pack ──────
+  {
+    id: "claude/run/dev/default/trivial",
+    runtime: "claude", sigil: "run",
+    prompt: "Summarize what files are in this directory.",
+    gate: "ALLOW",
+  },
+  {
+    id: "codex/full/generic/default/feature",
+    runtime: "codex", sigil: "full", generic: true,
+    prompt: "Create src/thing.ts implementing a counter.",
+    gate: "NO_DISABLED_SOURCE",
+  },
 ];
+

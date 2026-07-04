@@ -24,6 +24,11 @@ const args = process.argv.slice(2);
 const TIMEOUT_S = Number(args[args.indexOf("--timeout") + 1]) || 130;
 const ONLY = args.includes("--only") ? args[args.indexOf("--only") + 1] : null;
 const RUNTIME = args.includes("--runtime") ? args[args.indexOf("--runtime") + 1] : null;
+// --max N: run at most N cells this invocation (keeps a run under the host's
+// background-job time limit). A persisted cursor advances + wraps, so repeated
+// invocations page through the whole taxonomy and loop — the basis for continuous QA.
+const MAX = args.includes("--max") ? Number(args[args.indexOf("--max") + 1]) : Infinity;
+const STATE = process.env.ULTRAQA_STATE || path.join(homedir(), "hima-sandbox", ".ultraqa-cursor.json");
 
 function sh(cmd, cmdArgs, opts = {}) {
   return spawnSync(cmd, cmdArgs, { encoding: "utf8", timeout: (opts.t || 30) * 1000, ...opts });
@@ -81,11 +86,19 @@ const GATE_CHECKS = {
   NO_DISABLED_SOURCE: () => null, // covered by the universal disabled-source check below
 };
 
+// Eligible pool, then a windowed slice via the persisted cursor (--max chunking).
+const pool = SCENARIOS.filter(
+  (s) => (!ONLY || s.id === ONLY) && (!RUNTIME || (s.runtime || "claude") === RUNTIME),
+);
+let cursor = 0;
+try { cursor = JSON.parse(readFileSync(STATE, "utf8")).cursor || 0; } catch { /* fresh */ }
+if (cursor >= pool.length) cursor = 0;
+const n = pool.length === 0 ? 0 : Math.min(MAX, pool.length);
+const window = Array.from({ length: n }, (_, i) => pool[(cursor + i) % pool.length]);
+
 const results = [];
-for (const s of SCENARIOS) {
+for (const s of window) {
   const rt = s.runtime || "claude";
-  if (ONLY && s.id !== ONLY) continue;
-  if (RUNTIME && rt !== RUNTIME) continue;
   if (rt === "claude" && (!CFG || !existsSync(CFG))) {
     results.push({ id: s.id, status: "SKIP", findings: ["no authed CLAUDE_CONFIG_DIR"] });
     console.log(`[SKIP] ${s.id} — no authed CLAUDE_CONFIG_DIR`);
@@ -156,5 +169,18 @@ const md = [
 const reportPath = process.env.ULTRAQA_REPORT || path.join(homedir(), "hima-sandbox", "ultraqa-report.md");
 try { mkdirSync(path.dirname(reportPath), { recursive: true }); } catch { /* */ }
 writeFileSync(reportPath, md);
+
+// Advance + persist the cursor (wraps -> continuous looping across invocations),
+// and append this chunk's verdicts to a persistent history for the continuous run.
+try {
+  const nextCursor = pool.length ? (cursor + n) % pool.length : 0;
+  mkdirSync(path.dirname(STATE), { recursive: true });
+  writeFileSync(STATE, JSON.stringify({ cursor: nextCursor, poolSize: pool.length }));
+  const histLine = results.map((r) => `${r.status[0]}:${r.id}`).join(" ");
+  writeFileSync(path.join(path.dirname(reportPath), "ultraqa-history.log"),
+    `[chunk cursor ${cursor}->${(cursor + n) % (pool.length || 1)}] ${pass}/${results.length} pass — ${histLine}\n`,
+    { flag: "a" });
+} catch { /* */ }
+
 console.log(`\n=== ${pass}/${results.length} PASS (${skip} skipped) === report: ${reportPath}`);
 process.exit(results.some((r) => r.status === "FAIL") ? 1 : 0);
