@@ -24,6 +24,17 @@ export type StdinPayload = {
    * assistant message in this transcript. handleStop reads it to feed BEH-023.
    */
   transcriptPath?: string;
+  /**
+   * Codex Stop hook: the agent's final message is delivered directly as
+   * `last_assistant_message` (Claude requires reading the transcript instead).
+   */
+  lastAssistantMessage?: string;
+  /**
+   * `stop_hook_active` — set true by the runtime after a stop-hook-triggered
+   * continuation, so a re-blocking hook does not loop forever. handleStop allows
+   * on the second pass to avoid bricking a session.
+   */
+  stopHookActive?: boolean;
 };
 
 /**
@@ -80,5 +91,9 @@ export function normalizePayload(parsed: unknown): StdinPayload {
     sessionId: str(obj["session_id"]) ?? str(obj["sessionId"]),
     hookEventName: str(obj["hook_event_name"]) ?? str(obj["hookEventName"]),
     transcriptPath: str(obj["transcript_path"]) ?? str(obj["transcriptPath"]),
+    lastAssistantMessage:
+      str(obj["last_assistant_message"]) ?? str(obj["lastAssistantMessage"]),
+    stopHookActive:
+      obj["stop_hook_active"] === true || obj["stopHookActive"] === true,
   };
 }

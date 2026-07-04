@@ -84,3 +84,29 @@ describe("Stop gate reads transcript_path (fake-DONE detection in real sessions)
     expect(r.status).toBe(0);
   });
 });
+
+// Codex delivers the final message directly as last_assistant_message (no transcript
+// read needed); and both runtimes set stop_hook_active to break re-block loops.
+describe("Stop gate — Codex last_assistant_message + stop_hook_active loop guard", () => {
+  it("BLOCKS a fake DONE delivered via Codex last_assistant_message (floor H)", () => {
+    bootstrapH();
+    const r = cli(["hook", "stop", "--format", "codex"], {
+      hook_event_name: "Stop",
+      session_id: "s",
+      last_assistant_message: "All done. DONE_VERIFIED — complete and shipped.",
+    });
+    expect(r.status).toBe(2);
+    expect(r.stdout).toMatch(/BEH-023/);
+  });
+
+  it("ALLOWS on stop_hook_active=true despite a completion claim (loop guard)", () => {
+    bootstrapH();
+    const r = cli(["hook", "stop", "--format", "codex"], {
+      hook_event_name: "Stop",
+      session_id: "s",
+      last_assistant_message: "DONE_VERIFIED — shipped.",
+      stop_hook_active: true,
+    });
+    expect(r.status).toBe(0);
+  });
+});

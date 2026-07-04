@@ -1268,14 +1268,20 @@ export async function handleStop(
   // promptContent/toolInput (empty at Stop), BEH-023 never sees a completion
   // claim and the fake-DONE gate silently fails open. So: fall back to the
   // transcript. (Ultra-QA dogfound 2026-07-04.)
-  let agentOutput =
-    payload.promptContent ??
-    (typeof payload.toolInput === "string"
-      ? payload.toolInput
-      : payload.toolInput != null
-        ? JSON.stringify(payload.toolInput)
-        : "");
-  if (!agentOutput && payload.transcriptPath) {
+  // stop_hook_active: the runtime already forced one continuation after a prior
+  // Stop block; re-blocking would loop forever. Treat the output as empty on this
+  // second pass so BEH-023 finds no claim and allows — the standard hook-loop guard.
+  let agentOutput = payload.stopHookActive
+    ? ""
+    : (payload.promptContent ??
+      payload.lastAssistantMessage ?? // Codex delivers the final message here
+      (typeof payload.toolInput === "string"
+        ? payload.toolInput
+        : payload.toolInput != null
+          ? JSON.stringify(payload.toolInput)
+          : ""));
+  if (!agentOutput && !payload.stopHookActive && payload.transcriptPath) {
+    // Claude: the final message is not in the payload — read it from the transcript.
     agentOutput = readTranscriptFinalAssistantText(payload.transcriptPath);
   }
 
