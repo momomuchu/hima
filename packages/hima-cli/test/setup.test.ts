@@ -19,7 +19,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { mergeClaudeHooks, runSetup } from "../src/setup.js";
+import { mergeClaudeHooks, runSetup, codexHookBlock } from "../src/setup.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -329,10 +329,11 @@ describe("runSetup — hook wiring (claude runtime)", () => {
     expect(result.wired).toContain(expected);
   });
 
-  it("codex runtime: wired[] is empty, messages contain best-effort note", async () => {
+  it("codex runtime: wires .codex/config.toml (auto-wired as of 2026-07-04)", async () => {
     const result = await runSetup({ root, runtime: "codex" });
-    expect(result.wired).toHaveLength(0);
-    expect(result.messages.some((m) => m.includes("best-effort/manual"))).toBe(true);
+    expect(result.wired).toHaveLength(1);
+    expect(result.wired[0]).toMatch(/\.codex[/\\]config\.toml$/);
+    expect(result.messages.some((m) => m.includes("Codex hooks wired"))).toBe(true);
   });
 
   it("hermes runtime: wired[] is empty, messages contain best-effort note", async () => {
@@ -584,5 +585,50 @@ describe("runSetup — brand-new empty root", () => {
 
   it("fresh on a completely empty root does not throw", async () => {
     await expect(runSetup({ root, fresh: true })).resolves.not.toThrow();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §9 — Codex hook wiring (dogfound 2026-07-04: hima setup now auto-wires codex,
+//      not just a manual note). Proven live: a real `codex exec` fires these hooks.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("codex hook wiring", () => {
+  it("codexHookBlock renders codex_hooks + all 5 events with --format codex", () => {
+    const block = codexHookBlock("/abs/dist/index.js");
+    expect(block).toContain("codex_hooks = true");
+    for (const ev of [
+      "session-start",
+      "user-prompt-submit",
+      "pre-tool-use",
+      "post-tool-use",
+      "stop",
+    ]) {
+      expect(block).toContain(`hook ${ev} --format codex`);
+    }
+    expect(block).toContain(`node "/abs/dist/index.js"`);
+  });
+
+  it("codexHookBlock uses the global hima bin when no path is given", () => {
+    const block = codexHookBlock();
+    expect(block).toContain("hima hook stop --format codex");
+    expect(block).not.toContain('node "');
+  });
+
+  it("runSetup --runtime codex writes a .codex/config.toml with the hooks", async () => {
+    const result = await runSetup({ root, runtime: "codex" });
+    expect(result.runtime).toBe("codex");
+    const cfg = await readFile(path.join(root, ".codex", "config.toml"), "utf8");
+    expect(cfg).toContain("codex_hooks = true");
+    expect(cfg).toMatch(/hook stop --format codex/);
+  });
+
+  it("does not clobber a pre-existing non-hima .codex/config.toml", async () => {
+    await mkdir(path.join(root, ".codex"), { recursive: true });
+    await writeFile(path.join(root, ".codex", "config.toml"), "model = 'gpt-5'\n");
+    const result = await runSetup({ root, runtime: "codex" });
+    const cfg = await readFile(path.join(root, ".codex", "config.toml"), "utf8");
+    expect(cfg).toContain("model = 'gpt-5'"); // user config preserved
+    expect(cfg).not.toContain("codex_hooks = true"); // not overwritten
+    expect(result.messages.join("\n")).toMatch(/not clobbered|manually/);
   });
 });
