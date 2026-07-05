@@ -91,6 +91,12 @@ Unambiguous, Complete, Singular, Feasible, Verifiable, Correct, Conforming*; the
 > **Unlike** a raw coding agent (a chat) or a thin multi-runtime wrapper,
 > **hima** brings to the coding agent **what ISO-grade regulation demands of software development**.
 
+> **Product name (2026-07-05):** the product is **Norm** — a *norme* is literally an ISO standard.
+> Norm is *"the ISO/SWEBOK-v4 qualification layer for coding agents"*: the plugin that converts a raw
+> coding agent into one operating at the **ISO production tier**. "hima" remains the internal
+> codename + CLI binary until the mechanical package/binary rename lands (a separate S wave); the
+> product identity is Norm. See `docs/decisions/0008-norm-iso-swebok-repositioning.md`.
+
 ### 3.2 Primitive / irreducible capability
 - **V-010** `[CRITICAL][BLOCKS:critical]` **The irreducible primitive of hima is the CYCLE.**
   Development proceeds by cycles; the cycle is the smallest complete unit hima governs. A cycle is
@@ -104,6 +110,16 @@ Unambiguous, Complete, Singular, Feasible, Verifiable, Correct, Conforming*; the
 - **V-012** `[MEDIUM][BLOCKS:none]` Feature enumeration is intentionally deferred — the founder's
   call is that the cycle + V&V + traceability are the core; a full feature list is downstream of
   SPEC-PRIMITIVE. Placeholder, not a commitment.
+- **V-012a** `[HIGH][BLOCKS:high]` **Delegation-First is a forcing-function, not a recommendation.**
+  ISO-grade production forbids one actor doing everything: separation of duties (author ≠ reviewer,
+  the make-no-mistakes §2 law and ISO 9001 §7.5 principle) and specialized parallel roles are
+  *required*. So at work-bearing stages (build, review, QA) on H+ tasks, Norm **forces fan-out**:
+  the stage SHALL be executed by parallel role-based lanes (Team-First / Sub-Agent-First) with at
+  least one **independent** verifier lane — a main-thread solo implementation is a norm violation,
+  gated by the same mechanism as the planner-write-guard. Norm decides *when to delegate + which
+  roles the norm requires*; the host orchestrator (OMC on Claude, the richest backend; codex fan-out
+  on Codex) provides *how*. Norm stays runtime-agnostic; OMC and Norm **compose, not compete**.
+  Specified in `docs/specs/SPEC-018-delegation-first-gate.md` (traces to V-002, V-012a).
 
 ### 3.4 Assumptions & dependencies
 - **V-013** `[HIGH][BLOCKS:high]` **Assumption:** host coding agents expose a hook surface hima can
@@ -198,6 +214,10 @@ Per-set: `Complete` ☐ `Consistent` ☐ `Feasible` ☐ `Bounded` ☐
   pack. See `docs/decisions/0006-base-tier-agnostic-primitives.md`.
 - **OD-3** `[MEDIUM][BLOCKS:none]` **"discipline of development" (context/prompting per stage)** —
   founder said "not for now." Parked as later scope, noted so it is a decision, not an omission.
+- **OD-4** `[HIGH][BLOCKS:low]` **Product name — RESOLVED (2026-07-05).** Product = **Norm** (ISO/
+  SWEBOK-v4 qualification thesis). CLI binary + `@hima/*` packages + `.hima/` state keep the `hima`
+  name until a separate mechanical S-wave rename; identity-facing docs adopt Norm now. See
+  `docs/decisions/0008-norm-iso-swebok-repositioning.md`. Residual: schedule the mechanical rename.
 
 ---
 
