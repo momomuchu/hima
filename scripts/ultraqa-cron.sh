@@ -34,6 +34,10 @@ if [ "$now" -gt "$deadline" ]; then
 fi
 
 export CLAUDE_CONFIG_DIR="$SANDBOX/claude-config"
-echo "[$(date)] chunk start (max $CELLS_PER_RUN)" >> "$LOG"
-node /Users/maache/hima/scripts/ultraqa.mjs --max "$CELLS_PER_RUN" --timeout 170 >> "$LOG" 2>&1
+# CODEX-ONLY under cron: verified 2026-07-05 that a cron-spawned (detached, no
+# keychain) process gets "Not logged in" for Claude, but `codex exec` authenticates
+# fine headless. So the durable campaign runs codex cells; claude cells need an
+# interactive session (run scripts/ultraqa.mjs --runtime claude by hand for those).
+echo "[$(date)] chunk start (max $CELLS_PER_RUN, codex)" >> "$LOG"
+"$NODE_BIN" /Users/maache/hima/scripts/ultraqa.mjs --max "$CELLS_PER_RUN" --runtime codex --timeout 170 >> "$LOG" 2>&1
 echo "[$(date)] chunk done (exit $?)" >> "$LOG"
