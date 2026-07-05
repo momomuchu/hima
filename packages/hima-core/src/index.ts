@@ -59,6 +59,24 @@ export { BEH_FALSIFIES_IF } from "./behavior-core/beh-falsifies-if.js";
 // I14b behaviors (R-016, R-022, R-023)
 export { BEH_FEEDBACK_WAVE } from "./behavior-core/beh-feedback-wave.js";
 export { BEH_PLANNER_WRITE_GUARD } from "./behavior-core/beh-planner-write-guard.js";
+export {
+  BEH_DELEGATION_FIRST,
+  decideDelegationFirst,
+} from "./behavior-core/beh-delegation-first.js";
+export type {
+  DelegationFirstInput,
+  DelegationFirstDecision,
+} from "./behavior-core/beh-delegation-first.js";
+export {
+  laneMarkerPath,
+  markLane,
+  isLaneActive,
+  clearLane,
+  stageDelegationPath,
+  markStageDelegation,
+  isStageDelegationActive,
+  clearStageDelegation,
+} from "./behavior-core/delegation-lane.js";
 export { BEH_READ_BEFORE_WRITE } from "./behavior-core/beh-read-before-write.js";
 export { BEH_RESEARCH_FIRST } from "./behavior-core/beh-research-first.js";
 export { BEH_SECRET_GUARD } from "./behavior-core/beh-secret-guard.js";

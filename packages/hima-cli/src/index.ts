@@ -45,6 +45,7 @@ import {
   handleNoOp,
   handleStageAdvance,
   handleAdvance,
+  handleDelegate,
   handleSessionStart,
   handlePreCompact,
   handleSubagentStart,
@@ -85,7 +86,7 @@ const KNOWN_EVENTS = new Set([
 // ---------------------------------------------------------------------------
 
 type ParsedArgs = {
-  subcommand: "hook" | "trace" | "setup" | "init" | "advance" | null;
+  subcommand: "hook" | "trace" | "setup" | "init" | "advance" | "delegate" | null;
   event: string | null;
   root: string | null;
   format: string;
@@ -107,12 +108,17 @@ type ParsedArgs = {
   generic: boolean;
   // stage-advance / advance evidence (repeatable --evidence)
   evidence: string[];
+  // delegate-specific flags (SPEC-018)
+  clear: boolean;
+  roles: string[];
 };
 
 function parseArgs(argv: string[]): ParsedArgs {
   const args = argv.slice(2);
 
-  let subcommand: "hook" | "trace" | "setup" | "init" | "advance" | null = null;
+  let subcommand: "hook" | "trace" | "setup" | "init" | "advance" | "delegate" | null = null;
+  let clear = false;
+  let roles: string[] = [];
   let event: string | null = null;
   let root: string | null = null;
   let format = "claude";
@@ -143,6 +149,16 @@ function parseArgs(argv: string[]): ParsedArgs {
       subcommand = "init";
     } else if (arg === "advance" && subcommand === null) {
       subcommand = "advance";
+    } else if (arg === "delegate" && subcommand === null) {
+      subcommand = "delegate";
+    } else if (arg === "--clear") {
+      clear = true;
+    } else if (arg === "--roles" && i + 1 < args.length) {
+      const rolesArg = args[++i] ?? "";
+      roles = rolesArg
+        .split(",")
+        .map((r) => r.trim())
+        .filter((r) => r !== "");
     } else if (arg === "--yes") {
       yes = true;
     } else if (arg === "--generic") {
@@ -213,7 +229,7 @@ function parseArgs(argv: string[]): ParsedArgs {
     i += 1;
   }
 
-  return { subcommand, event, root, format, session, gate, decision, onlyBlocks, json, watch, runtime, fresh, stage, status, yes, generic, evidence };
+  return { subcommand, event, root, format, session, gate, decision, onlyBlocks, json, watch, runtime, fresh, stage, status, yes, generic, evidence, clear, roles };
 }
 
 // ---------------------------------------------------------------------------
@@ -522,6 +538,29 @@ async function main(): Promise<void> {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       process.stderr.write(`[hima advance] error: ${msg}\n`);
+      process.exitCode = 1;
+    }
+    return;
+  }
+
+  // -------------------------------------------------------------------------
+  // hima delegate — SPEC-018 D-004: mark this session as a delegated lane so
+  // its implementation writes are not blocked by the Delegation-First gate.
+  // -------------------------------------------------------------------------
+  if (parsed.subcommand === "delegate") {
+    try {
+      const delegateSession =
+        parsed.session ??
+        process.env.HIMA_SESSION_ID ??
+        process.env.CLAUDE_SESSION_ID ??
+        (await findLatestSessionId(root));
+      await handleDelegate(root, delegateSession, {
+        clear: parsed.clear,
+        roles: parsed.roles,
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      process.stderr.write(`[hima delegate] error: ${msg}\n`);
       process.exitCode = 1;
     }
     return;

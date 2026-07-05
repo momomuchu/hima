@@ -23,7 +23,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { createWard, advanceStage } from "@hima/core";
+import { createWard, advanceStage, markLane } from "@hima/core";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -103,6 +103,13 @@ describe("R-017 (live) — test stage floor-H uplift reaches the pre_tool block 
     await advanceStage(root, "design", "done");
     await advanceStage(root, "impl", "done");
     await advanceStage(root, "test", "done"); // opens "test" stage
+    // Isolate R-017's subject (floor-skill uplift) from the orthogonal
+    // Delegation-First gate (SPEC-018): a solo write at test+H would ALSO trip
+    // BEH_DELEGATION_FIRST and its reason would mask the floor-skill one. Mark
+    // the write's session ("unknown-session", the default when no session_id is
+    // in the payload) as a delegated lane so Delegation-First allows; the
+    // skill-force block still fires and is what this test asserts.
+    markLane(root, "unknown-session");
   });
 
   afterAll(() => rmSync(root, { recursive: true, force: true }));

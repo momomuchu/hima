@@ -27,6 +27,7 @@ import { BEH_SECRET_GUARD } from "./beh-secret-guard.js";
 import { BEH_RESEARCH_FIRST } from "./beh-research-first.js";
 import { BEH_SPEC_GATE } from "./beh-spec-gate.js";
 import { BEH_PLANNER_WRITE_GUARD } from "./beh-planner-write-guard.js";
+import { BEH_DELEGATION_FIRST } from "./beh-delegation-first.js";
 import { BEH_WORKER_MODEL } from "./beh-worker-model.js";
 // I14b behaviors (R-016, R-022, R-023)
 import { BEH_FEEDBACK_WAVE } from "./beh-feedback-wave.js";
@@ -105,6 +106,10 @@ defaultRegistry.registerBehavior(BEH_SPEC_GATE);
 
 // R-020 part 2 / I14: planner-write-guard — blocks code writes in planner stages (pre_tool).
 defaultRegistry.registerBehavior(BEH_PLANNER_WRITE_GUARD);
+
+// SPEC-018 / V-012a: Delegation-First — blocks solo main-thread implementation writes at
+// work-bearing (executor) stages on High+ tasks unless a delegated lane is active (pre_tool).
+defaultRegistry.registerBehavior(BEH_DELEGATION_FIRST);
 
 // R-028 / I10b: worker-model-explicit — blocks subagent spawn without explicit model.
 // Fires at subagent_start gate on claude (canBlock=true). Hermes compensates via

@@ -76,6 +76,9 @@ import {
   hasChangesSince,
   registerSubagent,
   readSubagentRegistry,
+  markLane,
+  clearLane,
+  markStageDelegation,
   addWardSkillRequirement,
   PLANNER_PROMPTS,
   EXECUTOR_PROMPTS,
@@ -1546,6 +1549,44 @@ export async function handleAdvance(
 }
 
 /**
+ * handleDelegate — SPEC-018 D-004: the explicit Delegation-First seal.
+ *
+ * `hima delegate` marks the given session as an active delegated lane by
+ * writing a lane marker (.hima/state/lane-<sessionId>.json). A session so
+ * marked may perform implementation writes at work-bearing stages without
+ * being blocked by BEH_DELEGATION_FIRST — the runtime-agnostic way a spawned
+ * lane declares "I am a delegated worker, not the solo main thread".
+ *
+ * `--clear` removes the marker. A missing session id is a user error (exit 1)
+ * — unlike hook events, this is a direct command and must not lie about success.
+ */
+export async function handleDelegate(
+  root: string,
+  sessionId: string | null,
+  opts: { clear?: boolean; roles?: string[] } = {},
+): Promise<void> {
+  if (sessionId === null || sessionId.trim() === "") {
+    process.stderr.write(
+      "[hima delegate] no session id — pass --session <id> (or set HIMA_SESSION_ID)\n",
+    );
+    process.exitCode = 1;
+    return;
+  }
+  if (opts.clear === true) {
+    clearLane(root, sessionId);
+    process.stdout.write(`[hima delegate] lane marker cleared for session ${sessionId}\n`);
+    return;
+  }
+  const roles = opts.roles ?? [];
+  markLane(root, sessionId, { roles });
+  process.stdout.write(
+    `[hima delegate] session ${sessionId} marked as a delegated lane` +
+      (roles.length > 0 ? ` (roles: ${roles.join(", ")})` : "") +
+      ` — implementation writes at work-bearing stages are now permitted for this session.\n`,
+  );
+}
+
+/**
  * handleSessionStart — R-030: session-start ward-resume context injection.
  *
  * Calls buildSessionResumeContext(root). When a ward is found, emits its
@@ -1866,6 +1907,17 @@ export async function handleSubagentStart(
   const sessionId = payload.sessionId ?? "unknown-session";
   const ward = await resumeWard(root);
   const riskClass = resolveRiskClass(ward);
+
+  // SPEC-018 D-004: a sub-agent starting IS the delegation signal. Stamp the
+  // ward+stage so BEH_DELEGATION_FIRST lets implementation writes flow at this
+  // stage — the auto, no-operator-bookkeeping path. Never throws (guarded).
+  if (ward !== null && ward !== undefined) {
+    try {
+      markStageDelegation(root, ward.id, ward.openStage);
+    } catch {
+      /* marker is advisory — never break subagent-start on a write error */
+    }
+  }
 
   // Build BehaviorContext for the subagent_start gate.
   const ctx = {
