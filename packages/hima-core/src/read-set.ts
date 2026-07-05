@@ -22,7 +22,7 @@
 import { mkdir, readFile, realpath as fsRealpath } from "node:fs/promises";
 import { realpathSync } from "node:fs";
 import path from "node:path";
-import { atomicWriteFile, withFileLock } from "@hima/storage-core";
+import { atomicWriteFile, withFileLock } from "@norm/storage-core";
 
 // ---------------------------------------------------------------------------
 // Path helpers

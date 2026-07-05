@@ -23,10 +23,10 @@ const testArgs = [
 ];
 
 const commands = [
-  ["corepack", ["pnpm", "--filter", "@hima/schemas", "build"]],
-  ["corepack", ["pnpm", "--filter", "@hima/storage-core", "build"]],
-  ["corepack", ["pnpm", "--filter", "@hima/core", "build"]],
-  ["corepack", ["pnpm", "--filter", "@hima/cli", "build"]],
+  ["corepack", ["pnpm", "--filter", "@norm/schemas", "build"]],
+  ["corepack", ["pnpm", "--filter", "@norm/storage-core", "build"]],
+  ["corepack", ["pnpm", "--filter", "@norm/core", "build"]],
+  ["corepack", ["pnpm", "--filter", "@norm/cli", "build"]],
   ["node", ["scripts/validate-claim-bearing-falsifies.test.mjs"]],
   ["node", ["scripts/conversation-compliance-scan.test.mjs"]],
   ["corepack", ["pnpm", "exec", "vitest", "run", ...testArgs]],

@@ -25,7 +25,7 @@
  *   MultiEdit: { file_path?: string; path?: string; ... }
  *
  * Remediation message instructs the agent to advance the stage via:
- *   hima hook stage-advance --stage spec --status done
+ *   norm hook stage-advance --stage spec --status done
  *
  * violationType: PLANNER_WRITE_GUARD
  * gates:         ["pre_tool"]
@@ -184,8 +184,8 @@ export const BEH_PLANNER_WRITE_GUARD: BehaviorDescriptor = {
       reason:
         `[${BEHAVIOR_ID}] BLOCKED — the ${role} role (stage "${openStage}") may write ONLY .md plans ` +
         `(.hima/plans/**), not implementation files. To unblock: (1) write the plan to ` +
-        `.hima/plans/<name>.md, then (2) run \`hima advance\` after each step to walk the cycle ` +
-        `discovery → analysis → spec → design → impl (each 'hima advance' seals the current stage ` +
+        `.hima/plans/<name>.md, then (2) run \`norm advance\` after each step to walk the cycle ` +
+        `discovery → analysis → spec → design → impl (each 'norm advance' seals the current stage ` +
         `and moves to the next; add --evidence "<what you did>" to record proof). Code writes are ` +
         `allowed once the open stage reaches "impl"; you stay blocked at "${openStage}" until you advance.`,
       behaviorId: BEHAVIOR_ID,

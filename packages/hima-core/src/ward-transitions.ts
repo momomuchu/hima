@@ -5,12 +5,12 @@ import {
   Ward,
   StageVerdict,
   decodeWard,
-} from "@hima/schemas";
+} from "@norm/schemas";
 import {
   safeAtomicWriteFile,
   assertSafeWriteTarget,
   withFileLock,
-} from "@hima/storage-core";
+} from "@norm/storage-core";
 import { resumeWard } from "./ward-store.js";
 
 /**

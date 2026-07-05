@@ -18,7 +18,7 @@
  *               dispatchTranslate("codex", skill-force-action) falls back to claude format
  *               which returns decision:"block", so exit 2.
  *
- * Pre-condition: `pnpm --filter @hima/cli build` must have run first.
+ * Pre-condition: `pnpm --filter @norm/cli build` must have run first.
  *
  * Runtime: node:child_process spawnSync (synchronous, sequential).
  */
@@ -29,7 +29,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { createWard, advanceStage, markLoaded } from "@hima/core";
+import { createWard, advanceStage, markLoaded } from "@norm/core";
 
 // ---------------------------------------------------------------------------
 // Constants

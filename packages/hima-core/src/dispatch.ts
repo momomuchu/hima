@@ -9,7 +9,7 @@
  *      ARCHITECTURE-v3.md §3.5 adapter-contract.
  */
 
-import type { ForceAction } from "@hima/schemas";
+import type { ForceAction } from "@norm/schemas";
 import type { RuntimeTarget } from "./capability-map-v3.js";
 import { translateClaude } from "./adapter-claude.js";
 import type { ClaudeResponse } from "./adapter-claude.js";

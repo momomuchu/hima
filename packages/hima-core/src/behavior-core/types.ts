@@ -9,7 +9,7 @@
  *      .planning/architecture/V3-COMPLETENESS-AUDIT.md R-001
  */
 
-import type { GateEvent, GateType, RiskClass, Ward } from "@hima/schemas";
+import type { GateEvent, GateType, RiskClass, Ward } from "@norm/schemas";
 
 // ---------------------------------------------------------------------------
 // BehaviorVerdict — the per-behavior decision emitted by evaluate()
@@ -47,7 +47,7 @@ export type BehaviorVerdict = {
  *   riskClass    — the effective risk class for this run (resolved from the ward
  *                  floor or the router's classify step).
  *   root         — absolute path to the project root (used by behaviors that
- *                  need filesystem access via @hima/storage-core).
+ *                  need filesystem access via @norm/storage-core).
  *   ward         — the live execution context, if a ward exists for this session.
  *                  Null/undefined when no ward has been created yet (e.g. early
  *                  session_start events before sigil detection).

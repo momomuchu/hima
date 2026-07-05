@@ -47,7 +47,7 @@ import {
 } from "../src/behavior-core/beh-read-before-write.js";
 import { recordRead } from "../src/read-set.js";
 import type { BehaviorContext, BehaviorVerdict } from "../src/behavior-core/types.js";
-import type { Ward, RiskClass } from "@hima/schemas";
+import type { Ward, RiskClass } from "@norm/schemas";
 
 // ---------------------------------------------------------------------------
 // Fixtures

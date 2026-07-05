@@ -47,7 +47,7 @@ import {
   extractContent,
 } from "../src/behavior-core/beh-falsifies-if.js";
 import type { BehaviorContext, BehaviorVerdict } from "../src/behavior-core/types.js";
-import type { RiskClass } from "@hima/schemas";
+import type { RiskClass } from "@norm/schemas";
 
 // ---------------------------------------------------------------------------
 // Fixtures

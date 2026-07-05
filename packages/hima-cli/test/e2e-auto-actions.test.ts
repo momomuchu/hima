@@ -15,7 +15,7 @@
  *
  * All three paths are advisory only — they NEVER exit 2.
  *
- * Pre-condition: `pnpm --filter @hima/cli build` must have run before this
+ * Pre-condition: `pnpm --filter @norm/cli build` must have run before this
  * suite executes. The test runner chains build → vitest in package.json.
  *
  * Uses node:child_process spawnSync — synchronous so assertion ordering is
@@ -26,7 +26,7 @@ import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { createWard } from "@hima/core";
+import { createWard } from "@norm/core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 // ---------------------------------------------------------------------------
@@ -35,7 +35,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 /**
  * Absolute path to the built CLI entry-point.
- * The e2e suite requires a prior `pnpm build` in the @hima/cli package.
+ * The e2e suite requires a prior `pnpm build` in the @norm/cli package.
  */
 const DIST_INDEX = path.resolve(
   import.meta.dirname ?? new URL(".", import.meta.url).pathname,

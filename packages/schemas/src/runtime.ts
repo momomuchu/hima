@@ -3,7 +3,7 @@ import { Schema } from "effect";
 /**
  * RuntimeTarget — the coding-agent runtime(s) a project targets.
  *
- * Mirrors the plain TS union already defined locally in `@hima/hima-core`
+ * Mirrors the plain TS union already defined locally in `@norm/hima-core`
  * (`capability-map-v3.ts` / `forcing-primitive.ts`,
  * `"claude" | "codex" | "hermes" | "opencode"`) as a decodable Effect Schema
  * literal so `HimaConfig.runtimes` (SPEC-016 Q-001 / OQ-1) has a schema-level

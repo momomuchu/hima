@@ -1,5 +1,5 @@
 /**
- * setup.test.ts — unit + integration tests for the hima setup onboarding module.
+ * setup.test.ts — unit + integration tests for the norm setup onboarding module.
  *
  * Tests cover:
  *   §1  mergeClaudeHooks — pure function, no fs (unit tests)
@@ -75,7 +75,7 @@ describe("mergeClaudeHooks — pure function", () => {
       expect(entry?.matcher).toBe("");
       expect(entry?.hooks).toHaveLength(1);
       const cmd = entry?.hooks[0]?.command ?? "";
-      expect(cmd).toBe(`hima hook ${kebab} --format claude`);
+      expect(cmd).toBe(`norm hook ${kebab} --format claude`);
     }
   });
 
@@ -534,7 +534,7 @@ describe("runSetup — idempotency of hook wiring", () => {
       "SubagentStop",
     ]) {
       const matchers = hooks[event] as unknown[];
-      // Exactly 1 hima hook entry per event after repeated runs.
+      // Exactly 1 norm hook entry per event after repeated runs.
       expect(matchers).toHaveLength(1);
     }
   });
@@ -589,7 +589,7 @@ describe("runSetup — brand-new empty root", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// §9 — Codex hook wiring (dogfound 2026-07-04: hima setup now auto-wires codex,
+// §9 — Codex hook wiring (dogfound 2026-07-04: norm setup now auto-wires codex,
 //      not just a manual note). Proven live: a real `codex exec` fires these hooks.
 // ─────────────────────────────────────────────────────────────────────────────
 describe("codex hook wiring", () => {
@@ -610,7 +610,7 @@ describe("codex hook wiring", () => {
 
   it("codexHookBlock uses the global hima bin when no path is given", () => {
     const block = codexHookBlock();
-    expect(block).toContain("hima hook stop --format codex");
+    expect(block).toContain("norm hook stop --format codex");
     expect(block).not.toContain('node "');
   });
 

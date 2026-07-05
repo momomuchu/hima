@@ -9,7 +9,7 @@
  *
  * AMENDMENT-001 pluggable skills + AMENDMENT-003 pluggable cycle.
  *
- * Note: HimaConfig is defined here (and mirrored in @hima/schemas/src/config.ts) because
+ * Note: HimaConfig is defined here (and mirrored in @norm/schemas/src/config.ts) because
  * schemas does not yet export config.ts publicly.  When schemas adds that export, this
  * definition can be replaced with an import.
  */
@@ -18,8 +18,8 @@ import { readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { Either, Schema } from "effect";
-import { CycleDef, RISK_ORDER, RuntimeTarget, SkillRef } from "@hima/schemas";
-import type { RiskClass } from "@hima/schemas";
+import { CycleDef, RISK_ORDER, RuntimeTarget, SkillRef } from "@norm/schemas";
+import type { RiskClass } from "@norm/schemas";
 import type { AgentModel, RoleDef } from "./role-catalog.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -57,7 +57,7 @@ const RoleOverride = Schema.Struct({
  * cycle           — full cycle replacement (AMENDMENT-003); supersedes DEV_CYCLE when present.
  * roles           — keyed by role id; overrides model, forcedSkills, and stages for a subagent.
  * runtimes        — (SPEC-016 Q-001 / OQ-1) which coding-agent runtime(s) this project
- *                    targets. Bookkeeping only for `hima init`'s own hook-wiring loop
+ *                    targets. Bookkeeping only for `norm init`'s own hook-wiring loop
  *                    (SPEC-017 A-002) — never the source of truth for a live gate event's
  *                    runtime (that always comes from the hook invocation context).
  * useDevCyclePack — (SPEC-016 Q-002) when explicitly `false`, resolveStageForceSkills /
@@ -69,7 +69,7 @@ const RoleOverride = Schema.Struct({
  *                    `undefined` (the default) is a no-op — no filtering is applied.
  *
  * All top-level fields are optional.  Absent fields fall back to founder defaults
- * (DEV_CYCLE from @hima/schemas, ROLE_CATALOG from @hima/core).
+ * (DEV_CYCLE from @norm/schemas, ROLE_CATALOG from @norm/core).
  */
 export const HimaConfig = Schema.Struct({
   stageSkills: Schema.optional(
@@ -163,7 +163,7 @@ export async function loadConfig(
  *                                            config.useDevCyclePack === false (OQ-2)
  *   4. []                                 — stage not found in any source
  *
- * Pass DEV_CYCLE from @hima/schemas as devCycle to get the founder default.
+ * Pass DEV_CYCLE from @norm/schemas as devCycle to get the founder default.
  *
  * The resolved list is filtered by config.enabledSources when present (OQ-3):
  * any SkillRef whose `source` is not in that allowlist is dropped. When

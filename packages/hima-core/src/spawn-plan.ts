@@ -67,7 +67,7 @@ export function teamWidth(plan: readonly RoleDef[]): number {
 }
 
 // ---------------------------------------------------------------------------
-// AgentVerdict — per-agent submission (local type; not yet in @hima/schemas)
+// AgentVerdict — per-agent submission (local type; not yet in @norm/schemas)
 // ---------------------------------------------------------------------------
 
 /**

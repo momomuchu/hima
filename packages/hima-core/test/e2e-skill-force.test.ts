@@ -13,7 +13,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import type { GateEvent, GateVerdict } from "@hima/schemas";
+import type { GateEvent, GateVerdict } from "@norm/schemas";
 import { runGate } from "../src/run-gate.js";
 import { markLoaded } from "../src/skill-state.js";
 import { pickSigil } from "../src/keyword.js";

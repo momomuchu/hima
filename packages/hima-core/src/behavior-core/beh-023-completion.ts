@@ -17,8 +17,8 @@
  */
 
 import type { BehaviorDescriptor, BehaviorVerdict, BehaviorContext } from "./types.js";
-import { RISK_ORDER } from "@hima/schemas";
-import type { RiskClass } from "@hima/schemas";
+import { RISK_ORDER } from "@norm/schemas";
+import type { RiskClass } from "@norm/schemas";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -107,7 +107,7 @@ export const BEH_023: BehaviorDescriptor = {
         decision: "block",
         reason:
           `[${BEHAVIOR_ID}] Completion claim detected at risk class ${riskClass} but no ` +
-          `active ward exists. Cannot verify evidence. Use \`hima hook stage-advance\` to ` +
+          `active ward exists. Cannot verify evidence. Use \`norm hook stage-advance\` to ` +
           `record a verified stage verdict before asserting DONE.`,
         behaviorId: BEHAVIOR_ID,
         violationType: "DONE_WITHOUT_EVIDENCE",
@@ -131,7 +131,7 @@ export const BEH_023: BehaviorDescriptor = {
       reason:
         `[${BEHAVIOR_ID}] Completion claim detected at risk class ${riskClass} but ` +
         `ward "${ward.id}" has no done-verified stage verdict. Record evidence via ` +
-        `\`hima hook stage-advance --status=done-verified\` before asserting DONE.`,
+        `\`norm hook stage-advance --status=done-verified\` before asserting DONE.`,
       behaviorId: BEHAVIOR_ID,
       violationType: "DONE_WITHOUT_EVIDENCE",
     };

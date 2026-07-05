@@ -25,7 +25,7 @@
  * Source: .planning/architecture/PARALLELIZATION-v3.md §1
  */
 
-import type { SkillRef } from "@hima/schemas";
+import type { SkillRef } from "@norm/schemas";
 
 // ---------------------------------------------------------------------------
 // AgentModel
@@ -48,7 +48,7 @@ export type RoleDef = {
   readonly name: string;
   /** One-sentence mission statement. */
   readonly mission: string;
-  /** Stage names where this role is active (matches StageDef.name in @hima/schemas). */
+  /** Stage names where this role is active (matches StageDef.name in @norm/schemas). */
   readonly stages: readonly string[];
   /**
    * SkillRefs that MUST be invoked by the agent before its first Write.

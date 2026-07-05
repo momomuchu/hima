@@ -5,8 +5,8 @@
   "type": "module",
   "packageManager": "pnpm@10.33.2",
   "scripts": {
-    "build": "node scripts/with-build-lock.mjs --shell \"corepack pnpm --filter @hima/schemas build && corepack pnpm --filter @hima/storage-core build && corepack pnpm --filter @hima/core build && corepack pnpm --filter @hima/cli build\"",
-    "typecheck": "node scripts/with-build-lock.mjs --shell \"corepack pnpm --filter @hima/schemas typecheck && corepack pnpm --filter @hima/storage-core typecheck && corepack pnpm --filter @hima/core typecheck && corepack pnpm --filter @hima/cli typecheck\"",
+    "build": "node scripts/with-build-lock.mjs --shell \"corepack pnpm --filter @norm/schemas build && corepack pnpm --filter @norm/storage-core build && corepack pnpm --filter @norm/core build && corepack pnpm --filter @norm/cli build\"",
+    "typecheck": "node scripts/with-build-lock.mjs --shell \"corepack pnpm --filter @norm/schemas typecheck && corepack pnpm --filter @norm/storage-core typecheck && corepack pnpm --filter @norm/core typecheck && corepack pnpm --filter @norm/cli typecheck\"",
     "test": "node scripts/with-build-lock.mjs -- node scripts/run-tests.mjs",
     "lint": "biome check .",
     "format": "biome format --write ."

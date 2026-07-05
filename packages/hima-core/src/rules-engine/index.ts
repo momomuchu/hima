@@ -29,7 +29,7 @@ import path from "node:path";
 import { access, mkdir, readFile, readdir, realpath } from "node:fs/promises";
 import { parseRuleFrontmatter } from "./frontmatter.js";
 import { ruleMatches } from "./matcher.js";
-import { safeAtomicWriteFile } from "@hima/storage-core";
+import { safeAtomicWriteFile } from "@norm/storage-core";
 
 // ---------------------------------------------------------------------------
 // Types

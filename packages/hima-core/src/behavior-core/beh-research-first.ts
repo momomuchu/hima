@@ -32,7 +32,7 @@
  */
 
 import type { BehaviorDescriptor, BehaviorContext, BehaviorVerdict } from "./types.js";
-import type { StageVerdict } from "@hima/schemas";
+import type { StageVerdict } from "@norm/schemas";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -208,7 +208,7 @@ export const BEH_RESEARCH_FIRST: BehaviorDescriptor = {
       reason:
         `[${BEHAVIOR_ID}] stage:discovery verdict required before writing spec files ` +
         `(research-first). Target: "${targetPath}". ` +
-        `Seal it via: hima hook stage-advance --stage discovery --status done`,
+        `Seal it via: norm hook stage-advance --stage discovery --status done`,
       behaviorId: BEHAVIOR_ID,
       violationType: "RESEARCH_FIRST",
     };

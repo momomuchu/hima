@@ -20,7 +20,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import type { StageVerdict } from "@hima/schemas";
+import type { StageVerdict } from "@norm/schemas";
 import { mergeTeamOutputs } from "../src/team-merge.js";
 
 // ---------------------------------------------------------------------------

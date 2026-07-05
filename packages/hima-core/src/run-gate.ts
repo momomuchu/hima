@@ -1,11 +1,11 @@
-import type { GateEvent, GateVerdict } from "@hima/schemas";
+import type { GateEvent, GateVerdict } from "@norm/schemas";
 import { getCell } from "./capability-map-v3.js";
 import { pickAttack } from "./forcing-primitive.js";
 import { readRegister } from "./skill-state.js";
 import { dispatchTranslate } from "./dispatch.js";
 import type { DispatchResponse } from "./dispatch.js";
 import type { RuntimeTarget } from "./capability-map-v3.js";
-import type { ForceAction } from "@hima/schemas";
+import type { ForceAction } from "@norm/schemas";
 
 /**
  * run-gate — orchestrate a full gate evaluation cycle.

@@ -1,4 +1,4 @@
-import type { SigilMatch } from "@hima/schemas";
+import type { SigilMatch } from "@norm/schemas";
 
 /**
  * keyword — sigil detection for pipeline entry-points.

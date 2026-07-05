@@ -1,8 +1,8 @@
 import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { Schema } from "effect";
-import { SkillRef, decodeSkillRef } from "@hima/schemas";
-import { safeAtomicWriteFile } from "@hima/storage-core";
+import { SkillRef, decodeSkillRef } from "@norm/schemas";
+import { safeAtomicWriteFile } from "@norm/storage-core";
 
 /**
  * skill-state — session skill register persisted at .hima/state/skill-sessions.json.

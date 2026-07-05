@@ -4,7 +4,7 @@
  * evaluateGate() is the central policy combiner for the PFV4 runtime kernel.
  * It runs every BehaviorDescriptor whose `gates` array includes the current
  * event's gateType, then reduces the individual BehaviorVerdicts into a single
- * GateVerdict compatible with @hima/schemas.
+ * GateVerdict compatible with @norm/schemas.
  *
  * Aggregation rules:
  *   1. block  — first blocking verdict wins; remaining behaviors are still run
@@ -25,7 +25,7 @@
  *      ARCHITECTURE-v3.md §3.4.
  */
 
-import type { GateVerdict } from "@hima/schemas";
+import type { GateVerdict } from "@norm/schemas";
 import type { BehaviorContext, BehaviorDescriptor, BehaviorVerdict } from "../behavior-core/types.js";
 
 // ---------------------------------------------------------------------------

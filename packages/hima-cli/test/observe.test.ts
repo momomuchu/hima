@@ -1,5 +1,5 @@
 /**
- * observe.test.ts — unit tests for the trace renderer in @hima/cli.
+ * observe.test.ts — unit tests for the trace renderer in @norm/cli.
  *
  * All functions under test are pure (no I/O), so tests run with no filesystem
  * setup. Each describe block covers one exported function.
@@ -22,7 +22,7 @@ import {
   renderObserve,
   type TraceFilter,
 } from "../src/observe.js";
-import type { TraceEvent } from "@hima/schemas";
+import type { TraceEvent } from "@norm/schemas";
 
 // ---------------------------------------------------------------------------
 // Fixtures

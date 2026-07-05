@@ -14,7 +14,7 @@
  *   3. post-tool-use after the working tree actually changed → real
  *      "git diff --stat HEAD" line (hasChangesSince(base, current) === true)
  *
- * Pre-condition: `pnpm --filter @hima/cli build` must have run before this
+ * Pre-condition: `pnpm --filter @norm/cli build` must have run before this
  * suite executes; also requires a real `git` binary on PATH.
  */
 

@@ -1,11 +1,11 @@
 {
-  "name": "@hima/cli",
+  "name": "@norm/cli",
   "version": "0.1.0-alpha.1",
   "private": true,
   "type": "module",
   "engines": { "node": ">=20" },
   "bin": {
-    "hima": "./dist/index.js"
+    "norm": "./dist/index.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -23,8 +23,8 @@
   },
   "dependencies": {
     "effect": "^3",
-    "@hima/core": "workspace:*",
-    "@hima/schemas": "workspace:*",
-    "@hima/storage-core": "workspace:*"
+    "@norm/core": "workspace:*",
+    "@norm/schemas": "workspace:*",
+    "@norm/storage-core": "workspace:*"
   }
 }

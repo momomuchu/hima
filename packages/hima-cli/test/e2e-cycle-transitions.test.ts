@@ -11,7 +11,7 @@
  *   (d) pre-tool-use Write spec file → exit 0 (research sealed, allowed).
  *   (e) stage-advance remaining stages through verify=done → ledger file appears.
  *
- * Pre-condition: `pnpm --filter @hima/cli build` must have run before this suite.
+ * Pre-condition: `pnpm --filter @norm/cli build` must have run before this suite.
  */
 
 import { spawnSync } from "node:child_process";
@@ -25,7 +25,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { resumeWard, markLoaded } from "@hima/core";
+import { resumeWard, markLoaded } from "@norm/core";
 
 // ---------------------------------------------------------------------------
 // Constants

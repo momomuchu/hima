@@ -11,7 +11,7 @@
  * The live PreToolUse payload carries no field that distinguishes main-thread
  * from sub-agent context (confirmed by integration survey), so this marker IS
  * the signal. It is written by:
- *   (a) `hima delegate` — the explicit, runtime-agnostic seal a lane runs at
+ *   (a) `norm delegate` — the explicit, runtime-agnostic seal a lane runs at
  *       its start (SPEC-018 D-004), and
  *   (b) auto, on sub-agent start, for the child session id.
  *

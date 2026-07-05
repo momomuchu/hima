@@ -1,5 +1,5 @@
 {
-  "name": "@hima/storage-core",
+  "name": "@norm/storage-core",
   "version": "0.0.0",
   "private": true,
   "type": "module",

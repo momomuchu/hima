@@ -14,7 +14,7 @@
  * for those two stages (only floor-skills.ts, a fully unreferenced duplicate
  * module, was incomplete).
  *
- * Pre-condition: `pnpm --filter @hima/cli build` must have run before this suite.
+ * Pre-condition: `pnpm --filter @norm/cli build` must have run before this suite.
  */
 
 import { spawnSync } from "node:child_process";
@@ -23,7 +23,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { createWard, advanceStage, markLane } from "@hima/core";
+import { createWard, advanceStage, markLane } from "@norm/core";
 
 // ---------------------------------------------------------------------------
 // Constants

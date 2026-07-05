@@ -16,7 +16,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import type { ForceAction } from "@hima/schemas";
+import type { ForceAction } from "@norm/schemas";
 import { translateCodex } from "../src/adapter-codex.js";
 
 // ---------------------------------------------------------------------------
@@ -173,7 +173,7 @@ describe("translateCodex — deferred-block", () => {
   it("returns continue exit 0 (verdict persisted by caller)", () => {
     const action: ForceAction = {
       kind: "deferred-block",
-      verdictFile: "/tmp/hima-verdict.json",
+      verdictFile: "/tmp/norm-verdict.json",
       reason: "hermes enforcement deferred to stop hook",
       resolveOn: ["stop"],
     };

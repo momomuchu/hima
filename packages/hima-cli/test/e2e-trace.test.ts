@@ -1,15 +1,15 @@
 /**
- * e2e-trace.test.ts — integration test for @hima/cli observability pipeline.
+ * e2e-trace.test.ts — integration test for @norm/cli observability pipeline.
  *
  * Proves the full trace-emission → trace-viewer cycle:
  *   1. user-prompt-submit with "ulw" sigil → exit 0, trace line written.
  *   2. pre-tool-use Write (ward at discovery, skill absent) → exit 2 (block),
  *      trace line written.
  *   3. <root>/.hima/state/trace/s1.jsonl exists with ≥2 lines.
- *   4. `hima trace --session s1 --root <root>` → exit 0, stdout contains
+ *   4. `norm trace --session s1 --root <root>` → exit 0, stdout contains
  *      a "block" line in the timeline.
  *
- * Pre-condition: `pnpm --filter @hima/cli build` must have run before this
+ * Pre-condition: `pnpm --filter @norm/cli build` must have run before this
  * suite executes (dist/index.js must exist).
  */
 
@@ -109,8 +109,8 @@ describe("e2e-trace — full observability pipeline", () => {
     }
   });
 
-  // Phase 4: hima trace command renders the session timeline with a block line
-  it("Phase 4: hima trace --session s1 → exit 0, stdout has block line", () => {
+  // Phase 4: norm trace command renders the session timeline with a block line
+  it("Phase 4: norm trace --session s1 → exit 0, stdout has block line", () => {
     const { status, stdout } = spawnCli(
       ["trace", "--session", SESSION_ID],
     );
@@ -122,7 +122,7 @@ describe("e2e-trace — full observability pipeline", () => {
   });
 
   // Bonus: --json flag returns valid JSON array
-  it("Bonus: hima trace --session s1 --json → valid JSON array", () => {
+  it("Bonus: norm trace --session s1 --json → valid JSON array", () => {
     const { status, stdout } = spawnCli(
       ["trace", "--session", SESSION_ID, "--json"],
     );
@@ -134,7 +134,7 @@ describe("e2e-trace — full observability pipeline", () => {
   });
 
   // Bonus: --only-blocks flag shows only the block event
-  it("Bonus: hima trace --session s1 --only-blocks → timeline has only block lines", () => {
+  it("Bonus: norm trace --session s1 --only-blocks → timeline has only block lines", () => {
     const { status, stdout } = spawnCli(
       ["trace", "--session", SESSION_ID, "--only-blocks"],
     );
@@ -145,7 +145,7 @@ describe("e2e-trace — full observability pipeline", () => {
     expect(arrowLines.every((l) => l.includes("-> block"))).toBe(true);
   });
 
-  // Alias: hima observe works the same as hima trace
+  // Alias: hima observe works the same as norm trace
   it("Alias: hima observe --session s1 → same output as trace", { timeout: 30_000 }, () => {
     const traceResult = spawnCli(["trace", "--session", SESSION_ID]);
     const observeResult = spawnCli(["observe", "--session", SESSION_ID]);
@@ -155,11 +155,11 @@ describe("e2e-trace — full observability pipeline", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Safety: hima trace with unknown session → graceful exit
+// Safety: norm trace with unknown session → graceful exit
 // ---------------------------------------------------------------------------
 
 describe("e2e-trace — safety cases", () => {
-  it("hima trace --session nonexistent → exit 0, shows no trace events", () => {
+  it("norm trace --session nonexistent → exit 0, shows no trace events", () => {
     const { status, stdout } = spawnCli(
       ["trace", "--session", "nonexistent-session-xyz"],
     );
@@ -168,7 +168,7 @@ describe("e2e-trace — safety cases", () => {
     expect(stdout).toContain("no trace events");
   });
 
-  it("hima trace with no --session and no trace files → exit 1 with helpful message", () => {
+  it("norm trace with no --session and no trace files → exit 1 with helpful message", () => {
     // Use a fresh empty root to avoid picking up the shared session
     const emptyRoot = mkdtempSync(path.join(tmpdir(), "hima-trace-empty-"));
     try {

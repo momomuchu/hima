@@ -1,6 +1,6 @@
 import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
-import { safeAtomicWriteFile } from "@hima/storage-core";
+import { safeAtomicWriteFile } from "@norm/storage-core";
 
 /**
  * codex-subagent — poll-file compensation for Codex subagent_start absence.

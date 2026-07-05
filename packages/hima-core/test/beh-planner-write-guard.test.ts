@@ -30,7 +30,7 @@
 import { describe, it, expect } from "vitest";
 import { BEH_PLANNER_WRITE_GUARD } from "../src/behavior-core/beh-planner-write-guard.js";
 import type { BehaviorContext, BehaviorVerdict } from "../src/behavior-core/types.js";
-import type { Ward } from "@hima/schemas";
+import type { Ward } from "@norm/schemas";
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -278,8 +278,8 @@ describe("BEH_PLANNER_WRITE_GUARD — extended coverage", () => {
     );
     expect(result.decision).toBe("block");
     expect(result.reason).toMatch(/discovery/);
-    // Remediation command is now the friendlier `hima advance` (was `hima hook stage-advance`).
-    expect(result.reason).toMatch(/hima advance/);
+    // Remediation command is now the friendlier `norm advance` (was `norm hook stage-advance`).
+    expect(result.reason).toMatch(/norm advance/);
   });
 
   it("R. descriptor id is BEH-PLANNER-WRITE-GUARD", () => {

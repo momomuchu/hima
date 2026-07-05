@@ -6,7 +6,7 @@ import { Schema } from "effect";
  * @harness CLI provided (GateEvaluated events) but in the lean v3 shape.
  *
  * Consumed by: hima ledger queries, dashboards, tests, post-run audits.
- * Written by:  @hima/core runGate (via appendFile or storage-core append).
+ * Written by:  @norm/core runGate (via appendFile or storage-core append).
  *
  * See: docs/specs/SPEC-007-adapter-hermes.md, .planning/architecture/ARCHITECTURE-v3.md §3.2
  */

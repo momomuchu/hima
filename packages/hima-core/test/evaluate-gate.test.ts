@@ -17,7 +17,7 @@
 import { describe, it, expect } from "vitest";
 import { evaluateGate } from "../src/gates-core/evaluate-gate.js";
 import type { BehaviorContext, BehaviorDescriptor } from "../src/behavior-core/types.js";
-import type { GateEvent } from "@hima/schemas";
+import type { GateEvent } from "@norm/schemas";
 
 // ---------------------------------------------------------------------------
 // Fixtures

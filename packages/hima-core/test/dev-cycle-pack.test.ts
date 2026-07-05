@@ -1,4 +1,4 @@
-import { DEV_CYCLE, decodeCycleDef } from "@hima/schemas";
+import { DEV_CYCLE, decodeCycleDef } from "@norm/schemas";
 import { describe, expect, it } from "vitest";
 import {
   BASE_META_SKILLS,
@@ -59,14 +59,14 @@ describe("BASE_META_SKILLS", () => {
     const ids = BASE_META_SKILLS.map((ref) => ref.id).sort();
     expect(ids).toEqual(
       [
-        "hima-admit",
-        "hima-covenant",
-        "hima-lookout",
-        "hima-muster",
-        "hima-parley",
-        "hima-purge",
-        "hima-triage",
-        "hima-warden",
+        "norm-admit",
+        "norm-covenant",
+        "norm-lookout",
+        "norm-muster",
+        "norm-parley",
+        "norm-purge",
+        "norm-triage",
+        "norm-warden",
       ].sort(),
     );
   });
@@ -88,13 +88,13 @@ describe("DEV_CYCLE_PACK_SKILLS", () => {
     const ids = DEV_CYCLE_PACK_SKILLS.map((ref) => ref.id).sort();
     expect(ids).toEqual(
       [
-        "hima-blueprint",
-        "hima-charter",
-        "hima-forge",
-        "hima-stewardship",
-        "hima-survey",
-        "hima-trial",
-        "hima-verdict",
+        "norm-blueprint",
+        "norm-charter",
+        "norm-forge",
+        "norm-stewardship",
+        "norm-survey",
+        "norm-trial",
+        "norm-verdict",
       ].sort(),
     );
   });

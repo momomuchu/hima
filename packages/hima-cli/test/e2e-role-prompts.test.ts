@@ -11,7 +11,7 @@
  * user-prompt-submit's additionalContext for a planner-stage ward, IN ADDITION
  * to the pre-existing one-line "[HIMA role:planner]" fallback.
  *
- * Pre-condition: `pnpm --filter @hima/cli build` must have run before this suite.
+ * Pre-condition: `pnpm --filter @norm/cli build` must have run before this suite.
  */
 
 import { spawnSync } from "node:child_process";

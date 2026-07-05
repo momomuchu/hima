@@ -17,7 +17,7 @@
  *   m. impl   + H + Write + .hima/plans/p.md              → allow (.hima)
  *   n. impl   + H + Write + undefined path                → allow (defensive)
  *   o. impl   + H + Write + src/x.ts + soloWaiver         → allow (escape hatch)
- *   p. block reason names implementer + verifier + `hima delegate`
+ *   p. block reason names implementer + verifier + `norm delegate`
  *
  * Behavior (BEH_DELEGATION_FIRST.evaluate) with a real temp root + lane marker:
  *   q. ward impl + H + Write src + NO marker  → block
@@ -36,7 +36,7 @@ import {
 } from "../src/behavior-core/beh-delegation-first.js";
 import { markLane, markStageDelegation } from "../src/behavior-core/delegation-lane.js";
 import type { BehaviorContext, BehaviorVerdict } from "../src/behavior-core/types.js";
-import type { RiskClass, Ward } from "@hima/schemas";
+import type { RiskClass, Ward } from "@norm/schemas";
 
 // ---------------------------------------------------------------------------
 // Pure decision truth table
@@ -117,11 +117,11 @@ describe("decideDelegationFirst — truth table", () => {
   it("o. impl + H + Write + soloWaiver → allow (escape hatch)", () => {
     expect(decide({ stage: "impl", riskClass: "H", soloWaiver: true }).decision).toBe("allow");
   });
-  it("p. block reason names implementer + verifier + `hima delegate`", () => {
+  it("p. block reason names implementer + verifier + `norm delegate`", () => {
     const d = decide({ stage: "impl", riskClass: "H" });
     expect(d.reason).toMatch(/implementer/i);
     expect(d.reason).toMatch(/verifier/i);
-    expect(d.reason).toMatch(/hima delegate/);
+    expect(d.reason).toMatch(/norm delegate/);
   });
 
   // Property: for any work-bearing stage + write + impl file + no delegation,

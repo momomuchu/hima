@@ -1,0 +1,471 @@
+{
+  "task_id": "spec018-delegation-first",
+  "dod": {
+    "path": ".mnm/dod.lock.md",
+    "sha": "41e4b7e912374e3c1f54052208689762b6d325c9d604ab875f9781702b878b1f"
+  },
+  "harness": [
+    {
+      "path": "/Users/maache/.claude/skills/make-no-mistakes/scripts/budget.sh",
+      "sha": "7bdff653a544c8fb7e9d6e9c62a99a79ee84bb5ea86be417c0e43144f903b90f"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/make-no-mistakes/scripts/check_integrity.sh",
+      "sha": "21ad9d98e26066be444a1b86c3688584b5a4c2b5b542b9ee7fbf8d2a4f337298"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/make-no-mistakes/scripts/check_manifest.sh",
+      "sha": "7d47ba8b5df72db288a643ffa06bd66fe700b0f53a8522bf370636f5a503f293"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/make-no-mistakes/scripts/detect_stack.sh",
+      "sha": "2d4204f813290bb74e6eb294031b1ddf5c5b1b606644d9290096ea217c68ea71"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/make-no-mistakes/scripts/freeze_dod.sh",
+      "sha": "a17c48033979bbb701661fc0ae83542a26a43ece92a8349f09bc533ee8560279"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/make-no-mistakes/scripts/gen_manifest.sh",
+      "sha": "0f020527ae67e4336eb02c9ef98c2cb504cdc0c0af5f44cfab5ed6044bc05e19"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/make-no-mistakes/scripts/hash_anchors.sh",
+      "sha": "19e2af421994cb338ff10e3af4f7c1638254d364652518870d945a8b781c0712"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/make-no-mistakes/scripts/lib.sh",
+      "sha": "44e553b781e509061c0c6a63feb8d928c2c94b04b5de6e1365ec7cd9751e2a66"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/make-no-mistakes/scripts/log_verdict.sh",
+      "sha": "150a3e75c89511bc373b5de6822fb643aef79edd26ab238ced5fb0addd36fefa"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/make-no-mistakes/scripts/mnm-loop.sh",
+      "sha": "45dbb0cabf1f153244d97c06aba28904b6e3d10b5c93c7b8150fbb5902feef9e"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/make-no-mistakes/scripts/mnm_start.sh",
+      "sha": "cf0255b56c444f92fd6c80afc78d55a5bb92beac53db315b3795c7d462a5e2d6"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/make-no-mistakes/scripts/mutation_gate.sh",
+      "sha": "821b2b4fcf3691252121b43dc0eefe3044426bfcef3d039747a035cc26c23654"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/make-no-mistakes/scripts/run_gates.sh",
+      "sha": "17883f4642dc48555ec3984372f2e7ff6e3a4124e88621a61b0b4e659b4d4ee6"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/make-no-mistakes/scripts/verify_confirm.sh",
+      "sha": "b8b8ef4a39e08ab6525a1773f4b19f0cb14452dc937a663928806d3b230a0731"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/make-no-mistakes/scripts/check_traceability.py",
+      "sha": "c59081bc62e286ca82a2076d50dd3dd22f8275afb052b21272e2ccfcad3219e1"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/make-no-mistakes/scripts/detect_oscillation.py",
+      "sha": "8b363f5d7ab976d9d5fd7ee554ecfd8d5005275b85a18d6de2a3b6c9a09b3e69"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/make-no-mistakes/scripts/mutate.py",
+      "sha": "580fb83352197004513b574b0ede5bf0563555b483164c577a5f39ec0cc8a346"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/make-no-mistakes/scripts/verdict_state.py",
+      "sha": "a46b50ad4145d9d89adf0dede6e4d8c750c995fafc68facc293ba1983eb88a4a"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/make-no-mistakes/hooks/pretooluse-protect.sh",
+      "sha": "a83fcb7a333f8c91dcb2466b3dfc7e95127c1a6415d42a2405eee42dc6493091"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/make-no-mistakes/hooks/stop-loop.sh",
+      "sha": "4a34a1fa71d06627dfdc9120b9a8257ace623cc31db470b86ae3c0298608713c"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/batch-question-interview/SKILL.md",
+      "sha": "61a9f1fcda3ed1a76e4f642297b9c6db4b7748e58a57e8fd5940ad8556c6bd25"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/behavioral-defaults/SKILL.md",
+      "sha": "6193a3d0cfebb4576f4a42cf0e32d7fbff123fe198967f2b4ffc18bbbc25b842"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-activation-retention-lifecycle/SKILL.md",
+      "sha": "ededacc8c9b34f11a15f718cb1a6f4166b70306ca66b8036ce340e7d68378540"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-ai-ml-product-engineering/SKILL.md",
+      "sha": "5f8e5da11167d941924931ab88dee2ec63e1b8d806ce90cf1dda70affd0e7bf9"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-api-design/SKILL.md",
+      "sha": "8f3c9b6e6086f5ee7be98e04041f4f8b261db1d1d3349a6eb579a3741f55ebeb"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-architecture-system-design/SKILL.md",
+      "sha": "8bef57cf9a6a6d92d4f17f13ba9cde26665ff60f4223918218a9001cd06a6bd5"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-brand-marketing-communications/SKILL.md",
+      "sha": "49a2e04dab7e7e1706b1d16a96e1612923d796564ecaa0095c0ee1c19d6dfcad"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-cloud-platform-infrastructure/SKILL.md",
+      "sha": "0a3c70e8d3908bc396cd23efece8b14c14100b7770a9c4203cafc897dc146ec5"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-code-quality-maintainability/SKILL.md",
+      "sha": "083f7b7832c9b999f702386da6f0f078fa82f6ffac499946207b4b43e12fda5a"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-concurrency-distributed-correctness/SKILL.md",
+      "sha": "d413fa33e6a92e969b6b9c9790df7c64d5c78ad7394564b9e1c4ea9f4aba2d6b"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-customer-success-support/SKILL.md",
+      "sha": "d68859bedaa79bef84402babba87a8bf5955d539128e94d08a51bb396596ed1e"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-database-storage-performance/SKILL.md",
+      "sha": "74b552ca2b225a309dfc1809bed16984fc3ff892723bdd09536d4c015a055025"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-developer-productivity-tooling/SKILL.md",
+      "sha": "8f6034cede59727b5e872ccfd8e65cac1f57f3db4c53aac2f1a527db10bb67ee"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-development-sovereignty/SKILL.md",
+      "sha": "92c1f685b64f4381a765ae5458aee2c8be892b3b197490c84c54567bb5667694"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-domain-modeling-ddd/SKILL.md",
+      "sha": "91c9235e6bc05bbd14218365a70cd0b1668363b62d3417157ecae29fa87514b8"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-error-handling-resilience/SKILL.md",
+      "sha": "151e8cfdb4af1874b0d8752d029623a6aad3fd5e13566cf00e0e44060dbc1610"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-growth-distribution/SKILL.md",
+      "sha": "87116d4483a146f36e2f1de6ad6c3d692bf040d8e633acb150e6b2fbee97c496"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-idea-sourcing/SKILL.md",
+      "sha": "414c0357714649ea4217e555bc4136c0a8b8a0e1ceed731fe27739f09fa40702"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-idea-to-pmf/SKILL.md",
+      "sha": "ecb38f5a857fd24b10dfbb42d54610ce2e0fd29ba022403f14946fbd0a19fdfe"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-integration-automation/SKILL.md",
+      "sha": "9b35dae3085cf1433548740e6e06bf608ecca20cadfb9501794de6939aca9b7b"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-landing-page/SKILL.md",
+      "sha": "6e01684ff94031fe7b1e9e81aa7aa6983802ee04d85728f65342cad7546ed56e"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-logo-design/SKILL.md",
+      "sha": "07770f895eaeeea77f3be07ada546dfad0b6034082006be66697159580762dda"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-metrics-analytics-data/SKILL.md",
+      "sha": "94a1b4c0e6fccbe02c56487b6a01d056fa906467f8aaa0b39eefda094c7bbc66"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-observability/SKILL.md",
+      "sha": "b763b8f32a99e55da04c4765379827abfbfbd4762c751c9f3d65d6071f71da77"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-offensive-security-pentesting/SKILL.md",
+      "sha": "d23a3daded65cba77eef19d9112595438c9179eaf65076ac8b6f402960c5e250"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-performance-engineering/SKILL.md",
+      "sha": "f80c4c0b27c005a8c662edd65153ffbdb8fef41f70e70cef6661fd5601c3d99a"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-positioning-messaging-category/SKILL.md",
+      "sha": "28fe8077aa3343b37897bcd95af077a22d39626b4ed2542073634dfc3baab4d1"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-product-goal-sprint-alignment/SKILL.md",
+      "sha": "03424e683fb7b774ea83f03ec8eac3fa9f10ead6449a2d976360dba4f5e590cd"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-product-strategy/SKILL.md",
+      "sha": "ea7bc8f22d838270365701113c90a9b7f2c3d5793c95c590b952b867dbd2e745"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-production-reliability-devops/SKILL.md",
+      "sha": "98778a1d58126d0a01bea4f39403628fbc9e6181247efe97be355ccb5807d051"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-quality-engineering/SKILL.md",
+      "sha": "caa46a6de5975f076980ad012cd9a9f9620d1da812b87d77e73261c39689d4f4"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-saas-finance-unit-economics/SKILL.md",
+      "sha": "a2cd8cf510849b88a8bccf595c1809c3b84154c3a4b24bcf5d007a7a0fb01ec5"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-sales-revenue-operations/SKILL.md",
+      "sha": "d7294170ed8002a5dd0e125b510bcccca1d874c4c3fc3a04abfc6f5314181a61"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-schema-driven-development/SKILL.md",
+      "sha": "8bab1dbd2a1d46ee4107b520865a99a2c1c78b68c923a0dc8f5821912465e283"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-security-privacy-compliance/SKILL.md",
+      "sha": "0d8e44c429a4c5ba6a53a0f6d4a7e536591369b1fded23a340008d65b7ea31e0"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-seo-content-organic-growth/SKILL.md",
+      "sha": "b1c0bb7302ddb93ca892fa7f072195862250670a8d646e9730e8d152ff8de23f"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-software-delivery-governance/SKILL.md",
+      "sha": "7836e96e48bae2c614207b1cc0e6a8e5fdb32427b36697faeaf72505ef08aff0"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-spec-driven-development/SKILL.md",
+      "sha": "3f5521570d51e070afbdcb4e65c7be96ee1c9b96f76c461dc7ff95b6d12353b4"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-specification-requirements/SKILL.md",
+      "sha": "b7a5b8025de97856bda6b01c57137f428cf211295a270ff6040606c74460953c"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-technical-analysis-discovery/SKILL.md",
+      "sha": "860f308062c47ea97456d923015f1039259cacf8167e33d679594bf40857f55b"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-ui-knowledge/SKILL.md",
+      "sha": "b53b542c6e0fd0f69da057619fbd0ed0a80f2b4ab20f4b1b09d79942bbcf03b5"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-ux-research-product-experience/SKILL.md",
+      "sha": "99d7bda6daa45bbb98c0e7a4583a9dc2fc6d4a1db1727df0fbce092af64a8494"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus-web-mobile-platform/SKILL.md",
+      "sha": "7de1af60b8d4622b55ea849e6bcd377fcd108c798be327f06af6b7c881deed68"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/corpus/SKILL.md",
+      "sha": "7b789f9cba465a3e2b15115c0692a2b025c75fe16c36bbb78bb2d33d291b6543"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/governor/SKILL.md",
+      "sha": "b1e7171dc87a293571be04369283e65f073833fd8d0f200655f51abb80d138a1"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/make-no-mistakes/SKILL.md",
+      "sha": "0fceafcb20d002a16bd67144f7bf44c64af7e82020e3c19b460a3a629afb10b1"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/mnm-integrator/SKILL.md",
+      "sha": "523d00bdd7733e9c6e784e57ca5512e244f86843fad6db9fcd2df1958888cd59"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/mnm-planner/SKILL.md",
+      "sha": "d85930dd73b2d46fe8aa8a2f4ee4a102af8a07a658dab228abdca11647015acb"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/mnm-test-author/SKILL.md",
+      "sha": "1b80a539790410d6f08484b88e874a4d89bfa1b455d1b3dbb8bfff4910b4f571"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/mnm-verify/SKILL.md",
+      "sha": "aa7932e831e8451c3a429f7531bdce88459cac2410d74af8fb16bef2747d00db"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/project-disciplines/SKILL.md",
+      "sha": "85d3a581fd4f6d9cf5dd3ad243728755fb40c573886b6f385b6df07b9ee4862c"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/project-init/SKILL.md",
+      "sha": "402828ac6512742ba323b9a4015609368392842d55ca0f90948bb0e3d5ebd6fb"
+    },
+    {
+      "path": "/Users/maache/.claude/skills/youtube-insights/SKILL.md",
+      "sha": "e437bc8a2c015828676c4742ef598cd162373c1641aa6e14e03ebc43e5e46d19"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/acceptance-criteria-writer.md",
+      "sha": "b2b0defffed66d2c3de491c1a1b292731d268354c583a189236f3d8cba9200c1"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/accessibility-reviewer.md",
+      "sha": "7fa947a606392d6abb8f5980adf87f476c48ab4dbc4358dd66d05a0dca5a9ec0"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/adversarial-qa-designer.md",
+      "sha": "581a1c294807af08b2e5499cbc1af9175f670d97c895e0013557b74c2ce47962"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/architecture-antagonist.md",
+      "sha": "4a56a1b28d90e21dd4b4fc18285b0f68f45855c8aa82d8fdbe189c96fe3d9285"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/bb-deep-exploit.md",
+      "sha": "8b51f38b6b7fc76644204366b9e24e59980eddea5909fac293340470b9c17d26"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/bb-deep-recon.md",
+      "sha": "65376791c5223c0ff17807cafc02d6cb83f8d1b6674c25335753f5a3291f3a9f"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/bb-exploit.md",
+      "sha": "a43f4a11c37ae1e0cb02c492f26c8db646184ffe826fdc6b212816bae9c78fd2"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/bb-judge.md",
+      "sha": "74d7d16cf9333dba3860e58d9aaae610ccfd7c9024c58164cf91b0d3893ae4eb"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/bb-orchestrator.md",
+      "sha": "5ac9ac1d94c290db552c69c5a6202baa07a1520798cefd81b0a53929e0a14a3d"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/bb-recon.md",
+      "sha": "5a9f65d4b9aabaacfbf9aead35a95c36182b6d4e7ebd04843a23d5c0c7e2b10e"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/bb-submitter.md",
+      "sha": "037615c4b5f3fa7ab8cb66e65790dbf4339e77d3f8807e7510a0eef6df0aa993"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/blast-radius-mapper.md",
+      "sha": "3a05361b01cfbc09cb62af4c47b47d2a539d959186660e4c361fec2b85aba979"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/code-reviewer.md",
+      "sha": "7efdfb15ab19deb7a6cd01fdc9b4abdf0f5f176b34a77bb050f63d6a8d65528c"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/codebase-auditor.md",
+      "sha": "de277b971fa77fe1cabc7cf465ca9667bc020e56794ab231847eb353c4cf500c"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/constraint-risk-analyst.md",
+      "sha": "f9a69e23e75d56f0ae6251912ddabb58f0378643d13bde7a743186442879c674"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/contract-guardian.md",
+      "sha": "e3bc89b8c1bc52a404964042571575640b2ae1e3570143ab7d0c4d61c29336a8"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/delivery-constraint-scout.md",
+      "sha": "c06a0437712f00dc4fb280ebe5ccff09b7b033be2ae51e0aff2faafe92659528"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/evidence-collector.md",
+      "sha": "49dc8a806c5e5b72898ab5819f6e391b16ac7e7af3a390341fd8739e3b1c5b0e"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/implementation-executor.md",
+      "sha": "7277b0c1865aa85e448d85c2fbedafe8d9d3eb2673d7273b8e53c885a9154ee2"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/integration-researcher.md",
+      "sha": "39932324b5b508884c58191da5a54bc0010744cfab503f2ab8924fdcb9b21bff"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/maintainability-reviewer.md",
+      "sha": "656ad962a5e198be22ff78df89cb782d1d40e72b6a2fa586d0462c6e68f0b670"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/observability-reviewer.md",
+      "sha": "d6550c5feb32ce5903070fbf37ff33e3c0d54094f67a55e28a2ea77b5cac29da"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/performance-constraint-scout.md",
+      "sha": "fc618df5a725f65e1572649f4212711c945c0db996f622c92bb12087b957ffcd"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/performance-profiler.md",
+      "sha": "2f0695ef1cd4129507067c61f3554aa61400d841fac5f38a1b63e4a9f09e1978"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/planner.md",
+      "sha": "49bf56c77a22694116f9b0f7b60df7adc66609fc91b4509e2f4444f4c5b943cd"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/product-constitution-keeper.md",
+      "sha": "215d8a07d692bbe8d7187e58c2d6f110ec7cfb51abaac66fb7a16282d9b94086"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/release-gate-judge.md",
+      "sha": "575d4fb89e4bc7da73d7725e7aea8c8488394e5b6aff0a8b771d526480fc945f"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/requirements-analyst.md",
+      "sha": "f16ac1347e6a527290d53d506476d5f2a08eb869dd3132183dd53de48f462de5"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/retro-facilitator.md",
+      "sha": "89cb60491ac83f5f50c4f738eecb133a6b41dda7cfe76c7dd332cace61b0fd08"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/runtime-gap-detector.md",
+      "sha": "716df256fa20f734088f073c730926ef738058a43772fd07407f321c632e6399"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/security-gatekeeper.md",
+      "sha": "d1e4d9ffee3687703b2050dbf05825371cba19b83faa76a41016e6af6a48f170"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/security-specialist-router.md",
+      "sha": "800871b1224907e76c2615b44807be86b96687b11e1d091d37aafd30899cffd3"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/spec-synthesis-lead.md",
+      "sha": "c3dc90cc11b19657e847ff22a861fea334a6bd2281807f700bbbaa7f5139b441"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/tdd-guide.md",
+      "sha": "fe57c3672744b91bf8c96c8acb311ac61a87e4bedcfade4082c44e8d0d96dea9"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/test-writer.md",
+      "sha": "921eed1f5b1b40f63924a37e546b7a5df3c3c9ee7e791a2c87d5513e52a2ecc5"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/threat-modeler.md",
+      "sha": "f0d432563057fe903ad75e7f972648af78c4331c9395a82d754658cf122664c6"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/traceability-mapper.md",
+      "sha": "ac09bad6a43f3d243f6f6963e712a14655478cd21204f8962ce0275cf08b04d0"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/ux-constraint-scout.md",
+      "sha": "9757cf60bdce9e6f981bb16b998dd84bc4c5c06cd448fbf6dc819f2faca8779c"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/ux-flow-reviewer.md",
+      "sha": "557df28e2a0838416ae443506a1e07db4ec72a8908627874a428f00a5fb10259"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/vision-cartographer.md",
+      "sha": "fd6489febaef7a59839b070afd304caa96a488a89e470567dc2e53cd4c132e55"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/vulnerability-judge.md",
+      "sha": "3c545288c93b0e1cc4b7d81a3fafe6a53fe67a8e02b1317148ea0e001cdf6dd1"
+    },
+    {
+      "path": "/Users/maache/.claude/agents/watcher.md",
+      "sha": "5bcbed6cba56dccceae6906e85c1ab85d76e1e491fb49452ecdb8273da3119f8"
+    }
+  ],
+  "rubric": [],
+  "tests": []
+}

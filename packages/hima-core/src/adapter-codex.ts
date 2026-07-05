@@ -1,4 +1,4 @@
-import type { ForceAction } from "@hima/schemas";
+import type { ForceAction } from "@norm/schemas";
 
 /**
  * adapter-codex — translate a ForceAction into the Codex runtime response shape.

@@ -1,9 +1,9 @@
 /**
- * observe — pure, testable trace renderer for @hima/cli.
+ * observe — pure, testable trace renderer for @norm/cli.
  *
  * Reads an array of TraceEvent records (loaded by the caller from
  * `.hima/state/trace/<sessionId>.jsonl`) and produces human-readable strings
- * for the `hima trace` / `hima observe` command.
+ * for the `norm trace` / `hima observe` command.
  *
  * All functions are pure (no I/O, no side-effects) so they can be unit-tested
  * without touching the filesystem.
@@ -16,7 +16,7 @@
  *   renderObserve      — summary of ALL events + timeline of FILTERED events
  */
 
-import type { TraceEvent } from "@hima/schemas";
+import type { TraceEvent } from "@norm/schemas";
 
 // ---------------------------------------------------------------------------
 // TraceFilter
@@ -203,7 +203,7 @@ export function renderSummary(events: TraceEvent[]): string {
 // ---------------------------------------------------------------------------
 
 /**
- * renderObserve — canonical combined output for `hima trace` / `hima observe`.
+ * renderObserve — canonical combined output for `norm trace` / `hima observe`.
  *
  * = renderSummary(ALL events) + blank line + renderTimeline(FILTERED events)
  *

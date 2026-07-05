@@ -2,11 +2,11 @@
  * e2e-advance.test.ts — locks two dogfood follow-up fixes, driven by the real CLI:
  *   1. `--evidence` on stage-advance: StageVerdict.evidence carries real evidence
  *      (previously always []). Closes the R3 demo gap.
- *   2. `hima advance`: the one-command unblock. Seals the CURRENT open stage
+ *   2. `norm advance`: the one-command unblock. Seals the CURRENT open stage
  *      (default status "done") and advances — so a planner-blocked agent can walk
  *      the cycle to `impl` where the planner-write-guard no longer blocks code.
  *
- * Pre-condition: `pnpm --filter @hima/cli build`.
+ * Pre-condition: `pnpm --filter @norm/cli build`.
  */
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync, readFileSync } from "node:fs";
@@ -84,7 +84,7 @@ describe("stage-advance --evidence", () => {
   }, 30_000);
 });
 
-describe("hima advance", () => {
+describe("norm advance", () => {
   it("with no args seals the current open stage (done) and advances", () => {
     bootstrapWard();
     expect(readWard().openStage).toBe("discovery");

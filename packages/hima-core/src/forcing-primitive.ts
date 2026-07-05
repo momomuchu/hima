@@ -20,7 +20,7 @@ import type {
   GateType,
   GateVerdict,
   SkillRef,
-} from "@hima/schemas";
+} from "@norm/schemas";
 
 /** Supported runtime targets. Kept as an inline literal union to avoid sibling imports. */
 export type RuntimeTarget = "claude" | "codex" | "hermes" | "opencode";

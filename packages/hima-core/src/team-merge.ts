@@ -22,7 +22,7 @@
  * See: .planning/architecture/PARALLELIZATION-v3.md §4 — MERGE MODEL.
  */
 
-import type { StageVerdict } from "@hima/schemas";
+import type { StageVerdict } from "@norm/schemas";
 
 // ---------------------------------------------------------------------------
 // Options

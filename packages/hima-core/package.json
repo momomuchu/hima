@@ -1,5 +1,5 @@
 {
-  "name": "@hima/core",
+  "name": "@norm/core",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -19,8 +19,8 @@
   },
   "dependencies": {
     "effect": "^3",
-    "@hima/schemas": "workspace:*",
-    "@hima/storage-core": "workspace:*",
+    "@norm/schemas": "workspace:*",
+    "@norm/storage-core": "workspace:*",
     "picomatch": "^4"
   }
 }

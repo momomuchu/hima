@@ -1,10 +1,10 @@
 /**
- * init.ts — `hima init` onboarding module.
+ * init.ts — `norm init` onboarding module.
  *
- * Implements the SPEC-016 (question set) / SPEC-017 (apply) `hima init` command: a short,
+ * Implements the SPEC-016 (question set) / SPEC-017 (apply) `norm init` command: a short,
  * ordered Q-001..Q-005 flow whose answers become a working `HimaConfig`, plus the same
- * hook-wiring + scaffold side effects `hima setup` already performs (SPEC-017 A-001, "hima
- * init is a superset of hima setup").
+ * hook-wiring + scaffold side effects `norm setup` already performs (SPEC-017 A-001, "hima
+ * init is a superset of norm setup").
  *
  * Design for testability (per the founder's build brief): every question is asked through an
  * injectable `AnswerProvider` — a plain `(prompt) => Promise<string>` function. The default
@@ -19,14 +19,14 @@
  *   - Q-005 = yes → `runSetup()` once per runtime selected at Q-001 (A-002), reusing the
  *     existing hook-wiring/scaffold module unchanged.
  *   - `--generic` flag (opt-in, not a Q-001..Q-005 question) → `HimaConfig.cycle =
- *     GENERIC_DEV_CYCLE`, the corpus-free base-tier pack from `@hima/core` dev-cycle-pack.ts
+ *     GENERIC_DEV_CYCLE`, the corpus-free base-tier pack from `@norm/core` dev-cycle-pack.ts
  *     (SPEC-PRIMITIVE INV-2). See `InitOpts.generic` below.
  *
  * Re-run / merge contract (A-015, INV-4): `runtimes` / `useDevCyclePack` / `enabledSources`
- * are the three top-level keys `hima init` owns — every run overwrites them wholesale to match
+ * are the three top-level keys `norm init` owns — every run overwrites them wholesale to match
  * the current answers (never a stale merge of an old value). `stageSkills` / `roles` / `cycle`
- * are never written by `hima init` and always survive a re-run unchanged. If the existing
- * config file exists but fails to decode, `hima init` errors out naming the file rather than
+ * are never written by `norm init` and always survive a re-run unchanged. If the existing
+ * config file exists but fails to decode, `norm init` errors out naming the file rather than
  * silently overwriting a human's hand-edited data (`[ALWAYS][PRESERVE]`).
  *
  * See: docs/specs/SPEC-016-onboarding-questions.md, docs/specs/SPEC-017-onboarding-apply.md.
@@ -35,9 +35,9 @@
 import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import readline from "node:readline/promises";
-import { decodeHimaConfigEither, GENERIC_DEV_CYCLE, type HimaConfig } from "@hima/core";
-import type { RiskClass, RuntimeTarget } from "@hima/schemas";
-import { safeAtomicWriteFile } from "@hima/storage-core";
+import { decodeHimaConfigEither, GENERIC_DEV_CYCLE, type HimaConfig } from "@norm/core";
+import type { RiskClass, RuntimeTarget } from "@norm/schemas";
+import { safeAtomicWriteFile } from "@norm/storage-core";
 import { Either } from "effect";
 
 import { runSetup } from "./setup.js";
@@ -46,7 +46,7 @@ import { runSetup } from "./setup.js";
 // Public types
 // ---------------------------------------------------------------------------
 
-/** The 4 runtimes `hima init` may wire hooks for (mirrors @hima/schemas RuntimeTarget). */
+/** The 4 runtimes `norm init` may wire hooks for (mirrors @norm/schemas RuntimeTarget). */
 const VALID_RUNTIMES: ReadonlySet<RuntimeTarget> = new Set([
   "claude",
   "codex",
@@ -54,7 +54,7 @@ const VALID_RUNTIMES: ReadonlySet<RuntimeTarget> = new Set([
   "opencode",
 ]);
 
-/** The 3 floors `hima init` offers at Q-004 (C is intentionally never offered — SPEC-016 §2 Q-004). */
+/** The 3 floors `norm init` offers at Q-004 (C is intentionally never offered — SPEC-016 §2 Q-004). */
 const OFFERED_FLOORS: ReadonlySet<RiskClass> = new Set(["T", "M", "H"]);
 
 /**
@@ -99,12 +99,12 @@ export interface InitOpts {
   /** Absolute path to the hima CLI dist entry-point, forwarded to runSetup(). */
   himaBinPath?: string;
   /**
-   * `--generic` CLI flag — select the corpus-free `GENERIC_DEV_CYCLE` (@hima/core
+   * `--generic` CLI flag — select the corpus-free `GENERIC_DEV_CYCLE` (@norm/core
    * dev-cycle-pack.ts) as this project's cycle. This is a flag, not a Q-001..Q-005
    * question: it does not extend or reorder the fixed 5-question flow (SPEC-016 R-001,
-   * `InitAnswers` stays exactly 5 fields). When true, `hima init` writes
+   * `InitAnswers` stays exactly 5 fields). When true, `norm init` writes
    * `HimaConfig.cycle = GENERIC_DEV_CYCLE` — the one intentional, opt-in exception to
-   * the "hima init never writes stageSkills/roles/cycle" contract documented above
+   * the "norm init never writes stageSkills/roles/cycle" contract documented above
    * (A-015/INV-4): omit `--generic` (the default) and a re-run still leaves any
    * hand-edited `cycle` completely untouched.
    */
@@ -182,7 +182,7 @@ export async function runInit(opts: InitOpts): Promise<InitResult> {
   const decoded = decodeHimaConfigEither(merged);
   if (Either.isLeft(decoded)) {
     throw new Error(
-      `hima init: internal error — computed config failed to decode: ${String(decoded.left)}`,
+      `norm init: internal error — computed config failed to decode: ${String(decoded.left)}`,
     );
   }
 
@@ -217,8 +217,8 @@ export async function runInit(opts: InitOpts): Promise<InitResult> {
       if (runtime === "opencode") {
         // OQ-5 (SPEC-016 §4): runSetup does not yet support "opencode" hook-wiring.
         messages.push(
-          'runtime "opencode": hook wiring is not yet supported by hima setup (SPEC-016 OQ-5)' +
-            " — wire manually, or re-run hima setup once opencode support ships.",
+          'runtime "opencode": hook wiring is not yet supported by norm setup (SPEC-016 OQ-5)' +
+            " — wire manually, or re-run norm setup once opencode support ships.",
         );
         continue;
       }
@@ -227,7 +227,7 @@ export async function runInit(opts: InitOpts): Promise<InitResult> {
       messages.push(...result.messages);
     }
   } else {
-    messages.push('Hooks not wired this run — run "hima setup" manually when ready.');
+    messages.push('Hooks not wired this run — run "norm setup" manually when ready.');
   }
 
   return { root, configPath, riskPath, examplePath, answers, wired, messages };
@@ -280,7 +280,7 @@ async function askAll(ask: AnswerProvider, defaults: InitAnswers): Promise<InitA
     id: "hooks",
     text:
       "Q5. Wire hima's hooks into the runtime(s) selected in Q1 now? " +
-      "(idempotent — safe to re-run any time via hima setup)",
+      "(idempotent — safe to re-run any time via norm setup)",
     defaultRaw: defaults.wireHooksNow ? "yes" : "no",
   });
   const wireHooksNow = parseBoolean(hooksRaw, defaults.wireHooksNow);
@@ -337,7 +337,7 @@ function parseFloor(raw: string, fallback: RiskClass): RiskClass {
  * Build the config object to write, given the (possibly undefined) existing decoded config and
  * this run's answers.
  *
- * `runtimes` / `useDevCyclePack` / `enabledSources` are the three keys `hima init` owns — they
+ * `runtimes` / `useDevCyclePack` / `enabledSources` are the three keys `norm init` owns — they
  * are always replaced wholesale by the current run's answers (A-002/A-004/A-005), never merged
  * with a stale prior value. `stageSkills` / `roles` / `cycle` are never referenced here, so they
  * pass through from `existing` completely untouched (A-015, INV-4).
@@ -373,7 +373,7 @@ function buildMergedConfig(
 /**
  * Read + decode the existing .hima/config.json, if any.
  * Returns undefined when the file does not exist.
- * Throws when the file exists but is not valid JSON or fails HimaConfig decode — hima init
+ * Throws when the file exists but is not valid JSON or fails HimaConfig decode — norm init
  * must never silently overwrite a hand-edited config it cannot understand (A-015).
  */
 async function tryReadExistingConfig(configPath: string): Promise<HimaConfig | undefined> {
@@ -390,14 +390,14 @@ async function tryReadExistingConfig(configPath: string): Promise<HimaConfig | u
     parsed = JSON.parse(raw) as unknown;
   } catch {
     throw new Error(
-      `hima init: ${configPath} exists but is not valid JSON — fix or delete it before re-running hima init.`,
+      `norm init: ${configPath} exists but is not valid JSON — fix or delete it before re-running norm init.`,
     );
   }
 
   const result = decodeHimaConfigEither(parsed);
   if (Either.isLeft(result)) {
     throw new Error(
-      `hima init: ${configPath} exists but does not decode as a valid HimaConfig — fix or delete it before re-running hima init.`,
+      `norm init: ${configPath} exists but does not decode as a valid HimaConfig — fix or delete it before re-running norm init.`,
     );
   }
   return result.right;
@@ -463,13 +463,13 @@ const CONFIG_EXAMPLE_JSONC = `// .hima/config.example.jsonc — starter referenc
 // would decode-succeed yet persist as confusing dead data rather than documentation.
 //
 // Precedence (highest wins): stageSkills/roles hand-edits > a custom "cycle" > the shipped
-// default dev-cycle pack (DEV_CYCLE). hima init v1 never writes stageSkills/roles/cycle itself
+// default dev-cycle pack (DEV_CYCLE). norm init v1 never writes stageSkills/roles/cycle itself
 // (SPEC-017 §0.1) — those remain hand-edit-only.
 {
-  // Per-stage force/inject overrides (hand-edit only; hima init never writes this).
+  // Per-stage force/inject overrides (hand-edit only; norm init never writes this).
   "stageSkills": {
     "discovery": {
-      "force": [{ "source": "base", "id": "hima-survey" }],
+      "force": [{ "source": "base", "id": "norm-survey" }],
       "inject": []
     }
   },
@@ -479,23 +479,23 @@ const CONFIG_EXAMPLE_JSONC = `// .hima/config.example.jsonc — starter referenc
   // SPEC-PRIMITIVE INV-2).
   // "cycle": { "id": "my-cycle", "name": "My Cycle", "stages": [] },
 
-  // Per-role subagent overrides (hand-edit only; hima init never writes this).
+  // Per-role subagent overrides (hand-edit only; norm init never writes this).
   "roles": {
     "executor": {
       "model": "sonnet"
     }
   },
 
-  // Written by \`hima init\` Q-001 — which coding-agent runtime(s) this project targets.
-  // Bookkeeping only for hima init's own hook-wiring loop; a live gate event's runtime always
+  // Written by \`norm init\` Q-001 — which coding-agent runtime(s) this project targets.
+  // Bookkeeping only for norm init's own hook-wiring loop; a live gate event's runtime always
   // comes from the hook invocation context, never from this field.
   "runtimes": ["claude"],
 
-  // Written by \`hima init\` Q-002. Present + false = opt out of the shipped default dev-cycle
+  // Written by \`norm init\` Q-002. Present + false = opt out of the shipped default dev-cycle
   // pack's forced skills. Omitted (the default) = use the shipped pack.
   // "useDevCyclePack": false,
 
-  // Written by \`hima init\` Q-003. Allowlist of SkillRef.source tiers this project has declared
+  // Written by \`norm init\` Q-003. Allowlist of SkillRef.source tiers this project has declared
   // available. base/user/project are always safe; "corpus" requires the founder's private
   // excellence-book collection to be installed.
   "enabledSources": ["base", "user", "project"]

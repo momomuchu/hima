@@ -4,15 +4,15 @@
  * Before this wiring, translateOpenCode()/OPENCODE_MAP/dispatch.ts were fully
  * built + unit-tested (25 passing tests) but packages/hima-cli/src/index.ts
  * contained zero occurrences of the string "opencode": the --format/--runtime
- * resolution only recognized codex/hermes, so `hima hook ... --format opencode`
+ * resolution only recognized codex/hermes, so `norm hook ... --format opencode`
  * silently fell back to "claude" — real dispatch to translateOpenCode() was
  * unreachable through the CLI.
  *
- * This suite proves `hima hook pre-tool-use --format opencode` on a skill-force
+ * This suite proves `norm hook pre-tool-use --format opencode` on a skill-force
  * condition reaches the real OpenCode adapter (hard-block, exit 2), analogous
  * to e2e-adapters.test.ts Scenarios A/B for codex/hermes.
  *
- * Pre-condition: `pnpm --filter @hima/cli build` must have run before this suite.
+ * Pre-condition: `pnpm --filter @norm/cli build` must have run before this suite.
  */
 
 import { spawnSync } from "node:child_process";
@@ -21,7 +21,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { createWard } from "@hima/core";
+import { createWard } from "@norm/core";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -102,7 +102,7 @@ describe("R-050 — pre-tool-use --format opencode reaches the real adapter", ()
 // --runtime flag now accepts "opencode" (for the `setup` subcommand parser)
 // ---------------------------------------------------------------------------
 
-describe("R-050 — `hima setup --runtime opencode` is accepted (does not crash / no unknown-flag error)", () => {
+describe("R-050 — `norm setup --runtime opencode` is accepted (does not crash / no unknown-flag error)", () => {
   it("exits successfully (falls back to auto-detect; opencode setup wiring is a separate scope)", () => {
     const root = mkdtempSync(path.join(tmpdir(), "hima-e2e-opencode-setup-"));
     try {

@@ -11,7 +11,7 @@
  *       (executor stage, skill loaded, Read tool) → exit 0 AND additionalContext contains rule body
  *   (d) user-prompt-submit on a full ward (discovery stage) emits "[HIMA role:planner]" context
  *
- * Pre-condition: `pnpm --filter @hima/cli build` must have run (chained by the `test` script).
+ * Pre-condition: `pnpm --filter @norm/cli build` must have run (chained by the `test` script).
  */
 
 import { spawnSync } from "node:child_process";
@@ -20,7 +20,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { createWard, markLoaded, resumeWard } from "@hima/core";
+import { createWard, markLoaded, resumeWard } from "@norm/core";
 
 // ---------------------------------------------------------------------------
 // Constants

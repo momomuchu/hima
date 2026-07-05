@@ -19,8 +19,8 @@
  *      ENTRYPOINTS-v3.md §ENTRY 2: 'corpus-technical-analysis-discovery injected'.
  */
 
-import { RISK_ORDER } from "@hima/schemas";
-import type { RiskClass, SkillRef } from "@hima/schemas";
+import { RISK_ORDER } from "@norm/schemas";
+import type { RiskClass, SkillRef } from "@norm/schemas";
 
 /**
  * Return the research sub-pass canary/context string when the ward's entry point

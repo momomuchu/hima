@@ -17,7 +17,7 @@
  *      ARCHITECTURE-v3.md §3.4.
  */
 
-import type { GateType } from "@hima/schemas";
+import type { GateType } from "@norm/schemas";
 import type { BehaviorDescriptor } from "./types.js";
 import { BEH_023 } from "./beh-023-completion.js";
 import { BEH_READ_BEFORE_WRITE } from "./beh-read-before-write.js";

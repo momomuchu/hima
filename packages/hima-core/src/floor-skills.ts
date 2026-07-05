@@ -10,8 +10,8 @@
  * Source table: ENTRYPOINTS-v3 Part 4 — floor-skill additions per stage.
  */
 
-import { RISK_ORDER } from "@hima/schemas";
-import type { RiskClass, SkillRef } from "@hima/schemas";
+import { RISK_ORDER } from "@norm/schemas";
+import type { RiskClass, SkillRef } from "@norm/schemas";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Floor addition table

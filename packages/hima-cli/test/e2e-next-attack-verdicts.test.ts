@@ -12,7 +12,7 @@
  * DONE_VERIFIED stop at M+ emits the STAGE-SPECIFIC ranked next attack
  * ("open analysis (map the domain)") instead of the generic fallback line.
  *
- * Pre-condition: `pnpm --filter @hima/cli build` must have run before this suite.
+ * Pre-condition: `pnpm --filter @norm/cli build` must have run before this suite.
  */
 
 import { spawnSync } from "node:child_process";
@@ -21,7 +21,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { createWard, advanceStage } from "@hima/core";
+import { createWard, advanceStage } from "@norm/core";
 
 // ---------------------------------------------------------------------------
 // Constants

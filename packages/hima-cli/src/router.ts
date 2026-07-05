@@ -1,9 +1,9 @@
 /**
- * router — event handlers for each hima hook event.
+ * router — event handlers for each norm hook event.
  *
  * Each handler receives the resolved project root, the parsed stdin payload,
  * and the active runtime target (default "claude").
- * Handlers are pure in intent: they call @hima/core logic and emit a Claude
+ * Handlers are pure in intent: they call @norm/core logic and emit a Claude
  * response via claude-format helpers, then return.
  *
  * SAFETY CONTRACT: every handler MUST be wrapped in a try/catch by the caller
@@ -85,17 +85,17 @@ import {
   CRITIC_PROMPTS,
   resolveVariant,
   loadPrompt,
-} from "@hima/core";
+} from "@norm/core";
 import type {
   RuntimeTarget,
   DispatchResponse,
   DeferredVerdict,
   HimaRole,
   VariantTable,
-} from "@hima/core";
+} from "@norm/core";
 
-import { DEV_CYCLE, RISK_ORDER } from "@hima/schemas";
-import type { GateVerdict, TraceEvent, ForceAction, StageVerdict, SkillRef } from "@hima/schemas";
+import { DEV_CYCLE, RISK_ORDER } from "@norm/schemas";
+import type { GateVerdict, TraceEvent, ForceAction, StageVerdict, SkillRef } from "@norm/schemas";
 
 import { emitBlock, emitContext, emitAllow } from "./claude-format.js";
 import type { StdinPayload } from "./stdin.js";
@@ -1495,11 +1495,11 @@ export async function handleStageAdvance(
 }
 
 /**
- * handleAdvance — friendly `hima advance` command (the one-command unblock).
+ * handleAdvance — friendly `norm advance` command (the one-command unblock).
  * Seals the CURRENT open stage (or an explicit --stage) with a status
  * (default "done") and optional --evidence, then advances. A thin convenience
- * wrapper over handleStageAdvance so a stuck agent/user can run `hima advance`
- * instead of the long `hima hook stage-advance --stage X --status done` form.
+ * wrapper over handleStageAdvance so a stuck agent/user can run `norm advance`
+ * instead of the long `norm hook stage-advance --stage X --status done` form.
  * Sets process.exitCode=1 on error (no active ward / invalid status).
  */
 export async function handleAdvance(
@@ -1520,7 +1520,7 @@ export async function handleAdvance(
   const resolvedStatus = status ?? "done";
   if (!VALID.has(resolvedStatus)) {
     process.stderr.write(
-      `[hima advance] invalid --status "${resolvedStatus}"; must be one of ` +
+      `[norm advance] invalid --status "${resolvedStatus}"; must be one of ` +
         `done|done-verified|done-validated|partial|blocked\n`,
     );
     process.exitCode = 1;
@@ -1531,7 +1531,7 @@ export async function handleAdvance(
     const ward = await resumeWard(root);
     if (ward === null) {
       process.stderr.write(
-        "[hima advance] no active ward — submit a prompt first, or pass --stage\n",
+        "[norm advance] no active ward — submit a prompt first, or pass --stage\n",
       );
       process.exitCode = 1;
       return;
@@ -1551,7 +1551,7 @@ export async function handleAdvance(
 /**
  * handleDelegate — SPEC-018 D-004: the explicit Delegation-First seal.
  *
- * `hima delegate` marks the given session as an active delegated lane by
+ * `norm delegate` marks the given session as an active delegated lane by
  * writing a lane marker (.hima/state/lane-<sessionId>.json). A session so
  * marked may perform implementation writes at work-bearing stages without
  * being blocked by BEH_DELEGATION_FIRST — the runtime-agnostic way a spawned
@@ -1567,20 +1567,20 @@ export async function handleDelegate(
 ): Promise<void> {
   if (sessionId === null || sessionId.trim() === "") {
     process.stderr.write(
-      "[hima delegate] no session id — pass --session <id> (or set HIMA_SESSION_ID)\n",
+      "[norm delegate] no session id — pass --session <id> (or set HIMA_SESSION_ID)\n",
     );
     process.exitCode = 1;
     return;
   }
   if (opts.clear === true) {
     clearLane(root, sessionId);
-    process.stdout.write(`[hima delegate] lane marker cleared for session ${sessionId}\n`);
+    process.stdout.write(`[norm delegate] lane marker cleared for session ${sessionId}\n`);
     return;
   }
   const roles = opts.roles ?? [];
   markLane(root, sessionId, { roles });
   process.stdout.write(
-    `[hima delegate] session ${sessionId} marked as a delegated lane` +
+    `[norm delegate] session ${sessionId} marked as a delegated lane` +
       (roles.length > 0 ? ` (roles: ${roles.join(", ")})` : "") +
       ` — implementation writes at work-bearing stages are now permitted for this session.\n`,
   );

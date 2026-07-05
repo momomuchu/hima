@@ -1,5 +1,5 @@
 /**
- * router.test.ts — unit tests for the @hima/cli event router.
+ * router.test.ts — unit tests for the @norm/cli event router.
  *
  * Tests the pure `route(event, payload, root)` function exported from
  * src/index.ts (in addition to readStdinPayload which is already in src/).
@@ -14,7 +14,7 @@
  * produced a dist, these tests import from "../src/index.js" (NodeNext ESM).
  * The spawn-based e2e file uses the built dist and is the primary gate-proof.
  *
- * All tests use a real tmp .hima directory — no mocks of @hima/core or fs.
+ * All tests use a real tmp .hima directory — no mocks of @norm/core or fs.
  */
 
 import { mkdtemp, rm } from "node:fs/promises";
@@ -144,7 +144,7 @@ describe("router — event normalisation", () => {
     expect(result.stdout).toMatch(/\[HIMA\]/);
 
     // Ward must have been written so subsequent gates can resume it.
-    const { resumeWard } = await import("@hima/core");
+    const { resumeWard } = await import("@norm/core");
     const ward = await resumeWard(root);
     expect(ward).not.toBeNull();
     expect(ward?.entryPoint).toBe("full");
@@ -161,7 +161,7 @@ describe("router — event normalisation", () => {
       root,
     );
 
-    const { resumeWard } = await import("@hima/core");
+    const { resumeWard } = await import("@norm/core");
     const ward = await resumeWard(root);
     expect(ward?.openStage).toBe("spec");
     expect(ward?.entryPoint).toBe("spec");
@@ -178,7 +178,7 @@ describe("router — pre-tool-use skill-force block", () => {
     "GIVEN ward at discovery, empty register, toolName=Write → exitCode 2 + block stdout",
     async () => {
       // Bootstrap a ward at openStage "discovery"
-      const { createWard } = await import("@hima/core");
+      const { createWard } = await import("@norm/core");
       await createWard(root, { id: "test-run-001", entryPoint: "full", floor: "H" });
 
       const result = await route(
@@ -198,7 +198,7 @@ describe("router — pre-tool-use skill-force block", () => {
   it(
     "GIVEN ward at discovery (floor M), skill already markLoaded → exitCode 0 (allow)",
     async () => {
-      const { createWard, markLoaded } = await import("@hima/core");
+      const { createWard, markLoaded } = await import("@norm/core");
       // Use floor M: at M, only the base DEV_CYCLE discovery skill is required (no R-017 extras).
       // At floor H, resolveStageForceSkillsForFloor adds extra skills that would also need loading.
       await createWard(root, { id: "test-run-002", entryPoint: "full", floor: "M" });
@@ -223,7 +223,7 @@ describe("router — pre-tool-use skill-force block", () => {
   it(
     "GIVEN ward at discovery, non-write tool (Bash) → exitCode 0 regardless of register",
     async () => {
-      const { createWard } = await import("@hima/core");
+      const { createWard } = await import("@norm/core");
       await createWard(root, { id: "test-run-003", entryPoint: "full", floor: "H" });
 
       const result = await route(
@@ -256,7 +256,7 @@ describe("router — safety: malformed payload never blocks or throws", () => {
   });
 
   it("unknown toolName → pre-tool-use exits 0 (non-write tool path)", async () => {
-    const { createWard } = await import("@hima/core");
+    const { createWard } = await import("@norm/core");
     await createWard(root, { id: "test-run-safe", entryPoint: "full", floor: "H" });
 
     const result = await route(

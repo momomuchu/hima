@@ -9,7 +9,7 @@
  *
  * It is a FORCING-FUNCTION, not an authenticated control: like the planner
  * write-guard, a determined agent can waive it (HIMA_SOLO_OK) or self-seal
- * (`hima delegate`). Its value is interrupting the solo-write reflex and
+ * (`norm delegate`). Its value is interrupting the solo-write reflex and
  * recording an explicit, traced delegation claim.
  *
  * Decision tree (pure, in decideDelegationFirst):
@@ -26,7 +26,7 @@
  * covered by BEH_PLANNER_WRITE_GUARD.
  *
  * "Delegation active" is resolved from two runtime signals (SPEC-018 D-004):
- *   - a per-session lane marker (explicit `hima delegate` seal, or auto on
+ *   - a per-session lane marker (explicit `norm delegate` seal, or auto on
  *     sub-agent start for the child session), and
  *   - a stage-delegation marker stamped when hima observes a real SubagentStart
  *     at this ward+stage — the auto, no-bookkeeping signal (spawning a sub-agent
@@ -44,8 +44,8 @@
  */
 
 import path from "node:path";
-import type { RiskClass } from "@hima/schemas";
-import { RISK_ORDER } from "@hima/schemas";
+import type { RiskClass } from "@norm/schemas";
+import { RISK_ORDER } from "@norm/schemas";
 import type { BehaviorDescriptor, BehaviorContext, BehaviorVerdict } from "./types.js";
 import { isLaneActive, isStageDelegationActive } from "./delegation-lane.js";
 
@@ -151,7 +151,7 @@ export function decideDelegationFirst(input: DelegationFirstInput): DelegationFi
         `separates duties: this stage SHALL be executed by parallel role-based lanes — at ` +
         `least 1 implementer + 1 INDEPENDENT verifier (author is not reviewer). To unblock: ` +
         `spawn a delegated sub-agent / team lane for this stage (hima auto-detects it), or run ` +
-        `\`hima delegate\` inside the lane. Escape hatch: set HIMA_SOLO_OK=1 to waive.`,
+        `\`norm delegate\` inside the lane. Escape hatch: set HIMA_SOLO_OK=1 to waive.`,
     };
   }
   return allow(`criticality "${riskClass}" is below High — Delegation-First inert`);

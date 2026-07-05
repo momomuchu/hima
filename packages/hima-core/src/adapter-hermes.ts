@@ -1,4 +1,4 @@
-import type { ForceAction } from "@hima/schemas";
+import type { ForceAction } from "@norm/schemas";
 import type { ClaudeResponse } from "./adapter-claude.js";
 
 /**

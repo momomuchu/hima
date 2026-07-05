@@ -19,7 +19,7 @@
 
 import { describe, it, expect } from "vitest";
 import { translateHermes } from "../src/adapter-hermes.js";
-import type { ForceAction } from "@hima/schemas";
+import type { ForceAction } from "@norm/schemas";
 
 // ---------------------------------------------------------------------------
 // Fixtures

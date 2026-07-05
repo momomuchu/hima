@@ -25,10 +25,10 @@ if [ ! -f "$CLI_ENTRY" ]; then
 fi
 
 mkdir -p "$BIN_DIR"
-ln -sf "$CLI_ENTRY" "$BIN_DIR/hima"
+ln -sf "$CLI_ENTRY" "$BIN_DIR/norm"
 chmod +x "$CLI_ENTRY"
 
-echo "[install-hima] linked: $BIN_DIR/hima -> $CLI_ENTRY"
+echo "[install-hima] linked: $BIN_DIR/norm -> $CLI_ENTRY"
 case ":$PATH:" in
   *":$BIN_DIR:"*) echo "[install-hima] $BIN_DIR is on your PATH. Run: hima init" ;;
   *) echo "[install-hima] NOTE: add $BIN_DIR to your PATH, e.g.:"

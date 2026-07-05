@@ -6,7 +6,7 @@
  * and the fake-DONE gate silently failed open in real sessions. This locks the fix:
  * the Stop gate reads the transcript and blocks a fake DONE at M+.
  *
- * Pre-condition: `pnpm --filter @hima/cli build`.
+ * Pre-condition: `pnpm --filter @norm/cli build`.
  */
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";

@@ -15,7 +15,7 @@
  *
  *   ALLOW   → exit 0, no stdout (or {"continue":true})
  *
- * See: Claude Code hook documentation, adapter-claude.ts in @hima/core.
+ * See: Claude Code hook documentation, adapter-claude.ts in @norm/core.
  */
 
 /** Write a BLOCK response to stdout and set exitCode=2. */

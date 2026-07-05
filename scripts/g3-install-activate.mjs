@@ -148,7 +148,7 @@ function main() {
   // 1. Load source JSON
   if (!existsSync(sourcePath)) {
     console.error(`[G3-INSTALL] ERROR: activate-skills.json not found at:\n  ${sourcePath}`);
-    console.error("Run the generator first: corepack pnpm --filter @hima/generator build");
+    console.error("Run the generator first: corepack pnpm --filter @norm/generator build");
     process.exit(1);
   }
 

@@ -7,7 +7,7 @@
  * `.hima/security-scope.json` lists a matching target present in the command,
  * the behavior blocks with violationType "SECURITY_SCOPE".
  *
- * Scope file shape (populated via `hima setup --security-scope`):
+ * Scope file shape (populated via `norm setup --security-scope`):
  *   { "authorizedTargets": ["192.168.1.0/24", "example.com", "localhost"] }
  *
  * Resolution logic:
@@ -167,7 +167,7 @@ export const BEH_SECURITY_SCOPE: BehaviorDescriptor = {
       reason:
         `[${BEHAVIOR_ID}] Bash command uses offensive security tool ` +
         `"${detectedTool}" outside an authorized engagement scope. ${scopeHint} ` +
-        `Run \`hima setup --security-scope\` to declare authorized targets before ` +
+        `Run \`norm setup --security-scope\` to declare authorized targets before ` +
         `using offensive tooling.`,
       behaviorId: BEHAVIOR_ID,
       violationType: "SECURITY_SCOPE",

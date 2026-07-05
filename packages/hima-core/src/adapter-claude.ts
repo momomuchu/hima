@@ -1,4 +1,4 @@
-import type { ForceAction } from "@hima/schemas";
+import type { ForceAction } from "@norm/schemas";
 
 /**
  * adapter-claude — translate a ForceAction into the Claude Code runtime response shape.

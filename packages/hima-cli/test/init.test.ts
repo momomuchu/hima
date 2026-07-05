@@ -9,7 +9,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { decodeHimaConfigEither } from "@hima/core";
+import { decodeHimaConfigEither } from "@norm/core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { type AnswerProvider, type InitAnswers, runInit } from "../src/init.js";
@@ -119,7 +119,7 @@ describe("runInit --yes path", () => {
 // ---------------------------------------------------------------------------
 
 describe("runInit --generic flag", () => {
-  it("hima init --yes --generic writes a resolved cycle with ZERO corpus-source skills", async () => {
+  it("norm init --yes --generic writes a resolved cycle with ZERO corpus-source skills", async () => {
     await runInit({ root, yes: true, generic: true });
 
     const raw = readConfig(root) as {
@@ -228,7 +228,7 @@ describe("runInit re-run merge behavior", () => {
     // First run: scaffold the project.
     await runInit({ root, yes: true });
 
-    // Hand-edit the config: add stageSkills + roles that hima init never writes.
+    // Hand-edit the config: add stageSkills + roles that norm init never writes.
     const configPath = path.join(root, ".hima", "config.json");
     const handEdited = {
       ...(readConfig(root) as Record<string, unknown>),

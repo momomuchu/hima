@@ -21,7 +21,7 @@
 
 import { access } from "node:fs/promises";
 import path from "node:path";
-import { safeAtomicWriteFile } from "@hima/storage-core";
+import { safeAtomicWriteFile } from "@norm/storage-core";
 
 // ---------------------------------------------------------------------------
 // SpawnManifest type
@@ -60,7 +60,7 @@ export function spawnManifestPath(root: string, wardId: string, stage: string): 
  *
  * The manifest records which roles have been assigned so `hasSpawnManifest`
  * can confirm the spawn instruction was issued in a subsequent gate check.
- * Uses atomic write via `@hima/storage-core` to prevent partial writes.
+ * Uses atomic write via `@norm/storage-core` to prevent partial writes.
  *
  * @param root      Project root; writes are confined inside it by safeAtomicWriteFile.
  * @param wardId    Ward identifier (e.g. "run-20260630-abc123").

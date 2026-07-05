@@ -5,7 +5,7 @@
  * skills (R-017) wired into the CLI router.
  *
  * All scenarios spawn the BUILT dist/index.js in a fresh tmp .hima root.
- * Pre-condition: `pnpm --filter @hima/cli build` must have run before this suite.
+ * Pre-condition: `pnpm --filter @norm/cli build` must have run before this suite.
  *
  * Scenario A — no-sigil H+ prompt: advisory canary emitted, no ward created.
  *   Prompt "refais l architecture du paiement" has "architecture" (H signal).
@@ -31,7 +31,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { createWard, resumeWard } from "@hima/core";
+import { createWard, resumeWard } from "@norm/core";
 
 // ---------------------------------------------------------------------------
 // Constants

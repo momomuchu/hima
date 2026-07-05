@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 /**
- * @hima/cli — hima hook dispatcher + trace viewer + setup
+ * @norm/cli — norm hook dispatcher + trace viewer + setup
  *
  * Subcommands:
- *   hima hook <event> [--format claude] [--root <dir>]
- *   hima trace [--session <id>] [--root <dir>] [--gate <g>] [--decision <d>]
+ *   norm hook <event> [--format claude] [--root <dir>]
+ *   norm trace [--session <id>] [--root <dir>] [--gate <g>] [--decision <d>]
  *              [--only-blocks] [--json] [--watch]
- *   hima observe  (alias for hima trace)
- *   hima setup [--runtime claude|codex|hermes] [--fresh] [--root <dir>]
- *   hima init  [--yes] [--generic] [--root <dir>]
+ *   hima observe  (alias for norm trace)
+ *   norm setup [--runtime claude|codex|hermes] [--fresh] [--root <dir>]
+ *   norm init  [--yes] [--generic] [--root <dir>]
  *
  * Supported hook events:
  *   session-start | user-prompt-submit | pre-tool-use | post-tool-use |
@@ -52,15 +52,15 @@ import {
   handleSubagentStop,
 } from "./router.js";
 import type { StdinPayload } from "./stdin.js";
-import type { RuntimeTarget } from "@hima/core";
-import type { StageVerdict } from "@hima/schemas";
+import type { RuntimeTarget } from "@norm/core";
+import type { StageVerdict } from "@norm/schemas";
 import { renderObserve, filterTrace, type TraceFilter } from "./observe.js";
 import { runSetup } from "./setup.js";
 import { runInit } from "./init.js";
 
-// Lazy import of readTrace from @hima/core to avoid loading it for hook commands
+// Lazy import of readTrace from @norm/core to avoid loading it for hook commands
 async function getReadTrace() {
-  const { readTrace } = await import("@hima/core");
+  const { readTrace } = await import("@norm/core");
   return readTrace;
 }
 
@@ -444,7 +444,7 @@ async function main(): Promise<void> {
   const root = resolveRoot(parsed.root);
 
   // -------------------------------------------------------------------------
-  // hima setup subcommand
+  // norm setup subcommand
   // -------------------------------------------------------------------------
   if (parsed.subcommand === "setup") {
     // Derive the absolute path to this CLI's dist entry so the wired hooks
@@ -465,7 +465,7 @@ async function main(): Promise<void> {
       });
 
       for (const msg of result.messages) {
-        process.stdout.write(`[hima setup] ${msg}\n`);
+        process.stdout.write(`[norm setup] ${msg}\n`);
       }
 
       const wiredCount = result.wired.length;
@@ -473,21 +473,21 @@ async function main(): Promise<void> {
       const resetCount = result.reset.length;
 
       process.stdout.write(
-        `[hima setup] Done — runtime: ${result.runtime}` +
+        `[norm setup] Done — runtime: ${result.runtime}` +
           `, wired: ${wiredCount}` +
           `, scaffolded: ${scaffoldedCount}` +
           `, reset: ${resetCount}\n`,
       );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      process.stderr.write(`[hima setup] error: ${msg}\n`);
+      process.stderr.write(`[norm setup] error: ${msg}\n`);
       process.exitCode = 1;
     }
     return;
   }
 
   // -------------------------------------------------------------------------
-  // hima init subcommand (SPEC-016/SPEC-017)
+  // norm init subcommand (SPEC-016/SPEC-017)
   // -------------------------------------------------------------------------
   if (parsed.subcommand === "init") {
     const himaBinPath = fileURLToPath(import.meta.url);
@@ -496,29 +496,29 @@ async function main(): Promise<void> {
       const result = await runInit({ root, yes: parsed.yes, himaBinPath, generic: parsed.generic });
 
       for (const msg of result.messages) {
-        process.stdout.write(`[hima init] ${msg}\n`);
+        process.stdout.write(`[norm init] ${msg}\n`);
       }
 
       process.stdout.write(
-        `[hima init] Done — config: ${result.configPath}` +
+        `[norm init] Done — config: ${result.configPath}` +
           `, floor: ${result.answers.floor}` +
           `, runtimes: ${result.answers.runtimes.join(",")}` +
           `, wired: ${result.wired.length}\n`,
       );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      process.stderr.write(`[hima init] error: ${msg}\n`);
+      process.stderr.write(`[norm init] error: ${msg}\n`);
       process.exitCode = 1;
     }
     return;
   }
 
   // -------------------------------------------------------------------------
-  // hima advance — the one-command unblock (seal current open stage + advance)
+  // norm advance — the one-command unblock (seal current open stage + advance)
   // -------------------------------------------------------------------------
   if (parsed.subcommand === "advance") {
     // Unlike hook events (which fail-open so a hook error never blocks the
-    // session), `hima advance` is a user command: an error MUST surface as a
+    // session), `norm advance` is a user command: an error MUST surface as a
     // non-zero exit. Without this catch, a throw (missing ward, or a predecessor
     // gate violation on --status done-verified) escapes to main().catch() and is
     // reported as exit 0 — a governance tool must never lie about success.
@@ -537,14 +537,14 @@ async function main(): Promise<void> {
       );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      process.stderr.write(`[hima advance] error: ${msg}\n`);
+      process.stderr.write(`[norm advance] error: ${msg}\n`);
       process.exitCode = 1;
     }
     return;
   }
 
   // -------------------------------------------------------------------------
-  // hima delegate — SPEC-018 D-004: mark this session as a delegated lane so
+  // norm delegate — SPEC-018 D-004: mark this session as a delegated lane so
   // its implementation writes are not blocked by the Delegation-First gate.
   // -------------------------------------------------------------------------
   if (parsed.subcommand === "delegate") {
@@ -560,14 +560,14 @@ async function main(): Promise<void> {
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      process.stderr.write(`[hima delegate] error: ${msg}\n`);
+      process.stderr.write(`[norm delegate] error: ${msg}\n`);
       process.exitCode = 1;
     }
     return;
   }
 
   // -------------------------------------------------------------------------
-  // hima trace / hima observe subcommand
+  // norm trace / hima observe subcommand
   // -------------------------------------------------------------------------
   if (parsed.subcommand === "trace") {
     // Determine sessionId: explicit --session or most-recently-modified file.
@@ -614,7 +614,7 @@ async function main(): Promise<void> {
   }
 
   // -------------------------------------------------------------------------
-  // hima hook subcommand
+  // norm hook subcommand
   // -------------------------------------------------------------------------
   const { event } = parsed;
 

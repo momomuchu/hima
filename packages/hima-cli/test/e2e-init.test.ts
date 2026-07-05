@@ -1,10 +1,10 @@
 /**
- * e2e-init.test.ts — SPAWN e2e test for `hima init --yes`.
+ * e2e-init.test.ts — SPAWN e2e test for `norm init --yes`.
  *
  * Spawns the built dist/index.js in a real tmp root to validate the CLI wiring itself
  * (parseArgs -> main() -> runInit()), independent of init.test.ts's in-process coverage.
  *
- * Pre-condition: `pnpm --filter @hima/cli build` must have run before this suite executes
+ * Pre-condition: `pnpm --filter @norm/cli build` must have run before this suite executes
  * (dist/index.js must exist).
  */
 
@@ -42,7 +42,7 @@ function spawnInit(extraArgs: string[] = []) {
   };
 }
 
-describe("hima init --yes (spawned CLI)", () => {
+describe("norm init --yes (spawned CLI)", () => {
   let initResult: { status: number | null; stdout: string; stderr: string };
 
   beforeAll(() => {
@@ -54,7 +54,7 @@ describe("hima init --yes (spawned CLI)", () => {
   });
 
   it("stdout contains a done message", () => {
-    expect(initResult.stdout).toContain("[hima init]");
+    expect(initResult.stdout).toContain("[norm init]");
     expect(initResult.stdout).toContain("Done");
   });
 

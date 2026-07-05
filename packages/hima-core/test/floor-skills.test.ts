@@ -15,7 +15,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import type { SkillRef } from "@hima/schemas";
+import type { SkillRef } from "@norm/schemas";
 import {
   FLOOR_SKILL_ADDITIONS,
   resolveStageForceSkillsForFloor,

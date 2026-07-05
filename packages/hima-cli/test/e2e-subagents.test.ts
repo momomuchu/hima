@@ -23,11 +23,11 @@
  *               invocation is silently suppressed — no second trace line is appended.
  *               Both invocations exit 0 (observe-only, never blocks).
  *
- * Pre-condition: `pnpm --filter @hima/cli build` must have run before this suite.
+ * Pre-condition: `pnpm --filter @norm/cli build` must have run before this suite.
  * Runtime: node:child_process spawnSync (synchronous, sequential).
  */
 
-import { readTrace } from "@hima/core";
+import { readTrace } from "@norm/core";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";

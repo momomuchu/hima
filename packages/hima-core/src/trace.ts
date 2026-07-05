@@ -1,7 +1,7 @@
 import { appendFile, mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
-import type { TraceEvent } from "@hima/schemas";
-import { decodeTraceEventEither } from "@hima/schemas";
+import type { TraceEvent } from "@norm/schemas";
+import { decodeTraceEventEither } from "@norm/schemas";
 
 /**
  * trace — per-session JSONL trace emitter.

@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { safeAtomicWriteFile, safeUnlinkFile } from "@hima/storage-core";
+import { safeAtomicWriteFile, safeUnlinkFile } from "@norm/storage-core";
 
 /**
  * deferred-verdict — single-use block verdict persisted across hook invocations.

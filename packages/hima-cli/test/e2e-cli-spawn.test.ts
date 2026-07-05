@@ -1,5 +1,5 @@
 /**
- * e2e-cli-spawn.test.ts — PRIMARY proof for @hima/cli (v3 walking skeleton).
+ * e2e-cli-spawn.test.ts — PRIMARY proof for @norm/cli (v3 walking skeleton).
  *
  * Spawns the BUILT dist/index.js (node packages/hima-cli/dist/index.js) in a
  * real tmp .hima root to validate the full hook invocation cycle end-to-end:
@@ -9,7 +9,7 @@
  *   Scenario 3 — user-prompt-submit with "ulw" sigil → exit 0 + ward created.
  *   Scenario 4 — post-tool-use → exit 0 (graceful no-op).
  *
- * Pre-condition: `pnpm --filter @hima/cli build` must have run before this
+ * Pre-condition: `pnpm --filter @norm/cli build` must have run before this
  * suite executes. The test runner is responsible for the build step (see the
  * `test` script in package.json which chains build → vitest).
  *
@@ -25,7 +25,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { createWard, markLoaded, resumeWard } from "@hima/core";
+import { createWard, markLoaded, resumeWard } from "@norm/core";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -33,7 +33,7 @@ import { createWard, markLoaded, resumeWard } from "@hima/core";
 
 /**
  * Absolute path to the built CLI entry-point.
- * The e2e suite requires a prior `pnpm build` in the @hima/cli package.
+ * The e2e suite requires a prior `pnpm build` in the @norm/cli package.
  */
 const DIST_INDEX = path.resolve(
   import.meta.dirname ?? new URL(".", import.meta.url).pathname,

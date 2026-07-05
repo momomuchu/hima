@@ -22,7 +22,7 @@
  *          advisory ("research evidence:") to remind the agent to convert
  *          findings before deciding.
  *
- * Pre-condition: `pnpm --filter @hima/cli build` must have run before this
+ * Pre-condition: `pnpm --filter @norm/cli build` must have run before this
  * suite executes. The package.json test script chains build → vitest.
  *
  * Uses node:child_process spawnSync — synchronous so assertion ordering is
@@ -47,7 +47,7 @@ import {
   it,
 } from "vitest";
 
-import { markLoaded } from "@hima/core";
+import { markLoaded } from "@norm/core";
 
 // ---------------------------------------------------------------------------
 // Constants

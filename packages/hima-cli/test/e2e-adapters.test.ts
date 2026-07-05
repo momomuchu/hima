@@ -18,7 +18,7 @@
  *      → exit 2 (deferred verdict replayed as hard-block)
  *      → verdict file is consumed and gone
  *
- * Pre-condition: `pnpm --filter @hima/cli build` must have run before this
+ * Pre-condition: `pnpm --filter @norm/cli build` must have run before this
  * suite executes. The test runner chains build → vitest.
  */
 
@@ -28,7 +28,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { createWard, verdictFilePath } from "@hima/core";
+import { createWard, verdictFilePath } from "@norm/core";
 
 // ---------------------------------------------------------------------------
 // Constants

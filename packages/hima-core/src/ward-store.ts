@@ -5,12 +5,12 @@ import {
   StageVerdict,
   SkillRef,
   decodeWard,
-} from "@hima/schemas";
+} from "@norm/schemas";
 import {
   safeAtomicWriteFile,
   assertSafeWriteTarget,
   withFileLock,
-} from "@hima/storage-core";
+} from "@norm/storage-core";
 
 /**
  * ward-store — reads, creates, and advances the ward.json execution context.

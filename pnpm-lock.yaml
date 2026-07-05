@@ -29,13 +29,13 @@ importers:
 
   packages/hima-cli:
     dependencies:
-      '@hima/core':
+      '@norm/core':
         specifier: workspace:*
         version: link:../hima-core
-      '@hima/schemas':
+      '@norm/schemas':
         specifier: workspace:*
         version: link:../schemas
-      '@hima/storage-core':
+      '@norm/storage-core':
         specifier: workspace:*
         version: link:../storage-core
       effect:
@@ -44,10 +44,10 @@ importers:
 
   packages/hima-core:
     dependencies:
-      '@hima/schemas':
+      '@norm/schemas':
         specifier: workspace:*
         version: link:../schemas
-      '@hima/storage-core':
+      '@norm/storage-core':
         specifier: workspace:*
         version: link:../storage-core
       effect:

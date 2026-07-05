@@ -4,11 +4,11 @@
  * Proves the Delegation-First gate live:
  *   1. ward at impl (executor) + floor H + main-thread Write to a new src file
  *      → BLOCK (exit 2), reason cites DELEGATION_FIRST.
- *   2. after `hima delegate --session <id>` marks the session as a lane
+ *   2. after `norm delegate --session <id>` marks the session as a lane
  *      → the identical Write is ALLOWED (exit 0).
  *   3. a .md write at impl H is never blocked (not an implementation file).
  *
- * Pre-condition: `pnpm --filter @hima/cli build`.
+ * Pre-condition: `pnpm --filter @norm/cli build`.
  */
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync, readFileSync } from "node:fs";
@@ -81,7 +81,7 @@ describe("Delegation-First gate (live CLI)", () => {
     expect(`${r.stdout}${r.stderr}`).toMatch(/DELEGATION[_-]FIRST|Delegation-First/i);
   }, 40_000);
 
-  it("2. `hima delegate` marks the lane → the identical write is allowed (exit 0)", () => {
+  it("2. `norm delegate` marks the lane → the identical write is allowed (exit 0)", () => {
     bootstrapAtImpl();
     expect(writeCall("src/service.ts").status).toBe(2); // blocked first
     const d = cli(["delegate", "--session", SESSION, "--roles", "implementer,verifier"]);
@@ -100,7 +100,7 @@ describe("Delegation-First gate (live CLI)", () => {
     bootstrapAtImpl();
     expect(writeCall("src/service.ts").status).toBe(2); // blocked before any delegation
     // The agent spawns a delegated sub-agent — hima observes SubagentStart and
-    // stamps the stage. No `hima delegate` call; model provided so worker-model allows.
+    // stamps the stage. No `norm delegate` call; model provided so worker-model allows.
     const s = cli(["hook", "subagent-start", "--format", "claude"], {
       session_id: SESSION,
       tool_name: "Task",

@@ -26,8 +26,8 @@
 
 import { access } from "node:fs/promises";
 import path from "node:path";
-import { RISK_ORDER } from "@hima/schemas";
-import type { RiskClass } from "@hima/schemas";
+import { RISK_ORDER } from "@norm/schemas";
+import type { RiskClass } from "@norm/schemas";
 import { readReadSet, isInReadSet } from "../read-set.js";
 import type { BehaviorDescriptor, BehaviorContext, BehaviorVerdict } from "./types.js";
 

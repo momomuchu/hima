@@ -38,8 +38,8 @@
  */
 
 import type { BehaviorDescriptor, BehaviorContext, BehaviorVerdict } from "./types.js";
-import { RISK_ORDER } from "@hima/schemas";
-import type { RiskClass } from "@hima/schemas";
+import { RISK_ORDER } from "@norm/schemas";
+import type { RiskClass } from "@norm/schemas";
 import { readReadSet } from "../read-set.js";
 
 // ---------------------------------------------------------------------------

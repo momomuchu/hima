@@ -1,21 +1,21 @@
 /**
- * e2e-setup.test.ts — SPAWN e2e tests for `hima setup`.
+ * e2e-setup.test.ts — SPAWN e2e tests for `norm setup`.
  *
  * Spawns the built dist/index.js in a real tmp root to validate:
  *
- *   Scenario 1 — `hima setup --runtime claude --root <tmp>`
+ *   Scenario 1 — `norm setup --runtime claude --root <tmp>`
  *     • exits 0
  *     • <tmp>/.claude/settings.json contains 7 hook entries whose command
  *       references "hook" and the CLI dist path
  *     • <tmp>/.hima/state/ directory exists
  *     • <tmp>/.hima/config.json exists
  *
- *   Scenario 2 — `hima setup --fresh --root <tmp>` (after planting a trace file)
+ *   Scenario 2 — `norm setup --fresh --root <tmp>` (after planting a trace file)
  *     • exits 0
  *     • the planted trace file is gone
  *     • <tmp>/.hima/config.json is still present (user data preserved)
  *
- * Pre-condition: `pnpm --filter @hima/cli build` must have run before this
+ * Pre-condition: `pnpm --filter @norm/cli build` must have run before this
  * suite executes (dist/index.js must exist).
  */
 
@@ -38,7 +38,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 /**
  * Absolute path to the built CLI entry-point.
- * The e2e suite requires a prior `pnpm build` in the @hima/cli package.
+ * The e2e suite requires a prior `pnpm build` in the @norm/cli package.
  */
 const DIST_INDEX = path.resolve(
   import.meta.dirname ?? new URL(".", import.meta.url).pathname,
@@ -98,10 +98,10 @@ function spawnSetup(
 }
 
 // ---------------------------------------------------------------------------
-// Scenario 1 — hima setup --runtime claude
+// Scenario 1 — norm setup --runtime claude
 // ---------------------------------------------------------------------------
 
-describe("Scenario 1 — hima setup --runtime claude", () => {
+describe("Scenario 1 — norm setup --runtime claude", () => {
   let setupResult: { status: number | null; stdout: string; stderr: string };
 
   beforeAll(() => {
@@ -113,7 +113,7 @@ describe("Scenario 1 — hima setup --runtime claude", () => {
   });
 
   it("stdout contains a setup-complete message", () => {
-    expect(setupResult.stdout).toContain("[hima setup]");
+    expect(setupResult.stdout).toContain("[norm setup]");
   });
 
   it("creates <root>/.claude/settings.json", () => {
@@ -147,7 +147,7 @@ describe("Scenario 1 — hima setup --runtime claude", () => {
     for (const event of CLAUDE_HOOK_EVENTS) {
       const matchers = hooks[event] as Array<{ hooks: Array<{ command: string }> }>;
       const cmd = matchers[0]?.hooks[0]?.command ?? "";
-      // Command must reference "hook" (the hima hook subcommand)
+      // Command must reference "hook" (the norm hook subcommand)
       expect(cmd, `Event ${event} command should contain "hook"`).toContain("hook");
       // Command must reference the dist/index.js path (the CLI binary)
       expect(cmd, `Event ${event} command should reference dist/index.js`).toContain("dist/index.js");
@@ -172,10 +172,10 @@ describe("Scenario 1 — hima setup --runtime claude", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Scenario 2 — hima setup --fresh (trace file deleted, config.json preserved)
+// Scenario 2 — norm setup --fresh (trace file deleted, config.json preserved)
 // ---------------------------------------------------------------------------
 
-describe("Scenario 2 — hima setup --fresh", () => {
+describe("Scenario 2 — norm setup --fresh", () => {
   /** Path to a planted trace file that --fresh must delete. */
   let tracePath: string;
 
@@ -230,7 +230,7 @@ describe("Scenario 2 — hima setup --fresh", () => {
 // Safety — unknown runtime flag does not crash the CLI
 // ---------------------------------------------------------------------------
 
-describe("Safety — hima setup handles edge cases", () => {
+describe("Safety — norm setup handles edge cases", () => {
   it("--runtime without value falls back to auto-detect (exit 0)", () => {
     // --runtime missing value: the parser ignores it and falls back to auto-detect.
     const r = mkdtempSync(path.join(tmpdir(), "hima-e2e-setup-safety-"));

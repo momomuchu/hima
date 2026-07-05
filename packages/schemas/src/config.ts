@@ -34,7 +34,7 @@ const RoleOverride = Schema.Struct({
  * HimaConfig — per-user / per-project customization overlay loaded by the
  * v3 CLI at startup.  All top-level fields are optional; absent fields fall
  * back to the founder defaults (DEV_CYCLE from cycle.ts, ROLE_CATALOG from
- * @hima/core).
+ * @norm/core).
  *
  * stageSkills     — keyed by stage id; overrides forceSkills / injectSkills for
  *                    that stage without touching the rest of the cycle.
@@ -43,13 +43,13 @@ const RoleOverride = Schema.Struct({
  * roles           — keyed by role id; overrides model, forced skills, and
  *                    allowed stages for a named subagent role.
  * runtimes        — (SPEC-016 Q-001 / OQ-1) which coding-agent runtime(s) this
- *                    project targets. Bookkeeping only for `hima init`'s own
+ *                    project targets. Bookkeeping only for `norm init`'s own
  *                    hook-wiring loop (SPEC-017 A-002) — never the source of
  *                    truth for a live gate event's runtime (that always comes
  *                    from the hook invocation context).
  * useDevCyclePack — (SPEC-016 Q-002) when explicitly `false`, opts out of the
  *                    DEV_CYCLE fallback step in resolveStageForceSkills /
- *                    resolveStageInjectSkills (@hima/hima-core). `undefined`
+ *                    resolveStageInjectSkills (@norm/hima-core). `undefined`
  *                    (the default) preserves today's fallback behavior.
  * enabledSources  — (SPEC-016 Q-003) allowlist of SkillRef.source tiers this
  *                    project has declared available. `undefined` (the

@@ -11,7 +11,7 @@
  *      ARCHITECTURE-v3.md §7.1 S-01 criticality routing.
  */
 
-import type { RiskClass, Ward } from "@hima/schemas";
+import type { RiskClass, Ward } from "@norm/schemas";
 
 /**
  * Resolve the effective RiskClass for a gate evaluation.

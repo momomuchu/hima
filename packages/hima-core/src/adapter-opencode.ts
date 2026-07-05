@@ -1,9 +1,9 @@
-import type { ForceAction } from "@hima/schemas";
+import type { ForceAction } from "@norm/schemas";
 import {
   GateCapabilityCell,
   decodeGateCapabilityCell,
-} from "@hima/schemas";
-import type { GateType } from "@hima/schemas";
+} from "@norm/schemas";
+import type { GateType } from "@norm/schemas";
 
 /**
  * adapter-opencode — translate a ForceAction into the OpenCode runtime response shape.

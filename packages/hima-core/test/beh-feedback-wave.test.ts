@@ -87,7 +87,7 @@ import {
   countEvaluativeTokens,
 } from "../src/behavior-core/beh-feedback-wave.js";
 import type { BehaviorContext, BehaviorVerdict } from "../src/behavior-core/types.js";
-import type { RiskClass, Ward } from "@hima/schemas";
+import type { RiskClass, Ward } from "@norm/schemas";
 
 // ---------------------------------------------------------------------------
 // Fixtures

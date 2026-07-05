@@ -13,7 +13,7 @@
  *     No .hima/config.json in tmp root.
  *     Ward at discovery → pre-tool-use Write → exit 2, reason contains DEFAULT_SKILL.
  *
- * Pre-condition: `pnpm --filter @hima/cli build` must have run.
+ * Pre-condition: `pnpm --filter @norm/cli build` must have run.
  */
 
 import { spawnSync } from "node:child_process";
@@ -27,7 +27,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { createWard } from "@hima/core";
+import { createWard } from "@norm/core";
 
 // ---------------------------------------------------------------------------
 // Constants

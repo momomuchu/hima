@@ -4,7 +4,7 @@ import path from "node:path";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { checkStageGate, closeWard, writeStageVerdict } from "../src/ward-transitions.js";
 import { createWard } from "../src/ward-store.js";
-import type { Ward } from "@hima/schemas";
+import type { Ward } from "@norm/schemas";
 
 // ---------------------------------------------------------------------------
 // Test fixture helpers

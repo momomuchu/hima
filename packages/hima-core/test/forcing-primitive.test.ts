@@ -17,7 +17,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import type { GateCapabilityCell, GateVerdict, SkillRef } from "@hima/schemas";
+import type { GateCapabilityCell, GateVerdict, SkillRef } from "@norm/schemas";
 import { pickAttack } from "../src/forcing-primitive.js";
 import type { RuntimeTarget } from "../src/forcing-primitive.js";
 

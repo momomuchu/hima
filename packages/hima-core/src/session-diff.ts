@@ -14,7 +14,7 @@
  *   - `readGitSnapshot` returns `null` when the file is absent or unparseable
  *     — callers must handle the null case (treated as "no baseline").
  *   - `hasChangesSince` is a pure synchronous predicate; it never touches fs.
- *   - All async helpers use `node:fs/promises` directly (no @hima/storage-core
+ *   - All async helpers use `node:fs/promises` directly (no @norm/storage-core
  *     abstraction needed for a single read/write with mkdir).
  *   - mkdir is recursive so the function is idempotent on repeated calls.
  *

@@ -18,7 +18,7 @@
 
 import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
-import { atomicWriteFile, withFileLock } from "@hima/storage-core";
+import { atomicWriteFile, withFileLock } from "@norm/storage-core";
 
 // ---------------------------------------------------------------------------
 // Constants

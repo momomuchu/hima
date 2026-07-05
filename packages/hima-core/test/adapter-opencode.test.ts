@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { translateOpenCode, OPENCODE_MAP } from "../src/adapter-opencode.js";
-import type { ForceAction } from "@hima/schemas";
+import type { ForceAction } from "@norm/schemas";
 
 // ---------------------------------------------------------------------------
 // Helpers

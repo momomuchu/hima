@@ -11,7 +11,7 @@
  * pre-tool-use event (analogous to e2e-subagents.test.ts Scenario C, but for
  * Codex's poll-file compensation rather than Hermes's delegate_task intercept).
  *
- * Pre-condition: `pnpm --filter @hima/cli build` must have run before this suite.
+ * Pre-condition: `pnpm --filter @norm/cli build` must have run before this suite.
  */
 
 import { spawnSync } from "node:child_process";

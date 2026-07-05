@@ -1,8 +1,8 @@
 /**
- * @hima/core — public surface.
+ * @norm/core — public surface.
  *
  * Re-exports everything from the core modules so consumers can import
- * directly from "@hima/core" without knowing the internal file layout.
+ * directly from "@norm/core" without knowing the internal file layout.
  *
  * NOTE: Both capability-map-v3 and forcing-primitive independently export a
  * `RuntimeTarget` type with the same shape ("claude" | "codex" | "hermes").

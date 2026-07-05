@@ -15,8 +15,8 @@
  *   - The classifier can only RAISE a floor (R-019); lowering is the caller's job.
  */
 
-import { RISK_ORDER } from "@hima/schemas";
-import type { RiskClass } from "@hima/schemas";
+import { RISK_ORDER } from "@norm/schemas";
+import type { RiskClass } from "@norm/schemas";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Internal types

@@ -18,7 +18,7 @@
  *     H-floor architectural-verb signal ("refactor", "architecture")
  *   - R-019: final floor = max(sigil floor, classifier floor) = "C" (H+)
  *
- * Pre-condition: `pnpm --filter @hima/cli build` must have run before this suite.
+ * Pre-condition: `pnpm --filter @norm/cli build` must have run before this suite.
  */
 
 import { spawnSync } from "node:child_process";
@@ -27,7 +27,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { markLoaded, resumeWard } from "@hima/core";
+import { markLoaded, resumeWard } from "@norm/core";
 
 // ---------------------------------------------------------------------------
 // Constants

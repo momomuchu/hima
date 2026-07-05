@@ -67,7 +67,7 @@ import {
   isDiscoverySealed,
 } from "../src/behavior-core/beh-research-first.js";
 import type { BehaviorContext, BehaviorVerdict } from "../src/behavior-core/types.js";
-import type { Ward, StageVerdict, RiskClass } from "@hima/schemas";
+import type { Ward, StageVerdict, RiskClass } from "@norm/schemas";
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -146,7 +146,7 @@ describe("BEH_RESEARCH_FIRST — mandated scenarios", () => {
     expect(result.behaviorId).toBe("BEH-RESEARCH-FIRST");
     expect(result.violationType).toBe("RESEARCH_FIRST");
     expect(result.reason).toMatch(/stage:discovery verdict required/);
-    expect(result.reason).toMatch(/hima hook stage-advance --stage discovery --status done/);
+    expect(result.reason).toMatch(/norm hook stage-advance --stage discovery --status done/);
   });
 
   it("B. full-entry ward, discovery 'done' verdict, Write to spec path → allow", () => {

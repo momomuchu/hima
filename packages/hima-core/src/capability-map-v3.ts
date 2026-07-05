@@ -1,10 +1,10 @@
 import {
   GateCapabilityCell,
   decodeGateCapabilityCell,
-} from "@hima/schemas";
+} from "@norm/schemas";
 
 // Re-export GateType type from schemas for local use
-import type { GateType } from "@hima/schemas";
+import type { GateType } from "@norm/schemas";
 import { OPENCODE_MAP } from "./adapter-opencode.js";
 
 /**

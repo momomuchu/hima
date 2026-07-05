@@ -24,7 +24,7 @@
 import { describe, it, expect } from "vitest";
 import { BEH_023 } from "../src/behavior-core/beh-023-completion.js";
 import type { BehaviorContext, BehaviorVerdict } from "../src/behavior-core/types.js";
-import type { Ward, StageVerdict, RiskClass } from "@hima/schemas";
+import type { Ward, StageVerdict, RiskClass } from "@norm/schemas";
 
 // ---------------------------------------------------------------------------
 // Fixtures
