@@ -3,11 +3,28 @@
  *
  * Spawns the BUILT dist/index.js to validate the subagent gate end-to-end:
  *
- *  Scenario A — subagent-start --format claude with payload lacking model → exit 2
- *               BEH_WORKER_MODEL fires: WORKER_MODEL_UNSPECIFIED → hard block.
+ *  Scenario A — subagent-start --format claude, ANY payload (with or without model) → exit 0
+ *               CORRECTION (SOT C2, docs/research/runtime-capabilities.sot.json): Claude's
+ *               SubagentStart hook is injection-only and CANNOT block (capability-map-v3
+ *               claude.subagent_start.canBlock=false). BEH_WORKER_MODEL still evaluates
+ *               here (for the injected reminder / trace), but the gate itself is advisory
+ *               and always exits 0. The real hard-block moved to pre-tool-use — see
+ *               Scenario A2 below.
+ *
+ *  Scenario A2 — pre-tool-use --format claude, toolName "Agent" (the spawn tool call
+ *               itself) with payload lacking model → exit 2. BEH_WORKER_MODEL now also
+ *               fires at pre_tool, scoped to the "Agent" spawn tool call, which IS a
+ *               real PreToolUse deny point on Claude (canBlock=true universally).
+ *               NOTE: the legacy "Task" alias is deliberately NOT included in this
+ *               pre_tool scope — BehaviorContext carries no runtime field, and "Task"
+ *               is reused as a generic non-Claude placeholder toolName elsewhere in
+ *               this harness (e.g. e2e-codex-subagent.test.ts's poll-file detection,
+ *               which has no model field and must keep exiting 0). "Task" stays
+ *               covered at the unconditional subagent_start gate (Scenario A above).
  *
  *  Scenario B — subagent-start --format claude with model: "sonnet" → exit 0
- *               BEH_WORKER_MODEL allows: model explicitly set.
+ *               BEH_WORKER_MODEL allows: model explicitly set (also advisory-only, same
+ *               as Scenario A, but included for symmetry/regression coverage).
  *
  *  Scenario C — pre-tool-use --format hermes with toolName delegate_task
  *               (a) payload has model + task → exit 0, stdout.raw.modifications.task
@@ -99,11 +116,11 @@ function parseStdout(stdout: string): Record<string, unknown> | null {
 }
 
 // ---------------------------------------------------------------------------
-// Scenario A — subagent-start without model → exit 2 (WORKER_MODEL_UNSPECIFIED)
+// Scenario A — subagent-start is advisory-only (SOT C2): never blocks
 // ---------------------------------------------------------------------------
 
-describe("Scenario A — subagent-start: no model → block (exit 2)", () => {
-  it("payload lacking model field → exitCode 2 + block decision", () => {
+describe("Scenario A — subagent-start: injection-only, never blocks (SOT C2)", () => {
+  it("payload lacking model field → exitCode 0 (advisory, not a real deny point)", () => {
     const result = spawnCli(
       ["subagent-start", "--format", "claude"],
       {
@@ -117,21 +134,23 @@ describe("Scenario A — subagent-start: no model → block (exit 2)", () => {
       root,
     );
 
-    expect(result.status, "exit code must be 2 (block)").toBe(2);
-
-    const parsed = parseStdout(result.stdout);
-    expect(parsed, "stdout must be valid JSON").not.toBeNull();
-    expect(parsed?.["decision"], "decision must be 'block'").toBe("block");
-
-    const reason = parsed?.["reason"];
-    expect(typeof reason, "reason must be a string").toBe("string");
     expect(
-      String(reason),
-      "reason must reference worker model or WORKER_MODEL_UNSPECIFIED",
-    ).toMatch(/model|WORKER_MODEL_UNSPECIFIED/i);
+      result.status,
+      "exit code must be 0 — Claude's SubagentStart hook cannot block (SOT C2)",
+    ).toBe(0);
+
+    // It must NOT emit a block decision even though BEH_WORKER_MODEL's
+    // underlying verdict is "block" — capability-map-v3 claude.subagent_start
+    // has canBlock:false, so pickAttack downgrades to observe-only/allow.
+    if (result.stdout.trim() !== "") {
+      const parsed = parseStdout(result.stdout);
+      if (parsed !== null) {
+        expect(parsed["decision"], "must not be 'block'").not.toBe("block");
+      }
+    }
   });
 
-  it("payload with empty model string → exitCode 2 (block)", () => {
+  it("payload with empty model string → exitCode 0 (still advisory, not a real deny point)", () => {
     const result = spawnCli(
       ["subagent-start", "--format", "claude"],
       {
@@ -145,9 +164,104 @@ describe("Scenario A — subagent-start: no model → block (exit 2)", () => {
       root,
     );
 
-    expect(result.status, "exit code must be 2 (empty model)").toBe(2);
+    expect(result.status, "exit code must be 0 (advisory only)").toBe(0);
+    if (result.stdout.trim() !== "") {
+      const parsed = parseStdout(result.stdout);
+      if (parsed !== null) {
+        expect(parsed["decision"]).not.toBe("block");
+      }
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Scenario A2 — pre-tool-use on the Agent/Task spawn call IS a real deny point
+// ---------------------------------------------------------------------------
+
+describe("Scenario A2 — pre-tool-use: Agent/Task spawn call without model → block (exit 2, SOT C2)", () => {
+  it("toolName 'Agent' + payload lacking model → exitCode 2 + block decision", () => {
+    const result = spawnCli(
+      ["pre-tool-use", "--format", "claude"],
+      {
+        session_id: "test-session-A2-pretool",
+        tool_name: "Agent",
+        tool_input: {
+          prompt: "Do some work",
+        },
+      },
+      root,
+    );
+
+    expect(result.status, "exit code must be 2 (real PreToolUse deny)").toBe(2);
+
     const parsed = parseStdout(result.stdout);
-    expect(parsed?.["decision"]).toBe("block");
+    expect(parsed, "stdout must be valid JSON").not.toBeNull();
+    expect(parsed?.["decision"], "decision must be 'block'").toBe("block");
+
+    const reason = parsed?.["reason"];
+    expect(typeof reason, "reason must be a string").toBe("string");
+    expect(
+      String(reason),
+      "reason must reference worker model or WORKER_MODEL_UNSPECIFIED",
+    ).toMatch(/model|WORKER_MODEL_UNSPECIFIED/i);
+  });
+
+  it("toolName 'Task' (legacy alias) + payload lacking model → exitCode 0 (deliberately scoped out)", () => {
+    // "Task" is NOT included in the pre_tool scope (see beh-worker-model.ts
+    // AGENT_SPAWN_TOOL_NAMES): BehaviorContext carries no runtime field, and "Task"
+    // is reused as a generic non-Claude placeholder toolName elsewhere in this
+    // harness (e.g. e2e-codex-subagent.test.ts). "Task" stays covered at the
+    // unconditional subagent_start gate instead (Scenario A).
+    const result = spawnCli(
+      ["pre-tool-use", "--format", "claude"],
+      {
+        session_id: "test-session-A2-task-alias",
+        tool_name: "Task",
+        tool_input: {
+          prompt: "Do some work",
+        },
+      },
+      root,
+    );
+
+    expect(result.status, "exit code must be 0 (Task alias scoped out of pre_tool)").toBe(0);
+  });
+
+  it("toolName 'Agent' + model set → exitCode 0 (allow)", () => {
+    const result = spawnCli(
+      ["pre-tool-use", "--format", "claude"],
+      {
+        session_id: "test-session-A2-allow",
+        tool_name: "Agent",
+        tool_input: {
+          model: "sonnet",
+          prompt: "Do some work",
+        },
+      },
+      root,
+    );
+
+    expect(result.status, "exit code must be 0 (model set → allow)").toBe(0);
+  });
+
+  it("unrelated tool (e.g. 'Write') without a model field → exitCode 0 (scoped out)", () => {
+    const result = spawnCli(
+      ["pre-tool-use", "--format", "claude"],
+      {
+        session_id: "test-session-A2-scoped-out",
+        tool_name: "Write",
+        tool_input: {
+          file_path: "/tmp/does-not-matter.txt",
+          content: "hello",
+        },
+      },
+      root,
+    );
+
+    expect(
+      result.status,
+      "exit code must be 0 — Write is not an Agent/Task spawn call, BEH_WORKER_MODEL must not fire",
+    ).toBe(0);
   });
 });
 

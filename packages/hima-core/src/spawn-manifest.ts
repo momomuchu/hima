@@ -11,9 +11,11 @@
  * File path: `<root>/.hima/state/spawn-manifest-<wardId>-<stage>.json`
  *
  * Advisory contract: the gate is advisory-strong (not hard-blocking) to avoid
- * bricking the pipeline when roles are not yet Task-spawnable in a given
+ * bricking the pipeline when roles are not yet Agent/Task-spawnable in a given
  * runtime. The manifest is the signal that the spawn instruction was emitted;
- * actual Task creation is the agent's responsibility.
+ * actual Agent/Task creation is the agent's responsibility. (SOT C6: on Claude
+ * the spawn tool is now named "Agent" — "Task" is a back-compat alias and also
+ * names an unrelated shared task-list feature.)
  *
  * See: .planning/architecture/V3-COMPLETENESS-AUDIT.md R-035,
  *      PARALLELIZATION-v3.md §1 (role catalog), AMENDMENT-002.
@@ -120,14 +122,22 @@ export async function hasSpawnManifest(
 
 /**
  * Build the additionalContext string that instructs the agent to spawn
- * the given roles as Task subagents with explicit model fields.
+ * the given roles as Agent (Task) subagents with explicit model fields.
+ *
+ * WORDING (SOT C6, docs/research/runtime-capabilities.sot.json): on Claude the
+ * spawn primitive is now the "Agent" tool ("Task" was renamed in v2.1.63 and
+ * is kept only as a back-compat alias). "Task" also names an UNRELATED
+ * shared task-list feature (TaskCreate/TaskCompleted) — "Task subagents"
+ * alone is ambiguous. The wording below says "Agent (Task) subagents" to
+ * name the current tool while remaining recognizable to anyone still using
+ * the alias.
  *
  * Format:
  *   "[HIMA spawn] stage <stage> role-team: <role1, role2, ...> — spawn these
- *    as Task subagents (explicit model each)."
+ *    as Agent (Task) subagents (explicit model each)."
  *
  * This is the advisory mechanism: the handler emits this string as context
- * so the agent spawns the roles; actual Task creation is the agent's
+ * so the agent spawns the roles; actual Agent/Task creation is the agent's
  * responsibility. A hard gate is out of scope to avoid bricking — advisory only.
  *
  * @param stage  Stage identifier (e.g. "discovery", "design").
@@ -138,5 +148,5 @@ export function buildSpawnAssignmentContext(
   roles: { role: string }[],
 ): string {
   const roleNames = roles.map((r) => r.role).join(", ");
-  return `[HIMA spawn] stage ${stage} role-team: ${roleNames} — spawn these as Task subagents (explicit model each).`;
+  return `[HIMA spawn] stage ${stage} role-team: ${roleNames} — spawn these as Agent (Task) subagents (explicit model each).`;
 }

@@ -5,18 +5,28 @@ import type { ForceAction } from "@norm/schemas";
  *
  * Codex constraints (from ARCHITECTURE-v3.md §3.2/§3.5, gap register R-010/R-011):
  *   - Codex uses stdout JSON; there is no rich system-reminder channel.
- *   - systemMessage is the injection channel, capped at 1800 bytes.
+ *   - systemMessage is the injection channel.
  *   - Only pre_tool + stop hooks can hard-block (exit 2).
  *   - hard-block / skill-force → block exit 2; systemMessage carries skill id in first 100 chars.
  *   - rich-inject              → DOWNGRADED to constrained-inject (no rich channel).
- *   - constrained-inject       → continue exit 0; systemMessage truncated to 1800 bytes.
+ *   - constrained-inject       → continue exit 0; systemMessage truncated (see MAX_SYSTEM_MSG_BYTES).
  *   - deferred-block           → continue exit 0 (verdict already persisted by caller).
  *   - observe-only / noop      → continue exit 0.
  *
  * See: ARCHITECTURE-v3.md §3.2, ARCHITECTURE-FLOW-v3.md §3, V3-COMPLETENESS-AUDIT.md R-010.
  */
 
-/** Maximum byte length for a Codex systemMessage injection. */
+/**
+ * Maximum byte length for a Codex systemMessage injection.
+ *
+ * CORRECTION (SOT C1, docs/research/runtime-capabilities.sot.json): there is
+ * NO documented injection-byte cap on Codex — the prior framing of "1800" as
+ * a Codex hard limit was a myth (1800 is actually `agents.job_max_runtime_seconds`,
+ * a 1800-SECOND timeout, unrelated to injection size). This constant is kept
+ * as a conservative INTERNAL truncation choice (bounding what hima chooses to
+ * inject), not a claim about an external Codex limit. capability-map-v3.ts's
+ * CODEX_MAP therefore leaves `maxInjectionBytes` undefined for Codex cells.
+ */
 const MAX_SYSTEM_MSG_BYTES = 1800;
 
 /**

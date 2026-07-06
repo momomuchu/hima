@@ -1,13 +1,19 @@
 /**
- * Tests for adapter-hermes.ts — translateHermes() ACP response mapping.
+ * Tests for adapter-hermes.ts — translateHermes() native Hermes hook response mapping.
+ *
+ * NOTE: this is Hermes's native Python hook payload, NOT ACP (Agent Client Protocol —
+ * see SOT correction C4, docs/research/runtime-capabilities.sot.json). The byte cap
+ * below is 20000 (SOT correction C1: real Hermes cap is context_file_max_chars =
+ * 20000 chars/file; the previous "1800" was a myth — it was HERMES_API_TIMEOUT, a
+ * 1800-SECOND timeout, not a byte/char limit).
  *
  * Scenarios:
  *  1.  hard-block       → raw.action="block", raw.message=reason, decision="block", exitCode=2
  *  2.  skill-force      → raw.action="block", raw.message=reason, decision="block", exitCode=2
  *  3.  constrained-inject (short)  → raw.action="continue", raw.content=systemMessage, decision="continue", exitCode=0
- *  4.  constrained-inject (long)   → raw.content truncated to ≤1800 bytes
+ *  4.  constrained-inject (long)   → raw.content truncated to ≤20000 bytes
  *  5.  rich-inject (short)         → DOWNGRADED: raw.action="continue", raw.content=content, decision="continue", exitCode=0
- *  6.  rich-inject (long)          → raw.content truncated to ≤1800 bytes
+ *  6.  rich-inject (long)          → raw.content truncated to ≤20000 bytes
  *  7.  deferred-block   → raw.action="continue", no raw.content, decision="continue", exitCode=0
  *  8.  observe-only     → raw.action="continue", decision="continue", exitCode=0
  *  9.  noop             → raw.action="continue", decision="continue", exitCode=0
@@ -25,8 +31,8 @@ import type { ForceAction } from "@norm/schemas";
 // Fixtures
 // ---------------------------------------------------------------------------
 
-const OVER_1800 = "x".repeat(2000);
-const MULTI_BYTE_OVER_1800 = "é".repeat(1000); // 2 bytes each → 2000 bytes total
+const OVER_20000 = "x".repeat(21000);
+const MULTI_BYTE_OVER_20000 = "é".repeat(11000); // 2 bytes each → 22000 bytes total
 
 // ---------------------------------------------------------------------------
 // hard-block
@@ -43,7 +49,7 @@ describe("translateHermes — hard-block", () => {
     expect(translateHermes(action).exitCode).toBe(2);
   });
 
-  it("emits raw ACP block with message=reason", () => {
+  it("emits raw native-hook block with message=reason", () => {
     const { raw } = translateHermes(action);
     expect(raw.action).toBe("block");
     expect((raw as { action: string; message: string }).message).toBe("forbidden tool");
@@ -77,7 +83,7 @@ describe("translateHermes — skill-force", () => {
     expect(translateHermes(action).exitCode).toBe(2);
   });
 
-  it("emits raw ACP block with message=reason", () => {
+  it("emits raw native-hook block with message=reason", () => {
     const { raw } = translateHermes(action);
     expect(raw.action).toBe("block");
     expect((raw as { action: string; message: string }).message).toBe("skill required");
@@ -85,7 +91,7 @@ describe("translateHermes — skill-force", () => {
 });
 
 // ---------------------------------------------------------------------------
-// constrained-inject — short content (under 1800 bytes)
+// constrained-inject — short content (under 20000 bytes)
 // ---------------------------------------------------------------------------
 
 describe("translateHermes — constrained-inject (short)", () => {
@@ -102,7 +108,7 @@ describe("translateHermes — constrained-inject (short)", () => {
     expect(translateHermes(action).exitCode).toBe(0);
   });
 
-  it("emits raw ACP continue with content=systemMessage", () => {
+  it("emits raw native-hook continue with content=systemMessage", () => {
     const { raw } = translateHermes(action);
     expect(raw.action).toBe("continue");
     expect((raw as { action: string; content?: string }).content).toBe("apply rule X");
@@ -114,25 +120,25 @@ describe("translateHermes — constrained-inject (short)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// constrained-inject — long content (over 1800 bytes)
+// constrained-inject — long content (over 20000 bytes)
 // ---------------------------------------------------------------------------
 
 describe("translateHermes — constrained-inject (long, truncated)", () => {
   const action: ForceAction = {
     kind: "constrained-inject",
-    systemMessage: OVER_1800,
+    systemMessage: OVER_20000,
   };
 
-  it("raw.content is truncated to ≤1800 bytes", () => {
+  it("raw.content is truncated to ≤20000 bytes", () => {
     const { raw } = translateHermes(action);
     const content = (raw as { action: string; content?: string }).content ?? "";
     const byteLen = new TextEncoder().encode(content).length;
-    expect(byteLen).toBeLessThanOrEqual(1800);
+    expect(byteLen).toBeLessThanOrEqual(20000);
   });
 
   it("additionalContext carries the full (untruncated) systemMessage", () => {
     const { additionalContext } = translateHermes(action);
-    expect(additionalContext).toBe(OVER_1800);
+    expect(additionalContext).toBe(OVER_20000);
   });
 
   it("decision remains continue", () => {
@@ -158,7 +164,7 @@ describe("translateHermes — rich-inject (downgraded, short)", () => {
     expect(translateHermes(action).exitCode).toBe(0);
   });
 
-  it("emits raw ACP continue with content=action.content", () => {
+  it("emits raw native-hook continue with content=action.content", () => {
     const { raw } = translateHermes(action);
     expect(raw.action).toBe("continue");
     expect((raw as { action: string; content?: string }).content).toBe(
@@ -174,18 +180,18 @@ describe("translateHermes — rich-inject (downgraded, short)", () => {
 describe("translateHermes — rich-inject (long, truncated)", () => {
   const action: ForceAction = {
     kind: "rich-inject",
-    content: OVER_1800,
+    content: OVER_20000,
   };
 
-  it("raw.content is truncated to ≤1800 bytes", () => {
+  it("raw.content is truncated to ≤20000 bytes", () => {
     const { raw } = translateHermes(action);
     const content = (raw as { action: string; content?: string }).content ?? "";
     const byteLen = new TextEncoder().encode(content).length;
-    expect(byteLen).toBeLessThanOrEqual(1800);
+    expect(byteLen).toBeLessThanOrEqual(20000);
   });
 
   it("additionalContext carries the full (untruncated) content", () => {
-    expect(translateHermes(action).additionalContext).toBe(OVER_1800);
+    expect(translateHermes(action).additionalContext).toBe(OVER_20000);
   });
 });
 
@@ -209,7 +215,7 @@ describe("translateHermes — deferred-block", () => {
     expect(translateHermes(action).exitCode).toBe(0);
   });
 
-  it("emits raw ACP continue without content", () => {
+  it("emits raw native-hook continue without content", () => {
     const { raw } = translateHermes(action);
     expect(raw.action).toBe("continue");
     expect((raw as { action: string; content?: string }).content).toBeUndefined();
@@ -235,7 +241,7 @@ describe("translateHermes — observe-only", () => {
     expect(translateHermes(action).exitCode).toBe(0);
   });
 
-  it("emits raw ACP continue", () => {
+  it("emits raw native-hook continue", () => {
     expect(translateHermes(action).raw.action).toBe("continue");
   });
 });
@@ -255,7 +261,7 @@ describe("translateHermes — noop", () => {
     expect(translateHermes(action).exitCode).toBe(0);
   });
 
-  it("emits raw ACP continue", () => {
+  it("emits raw native-hook continue", () => {
     expect(translateHermes(action).raw.action).toBe("continue");
   });
 });
@@ -267,14 +273,14 @@ describe("translateHermes — noop", () => {
 describe("translateHermes — multi-byte UTF-8 truncation boundary", () => {
   const action: ForceAction = {
     kind: "constrained-inject",
-    systemMessage: MULTI_BYTE_OVER_1800,
+    systemMessage: MULTI_BYTE_OVER_20000,
   };
 
-  it("raw.content byte length is ≤1800", () => {
+  it("raw.content byte length is ≤20000", () => {
     const { raw } = translateHermes(action);
     const content = (raw as { action: string; content?: string }).content ?? "";
     const byteLen = new TextEncoder().encode(content).length;
-    expect(byteLen).toBeLessThanOrEqual(1800);
+    expect(byteLen).toBeLessThanOrEqual(20000);
   });
 
   it("raw.content is valid UTF-8 (no garbled multi-byte tail)", () => {

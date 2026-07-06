@@ -164,7 +164,7 @@ describe("buildSpawnAssignmentContext", () => {
       { role: "Antagonist" },
     ]);
     expect(result).toBe(
-      "[HIMA spawn] stage design role-team: Architect, Antagonist — spawn these as Task subagents (explicit model each).",
+      "[HIMA spawn] stage design role-team: Architect, Antagonist — spawn these as Agent (Task) subagents (explicit model each).",
     );
   });
 
@@ -183,13 +183,13 @@ describe("buildSpawnAssignmentContext", () => {
   it("handles a single role", () => {
     const result = buildSpawnAssignmentContext("test", [{ role: "Test Writer" }]);
     expect(result).toBe(
-      "[HIMA spawn] stage test role-team: Test Writer — spawn these as Task subagents (explicit model each).",
+      "[HIMA spawn] stage test role-team: Test Writer — spawn these as Agent (Task) subagents (explicit model each).",
     );
   });
 
   it("ends with the canonical advisory suffix", () => {
     const result = buildSpawnAssignmentContext("spec", [{ role: "Spec Author" }]);
-    const suffix = "— spawn these as Task subagents (explicit model each).";
+    const suffix = "— spawn these as Agent (Task) subagents (explicit model each).";
     expect(result.endsWith(suffix)).toBe(true);
   });
 

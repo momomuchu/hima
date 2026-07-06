@@ -15,9 +15,31 @@ import { OPENCODE_MAP } from "./adapter-opencode.js";
  *
  * Key invariants (from ARCHITECTURE-v3.md + AMENDMENTs):
  *   - user_prompt + pre_tool are universal:true, canBlock:true on ALL runtimes.
- *   - codex: constrained injection, maxInjectionBytes 1800, pre_tool+stop block only.
+ *   - codex: constrained injection, pre_tool+stop block only. NOTE (SOT correction C1,
+ *     docs/research/runtime-capabilities.sot.json): there is NO documented 1800-byte
+ *     injection cap on Codex — "1800" was a misread of agents.job_max_runtime_seconds
+ *     (a 1800-SECOND timeout, not a byte limit). Real Codex doc-size caps are AGENTS.md
+ *     32 KiB and skill-listing 8000 chars — neither maps to a per-hook injection byte
+ *     cap, so `maxInjectionBytes` is left undefined on CODEX_MAP cells (see below).
  *   - hermes: stop level=degraded, enforcementStrength=deferred.
- *   - hermes: subagent_start absent → compensatingMechanism=intercept_delegate_task_pre_tool.
+ *   - hermes: subagent_start EXISTS (SOT correction C3) — observational only, no
+ *     canBlock. compensatingMechanism=intercept_delegate_task_pre_tool remains the
+ *     actual block point (pre_tool), unchanged.
+ *   - hermes: constrained-injection cells carry maxInjectionBytes=20000 (SOT correction
+ *     C1: real cap is context_file_max_chars=20000 chars/file, not 1800 — "1800" there
+ *     was HERMES_API_TIMEOUT, a 1800-SECOND timeout, not a byte/char limit).
+ *   - claude: subagent_start is canBlock=false (SOT correction C2) — SubagentStart is
+ *     INJECTION-ONLY on Claude; SubagentStop is the blocking sibling. BEH_WORKER_MODEL
+ *     enforcement was re-wired to also fire at pre_tool, scoped to the Agent/Task spawn
+ *     tool call itself, which IS a real PreToolUse deny point on Claude.
+ *   - block surface note (SOT correction C7): the *documented* blockable-hook set per
+ *     runtime is wider than "pre_tool + stop" (e.g. claude also has UserPromptSubmit,
+ *     PermissionRequest, PostToolUse, PostToolBatch, SubagentStop, TaskCreated/Completed,
+ *     PreCompact; codex adds PermissionRequest, PreCompact, PostCompact, SubagentStop;
+ *     opencode's tool.execute.before also blocks). This map only encodes the subset PFV4
+ *     currently wires through pickAttack/dispatchTranslate — the wider surface enables
+ *     redundant Delegation-First enforcement as a documented follow-on, not a behavior
+ *     change here. See docs/research/runtime-capabilities.sot.json.
  *
  * Each cell is validated at module load via decodeGateCapabilityCell (throws on schema
  * violation, so a broken map fails fast rather than silently returning bad data).
@@ -134,19 +156,35 @@ const CLAUDE_MAP: Record<GateType, GateCapabilityCell> = {
   subagent_start: cell({
     gateType: "subagent_start",
     level: "supported",
-    canBlock: true,
+    // SOT correction C2 (docs/research/runtime-capabilities.sot.json): Claude's
+    // SubagentStart hook is INJECTION-ONLY — it fires on spawn and can inject
+    // additionalContext into the child, but it CANNOT block (canBlock:false in
+    // the official hooks doc). SubagentStop is the blocking sibling event.
+    // A gate that "hard-blocked" here (the previous canBlock:true) was dark:
+    // it could never actually deny the spawn. BEH_WORKER_MODEL enforcement was
+    // re-wired to ALSO fire at pre_tool, scoped to the Agent/Task spawn tool
+    // call itself, which IS a real PreToolUse deny point on Claude.
+    canBlock: false,
     injectionMode: "rich",
-    enforcementStrength: "hard",
+    enforcementStrength: "advisory",
     skillForcing: true,
     compensatingMechanism: "injected_role_context",
     universal: false,
     subagents: "native",
     profiles: "runtime-profiles",
+    note: "Injection-only (SubagentStart cannot block); hard enforcement of worker-model moved to pre_tool on the Agent/Task spawn call.",
   }),
 
   subagent_stop: cell({
     gateType: "subagent_stop",
     level: "supported",
+    // NOTE (SOT, not part of this correction pass): the official docs describe
+    // SubagentStop as canBlock:true ("blocks the child from finishing"). No
+    // BehaviorDescriptor currently targets subagent_stop, so this cell is left
+    // at its existing conservative canBlock:false/advisory value — flipping it
+    // would be an unrelated behavior change (would need new wiring + tests,
+    // e.g. R-048 dedup in handleSubagentStop assumes observe-only today).
+    // Tracked as a documented follow-on, not part of C1-C7.
     canBlock: false,
     injectionMode: "rich",
     enforcementStrength: "advisory",
@@ -171,11 +209,15 @@ const CODEX_MAP: Record<GateType, GateCapabilityCell> = {
     enforcementStrength: "advisory",
     skillForcing: false,
     compensatingMechanism: "none",
-    maxInjectionBytes: 1800,
+    // SOT correction C1 (docs/research/runtime-capabilities.sot.json): NO documented
+    // injection-byte cap exists on Codex — "1800" was a misread of the 1800-SECOND
+    // agents.job_max_runtime_seconds timeout, not a byte limit. Real Codex doc-size
+    // caps (AGENTS.md 32 KiB, skill-listing 8000 chars) are unrelated mechanisms, so
+    // maxInjectionBytes is left undefined rather than encoding an invented number.
     universal: false,
     subagents: "poll-file",
     profiles: "injected-role-context",
-    note: "systemMessage injection only; no native block at session start.",
+    note: "systemMessage injection only; no native block at session start. No documented injection-byte cap (SOT C1).",
   }),
 
   user_prompt: cell({
@@ -186,10 +228,11 @@ const CODEX_MAP: Record<GateType, GateCapabilityCell> = {
     enforcementStrength: "hard",
     skillForcing: true,
     compensatingMechanism: "keyword_detection_user_prompt",
-    maxInjectionBytes: 1800,
+    // SOT correction C1: no documented injection-byte cap on Codex — see session_start.
     universal: true,
     subagents: "poll-file",
     profiles: "injected-role-context",
+    note: "No documented injection-byte cap (SOT C1); prior 1800 value was the 1800-SECOND job timeout, not a byte limit.",
   }),
 
   pre_tool: cell({
@@ -200,10 +243,11 @@ const CODEX_MAP: Record<GateType, GateCapabilityCell> = {
     enforcementStrength: "hard",
     skillForcing: true,
     compensatingMechanism: "none",
-    maxInjectionBytes: 1800,
+    // SOT correction C1: no documented injection-byte cap on Codex — see session_start.
     universal: true,
     subagents: "poll-file",
     profiles: "injected-role-context",
+    note: "No documented injection-byte cap (SOT C1); prior 1800 value was the 1800-SECOND job timeout, not a byte limit.",
   }),
 
   post_tool: cell({
@@ -214,10 +258,11 @@ const CODEX_MAP: Record<GateType, GateCapabilityCell> = {
     enforcementStrength: "advisory",
     skillForcing: false,
     compensatingMechanism: "none",
-    maxInjectionBytes: 1800,
+    // SOT correction C1: no documented injection-byte cap on Codex — see session_start.
     universal: false,
     subagents: "poll-file",
     profiles: "injected-role-context",
+    note: "No documented injection-byte cap (SOT C1); prior 1800 value was the 1800-SECOND job timeout, not a byte limit.",
   }),
 
   pre_compact: cell({
@@ -256,11 +301,11 @@ const CODEX_MAP: Record<GateType, GateCapabilityCell> = {
     enforcementStrength: "hard",
     skillForcing: false,
     compensatingMechanism: "none",
-    maxInjectionBytes: 1800,
+    // SOT correction C1: no documented injection-byte cap on Codex — see session_start.
     universal: false,
     subagents: "poll-file",
     profiles: "injected-role-context",
-    note: "Codex stop block is supported; pre_tool+stop are the primary enforcement gates.",
+    note: "Codex stop block is supported; pre_tool+stop are the primary enforcement gates. No documented injection-byte cap (SOT C1).",
   }),
 
   subagent_start: cell({
@@ -271,7 +316,10 @@ const CODEX_MAP: Record<GateType, GateCapabilityCell> = {
     enforcementStrength: "advisory",
     skillForcing: false,
     compensatingMechanism: "poll_subagent_file",
-    maxInjectionBytes: 1800,
+    // SOT correction C1: no documented injection-byte cap on Codex — see session_start.
+    // Also: per SOT, Codex's SubagentStart IS a native push event (see C5,
+    // codex-subagent.ts) — the poll-file here remains a defensive fallback, not
+    // a necessity.
     universal: false,
     subagents: "poll-file",
     profiles: "injected-role-context",
@@ -306,10 +354,14 @@ const HERMES_MAP: Record<GateType, GateCapabilityCell> = {
     enforcementStrength: "advisory",
     skillForcing: false,
     compensatingMechanism: "injected_role_context",
+    // SOT correction C1: real Hermes injection cap is context_file_max_chars =
+    // 20000 chars/file. The prior "1800" myth was HERMES_API_TIMEOUT, a
+    // 1800-SECOND timeout, not a byte/char cap.
+    maxInjectionBytes: 20000,
     universal: false,
     subagents: "absent",
     profiles: "injected-role-context",
-    note: "Hermes uses user-message injection; no system-level hook.",
+    note: "Hermes uses user-message injection; no system-level hook. Cap is 20000 chars/file (SOT C1), not 1800.",
   }),
 
   user_prompt: cell({
@@ -320,10 +372,12 @@ const HERMES_MAP: Record<GateType, GateCapabilityCell> = {
     enforcementStrength: "hard",
     skillForcing: true,
     compensatingMechanism: "keyword_detection_user_prompt",
+    // SOT correction C1: see session_start — real cap is 20000 chars/file.
+    maxInjectionBytes: 20000,
     universal: true,
     subagents: "absent",
     profiles: "injected-role-context",
-    note: "Universal blocking via user-message injection and keyword detection.",
+    note: "Universal blocking via user-message injection and keyword detection. Cap is 20000 chars/file (SOT C1), not 1800.",
   }),
 
   pre_tool: cell({
@@ -334,9 +388,12 @@ const HERMES_MAP: Record<GateType, GateCapabilityCell> = {
     enforcementStrength: "hard",
     skillForcing: true,
     compensatingMechanism: "none",
+    // SOT correction C1: see session_start — real cap is 20000 chars/file.
+    maxInjectionBytes: 20000,
     universal: true,
     subagents: "absent",
     profiles: "injected-role-context",
+    note: "Cap is 20000 chars/file (SOT C1), not 1800.",
   }),
 
   post_tool: cell({
@@ -347,9 +404,12 @@ const HERMES_MAP: Record<GateType, GateCapabilityCell> = {
     enforcementStrength: "advisory",
     skillForcing: false,
     compensatingMechanism: "none",
+    // SOT correction C1: see session_start — real cap is 20000 chars/file.
+    maxInjectionBytes: 20000,
     universal: false,
     subagents: "absent",
     profiles: "injected-role-context",
+    note: "Cap is 20000 chars/file (SOT C1), not 1800.",
   }),
 
   pre_compact: cell({
@@ -388,15 +448,22 @@ const HERMES_MAP: Record<GateType, GateCapabilityCell> = {
     enforcementStrength: "deferred",
     skillForcing: false,
     compensatingMechanism: "deferred_stop_verdict",
+    // SOT correction C1: see session_start — real cap is 20000 chars/file.
+    maxInjectionBytes: 20000,
     universal: false,
     subagents: "absent",
     profiles: "injected-role-context",
-    note: "Stop is degraded on Hermes: enforcement is deferred, not hard-blocking.",
+    note: "Stop is degraded on Hermes: enforcement is deferred, not hard-blocking. Cap is 20000 chars/file (SOT C1), not 1800.",
   }),
 
   subagent_start: cell({
     gateType: "subagent_start",
-    level: "absent",
+    // SOT correction C3 (docs/research/runtime-capabilities.sot.json): Hermes
+    // subagent_start EXISTS (Norm previously wrongly assumed it was absent) —
+    // it is an observational hook only (canBlock:false, no compensating
+    // injection currently wired). The real block point stays the pre_tool
+    // intercept of delegate_task calls (compensatingMechanism unchanged).
+    level: "degraded",
     canBlock: false,
     injectionMode: "none",
     enforcementStrength: "observe_only",
@@ -405,7 +472,7 @@ const HERMES_MAP: Record<GateType, GateCapabilityCell> = {
     universal: false,
     subagents: "absent",
     profiles: "none",
-    note: "No native subagent hook on Hermes; compensated via pre_tool intercept of delegate/task calls.",
+    note: "subagent_start EXISTS on Hermes (observational only, SOT C3) — not absent as previously documented; pre_tool intercept of delegate_task remains the actual block point.",
   }),
 
   subagent_stop: cell({

@@ -75,6 +75,17 @@ describe("capability-map-v3 — claude runtime", () => {
     expect(c.level).toBe("supported");
   });
 
+  // SOT correction C2 (docs/research/runtime-capabilities.sot.json): Claude's
+  // SubagentStart hook is INJECTION-ONLY — it cannot block. SubagentStop is the
+  // blocking sibling. A prior canBlock:true here was a dark gate (never actually
+  // enforceable). Worker-model enforcement moved to pre_tool — see
+  // beh-worker-model.test.ts for the re-wired coverage.
+  it("subagent_start: canBlock=false (injection-only, SOT C2)", () => {
+    const c = getCell("claude", "subagent_start");
+    expect(c.canBlock).toBe(false);
+    expect(c.enforcementStrength).toBe("advisory");
+  });
+
   it("stop: canBlock=true, enforcementStrength=hard", () => {
     const c = getCell("claude", "stop");
     expect(c.canBlock).toBe(true);
@@ -107,16 +118,21 @@ describe("capability-map-v3 — codex runtime", () => {
     expect(c.canBlock).toBe(true);
   });
 
-  it("user_prompt: maxInjectionBytes=1800", () => {
+  // SOT correction C1 (docs/research/runtime-capabilities.sot.json): there is NO
+  // documented injection-byte cap on Codex — "1800" was a misread of the
+  // 1800-SECOND agents.job_max_runtime_seconds timeout, not a byte limit. Real
+  // Codex doc-size caps (AGENTS.md 32 KiB, skill-listing 8000 chars) are
+  // unrelated mechanisms, so maxInjectionBytes is left undefined.
+  it("user_prompt: maxInjectionBytes is undefined (no documented cap, SOT C1)", () => {
     const c = getCell("codex", "user_prompt");
-    expect(c.maxInjectionBytes).toBe(1800);
+    expect(c.maxInjectionBytes).toBeUndefined();
   });
 
-  it("pre_tool: canBlock=true, injectionMode=constrained, maxInjectionBytes=1800", () => {
+  it("pre_tool: canBlock=true, injectionMode=constrained, maxInjectionBytes undefined (SOT C1)", () => {
     const c = getCell("codex", "pre_tool");
     expect(c.canBlock).toBe(true);
     expect(c.injectionMode).toBe("constrained");
-    expect(c.maxInjectionBytes).toBe(1800);
+    expect(c.maxInjectionBytes).toBeUndefined();
   });
 
   it("stop: canBlock=true (primary enforcement gate)", () => {
@@ -136,11 +152,11 @@ describe("capability-map-v3 — codex runtime", () => {
     }
   });
 
-  it("constrained gates have maxInjectionBytes=1800", () => {
+  it("constrained gates have maxInjectionBytes undefined (no documented cap, SOT C1)", () => {
     for (const gt of ALL_GATE_TYPES) {
       const c = CODEX_MAP[gt];
       if (c.injectionMode === "constrained") {
-        expect(c.maxInjectionBytes, `codex/${gt} maxInjectionBytes`).toBe(1800);
+        expect(c.maxInjectionBytes, `codex/${gt} maxInjectionBytes`).toBeUndefined();
       }
     }
   });
@@ -174,10 +190,22 @@ describe("capability-map-v3 — hermes runtime", () => {
     expect(getCell("hermes", "stop").canBlock).toBe(false);
   });
 
-  it("subagent_start: level=absent, compensatingMechanism=intercept_delegate_task_pre_tool", () => {
+  // SOT correction C3: Hermes subagent_start EXISTS (observational only) — it is
+  // NOT absent as previously documented. The pre_tool intercept of delegate_task
+  // remains the actual block point (compensatingMechanism unchanged).
+  it("subagent_start: level=degraded (exists, SOT C3), compensatingMechanism=intercept_delegate_task_pre_tool", () => {
     const c = getCell("hermes", "subagent_start");
-    expect(c.level).toBe("absent");
+    expect(c.level).toBe("degraded");
+    expect(c.canBlock).toBe(false);
     expect(c.compensatingMechanism).toBe("intercept_delegate_task_pre_tool");
+  });
+
+  it("constrained gates carry maxInjectionBytes=20000 (SOT C1, not the 1800 myth)", () => {
+    for (const gt of ["session_start", "user_prompt", "pre_tool", "post_tool", "stop"] as const) {
+      const c = HERMES_MAP[gt];
+      expect(c.injectionMode, `hermes/${gt} injectionMode`).toBe("constrained");
+      expect(c.maxInjectionBytes, `hermes/${gt} maxInjectionBytes`).toBe(20000);
+    }
   });
 
   it("all hermes gates have subagents=absent", () => {

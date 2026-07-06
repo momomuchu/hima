@@ -25,9 +25,13 @@ import { translateOpenCode } from "./adapter-opencode.js";
 // ---------------------------------------------------------------------------
 
 export type DispatchResponse = ClaudeResponse & {
-  /** Codex-specific: injected on stdout as the systemMessage field (≤1800 bytes). */
+  /**
+   * Codex-specific: injected on stdout as the systemMessage field. No
+   * documented external byte cap (SOT correction C1) — adapter-codex.ts
+   * applies its own conservative internal truncation.
+   */
   systemMessage?: string;
-  /** Runtime-native raw payload (e.g. Hermes ACP object). */
+  /** Runtime-native raw payload (e.g. Hermes native hook object — NOT ACP, SOT correction C4). */
   raw?: unknown;
 };
 
@@ -52,13 +56,15 @@ export function dispatchTranslate(
       return translateClaude(action);
 
     case "codex":
-      // R-010: real Codex adapter — constrained injection, 1800-byte cap,
-      // systemMessage channel, hard-block at pre_tool+stop only.
+      // R-010: real Codex adapter — constrained injection (no documented byte
+      // cap, SOT correction C1), systemMessage channel, hard-block at
+      // pre_tool+stop only.
       return translateCodex(action);
 
     case "hermes":
-      // R-011: real Hermes adapter — ACP format, deferred stop enforcement,
-      // raw ACP object carried in response.raw.
+      // R-011: real Hermes adapter — native Python hook format (NOT ACP, SOT
+      // correction C4), deferred stop enforcement, raw native hook object
+      // carried in response.raw.
       return translateHermes(action);
 
     case "opencode":

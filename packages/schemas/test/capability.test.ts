@@ -24,7 +24,14 @@ describe("GateCapabilityCell schema", () => {
   });
 
   it("decodes a cell with optional maxInjectionBytes and note", () => {
-    const codexPreTool = {
+    // Sample value is 8000 (SOT: Codex skill-listing char cap) purely as a schema-shape
+    // fixture — this test only exercises the optional-field decode path, it is not a
+    // claim about a specific runtime's real cap. See docs/research/runtime-capabilities.sot.json
+    // (SOT correction C1): the real Codex constrained cells carry no documented
+    // injection-byte cap at all; the previous "1800" fixture here echoed that same myth
+    // (1800 was HERMES_API_TIMEOUT / Codex's job_max_runtime_seconds, both SECOND
+    // timeouts, not byte limits).
+    const syntheticCellWithCap = {
       gateType: "pre_tool",
       level: "supported",
       canBlock: true,
@@ -32,15 +39,15 @@ describe("GateCapabilityCell schema", () => {
       enforcementStrength: "hard",
       skillForcing: false,
       compensatingMechanism: "none",
-      maxInjectionBytes: 1800,
+      maxInjectionBytes: 8000,
       universal: true,
       subagents: "poll-file",
       profiles: "none",
-      note: "systemMessage only, capped at 1800 bytes",
+      note: "systemMessage only, capped at 8000 chars",
     };
-    const decoded = decodeGateCapabilityCell(codexPreTool);
-    expect(decoded.maxInjectionBytes).toBe(1800);
-    expect(decoded.note).toBe("systemMessage only, capped at 1800 bytes");
+    const decoded = decodeGateCapabilityCell(syntheticCellWithCap);
+    expect(decoded.maxInjectionBytes).toBe(8000);
+    expect(decoded.note).toBe("systemMessage only, capped at 8000 chars");
   });
 
   it("decodes a degraded stop cell with deferred enforcement", () => {

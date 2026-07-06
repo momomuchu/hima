@@ -237,8 +237,12 @@ function safeAppendTrace(
  * Emit a full runtime-specific block response to stdout and set exitCode=2.
  *
  * Includes optional runtime-native fields from the dispatch response:
- *   - systemMessage: Codex injection channel (≤1800 bytes)
- *   - raw:           Hermes ACP object {action:"block", message}
+ *   - systemMessage: Codex injection channel (no documented byte cap — SOT
+ *                     correction C1, docs/research/runtime-capabilities.sot.json;
+ *                     the adapter's own truncation constant is a conservative
+ *                     internal choice, not a documented external limit)
+ *   - raw:           Hermes native hook object {action:"block", message}
+ *                     (NOT ACP — SOT correction C4)
  *
  * This replaces bare emitBlock() for paths where the adapter response carries
  * additional runtime-specific fields beyond {decision, reason}.
@@ -487,7 +491,7 @@ export async function handleUserPromptSubmit(
     // R-035: live role-spawn manifest for new wards.
     // Compute the role-team for the initial stage, write the manifest file,
     // and append the spawn-assignment advisory context so the agent spawns
-    // the correct Task subagents immediately.
+    // the correct Agent (Task) subagents immediately.
     const roles = spawnPlan(ward.openStage, ROLE_CATALOG);
     if (roles.length > 0) {
       const roleNames = roles.map((r) => r.roleId);
@@ -767,7 +771,7 @@ export async function handlePreToolUse(
     // R-035: StageParallelizationGate — advisory-strong check.
     // When a write is about to happen in a non-discovery stage and no spawn
     // manifest exists for that ward+stage, emit a role-team advisory so the
-    // agent knows to spawn the correct Task subagents.
+    // agent knows to spawn the correct Agent (Task) subagents.
     // Advisory-strong: does NOT hard-block to avoid bricking the pipeline.
     if (WRITE_TOOL_NAMES.has(toolName) && ward.openStage !== "discovery") {
       try {
@@ -1888,16 +1892,27 @@ async function handleHermesDelegateTask(
 }
 
 /**
- * handleSubagentStart — R-028: enforce BEH_WORKER_MODEL at the subagent_start gate.
+ * handleSubagentStart — R-028: evaluate BEH_WORKER_MODEL at the subagent_start gate.
  *
- * On Claude (canBlock=true for subagent_start): if BEH_WORKER_MODEL blocks (no model
- * specified in the spawn payload), emits a hard block + exit 2. Otherwise allows.
+ * CORRECTION (SOT C2, docs/research/runtime-capabilities.sot.json): Claude's
+ * SubagentStart hook is INJECTION-ONLY (canBlock=false in the official docs) —
+ * it fires on spawn but can never actually deny it. This handler therefore
+ * cannot hard-block here on ANY runtime; `cell.canBlock` is false for claude
+ * subagent_start (capability-map-v3.ts), so the `verdict.decision === "block"
+ * && cell.canBlock` branch below is now unreachable for Claude by design — a
+ * block verdict here falls through to the advisory allow/inject path. The
+ * REAL hard-block for a missing model on Claude happens at pre_tool, scoped
+ * to the Agent/Task spawn tool call itself (BEH_WORKER_MODEL now also fires
+ * there — see beh-worker-model.ts and handlePreToolUse above).
  *
- * On Hermes: subagent_start is absent; compensation is via handlePreToolUse's
- * delegate_task intercept (R-038). This function is only reached on Claude.
+ * On Hermes: subagent_start EXISTS but is observational only (SOT C3);
+ * compensation for real blocking is via handlePreToolUse's delegate_task
+ * intercept (R-038).
  *
- * On Codex: subagent_start is degraded (canBlock=false); the poll-file mechanism
- * (R-049) provides compensation. Here we still evaluate the gate but cannot block.
+ * On Codex: subagent_start is degraded (canBlock=false); the poll-file
+ * mechanism (R-049) provides compensation (Codex also has a native
+ * SubagentStart push event per SOT C5 — the poll-file is a fallback, not a
+ * necessity). Here we still evaluate the gate but cannot block.
  */
 export async function handleSubagentStart(
   root: string,

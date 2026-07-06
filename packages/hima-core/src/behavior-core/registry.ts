@@ -112,8 +112,11 @@ defaultRegistry.registerBehavior(BEH_PLANNER_WRITE_GUARD);
 defaultRegistry.registerBehavior(BEH_DELEGATION_FIRST);
 
 // R-028 / I10b: worker-model-explicit — blocks subagent spawn without explicit model.
-// Fires at subagent_start gate on claude (canBlock=true). Hermes compensates via
-// handlePreToolUse delegate_task intercept (R-038).
+// SOT correction C2: Claude's subagent_start is injection-only (cannot block), so this
+// behavior ALSO fires at pre_tool, scoped to the Agent/Task spawn tool call itself,
+// which IS a real PreToolUse deny point (canBlock=true universally on pre_tool).
+// subagent_start stays registered for the injected reminder + Hermes/Codex compensation
+// paths. Hermes compensates via handlePreToolUse delegate_task intercept (R-038).
 defaultRegistry.registerBehavior(BEH_WORKER_MODEL);
 
 // R-016 / I14b: feedback-wave-detect advisory at user_prompt (H+).

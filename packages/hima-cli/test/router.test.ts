@@ -65,8 +65,10 @@ afterEach(async () => {
 // ---------------------------------------------------------------------------
 
 describe("router — graceful no-op events (exit 0)", () => {
-  // subagent-start is no longer a no-op: it evaluates BEH_WORKER_MODEL and blocks
-  // on claude when no model is specified. See e2e-subagents.test.ts for coverage.
+  // subagent-start is no longer a no-op: it evaluates BEH_WORKER_MODEL. Per SOT
+  // correction C2, Claude's SubagentStart hook is injection-only and cannot itself
+  // block — the real hard-block for a missing model now happens at pre_tool on the
+  // Agent/Task spawn call. See e2e-subagents.test.ts for coverage of both gates.
   const noOpEvents = [
     "session-start",
     "post-tool-use",

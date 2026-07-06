@@ -8,8 +8,18 @@ source: PROPOSITION.md §4/§12, ADR-0003,
         packages/adapter-hermes-v2/src/hook-bindings.ts,
         packages/storage-core/src/capability-map.ts,
         .omc/ultragoal/brief.md §critères-3/4/5,
-        .planning/restructure/lanes/lane-triage-hima.md
+        .planning/restructure/lanes/lane-triage-hima.md,
+        docs/research/runtime-capabilities.sot.json (SOT corrections C3/C4)
 cross-refs: SPEC-001-package-contracts.md, SPEC-003-gates-runtime-matrix.md
+
+**Correction SOT C4** (docs/research/runtime-capabilities.sot.json) : Hermes n'utilise PAS
+ACP (Agent Client Protocol) pour la délégation ou les hooks. ACP est le protocole
+éditeur↔agent de Zed (type LSP), utilisé par Hermes UNIQUEMENT en mode intégration-éditeur
+optionnel, et ne définit aucun primitif de sous-agent/délégation. La délégation Hermes
+(`delegate_task`) et le système de hooks (`pre_tool_call`, `post_tool_call`,
+`subagent_start`, ...) sont NATIFS PYTHON, sans rapport avec ACP. Ce document — correctement
+— ne décrivait déjà que le contrat natif Python ; cette note évite toute confusion future
+avec le libellé "ACP" qui apparaissait ailleurs (adapter-hermes.ts).
 
 ---
 
@@ -84,7 +94,7 @@ Chaque exigence est taggée sur deux axes indépendants :
 | pre_compact    | pre_compact            | true     | supported | Bloquer si état de snapshot absent |
 | post_compact   | post_compact           | false    | degraded | Observer + vérifier continuité ; violation → pending-stop-verdict.json |
 | stop           | on_session_end         | false    | degraded | Persister verdict dans pending-stop-verdict.json (voir §stop non bloquant) |
-| subagent_start | (absent)               | false    | absent   | Compensation via pre_tool_call/delegate_task (voir §propagation sub-agents) |
+| subagent_start | subagent_start (observationnel, SOT C3) | false    | degraded | Compensation via pre_tool_call/delegate_task (voir §propagation sub-agents) |
 | subagent_stop  | subagent_stop          | false    | degraded | Observer uniquement |
 
 (Source primaire : `packages/adapter-hermes-v2/src/hook-bindings.ts` + `capability-map.ts`.)
@@ -98,8 +108,10 @@ Chaque exigence est taggée sur deux axes indépendants :
   d'évaluation S'EXÉCUTE quand même (pour persister des verdicts ou pour l'audit), mais
   le plugin NE PEUT PAS bloquer l'exécution à ce point.
 
-- [HIGH][BLOCKS:high] La gate `subagent_start` est `absent` sur Hermes. Le plugin hima ne
-  reçoit aucun événement natif pour l'intercepter. La compensation OBLIGATOIRE est
+- [HIGH][BLOCKS:high] La gate `subagent_start` EXISTE sur Hermes (correction SOT C3 —
+  Norm supposait à tort qu'elle était absente), mais elle est observationnelle uniquement
+  (`canBlock: false`) : le plugin hima peut recevoir l'événement natif pour l'observer,
+  pas pour bloquer. La compensation OBLIGATOIRE pour le blocage réel reste
   l'interception du call `delegate_task` via `pre_tool_call` : quand `event.toolName ===
   "delegate_task"`, le plugin traite l'événement comme un `subagent_start`, évalue la gate
   correspondante, et bloque si nécessaire.
@@ -241,7 +253,8 @@ Chaque exigence est taggée sur deux axes indépendants :
   pre_compact = true
   post_compact = true
   subagent_stop = true
-  # subagent_start : absent sur Hermes — compensé via pre_tool_call/delegate_task
+  # subagent_start : EXISTE sur Hermes (observationnel seulement, SOT C3) —
+  # le blocage réel reste compensé via pre_tool_call/delegate_task
   ```
 
 - [HIGH][BLOCKS:critical] Le plugin lit sa configuration depuis deux sources par ordre

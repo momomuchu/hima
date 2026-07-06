@@ -3,11 +3,17 @@ import path from "node:path";
 import { safeAtomicWriteFile } from "@norm/storage-core";
 
 /**
- * codex-subagent — poll-file compensation for Codex subagent_start absence.
+ * codex-subagent — poll-file compensation for Codex subagent spawn detection.
  *
- * Codex has no native subagent_start hook (capability-map-v3: level="absent",
- * compensatingMechanism="poll_subagent_file"). This module provides the two
- * bookends of that compensation:
+ * CORRECTION (SOT C5, docs/research/runtime-capabilities.sot.json): Codex DOES
+ * have a native SubagentStart hook event (a push event, not poll-based) — the
+ * SOT explicitly notes "native event -> NO poll-file compensation needed".
+ * capability-map-v3's CODEX_MAP.subagent_start is "degraded" (canBlock=false),
+ * not fully absent. The poll-file mechanism below is kept as a defensive
+ * fallback (it is harmless, idempotent, and covers any transport where the
+ * native push event is not wired end-to-end yet) — it is NOT a necessity for
+ * detecting the spawn. This module provides the two bookends of that
+ * fallback:
  *
  *   registerSubagent   — called by a child Codex agent on startup; appends
  *                        its childSessionId to the parent's poll file so the

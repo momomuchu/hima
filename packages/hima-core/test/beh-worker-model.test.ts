@@ -16,10 +16,24 @@
  *   J. model field is any non-empty string → allow (no allowlist enforcement here).
  *   K. both model and subagent_type present → allow (model takes precedence).
  *   L. model field is "  " (spaces only) → block (trim semantics).
- *   M. behaviorId is "BEH-WORKER-MODEL" and gates is ["subagent_start"].
+ *   M. behaviorId is "BEH-WORKER-MODEL" and gates is ["subagent_start", "pre_tool"].
  *   N. block reason contains prescribed phrasing from R-028.
  *   O. allow verdict has no violationType.
  *   P. evaluate is synchronous (returns BehaviorVerdict, not Promise).
+ *
+ * SOT correction C2 (docs/research/runtime-capabilities.sot.json) coverage:
+ *   Claude's SubagentStart hook is injection-only (cannot block) — hard
+ *   enforcement was re-wired to ALSO fire at pre_tool, scoped to the
+ *   Agent/Task spawn tool call itself:
+ *   Q. pre_tool + toolName "Write" (not a spawn tool) + no model → allow (scoped out).
+ *   R. pre_tool + toolName "Agent" + no model → block (WORKER_MODEL_UNSPECIFIED).
+ *   S. pre_tool + toolName "Task" + no model → allow (scoped out — deliberately NOT
+ *      included in the pre_tool scope: BehaviorContext carries no runtime field, and
+ *      "Task" is reused as a generic non-Claude placeholder toolName elsewhere in this
+ *      harness's own tests, e.g. codex-subagent.ts's poll-file spawn detection. "Agent"
+ *      is the unambiguous current Claude name; "Task" stays covered at subagent_start).
+ *   T. pre_tool + toolName "Agent" + model set → allow.
+ *   U. pre_tool + toolName undefined → allow (scoped out, not a spawn call).
  */
 
 import { describe, it, expect } from "vitest";
@@ -42,6 +56,20 @@ function makeSubagentCtx(toolInput: unknown): BehaviorContext {
   };
 }
 
+/** Build a pre_tool BehaviorContext for the C2 re-wired enforcement coverage. */
+function makePreToolCtx(toolName: string | undefined, toolInput: unknown): BehaviorContext {
+  return {
+    event: {
+      gateType: "pre_tool",
+      toolName,
+      toolInput,
+    },
+    riskClass: "H",
+    root: "/tmp/fake-root",
+    ward: null,
+  };
+}
+
 async function evaluate(ctx: BehaviorContext): Promise<BehaviorVerdict> {
   return BEH_WORKER_MODEL.evaluate(ctx);
 }
@@ -55,11 +83,50 @@ describe("BEH_WORKER_MODEL — descriptor meta", () => {
     expect(BEH_WORKER_MODEL.id).toBe("BEH-WORKER-MODEL");
   });
 
-  it("M. gates is exactly [subagent_start]", () => {
-    expect(BEH_WORKER_MODEL.gates).toEqual(["subagent_start"]);
-    expect(BEH_WORKER_MODEL.gates).not.toContain("pre_tool");
+  // SOT correction C2: Claude's subagent_start is injection-only (cannot
+  // block) — pre_tool was added as the real enforcement point, scoped to the
+  // Agent/Task spawn tool call (see makePreToolCtx scenarios below).
+  it("M. gates is exactly [subagent_start, pre_tool]", () => {
+    expect(BEH_WORKER_MODEL.gates).toEqual(["subagent_start", "pre_tool"]);
+    expect(BEH_WORKER_MODEL.gates).toContain("pre_tool");
     expect(BEH_WORKER_MODEL.gates).not.toContain("stop");
     expect(BEH_WORKER_MODEL.gates).not.toContain("user_prompt");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// SOT correction C2 — pre_tool re-wired enforcement (scoped to Agent/Task)
+// ---------------------------------------------------------------------------
+
+describe("BEH_WORKER_MODEL — pre_tool scoping (SOT C2)", () => {
+  it("Q. pre_tool + toolName 'Write' (not a spawn tool) + no model → allow (scoped out)", () => {
+    const result = BEH_WORKER_MODEL.evaluate(makePreToolCtx("Write", { file_path: "/tmp/x" }));
+    expect(result.decision).toBe("allow");
+    expect(result.violationType).toBeUndefined();
+  });
+
+  it("R. pre_tool + toolName 'Agent' + no model → block (WORKER_MODEL_UNSPECIFIED)", () => {
+    const result = BEH_WORKER_MODEL.evaluate(makePreToolCtx("Agent", { prompt: "do work" }));
+    expect(result.decision).toBe("block");
+    expect(result.violationType).toBe("WORKER_MODEL_UNSPECIFIED");
+  });
+
+  it("S. pre_tool + toolName 'Task' + no model → allow (deliberately scoped out — see AGENT_SPAWN_TOOL_NAMES)", () => {
+    const result = BEH_WORKER_MODEL.evaluate(makePreToolCtx("Task", { prompt: "do work" }));
+    expect(result.decision).toBe("allow");
+    expect(result.violationType).toBeUndefined();
+  });
+
+  it("T. pre_tool + toolName 'Agent' + model set → allow", () => {
+    const result = BEH_WORKER_MODEL.evaluate(
+      makePreToolCtx("Agent", { model: "sonnet", prompt: "do work" }),
+    );
+    expect(result.decision).toBe("allow");
+  });
+
+  it("U. pre_tool + toolName undefined → allow (scoped out, not a spawn call)", () => {
+    const result = BEH_WORKER_MODEL.evaluate(makePreToolCtx(undefined, {}));
+    expect(result.decision).toBe("allow");
   });
 });
 

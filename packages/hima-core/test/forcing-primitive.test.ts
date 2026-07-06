@@ -39,7 +39,14 @@ const claudePreToolCell: GateCapabilityCell = {
   profiles: "runtime-profiles",
 };
 
-/** Codex user_prompt cell: canBlock true, constrained inject, maxInjectionBytes 1800 */
+/**
+ * Synthetic constrained user_prompt cell: canBlock true, constrained inject,
+ * maxInjectionBytes 1800. This is a MECHANISM fixture for pickAttack's generic
+ * truncation logic (any cell with maxInjectionBytes set) — it is NOT a claim
+ * about the real Codex user_prompt cell, which carries no documented
+ * injection-byte cap (see docs/research/runtime-capabilities.sot.json, SOT
+ * correction C1, and the real CODEX_MAP in capability-map-v3.ts).
+ */
 const codexUserPromptCell: GateCapabilityCell = {
   gateType: "user_prompt",
   level: "supported",
