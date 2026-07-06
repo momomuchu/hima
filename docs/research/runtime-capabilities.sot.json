@@ -1,0 +1,140 @@
+{
+  "$schema": "./runtime-capabilities.sot.schema.json",
+  "sot_version": "1.0.0",
+  "verified_date": "2026-07-06",
+  "method": "4 parallel research lanes reading each vendor's OFFICIAL docs (delegation-first). Human view: runtime-capabilities-2026-07.md. Refresh: scripts/verify-runtime-sot.mjs.",
+  "confidence_legend": { "documented": "literal/explicit in official docs", "inferred": "synthesized from documented mechanisms", "unverified": "needs a live empirical test, not doc-reading" },
+  "staleness_policy_days": 45,
+  "runtimes": {
+    "claude": {
+      "product": "Claude Code",
+      "docs": "https://code.claude.com/docs/en/",
+      "sub_agents": {
+        "primitive": "Agent tool (renamed from Task in v2.1.63; Task kept as alias). NB: TaskCreate/TaskCompleted is an UNRELATED shared task-list feature.",
+        "definition": ".claude/agents/*.md frontmatter (name/description required; tools, model, isolation, memory, hooks, background…)",
+        "parallel": true,
+        "nest_depth_max": 5,
+        "nest_depth_configurable": false,
+        "fork": true,
+        "worktree_isolation": true,
+        "confidence": "documented"
+      },
+      "hooks": [
+        { "event": "SessionStart", "canBlock": false, "canInject": true },
+        { "event": "UserPromptSubmit", "canBlock": true, "canInject": true },
+        { "event": "PreToolUse", "canBlock": true, "canInject": true, "canRewriteInput": true, "note": "strongest gate; permissionDecision:deny or exit 2" },
+        { "event": "PostToolUse", "canBlock": true, "canInject": true },
+        { "event": "PostToolBatch", "canBlock": true, "canInject": true, "note": "fires once after a parallel tool batch" },
+        { "event": "PermissionRequest", "canBlock": true, "canInject": true },
+        { "event": "SubagentStart", "canBlock": false, "canInject": true, "note": "INJECTION-ONLY into the spawned child; CANNOT block" },
+        { "event": "SubagentStop", "canBlock": true, "canInject": true, "note": "blocks the child from finishing, not the parent" },
+        { "event": "TaskCreated", "canBlock": true, "canInject": false },
+        { "event": "TaskCompleted", "canBlock": true, "canInject": false },
+        { "event": "Stop", "canBlock": true, "canInject": true },
+        { "event": "PreCompact", "canBlock": true, "canInject": false }
+      ],
+      "hook_event_count_documented": 30,
+      "injection_limits": { "bytes": null, "note": "no documented byte cap on additionalContext" },
+      "rules_loading": "CLAUDE.md (project + ~/.claude), skills auto-invoked by description, .claude/rules",
+      "spawn_detection_for_delegation_gate": "SubagentStart fires on spawn (readable for marking) but cannot block → mark on PostToolUse(Agent), BLOCK on PreToolUse(Write|Edit).",
+      "delegation_enforcement_strength": "HIGH (harness-enforced PreToolUse deny)",
+      "sources": ["https://code.claude.com/docs/en/hooks", "https://code.claude.com/docs/en/sub-agents", "https://code.claude.com/docs/en/headless.md", "https://code.claude.com/docs/en/agent-teams.md"],
+      "open_empirical": ["does bypassPermissions/acceptEdits mode override a PreToolUse deny?", "CLAUDE_CODE_MAX_TOOL_USE_CONCURRENCY unconfirmed"]
+    },
+    "codex": {
+      "product": "OpenAI Codex CLI",
+      "docs": "https://developers.openai.com/codex/",
+      "sub_agents": {
+        "primitive": "~/.codex/agents/*.toml (built-ins default/worker/explorer); spawn_agents_on_csv batch tool; cloud parallel mode",
+        "parallel": true,
+        "max_threads_default": 6,
+        "max_depth_default": 1,
+        "trigger": "explicit (user asks); no silent auto-decomposition",
+        "confidence": "documented"
+      },
+      "hooks": [
+        { "event": "SessionStart", "canBlock": false, "canInject": true },
+        { "event": "SubagentStart", "canBlock": false, "canInject": true, "note": "native event → NO poll-file compensation needed" },
+        { "event": "UserPromptSubmit", "canBlock": true, "canInject": true },
+        { "event": "PreToolUse", "canBlock": true, "canInject": true, "canRewriteInput": true, "note": "updatedInput rewrites the call; applies to Bash/apply_patch/MCP" },
+        { "event": "PermissionRequest", "canBlock": true, "canInject": false },
+        { "event": "PostToolUse", "canBlock": true, "canInject": true },
+        { "event": "PreCompact", "canBlock": true, "canInject": true },
+        { "event": "PostCompact", "canBlock": true, "canInject": true },
+        { "event": "Stop", "canBlock": true, "canInject": true },
+        { "event": "SubagentStop", "canBlock": true, "canInject": true }
+      ],
+      "hook_event_count_documented": 11,
+      "hook_layering": "all matching hooks from every config layer run concurrently (higher layers don't replace lower); trust-gated by hash",
+      "injection_limits": { "bytes": null, "note": "NO 1800-byte limit exists. Real caps: project_doc_max_bytes 32 KiB (AGENTS.md), skills listing 8000 chars. '1800' is agents.job_max_runtime_seconds (SECONDS)." },
+      "rules_loading": "AGENTS.md chain (32 KiB cap), ~/.codex/skills + .agents/skills (description auto-invoke)",
+      "spawn_detection_for_delegation_gate": "native SubagentStart event (push, not poll); BLOCK at PreToolUse on apply_patch/Bash-writes, reinforce at UserPromptSubmit + Stop",
+      "delegation_enforcement_strength": "HIGH (6+ blockable events)",
+      "sources": ["https://developers.openai.com/codex/hooks", "https://developers.openai.com/codex/subagents", "https://developers.openai.com/codex/config-reference", "https://developers.openai.com/codex/cloud"],
+      "open_empirical": []
+    },
+    "opencode": {
+      "product": "OpenCode",
+      "docs": "https://opencode.ai/docs/",
+      "sub_agents": {
+        "primitive": "primary + subagent agents (general/explore/scout); Task tool gated by permission.task glob-deny; subagent calls = child sessions",
+        "parallel": true,
+        "confidence": "documented"
+      },
+      "hooks": [
+        { "event": "tool.execute.before", "canBlock": true, "canInject": true, "note": "block by THROWING an Error; can also mutate output.args. ONLY hook with a documented block/mutate example" },
+        { "event": "tool.execute.after", "canBlock": "unverified", "canInject": "unverified" },
+        { "event": "permission.asked", "canBlock": "unverified", "canInject": "unverified" },
+        { "event": "permission.replied", "canBlock": "unverified", "canInject": "unverified" },
+        { "event": "session.created", "canBlock": false, "canInject": "unverified" },
+        { "event": "experimental.session.compacting", "canBlock": false, "canInject": true, "note": "output.context.push() / output.prompt" }
+      ],
+      "hook_event_count_documented": "~25 plugin events (tool/session/permission/message/file/command/lsp/todo/shell/server/tui)",
+      "injection_limits": { "bytes": null },
+      "rules_loading": "AGENTS.md (first-match-wins vs CLAUDE.md), opencode.json instructions[] (+ remote URLs), ~/.claude/CLAUDE.md + ~/.claude/skills fallback",
+      "spawn_detection_for_delegation_gate": "child session.created / tool.execute.after on a task call; BLOCK in a tool.execute.before plugin on edit/write/patch",
+      "delegation_enforcement_strength": "MEDIUM-HIGH (plugin throw at tool.execute.before + permission.task allowlist)",
+      "power_levers": ["custom tool OVERRIDES a built-in (shadow a dangerous tool)", "server REST/SSE API", "granular permission engine incl doom_loop"],
+      "sources": ["https://opencode.ai/docs/agents/", "https://opencode.ai/docs/plugins/", "https://opencode.ai/docs/rules/", "https://opencode.ai/docs/permissions/", "https://opencode.ai/docs/custom-tools/"],
+      "open_empirical": ["is task/edit distinguishable + blockable in tool.execute.before like read?", "permission.asked/replied blockability + payload schema"]
+    },
+    "hermes": {
+      "product": "Hermes Agent (NousResearch/hermes-agent)",
+      "docs": "https://hermes-agent.nousresearch.com/docs/",
+      "acp_correction": "ACP = Agent CLIENT Protocol (Zed, editor↔agent, LSP-like) — used by Hermes ONLY in editor-integration mode. Hermes delegation/hooks are NATIVE PYTHON, unrelated to ACP. ACP defines no sub-agent/delegation primitive.",
+      "sub_agents": {
+        "primitive": "delegate_task tool (single or parallel batch); child AIAgent, isolated context, own terminal",
+        "parallel": true,
+        "max_concurrent_children_default": 3,
+        "max_spawn_depth_default": 1,
+        "skip_context_files": true,
+        "confidence": "documented"
+      },
+      "hooks": [
+        { "event": "pre_tool_call", "canBlock": true, "canInject": true, "note": "{action:block,message} short-circuits the tool; first block wins" },
+        { "event": "post_tool_call", "canBlock": false, "canInject": true },
+        { "event": "pre_llm_call", "canBlock": false, "canInject": true },
+        { "event": "subagent_start", "canBlock": false, "canInject": true, "note": "EXISTS (Norm wrongly assumed absent); observational only" },
+        { "event": "subagent_stop", "canBlock": false, "canInject": true },
+        { "event": "pre_approval_request", "canBlock": "unverified", "canInject": true }
+      ],
+      "hook_event_count_documented": 17,
+      "stop_hook": { "exists": false, "note": "no /stop hook; tracked as open GitHub issue #27206 → 'deferred' is fair" },
+      "injection_limits": { "bytes": null, "note": "NO 1800-byte limit. Real cap: context_file_max_chars 20000 chars/file. '1800' is a 1800-SECOND timeout (HERMES_API_TIMEOUT)." },
+      "rules_loading": "SOUL.md/AGENTS.md context files (20000 chars/file cap); children skip them (skip_context_files=True)",
+      "spawn_detection_for_delegation_gate": "subagent_start (observational); BLOCK at pre_tool_call matched on delegate_task / on solo writes without a prior delegate_task",
+      "delegation_enforcement_strength": "MEDIUM (pre_tool_call block only; no stop hook)",
+      "sources": ["https://github.com/NousResearch/hermes-agent", "https://hermes-agent.nousresearch.com/docs/user-guide/features/hooks", "https://raw.githubusercontent.com/NousResearch/hermes-agent/main/tools/delegate_tool.py", "https://agentclientprotocol.com/"],
+      "open_empirical": ["is there any non-public config carrying a real 1800-byte cap? (else drop it)"]
+    }
+  },
+  "norm_capability_map_corrections": [
+    { "id": "C1", "severity": "critical", "claim": "1800-byte injection limit", "truth": "MYTH — it is 1800 SECONDS (timeout). Real caps: 32 KiB / 20000 chars.", "fix": "adapter-hermes.ts HERMES_MAX_INJECT_BYTES + capability-map maxInjectionBytes", "confirmed_by": ["codex", "hermes"] },
+    { "id": "C2", "severity": "critical", "claim": "Claude subagent_start canBlock:true", "truth": "FALSE — SubagentStart is injection-only; SubagentStop blocks. Any gate blocking at Claude subagent_start (e.g. BEH_WORKER_MODEL) is DARK.", "fix": "capability-map claude.subagent_start.canBlock → false; move worker-model enforcement to PreToolUse", "confirmed_by": ["claude"] },
+    { "id": "C3", "severity": "critical", "claim": "Hermes subagent_start absent", "truth": "FALSE — it exists (observational).", "fix": "capability-map hermes note; keep pre_tool_call as the block point", "confirmed_by": ["hermes"] },
+    { "id": "C4", "severity": "critical", "claim": "Hermes uses ACP (for delegation)", "truth": "FALSE — ACP is editor-integration only; delegation is native Python.", "fix": "adapter-hermes.ts framing / SPEC-007", "confirmed_by": ["hermes"] },
+    { "id": "C5", "severity": "medium", "claim": "Codex needs poll-file subagent compensation", "truth": "unnecessary — native SubagentStart event.", "fix": "codex-subagent.ts note", "confirmed_by": ["codex"] },
+    { "id": "C6", "severity": "medium", "claim": "spawn manifest says 'Task subagents'", "truth": "Claude tool is now 'Agent' (Task = unrelated task-list).", "fix": "spawn-manifest.ts wording", "confirmed_by": ["claude"] },
+    { "id": "C7", "severity": "low", "claim": "block surface = pre_tool + stop only", "truth": "far wider on all 4 → Delegation-First can enforce redundantly.", "fix": "capability-map cells", "confirmed_by": ["claude", "codex", "hermes", "opencode"] }
+  ]
+}
