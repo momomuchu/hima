@@ -168,15 +168,15 @@ Every requirement below references the real source file and line range.
 
 ### Hermes adapter — ACP format, mandatory `raw` field
 
-- [HIGH][BLOCKS:high] `AcpObject` is the Hermes wire format emitted in `raw`:
+- [HIGH][BLOCKS:high] `HermesRawPayload` is the Hermes wire format emitted in `raw`:
   ```ts
-  type AcpObject =
+  type HermesRawPayload =
     | { action: "block"; message: string }
     | { action: "continue"; content?: string }
   ```
   Source: `packages/hima-core/src/adapter-hermes.ts:25-27`.
 
-- [HIGH][BLOCKS:high] `HermesResponse` extends `ClaudeResponse` with a mandatory `raw: AcpObject`.
+- [HIGH][BLOCKS:high] `HermesResponse` extends `ClaudeResponse` with a mandatory `raw: HermesRawPayload`.
   Every branch of `translateHermes` populates `raw` — it is never absent.
   Source: `packages/hima-core/src/adapter-hermes.ts:31`.
 

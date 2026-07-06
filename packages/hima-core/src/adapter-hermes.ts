@@ -13,9 +13,8 @@ import type { ClaudeResponse } from "./adapter-claude.js";
  * unrelated to ACP. The `{action, message?|content?}` object shape below is
  * Hermes's own native hook-response payload — it is kept as-is (it is what the
  * native hook contract needs); only the "ACP" label describing it was wrong.
- * The `AcpObject` type name is kept for now to avoid a wider rename; treat it
- * as "the Hermes native hook payload", not an ACP artifact. See also
- * SPEC-007-adapter-hermes.md.
+ * The type is named `HermesRawPayload` — "the Hermes native hook payload",
+ * not an ACP artifact. See also SPEC-007-adapter-hermes.md.
  *
  * The hook emits a JSON object with {action:"block"|"continue", message?|content?}
  * on stdout.
@@ -42,13 +41,13 @@ import type { ClaudeResponse } from "./adapter-claude.js";
  */
 const HERMES_MAX_INJECT_BYTES = 20000;
 
-/** Raw ACP object emitted on Hermes stdout. */
-export type AcpObject =
+/** Raw native Hermes hook-response payload emitted on stdout (NOT ACP — SOT correction C4). */
+export type HermesRawPayload =
   | { action: "block"; message: string }
   | { action: "continue"; content?: string };
 
-/** Hermes response — a DispatchResponse-compatible object with an ACP raw payload. */
-export type HermesResponse = ClaudeResponse & { raw: AcpObject };
+/** Hermes response — a DispatchResponse-compatible object with the raw native Hermes payload. */
+export type HermesResponse = ClaudeResponse & { raw: HermesRawPayload };
 
 /** Truncate a string to at most maxBytes UTF-8 bytes. */
 function truncateUtf8(text: string, maxBytes: number): string {
@@ -62,14 +61,15 @@ function truncateUtf8(text: string, maxBytes: number): string {
 }
 
 /**
- * translateHermes — convert a ForceAction into a Hermes ACP hook-response payload.
+ * translateHermes — convert a ForceAction into a Hermes native hook-response payload
+ * (NOT ACP — see SOT correction C4 above).
  *
- * Export includes the raw ACP object so dispatchTranslate (and tests) can inspect it.
+ * Export includes the raw native Hermes payload so dispatchTranslate (and tests) can inspect it.
  */
 export function translateHermes(action: ForceAction): HermesResponse {
   switch (action.kind) {
     case "hard-block": {
-      const raw: AcpObject = { action: "block", message: action.reason };
+      const raw: HermesRawPayload = { action: "block", message: action.reason };
       return {
         decision: "block",
         reason: action.reason,
@@ -80,7 +80,7 @@ export function translateHermes(action: ForceAction): HermesResponse {
 
     case "skill-force": {
       const message = action.reason;
-      const raw: AcpObject = { action: "block", message };
+      const raw: HermesRawPayload = { action: "block", message };
       return {
         decision: "block",
         reason: action.reason,
@@ -92,7 +92,7 @@ export function translateHermes(action: ForceAction): HermesResponse {
     case "rich-inject": {
       // Downgrade: Hermes cannot render rich system-reminders; treat as constrained.
       const content = truncateUtf8(action.content, HERMES_MAX_INJECT_BYTES);
-      const raw: AcpObject = { action: "continue", content };
+      const raw: HermesRawPayload = { action: "continue", content };
       return {
         decision: "continue",
         additionalContext: action.content,
@@ -103,7 +103,7 @@ export function translateHermes(action: ForceAction): HermesResponse {
 
     case "constrained-inject": {
       const content = truncateUtf8(action.systemMessage, HERMES_MAX_INJECT_BYTES);
-      const raw: AcpObject = { action: "continue", content };
+      const raw: HermesRawPayload = { action: "continue", content };
       return {
         decision: "continue",
         additionalContext: action.systemMessage,
@@ -114,7 +114,7 @@ export function translateHermes(action: ForceAction): HermesResponse {
 
     case "deferred-block": {
       // Hermes stop is deferred; continue so the gate does not prematurely halt.
-      const raw: AcpObject = { action: "continue" };
+      const raw: HermesRawPayload = { action: "continue" };
       return {
         decision: "continue",
         raw,
@@ -123,7 +123,7 @@ export function translateHermes(action: ForceAction): HermesResponse {
     }
 
     case "observe-only": {
-      const raw: AcpObject = { action: "continue" };
+      const raw: HermesRawPayload = { action: "continue" };
       return {
         decision: "continue",
         raw,
@@ -132,7 +132,7 @@ export function translateHermes(action: ForceAction): HermesResponse {
     }
 
     case "noop": {
-      const raw: AcpObject = { action: "continue" };
+      const raw: HermesRawPayload = { action: "continue" };
       return {
         decision: "continue",
         raw,

@@ -870,7 +870,8 @@ export async function handlePreToolUse(
 
   if (response.decision === "block") {
     // Use emitBlockDispatch to include runtime-specific fields (Codex systemMessage,
-    // Hermes raw ACP object) in the stdout response alongside decision+reason.
+    // Hermes raw native-hook object — NOT ACP, SOT correction C4) in the stdout
+    // response alongside decision+reason.
     // R-017: always use verdict.reason so the floor-scaled skill list is shown,
     // not the adapter's single-skill reason from dispatchTranslate.
     emitBlockDispatch({ ...response, reason: verdict.reason }, verdict.reason);
@@ -1735,7 +1736,7 @@ const HIMA_GOVERNANCE_RULES_SERIALIZED = [
  * Evaluates the subagent_start gate (BEH_WORKER_MODEL) and either blocks or
  * injects hima rules into the task payload.
  *
- * Emit shape on allow (hermes ACP with modifications):
+ * Emit shape on allow (hermes native hook response with modifications):
  *   {"decision":"allow","raw":{"action":"continue","modifications":{"task":"<injected>"}}}
  *
  * Emit shape on block:

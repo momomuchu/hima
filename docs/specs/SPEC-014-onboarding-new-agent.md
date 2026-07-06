@@ -547,9 +547,9 @@ response envelope (e.g. ACP `{action:"block"|"continue"}`); (d) event replay ded
 
 **Worked example: adapter-hermes.ts + companions**
 `packages/hima-core/src/adapter-hermes.ts` (130 lines) introduces:
-- `AcpObject` type: the Hermes-native `{action:"block"|"continue", message?|content?}` format
+- `HermesRawPayload` type: the Hermes-native `{action:"block"|"continue", message?|content?}` format
 - `truncateUtf8()` helper using `TextEncoder`/`TextDecoder` (adapter-hermes.ts:33-41)
-- `raw: AcpObject` field on `HermesResponse` so callers and tests can inspect the native payload
+- `raw: HermesRawPayload` field on `HermesResponse` so callers and tests can inspect the native payload
 - Rich-inject downgrade (Hermes has no system-reminder): content is truncated to 1800 bytes
   and emitted as `raw.content` (adapter-hermes.ts:71-81)
 

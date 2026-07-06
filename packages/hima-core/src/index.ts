@@ -27,9 +27,9 @@ export type { CodexResponse } from "./adapter-codex.js";
 // adapter-codex — Codex runtime adapter (R-010)
 // ---------------------------------------------------------------------------
 export { translateCodex } from "./adapter-codex.js";
-export type { AcpObject, HermesResponse } from "./adapter-hermes.js";
+export type { HermesRawPayload, HermesResponse } from "./adapter-hermes.js";
 // ---------------------------------------------------------------------------
-// adapter-hermes — Hermes ACP runtime adapter (R-011)
+// adapter-hermes — Hermes native-hook runtime adapter (R-011; NOT ACP — SOT C4)
 // ---------------------------------------------------------------------------
 export { translateHermes } from "./adapter-hermes.js";
 export type { OpenCodeResponse } from "./adapter-opencode.js";
