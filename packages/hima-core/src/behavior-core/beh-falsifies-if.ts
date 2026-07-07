@@ -34,16 +34,14 @@
  *      CLAUDE.md claim-bearing rule.
  */
 
-import type { BehaviorDescriptor, BehaviorContext, BehaviorVerdict } from "./types.js";
+import { canonicalWriteTool, extractApplyPatchTargets, isApplyPatchTool } from "./tool-classify.js";
+import type { BehaviorContext, BehaviorDescriptor, BehaviorVerdict } from "./types.js";
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
 const BEHAVIOR_ID = "BEH-FALSIFIES-IF";
-
-/** Tool names that constitute a write operation. */
-const WRITE_TOOL_NAMES = new Set(["Write", "Edit", "MultiEdit"]);
 
 /**
  * Regex patterns that make a normalized file path claim-bearing.
@@ -129,6 +127,19 @@ export function extractContent(toolInput: unknown): string | undefined {
   return undefined;
 }
 
+/**
+ * Extract the "content" to scan from a Codex apply_patch toolInput: the raw
+ * `command` patch script text itself, since the added/changed lines (and any
+ * Falsifies-If block) live inline in the patch rather than in a
+ * content/new_string field.
+ */
+function extractApplyPatchCommandText(toolInput: unknown): string | undefined {
+  if (typeof toolInput !== "object" || toolInput === null) return undefined;
+  const ti = toolInput as Record<string, unknown>;
+  const command = ti["command"];
+  return typeof command === "string" ? command : undefined;
+}
+
 // ---------------------------------------------------------------------------
 // BEH_FALSIFIES_IF descriptor
 // ---------------------------------------------------------------------------
@@ -145,7 +156,7 @@ export const BEH_FALSIFIES_IF: BehaviorDescriptor = {
 
     // ── Non-write tool: allow ────────────────────────────────────────────────
     const toolName = event.toolName ?? "";
-    if (!WRITE_TOOL_NAMES.has(toolName)) {
+    if (!canonicalWriteTool(toolName)) {
       return {
         decision: "allow",
         reason: "non-write tool — falsifies-if gate not applicable",
@@ -154,7 +165,12 @@ export const BEH_FALSIFIES_IF: BehaviorDescriptor = {
     }
 
     // ── Extract target path ──────────────────────────────────────────────────
-    const targetPath = extractTargetPath(event.toolInput);
+    // Codex's apply_patch has no file_path/path field; its target is parsed
+    // from the patch command text (first declared file only — documented
+    // scope limit for this gate).
+    const targetPath = isApplyPatchTool(toolName)
+      ? extractApplyPatchTargets(event.toolInput)[0]
+      : extractTargetPath(event.toolInput);
     if (targetPath === undefined) {
       return {
         decision: "allow",
@@ -164,7 +180,12 @@ export const BEH_FALSIFIES_IF: BehaviorDescriptor = {
     }
 
     // ── Extract written content ──────────────────────────────────────────────
-    const content = extractContent(event.toolInput);
+    // apply_patch carries the added/changed text inline in its `command`
+    // patch script rather than a content/new_string field — scan that whole
+    // text for the claim-bearing frontmatter / Falsifies-If patterns.
+    const content = isApplyPatchTool(toolName)
+      ? extractApplyPatchCommandText(event.toolInput)
+      : extractContent(event.toolInput);
     if (content === undefined) {
       return {
         decision: "allow",

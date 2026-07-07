@@ -37,19 +37,17 @@
  *      ADR-0020 (decision_authority block).
  */
 
-import type { BehaviorDescriptor, BehaviorContext, BehaviorVerdict } from "./types.js";
-import { RISK_ORDER } from "@norm/schemas";
 import type { RiskClass } from "@norm/schemas";
+import { RISK_ORDER } from "@norm/schemas";
 import { readReadSet } from "../read-set.js";
+import { canonicalWriteTool, extractApplyPatchTargets, isApplyPatchTool } from "./tool-classify.js";
+import type { BehaviorContext, BehaviorDescriptor, BehaviorVerdict } from "./types.js";
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
 const BEHAVIOR_ID = "BEH-ADR-BEFORE-IMPL";
-
-/** Tool names that constitute a write operation for this gate. */
-const WRITE_TOOL_NAMES = new Set(["Write", "Edit", "MultiEdit"]);
 
 /**
  * Safe RISK_ORDER lookup.
@@ -144,7 +142,7 @@ export const BEH_ADR_BEFORE_IMPL: BehaviorDescriptor = {
 
     // ── 1. Non-write tool → allow ─────────────────────────────────────────────
     const toolName = event.toolName ?? "";
-    if (!WRITE_TOOL_NAMES.has(toolName)) {
+    if (!canonicalWriteTool(toolName)) {
       return {
         decision: "allow",
         reason: "non-write tool — ADR-before-impl gate not applicable",
@@ -153,7 +151,15 @@ export const BEH_ADR_BEFORE_IMPL: BehaviorDescriptor = {
     }
 
     // ── 2. Extract target path → allow defensively on failure ─────────────────
-    const targetPath = extractTargetPath(event.toolInput);
+    // Codex's apply_patch has no file_path/path field; its target is parsed
+    // from the patch command text. A multi-file patch is evaluated against
+    // its FIRST declared file only (documented scope limit — this gate is
+    // advisory, not the hard-fail-closed Delegation-First/planner-write-guard
+    // path). An unparseable command still yields a (sentinel) target path, so
+    // the advisory still fires rather than silently allowing.
+    const targetPath = isApplyPatchTool(toolName)
+      ? extractApplyPatchTargets(event.toolInput)[0]
+      : extractTargetPath(event.toolInput);
     if (targetPath === undefined) {
       return {
         decision: "allow",
@@ -188,8 +194,7 @@ export const BEH_ADR_BEFORE_IMPL: BehaviorDescriptor = {
     if (hasAdrInReadSet(readSet)) {
       return {
         decision: "allow",
-        reason:
-          `an ADR file is in the session read-set — implementation write to "${targetPath}" is permitted`,
+        reason: `an ADR file is in the session read-set — implementation write to "${targetPath}" is permitted`,
         behaviorId: BEHAVIOR_ID,
       };
     }

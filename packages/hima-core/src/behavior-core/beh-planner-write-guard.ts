@@ -36,8 +36,14 @@
  */
 
 import path from "node:path";
-import type { BehaviorDescriptor, BehaviorContext, BehaviorVerdict } from "./types.js";
 import { PLANNER_STAGES, roleForStage } from "../prompts-core/role-for-stage.js";
+import {
+  canonicalWriteTool,
+  extractWriteTargets,
+  isUnknownWriteTarget,
+  pickRepresentativeTarget,
+} from "./tool-classify.js";
+import type { BehaviorContext, BehaviorDescriptor, BehaviorVerdict } from "./types.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -45,31 +51,9 @@ import { PLANNER_STAGES, roleForStage } from "../prompts-core/role-for-stage.js"
 
 const BEHAVIOR_ID = "BEH-PLANNER-WRITE-GUARD";
 
-/** Tool names that constitute a write operation on disk. */
-const WRITE_TOOL_NAMES = new Set(["Write", "Edit", "MultiEdit"]);
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-/**
- * Extract the target file path from an unknown toolInput value.
- *
- * Tries "file_path" first (Write/Edit canonical field), then "path"
- * (MultiEdit fallback). Returns undefined when neither is a non-empty string.
- *
- * Deliberately not imported from beh-read-before-write to avoid coupling
- * sibling behavior modules.
- */
-function extractTargetPath(toolInput: unknown): string | undefined {
-  if (typeof toolInput !== "object" || toolInput === null) return undefined;
-  const ti = toolInput as Record<string, unknown>;
-  const candidate = ti["file_path"] ?? ti["path"];
-  if (typeof candidate === "string" && candidate.trim() !== "") {
-    return candidate.trim();
-  }
-  return undefined;
-}
 
 /**
  * Return true when the resolved absolute path is inside a given directory
@@ -82,6 +66,22 @@ function extractTargetPath(toolInput: unknown): string | undefined {
  */
 function isUnderDir(absPath: string, absDir: string): boolean {
   return absPath === absDir || absPath.startsWith(absDir + path.sep);
+}
+
+/**
+ * True when a single raw path is EXEMPT from the planner write-guard (a .md
+ * file, or under <root>/.hima/plans or <root>/.hima/drafts). Used to pick the
+ * representative target out of a multi-file apply_patch: the guard should
+ * fire on the write as a whole when ANY touched path is non-exempt.
+ */
+function isPlannerExempt(rawPath: string, root: string): boolean {
+  const absPath = path.isAbsolute(rawPath) ? rawPath : path.resolve(root, rawPath);
+  if (path.extname(absPath) === ".md") return true;
+  const plansDir = path.resolve(root, ".hima", "plans");
+  if (isUnderDir(absPath, plansDir)) return true;
+  const draftsDir = path.resolve(root, ".hima", "drafts");
+  if (isUnderDir(absPath, draftsDir)) return true;
+  return false;
 }
 
 // ---------------------------------------------------------------------------
@@ -122,7 +122,7 @@ export const BEH_PLANNER_WRITE_GUARD: BehaviorDescriptor = {
 
     // ── 3. Non-write tool → allow ─────────────────────────────────────────────
     const toolName = event.toolName ?? "";
-    if (!WRITE_TOOL_NAMES.has(toolName)) {
+    if (!canonicalWriteTool(toolName)) {
       return {
         decision: "allow",
         reason: "non-write tool — planner write-guard not applicable",
@@ -131,7 +131,19 @@ export const BEH_PLANNER_WRITE_GUARD: BehaviorDescriptor = {
     }
 
     // ── 4. Extract target path ────────────────────────────────────────────────
-    const rawPath = extractTargetPath(event.toolInput);
+    // extractWriteTargets recognizes Codex's real apply_patch write tool (path
+    // parsed from the patch command text) alongside Write/Edit/MultiEdit. A
+    // multi-file apply_patch is reduced to one representative path: the first
+    // non-exempt (implementation) target when any exists, else the first
+    // target (e.g. a patch that only touches .md files). An unparseable
+    // apply_patch body yields the UNKNOWN_WRITE_TARGET sentinel, which
+    // isPlannerExempt() never classifies as exempt — the guard fires
+    // (fail-closed), never silently allows on ambiguity.
+    const targets = extractWriteTargets(toolName, event.toolInput);
+    const rawPath = pickRepresentativeTarget(
+      targets,
+      (t) => isUnknownWriteTarget(t) || !isPlannerExempt(t, root),
+    );
     if (rawPath === undefined) {
       // Cannot determine target — allow defensively to avoid silently breaking
       // writes whose toolInput shape is unexpected.
@@ -143,9 +155,7 @@ export const BEH_PLANNER_WRITE_GUARD: BehaviorDescriptor = {
     }
 
     // Resolve to an absolute path so directory prefix checks are unambiguous.
-    const absPath = path.isAbsolute(rawPath)
-      ? rawPath
-      : path.resolve(root, rawPath);
+    const absPath = path.isAbsolute(rawPath) ? rawPath : path.resolve(root, rawPath);
 
     // ── 5. .md extension → allow ──────────────────────────────────────────────
     if (path.extname(absPath) === ".md") {

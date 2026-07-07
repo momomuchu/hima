@@ -31,17 +31,15 @@
  *      ENTRYPOINTS-v3.md §Research-first principle (binding, non-negotiable).
  */
 
-import type { BehaviorDescriptor, BehaviorContext, BehaviorVerdict } from "./types.js";
 import type { StageVerdict } from "@norm/schemas";
+import { canonicalWriteTool, extractApplyPatchTargets, isApplyPatchTool } from "./tool-classify.js";
+import type { BehaviorContext, BehaviorDescriptor, BehaviorVerdict } from "./types.js";
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
 const BEHAVIOR_ID = "BEH-RESEARCH-FIRST";
-
-/** Tool names that constitute a write operation for this gate. */
-const WRITE_TOOL_NAMES = new Set(["Write", "Edit", "MultiEdit"]);
 
 /**
  * Discovery stage name as defined by DEV_CYCLE / ENTRYPOINTS-v3.
@@ -121,9 +119,7 @@ export function isSpecClassPath(filePath: string): boolean {
  * done-validated).
  */
 export function isDiscoverySealed(verdicts: ReadonlyArray<StageVerdict>): boolean {
-  return verdicts.some(
-    (v) => v.stage === DISCOVERY_STAGE && SEALED_STATUSES.has(v.status),
-  );
+  return verdicts.some((v) => v.stage === DISCOVERY_STAGE && SEALED_STATUSES.has(v.status));
 }
 
 // ---------------------------------------------------------------------------
@@ -143,7 +139,7 @@ export const BEH_RESEARCH_FIRST: BehaviorDescriptor = {
 
     // ── 1. Non-write tool → allow ────────────────────────────────────────────
     const toolName = event.toolName ?? "";
-    if (!WRITE_TOOL_NAMES.has(toolName)) {
+    if (!canonicalWriteTool(toolName)) {
       return {
         decision: "allow",
         reason: "non-write tool — research-first gate not applicable",
@@ -152,7 +148,12 @@ export const BEH_RESEARCH_FIRST: BehaviorDescriptor = {
     }
 
     // ── 2. Extract target path → allow defensively on failure ────────────────
-    const targetPath = extractTargetPath(event.toolInput);
+    // Codex's apply_patch has no file_path/path field; its target is parsed
+    // from the patch command text (first declared file only — documented
+    // scope limit for this gate).
+    const targetPath = isApplyPatchTool(toolName)
+      ? extractApplyPatchTargets(event.toolInput)[0]
+      : extractTargetPath(event.toolInput);
     if (targetPath === undefined) {
       return {
         decision: "allow",

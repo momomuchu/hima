@@ -32,7 +32,8 @@
  *      CLAUDE.md [ALWAYS][TRUNK-PUSH-BOUNDARY]
  */
 
-import type { BehaviorDescriptor, BehaviorContext, BehaviorVerdict } from "./types.js";
+import { canonicalWriteTool, isApplyPatchTool } from "./tool-classify.js";
+import type { BehaviorContext, BehaviorDescriptor, BehaviorVerdict } from "./types.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -48,37 +49,28 @@ const BEHAVIOR_ID = "BEH-SECRET-GUARD";
  * Each entry names the credential type for a clear block message.
  * Patterns are intentionally conservative to avoid false positives.
  */
-const SECRET_PATTERNS: ReadonlyArray<{ readonly name: string; readonly pattern: RegExp }> =
-  [
-    {
-      name: "OpenAI/Anthropic API key (sk- prefix)",
-      pattern: /sk-[A-Za-z0-9]{16,}/,
-    },
-    {
-      name: "GitHub personal access token (ghp_ prefix)",
-      pattern: /ghp_[A-Za-z0-9]{20,}/,
-    },
-    {
-      name: "AWS IAM access key ID (AKIA prefix)",
-      pattern: /AKIA[0-9A-Z]{16}/,
-    },
-    {
-      name: "PEM private key",
-      pattern: /-----BEGIN [A-Z ]*PRIVATE KEY-----/,
-    },
-  ] as const;
+const SECRET_PATTERNS: ReadonlyArray<{ readonly name: string; readonly pattern: RegExp }> = [
+  {
+    name: "OpenAI/Anthropic API key (sk- prefix)",
+    pattern: /sk-[A-Za-z0-9]{16,}/,
+  },
+  {
+    name: "GitHub personal access token (ghp_ prefix)",
+    pattern: /ghp_[A-Za-z0-9]{20,}/,
+  },
+  {
+    name: "AWS IAM access key ID (AKIA prefix)",
+    pattern: /AKIA[0-9A-Z]{16}/,
+  },
+  {
+    name: "PEM private key",
+    pattern: /-----BEGIN [A-Z ]*PRIVATE KEY-----/,
+  },
+] as const;
 
 // ---------------------------------------------------------------------------
 // Tool name classification
 // ---------------------------------------------------------------------------
-
-/**
- * Tool names whose toolInput contains file content to scan.
- * Write:              { file_path, content }
- * Edit:               { file_path, old_string, new_string }
- * str_replace_editor: { file_path, old_string, new_string } (Codex variant)
- */
-const WRITE_TOOL_NAMES = new Set(["Write", "Edit", "str_replace_editor"]);
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -123,6 +115,19 @@ function extractWriteContent(toolInput: unknown): readonly string[] {
 }
 
 /**
+ * Extract the content to scan from a Codex apply_patch toolInput: the raw
+ * `command` patch script text. apply_patch carries added/changed lines inline
+ * in that script rather than in a content/new_string field, so the whole
+ * script is scanned (a conservative superset — it may also scan unrelated
+ * context/removed lines, never a security regression).
+ */
+function extractApplyPatchContent(toolInput: unknown): readonly string[] {
+  if (typeof toolInput !== "object" || toolInput === null) return [];
+  const input = toolInput as Record<string, unknown>;
+  return typeof input["command"] === "string" ? [input["command"]] : [];
+}
+
+/**
  * Safely extract the command string from a Bash toolInput.
  * Returns null when the shape does not match `{ command: string }`.
  */
@@ -148,10 +153,12 @@ export const BEH_SECRET_GUARD: BehaviorDescriptor = {
     const { toolName, toolInput } = event;
 
     // -----------------------------------------------------------------------
-    // (a) Write/Edit tools — scan file content.
+    // (a) Write/Edit/apply_patch tools — scan file content.
     // -----------------------------------------------------------------------
-    if (toolName !== undefined && WRITE_TOOL_NAMES.has(toolName)) {
-      const parts = extractWriteContent(toolInput);
+    if (toolName !== undefined && canonicalWriteTool(toolName)) {
+      const parts = isApplyPatchTool(toolName)
+        ? extractApplyPatchContent(toolInput)
+        : extractWriteContent(toolInput);
 
       for (const part of parts) {
         const detected = detectSecret(part);

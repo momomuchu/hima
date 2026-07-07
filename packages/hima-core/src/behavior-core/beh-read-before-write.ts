@@ -26,19 +26,17 @@
 
 import { access } from "node:fs/promises";
 import path from "node:path";
-import { RISK_ORDER } from "@norm/schemas";
 import type { RiskClass } from "@norm/schemas";
-import { readReadSet, isInReadSet } from "../read-set.js";
-import type { BehaviorDescriptor, BehaviorContext, BehaviorVerdict } from "./types.js";
+import { RISK_ORDER } from "@norm/schemas";
+import { isInReadSet, readReadSet } from "../read-set.js";
+import { canonicalWriteTool, extractApplyPatchTargets, isApplyPatchTool } from "./tool-classify.js";
+import type { BehaviorContext, BehaviorDescriptor, BehaviorVerdict } from "./types.js";
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
 const BEHAVIOR_ID = "BEH-READ-BEFORE-WRITE";
-
-/** Tool names that constitute a write operation. */
-const WRITE_TOOL_NAMES = new Set(["Write", "Edit", "MultiEdit"]);
 
 /**
  * Minimum numeric risk level at which enforcement is active (M and above).
@@ -101,7 +99,7 @@ export const BEH_READ_BEFORE_WRITE: BehaviorDescriptor = {
 
     // ── Non-write tool: allow ────────────────────────────────────────────────
     const toolName = event.toolName ?? "";
-    if (!WRITE_TOOL_NAMES.has(toolName)) {
+    if (!canonicalWriteTool(toolName)) {
       return {
         decision: "allow",
         reason: "non-write tool — read-before-write not applicable",
@@ -119,7 +117,17 @@ export const BEH_READ_BEFORE_WRITE: BehaviorDescriptor = {
     }
 
     // ── Extract target path ──────────────────────────────────────────────────
-    const rawPath = extractTargetPath(event.toolInput);
+    // Codex's apply_patch has no file_path/path field; its target is parsed
+    // from the patch command text. A multi-file patch is evaluated against
+    // its FIRST declared file only (documented scope limit). NOTE: an
+    // unparseable apply_patch resolves to the UNKNOWN_WRITE_TARGET sentinel,
+    // which fileExists() below will report as "not on disk" (ENOENT) —
+    // resolving to the new-file allowance rather than a hard block. This is a
+    // disclosed residual risk for this gate specifically (read-before-write is
+    // not one of the two fail-closed-mandated gates in this fix).
+    const rawPath = isApplyPatchTool(toolName)
+      ? extractApplyPatchTargets(event.toolInput)[0]
+      : extractTargetPath(event.toolInput);
     if (rawPath === undefined) {
       // Cannot determine target path from toolInput — allow defensively so the
       // gate never silently breaks writes whose toolInput shape is unexpected.
@@ -131,9 +139,7 @@ export const BEH_READ_BEFORE_WRITE: BehaviorDescriptor = {
     }
 
     // Resolve to an absolute path (toolInput may be relative to the project root).
-    const absPath = path.isAbsolute(rawPath)
-      ? rawPath
-      : path.resolve(root, rawPath);
+    const absPath = path.isAbsolute(rawPath) ? rawPath : path.resolve(root, rawPath);
 
     // ── New-file allowance ────────────────────────────────────────────────────
     // A file that does not yet exist cannot have been read; blocking would be a

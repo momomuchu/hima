@@ -46,14 +46,17 @@
 import path from "node:path";
 import type { RiskClass } from "@norm/schemas";
 import { RISK_ORDER } from "@norm/schemas";
-import type { BehaviorDescriptor, BehaviorContext, BehaviorVerdict } from "./types.js";
 import { isLaneActive, isStageDelegationActive } from "./delegation-lane.js";
+import {
+  canonicalWriteTool,
+  extractWriteTargets,
+  isUnknownWriteTarget,
+  pickRepresentativeTarget,
+} from "./tool-classify.js";
+import type { BehaviorContext, BehaviorDescriptor, BehaviorVerdict } from "./types.js";
 
 const BEHAVIOR_ID = "BEH-DELEGATION-FIRST";
 const VIOLATION = "DELEGATION_FIRST";
-
-/** Tool names that constitute a write operation on disk. */
-const WRITE_TOOL_NAMES = new Set(["Write", "Edit", "MultiEdit"]);
 
 /**
  * Work-bearing (build + review/qa) stages the gate covers. Not reused from
@@ -61,17 +64,6 @@ const WRITE_TOOL_NAMES = new Set(["Write", "Edit", "MultiEdit"]);
  * (DEV_CYCLE id "verify"), which the executor-role set excludes.
  */
 const WORK_BEARING_STAGES = new Set(["design", "impl", "test", "verify"]);
-
-/** Extract the target file path from an unknown toolInput value. */
-function extractTargetPath(toolInput: unknown): string | undefined {
-  if (typeof toolInput !== "object" || toolInput === null) return undefined;
-  const ti = toolInput as Record<string, unknown>;
-  const candidate = ti["file_path"] ?? ti["path"];
-  if (typeof candidate === "string" && candidate.trim() !== "") {
-    return candidate.trim();
-  }
-  return undefined;
-}
 
 /** True when absPath is inside absDir (equal, or under it with a separator). */
 function isUnderDir(absPath: string, absDir: string): boolean {
@@ -83,12 +75,16 @@ function isUnderDir(absPath: string, absDir: string): boolean {
  * (.md) and not under the project's <root>/.hima/** state tree. The .hima
  * check is ANCHORED to root (path.resolve + isUnderDir), so a decoy segment
  * like "src/.hima/evil.ts" is correctly classified as an implementation write.
- * Undefined path → not an implementation write (allow defensively).
+ * Undefined path → not an implementation write (allow defensively — no
+ * extraction was even attempted, e.g. a direct pure-function call).
+ * UNKNOWN_WRITE_TARGET (a write tool fired but its path could not be parsed,
+ * e.g. an unparseable Codex apply_patch body) → ALWAYS an implementation
+ * target: fail closed, never silently allow an ambiguous write.
  */
 function isImplementationTarget(rawPath: string | undefined, root?: string): boolean {
   if (rawPath === undefined) return false;
-  const absPath =
-    root && !path.isAbsolute(rawPath) ? path.resolve(root, rawPath) : rawPath;
+  if (isUnknownWriteTarget(rawPath)) return true;
+  const absPath = root && !path.isAbsolute(rawPath) ? path.resolve(root, rawPath) : rawPath;
   if (path.extname(absPath) === ".md") return false;
   const himaDir = root ? path.resolve(root, ".hima") : ".hima";
   if (isUnderDir(absPath, himaDir)) return false;
@@ -125,7 +121,7 @@ export function decideDelegationFirst(input: DelegationFirstInput): DelegationFi
     return allow("HIMA_SOLO_OK set — Delegation-First waived for this session");
   }
   // 1. Non-write tool.
-  if (!WRITE_TOOL_NAMES.has(toolName)) {
+  if (!canonicalWriteTool(toolName)) {
     return allow("non-write tool — Delegation-First not applicable");
   }
   // 2. Not a work-bearing stage.
@@ -181,11 +177,22 @@ export const BEH_DELEGATION_FIRST: BehaviorDescriptor = {
     const stageActive = isStageDelegationActive(root, ward.id, ward.openStage);
     const delegationActive = laneActive || stageActive;
 
+    const toolName = event.toolName ?? "";
+    // extractWriteTargets recognizes Codex's real apply_patch write tool (no
+    // file_path/path field — the path is parsed out of the patch command
+    // text) alongside Claude Write/Edit/MultiEdit. A multi-file apply_patch
+    // is reduced to one representative path: the first implementation-file
+    // target when any exists, else the first target (e.g. an all-.md patch).
+    const targets = canonicalWriteTool(toolName)
+      ? extractWriteTargets(toolName, event.toolInput)
+      : [];
+    const targetPath = pickRepresentativeTarget(targets, (t) => isImplementationTarget(t, root));
+
     const d = decideDelegationFirst({
       stage: ward.openStage,
       riskClass,
-      toolName: event.toolName ?? "",
-      targetPath: extractTargetPath(event.toolInput),
+      toolName,
+      targetPath,
       root,
       delegationActive,
       soloWaiver,
