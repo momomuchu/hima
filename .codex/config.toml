@@ -5,31 +5,31 @@ codex_hooks = true
 
 [[hooks.SessionStart.hooks]]
 type = "command"
-command = 'node "C:/Users/momomuchu/dev/Pipeline/hima/packages/cli/dist/index.js" hook session-start --format codex'
+command = 'norm hook session-start --format codex'
 
 [[hooks.UserPromptSubmit]]
 
 [[hooks.UserPromptSubmit.hooks]]
 type = "command"
-command = 'node "C:/Users/momomuchu/dev/Pipeline/hima/packages/cli/dist/index.js" hook user-prompt-submit --format codex'
+command = 'norm hook user-prompt-submit --format codex'
 
 [[hooks.PreToolUse]]
 
 [[hooks.PreToolUse.hooks]]
 type = "command"
-command = 'node "C:/Users/momomuchu/dev/Pipeline/hima/packages/cli/dist/index.js" hook pre-tool-use --format codex'
+command = 'norm hook pre-tool-use --format codex'
 
 [[hooks.PostToolUse]]
 
 [[hooks.PostToolUse.hooks]]
 type = "command"
-command = 'node "C:/Users/momomuchu/dev/Pipeline/hima/packages/cli/dist/index.js" hook post-tool-use --format codex'
+command = 'norm hook post-tool-use --format codex'
 
 [[hooks.Stop]]
 
 [[hooks.Stop.hooks]]
 type = "command"
-command = 'node "C:/Users/momomuchu/dev/Pipeline/hima/packages/cli/dist/index.js" hook stop --format codex'
+command = 'norm hook stop --format codex'
 
 [shell_environment_policy]
 inherit = "core"
